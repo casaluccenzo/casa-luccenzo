@@ -908,9 +908,8 @@ async function handleRealtimeDbUpdate(tableName) {
             products = data;
             window.StorageManager.saveProducts(products);
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-            if (!document.getElementById('view-cocina').classList.contains('hidden')) {
-                window.UIManager.renderCocina(products, deliverProduct, replenishments);
-            }
+            window.UIManager.renderCocina(products, deliverProduct, replenishments);
+            window.UIManager.updateKitchenBadge(products);
         }
     } else if (tableName === 'sales') {
         const data = await window.SupabaseManager.fetchSales();
@@ -947,9 +946,7 @@ async function handleRealtimeDbUpdate(tableName) {
             replenishments = data;
             window.StorageManager.saveReplenishments(replenishments);
             window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
-            if (!document.getElementById('view-cocina').classList.contains('hidden')) {
-                window.UIManager.renderCocina(products, deliverProduct, replenishments);
-            }
+            window.UIManager.renderCocina(products, deliverProduct, replenishments);
         }
     } else if (tableName === 'ingredients') {
         const data = await window.SupabaseManager.fetchIngredients();

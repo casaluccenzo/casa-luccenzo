@@ -3,16 +3,22 @@
 let client = null;
 let activeSubscription = null;
 
+// Production Hardcoded Defaults (to prevent manual configuration on new devices)
+const DEFAULT_SUPABASE_URL = "https://xttpaqokeyywjaajvjyu.supabase.co";
+const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE";
+
 /**
  * Check if Supabase URL and Key are set up
  */
 function isConfigured() {
     const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
-    return !!(prefs.supabaseUrl && prefs.supabaseKey);
+    const url = prefs.supabaseUrl || DEFAULT_SUPABASE_URL;
+    const key = prefs.supabaseKey || DEFAULT_SUPABASE_KEY;
+    return !!(url && key);
 }
 
 /**
- * Initialize the Supabase client using stored credentials
+ * Initialize the Supabase client using stored credentials or defaults
  */
 function init() {
     if (!isConfigured()) {
@@ -20,10 +26,13 @@ function init() {
         return false;
     }
     
-    const prefs = window.StorageManager.loadPreferences();
+    const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
+    const url = prefs.supabaseUrl || DEFAULT_SUPABASE_URL;
+    const key = prefs.supabaseKey || DEFAULT_SUPABASE_KEY;
+    
     if (window.supabase) {
         try {
-            client = window.supabase.createClient(prefs.supabaseUrl, prefs.supabaseKey);
+            client = window.supabase.createClient(url, key);
             console.log("Supabase Client initialized successfully.");
             
             // Trigger offline queue synchronization on startup and when coming online

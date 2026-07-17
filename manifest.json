@@ -1,7 +1,15 @@
 {
-  "short_name": "Stock Lucenzo",
+  "short_name": "Casa Lucenzo",
   "name": "Sistema de Stock Fácil - Casa Lucenzo",
+  "description": "Sistema de gestión de inventario, caja y reposición de cocina en tiempo real para Casa Lucenzo.",
+  "id": "com.casaluccenzo.stock",
   "icons": [
+    {
+      "src": "img/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
     {
       "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23000F20' stroke='%23F3C63F' stroke-width='4'/><text x='50' y='58' font-family='serif' font-size='22' font-weight='bold' fill='%23F3C63F' text-anchor='middle'>CASA L</text></svg>",
       "sizes": "192x192 512x512",

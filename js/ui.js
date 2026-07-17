@@ -13,11 +13,16 @@ function switchView(view) {
     const viewCocina = document.getElementById('view-cocina');
     const viewFiados = document.getElementById('view-fiados');
 
-    btnLocal.className = "inactive";
+    btnLocal.classList.remove('active');
+    btnLocal.classList.add('inactive');
     btnLocal.setAttribute('aria-selected', 'false');
-    btnCocina.className = "inactive";
+
+    btnCocina.classList.remove('active');
+    btnCocina.classList.add('inactive');
     btnCocina.setAttribute('aria-selected', 'false');
-    btnFiados.className = "inactive";
+
+    btnFiados.classList.remove('active');
+    btnFiados.classList.add('inactive');
     btnFiados.setAttribute('aria-selected', 'false');
 
     viewLocal.classList.add('hidden');
@@ -25,15 +30,18 @@ function switchView(view) {
     viewFiados.classList.add('hidden');
 
     if (view === 'local') {
-        btnLocal.className = "active";
+        btnLocal.classList.add('active');
+        btnLocal.classList.remove('inactive');
         btnLocal.setAttribute('aria-selected', 'true');
         viewLocal.classList.remove('hidden');
     } else if (view === 'cocina') {
-        btnCocina.className = "active";
+        btnCocina.classList.add('active');
+        btnCocina.classList.remove('inactive');
         btnCocina.setAttribute('aria-selected', 'true');
         viewCocina.classList.remove('hidden');
     } else if (view === 'fiados') {
-        btnFiados.className = "active";
+        btnFiados.classList.add('active');
+        btnFiados.classList.remove('inactive');
         btnFiados.setAttribute('aria-selected', 'true');
         viewFiados.classList.remove('hidden');
     }

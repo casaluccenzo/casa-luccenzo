@@ -1,5 +1,5 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v11';
+const CACHE_NAME = 'casa-lucenzo-v12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -16,7 +16,8 @@ const ASSETS_TO_CACHE = [
   './js/audio.js',
   './js/share.js',
   './js/ui.js',
-  './img/logo.jpg'
+  './img/logo-192.png',
+  './img/logo-512.png'
 ];
 
 // Install Event

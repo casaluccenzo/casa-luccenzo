@@ -690,22 +690,21 @@ function showToast(message, iconClass) {
  * @param {Function} onPINValid Validation callback (returns true if valid)
  */
 function initPinKeypad(onPINValid) {
-    const display = document.getElementById('pin-display');
+    const container = document.getElementById('pin-display');
     const buttons = document.querySelectorAll('.btn-pin');
-    if (!display || buttons.length === 0) return;
+    if (!container || buttons.length === 0) return;
 
+    const dots = container.querySelectorAll('.pin-dot');
     let pin = '';
     
     function updateDisplay() {
-        let dots = '';
-        for (let i = 0; i < 4; i++) {
-            if (i < pin.length) {
-                dots += '* ';
+        dots.forEach((dot, index) => {
+            if (index < pin.length) {
+                dot.classList.add('active');
             } else {
-                dots += '• ';
+                dot.classList.remove('active');
             }
-        }
-        display.innerText = dots.trim();
+        });
     }
 
     buttons.forEach(btn => {

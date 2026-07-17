@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Stock Fácil - Casa Lucenzo</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Link to Modular Custom CSS Styles -->
+    <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/recipes.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/share.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+    
+    <!-- PWA manifest for android/iOS install support -->
+    <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
+</head>
+<body>
+
+    <!-- Header section -->
+    <header>
+        <div class="container-md">
+            
+            <!-- Branding bar & Settings toggle -->
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div class="logo-container">
+                    <div class="logo-badge">
+                        <span class="logo-badge-text">CASA<br>L</span>
+                    </div>
+                    <h1 class="brand-title">CASA LUCENZO</h1>
+                </div>
+                <!-- Gear button to open Settings Modal -->
+                <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
+                    <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
+                </button>
+            </div>
+
+            <!-- View switch controller (Vitrina vs Cocina vs Fiados) -->
+            <div class="switch-nav" role="tablist">
+                <button id="btn-local" class="active" role="tab" aria-selected="true" aria-controls="view-local">
+                    <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-shop"></i></span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">1. LOCAL</span>
+                </button>
+                <button id="btn-cocina" class="inactive" role="tab" aria-selected="false" aria-controls="view-cocina">
+                    <span style="font-size: 1.125rem; margin-bottom: 0.125rem; display: flex; align-items: center; gap: 0.375rem;">
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span id="kitchen-badge" class="badge-kitchen-nav hidden">0</span>
+                    </span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">2. COCINA</span>
+                </button>
+                <button id="btn-fiados" class="inactive" role="tab" aria-selected="false" aria-controls="view-fiados">
+                    <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-book"></i></span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">3. FIADOS</span>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main dynamic interface -->
+    <main class="container-md">
+        
+        <!-- Info alert banner -->
+        <div class="info-box">
+            <p class="info-box-text">
+                <span class="info-box-highlight">¡Súper fácil!</span> Disminuye el stock en la pestaña <span class="info-box-emphasis">"Local"</span> cuando vendas, y ve a <span class="info-box-emphasis">"Cocina"</span> para ver lo que se debe reponer.
+            </p>
+        </div>
+        
+        <!-- Dynamic container wrapper margin -->
+        <div style="margin-top: 1rem;">
+            
+            <!-- ================= VIEW 1: STORE FRONT (LOCAL) ================= -->
+            <section id="view-local" class="view-section">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div>
+                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">¿Qué tenemos en Vitrina?</h2>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                            Pulsa <strong style="color: var(--color-danger);">[-] Menos</strong> cuando vendas un pastelito.
+                        </p>
+                    </div>
+                    <!-- Refill all trigger -->
+                    <button id="btn-reset-all" class="btn-action-small">
+                        <i class="fa-solid fa-rotate-left"></i> Rellenar todo
+                    </button>
+                </div>
+
+                <!-- Alert card when kitchen has dispatched items (confirm receipt) -->
+                <div id="dispatch-container" class="hidden">
+                    <!-- Dynamic injections from js/ui.js -->
+                </div>
+
+                <!-- Search bar input -->
+                <div id="search-bar-container">
+                    <!-- Dynamic search bar from js/ui.js -->
+                </div>
+
+                <!-- PWA Category filter pills -->
+                <div id="category-filter-container" class="category-filter-bar">
+                    <!-- Dynamic tabs from js/ui.js -->
+                </div>
+
+                <!-- Main dynamic stock control list -->
+                <div class="inventory-list" id="inventory-list">
+                    <!-- Dynamic injections from js/ui.js -->
+                </div>
+
+                <!-- Cash Register Estimator Card -->
+                <div class="cash-card">
+                    <div class="cash-label-group">
+                        <span class="cash-label">Caja Estimada (Hoy)</span>
+                        <span id="cash-value" class="cash-value">$0.00</span>
+                    </div>
+                    <div style="font-size: 1.5rem; color: var(--color-gold);">
+                        <i class="fa-solid fa-cash-register"></i>
+                    </div>
+                </div>
+
+                <!-- Sales History Log -->
+                <div class="history-container">
+                    <div class="history-header">
+                        <h3 class="history-title">Registro de Ventas</h3>
+                        <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
+                            <i class="fa-solid fa-trash-can"></i> Limpiar Caja
+                        </button>
+                    </div>
+                    <div id="history-list" class="history-list">
+                        <!-- Dynamic items from js/ui.js -->
+                    </div>
+                </div>
+
+                <!-- Daily Expenses Section -->
+                <div class="expenses-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h3 class="history-title">Gastos del Local</h3>
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
+                    </div>
+                    
+                    <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
+                        <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
+                        <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
+                        <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </form>
+                    
+                    <div id="expense-list" class="expense-list">
+                        <!-- Dynamic items from js/ui.js -->
+                    </div>
+                </div>
+
+                <!-- Day Close trigger -->
+                <div style="margin-top: 2rem;">
+                    <button id="btn-cierre-dia-open" class="btn-touch btn-kitchen-deliver" style="background-color: var(--color-gold); color: #000000; font-weight: 900; gap: 0.5rem; width: 100%;">
+                        <i class="fa-solid fa-door-closed text-lg"></i>
+                        CERRAR JORNADA (CIERRE DE DÍA)
+                    </button>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 2: KITCHEN LIST (COCINA) ================= -->
+            <section id="view-cocina" class="view-section hidden">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div>
+                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Lista para cocinar hoy</h2>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                            Tus papás ven esto para saber exactamente qué cocinar.
+                        </p>
+                    </div>
+                    <!-- WhatsApp share button -->
+                    <button id="btn-whatsapp-share" class="btn-action-small btn-whatsapp">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 14px;"></i> Enviar a Papás
+                    </button>
+                </div>
+
+                <!-- Replenishment orders list -->
+                <div id="kitchen-orders-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Dynamic injections from js/ui.js -->
+                </div>
+            </section>
+
+            <!-- ================= VIEW 3: DEBTS virtual ledger (FIADOS) ================= -->
+            <section id="view-fiados" class="view-section hidden">
+                <div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Cuaderno de Fiados</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        Anota las cuentas pendientes de clientes del barrio.
+                    </p>
+                </div>
+
+                <!-- Foldable form to add customer debts -->
+                <details class="settings-group">
+                    <summary><i class="fa-solid fa-user-plus" style="margin-right: 0.25rem;"></i> Anotar Nueva Deuda / Fiar</summary>
+                    <form id="add-debt-form" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div class="form-field">
+                            <label class="form-label">Nombre del Cliente</label>
+                            <input type="text" id="debt-client-name" required placeholder="Ej: Juan Pérez" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Monto a Fiar ($)</label>
+                            <input type="number" id="debt-amount" step="0.01" required placeholder="Ej: 3.00" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Nota / Detalle (Opcional)</label>
+                            <input type="text" id="debt-desc" placeholder="Ej: 2 mechadas" class="form-input">
+                        </div>
+                        <button type="submit" class="btn-form-submit" style="margin-top: 0.25rem;">Registrar Deuda</button>
+                    </form>
+                </details>
+
+                <!-- Debts list -->
+                <div id="debts-list" class="client-ledger-container" style="margin-top: 1rem;">
+                    <!-- Dynamic items from js/ui.js -->
+                </div>
+            </section>
+            
+        </div>
+    </main>
+
+    <!-- ================= ADMIN CONFIGURATION MODAL ================= -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-cubes"></i> Gestionar Productos
+                </h3>
+                <button id="btn-settings-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            
+            <!-- Scrollable Modal Body -->
+            <div class="modal-body">
+                
+                <!-- Preferences switches -->
+                <div class="settings-group" style="margin-bottom: 1.25rem; padding: 0.625rem 0.75rem;">
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">Preferencias de la App</h4>
+                    
+                    <div class="switch-setting-row">
+                        <span style="font-size: 0.8125rem; font-weight: 600;">Efectos de Sonido (Bajos Stocks)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-sound" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="switch-setting-row">
+                        <span style="font-size: 0.8125rem; font-weight: 600;">Vibración Háptica (Confirmaciones)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-vibrate" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Supabase configuration section -->
+                    <div style="margin-top: 0.75rem; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 0.75rem;">
+                        <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Sincronización Supabase (En Vivo)</h5>
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
+                            <input type="text" id="pref-supabase-url" placeholder="https://xxxx.supabase.co" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                        </div>
+                        <div class="form-field" style="margin-top: 0.5rem;">
+                            <label class="form-label" style="font-size: 9px;">SUPABASE ANON KEY</label>
+                            <input type="password" id="pref-supabase-key" placeholder="Clave pública anon" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Foldable Add New Product Form -->
+                <details class="settings-group">
+                    <summary><i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Agregar Nuevo Pastelito</summary>
+                    <form id="add-product-form" style="margin-top: 0.75rem;">
+                        <div class="form-field">
+                            <label class="form-label">Nombre del Pastelito / Producto</label>
+                            <input type="text" id="new-name" required placeholder="Ej: Jamón con Queso" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Precio ($)</label>
+                            <input type="number" id="new-price" step="0.01" required value="1.50" min="0" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Categoría</label>
+                            <select id="new-category" class="form-select">
+                                <option value="pastelitos">Pastelitos</option>
+                                <option value="tortas">Tortas</option>
+                                <option value="bebidas">Bebidas</option>
+                            </select>
+                        </div>
+                        <div class="form-grid-3">
+                            <div>
+                                <label class="form-label">Máx (Vitrina)</label>
+                                <input type="number" id="new-max" required min="1" value="25" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Alerta Mín.</label>
+                                <input type="number" id="new-min" required min="0" value="8" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Unidad</label>
+                                <select id="new-unit" class="form-select">
+                                    <option value="unid.">Unidades</option>
+                                    <option value="botellas">Botellas</option>
+                                    <option value="porciones">Porciones</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-form-submit">Guardar Producto</button>
+                    </form>
+                </details>
+
+                <!-- Current products list manager -->
+                <div style="margin-top: 1.25rem;">
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Lista de Productos Actuales</h4>
+                    <div id="settings-products-list">
+                        <!-- Dynamic items from js/ui.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer buttons -->
+            <div class="modal-footer">
+                <button id="btn-factory-reset" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.75rem;">
+                    Reiniciar de Fábrica
+                </button>
+                <button id="btn-settings-cancel" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: none; background-color: var(--color-gold); color: #000000; font-weight: 900; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Listo / Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CIERRE DE DIA MODAL ================= -->
+    <div id="day-close-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-door-closed"></i> Cierre de Jornada
+                </h3>
+                <button id="btn-cierre-dia-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body" id="day-close-modal-body">
+                <!-- Dynamic summaries injected by js/ui.js -->
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cierre-dia-confirm" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-success); border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none;">
+                    <i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR INFORME POR WHATSAPP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert toast feedback panel -->
+    <div id="toast" class="toast-container">
+        <div class="toast-icon-wrapper">
+            <span id="toast-icon"></span>
+        </div>
+        <span id="toast-message"></span>
+    </div>
+
+</body>
+</html>

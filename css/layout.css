@@ -1,0 +1,252 @@
+/* Layout rules for main structures, views, and modal wrappers */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--color-bg-navy);
+    color: var(--color-white);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 3rem;
+    overflow-x: hidden;
+}
+
+/* Base Wrapper for layout centering - mimics Tailwind max-w-md */
+.container-md {
+    width: 100%;
+    max-width: 448px; /* 28rem = max-w-md */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* Header styling */
+header {
+    background-color: var(--color-bg-header);
+    border-bottom: 4px solid var(--color-gold);
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow-xl);
+}
+
+header .container-md {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Switch navigation view grid */
+.switch-nav {
+    display: grid;
+    grid-template-cols: 1fr 1fr 1fr;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 0.375rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.switch-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 0;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all var(--transition-normal);
+    background: transparent;
+}
+
+.switch-nav button.active {
+    background-color: var(--color-gold);
+    color: #000000;
+    font-weight: 900;
+    box-shadow: var(--shadow-lg);
+}
+
+.switch-nav button.inactive {
+    color: var(--color-text-muted);
+    font-weight: 700;
+}
+
+.switch-nav button.inactive:hover {
+    color: var(--color-white);
+}
+
+/* Main Area and section views */
+main {
+    flex-grow: 1;
+    margin-top: 1rem;
+}
+
+.view-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    transition: opacity var(--transition-normal);
+}
+
+.modal-content {
+    background-color: var(--color-card-navy);
+    border: 2px solid var(--color-gold);
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 448px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    shadow: var(--shadow-xl);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--color-bg-header);
+}
+
+.modal-body {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 0.75rem 1rem;
+    background-color: var(--color-bg-header);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Statistics View & Dashboard Layouts */
+.stats-grid {
+    display: grid;
+    grid-template-cols: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.stats-card {
+    background-color: var(--color-card-navy);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.stats-card-full {
+    grid-column: span 2;
+}
+
+.stats-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stats-val {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--color-gold);
+    line-height: 1.2;
+}
+
+.stats-subtext {
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+
+/* Recent sales log list */
+.sales-log-container {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.sales-log-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sales-log-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+}
+
+.sales-log-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.75rem;
+}
+
+.sales-log-item:last-child {
+    border-bottom: none;
+}
+
+.sales-log-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.sales-log-title {
+    font-weight: 600;
+    color: var(--color-white);
+}
+
+.sales-log-time {
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+
+.sales-log-badge {
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}

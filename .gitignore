@@ -1,0 +1,21 @@
+# System files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project files and logs
+.gemini/
+*.log
+
+# Supabase configuration (to avoid exposing private keys if they are changed, though anon key is public)
+# It is best practice to keep local configuration files untracked if they differ by environment.
+js/supabaseConfig.js

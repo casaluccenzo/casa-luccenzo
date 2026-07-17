@@ -1,0 +1,704 @@
+// UI Rendering and DOM Interactions
+
+/**
+ * Switch view tabs in the header and toggle main sections
+ * @param {string} view 'local' or 'cocina' or 'fiados'
+ */
+function switchView(view) {
+    const btnLocal = document.getElementById('btn-local');
+    const btnCocina = document.getElementById('btn-cocina');
+    const btnFiados = document.getElementById('btn-fiados');
+    
+    const viewLocal = document.getElementById('view-local');
+    const viewCocina = document.getElementById('view-cocina');
+    const viewFiados = document.getElementById('view-fiados');
+
+    btnLocal.className = "inactive";
+    btnLocal.setAttribute('aria-selected', 'false');
+    btnCocina.className = "inactive";
+    btnCocina.setAttribute('aria-selected', 'false');
+    btnFiados.className = "inactive";
+    btnFiados.setAttribute('aria-selected', 'false');
+
+    viewLocal.classList.add('hidden');
+    viewCocina.classList.add('hidden');
+    viewFiados.classList.add('hidden');
+
+    if (view === 'local') {
+        btnLocal.className = "active";
+        btnLocal.setAttribute('aria-selected', 'true');
+        viewLocal.classList.remove('hidden');
+    } else if (view === 'cocina') {
+        btnCocina.className = "active";
+        btnCocina.setAttribute('aria-selected', 'true');
+        viewCocina.classList.remove('hidden');
+    } else if (view === 'fiados') {
+        btnFiados.className = "active";
+        btnFiados.setAttribute('aria-selected', 'true');
+        viewFiados.classList.remove('hidden');
+    }
+}
+
+/**
+ * Render search input bar
+ * @param {Function} onSearchChange Callback when search query changes
+ */
+function renderSearchBar(onSearchChange) {
+    const container = document.getElementById('search-bar-container');
+    if (!container) return;
+
+    // Do not overwrite input if already rendered to prevent focus loss
+    if (container.children.length > 0) return;
+
+    container.innerHTML = `
+        <div class="search-container">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" class="search-input" placeholder="Buscar sabor (ej: mechada)...">
+        </div>
+    `;
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        onSearchChange(e.target.value);
+    });
+}
+
+/**
+ * Render category selector filters
+ * @param {string} activeCategory Selected category ID
+ * @param {Function} onCategoryChange Callback when category changes
+ */
+function renderCategoryFilterBar(activeCategory, onCategoryChange) {
+    const container = document.getElementById('category-filter-container');
+    if (!container) return;
+
+    const categories = [
+        { id: 'todos', name: 'Todo' },
+        { id: 'pastelitos', name: 'Pastelitos' },
+        { id: 'tortas', name: 'Tortas' },
+        { id: 'bebidas', name: 'Bebidas' }
+    ];
+
+    container.innerHTML = '';
+    categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = `category-pill${activeCategory === cat.id ? ' active' : ''}`;
+        btn.innerText = cat.name;
+        btn.addEventListener('click', () => onCategoryChange(cat.id));
+        container.appendChild(btn);
+    });
+}
+
+/**
+ * Render pending dispatches (en camino) at the top of local display
+ * @param {Array} replenishments Current replenishments list
+ * @param {Function} onConfirm Callback when user clicks "Recibido"
+ */
+function renderPendingDispatches(replenishments, onConfirm) {
+    const container = document.getElementById('dispatch-container');
+    if (!container) return;
+
+    const pending = replenishments.filter(r => r.status === 'en_camino');
+    if (pending.length === 0) {
+        container.innerHTML = '';
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="dispatch-card">
+            <div class="dispatch-card-header">
+                <span class="dispatch-card-title">
+                    <i class="fa-solid fa-truck-ramp-box animate-pulse"></i> ¡Envío en camino desde la cocina!
+                </span>
+            </div>
+            <ul class="dispatch-list">
+                ${pending.map(p => `<li>${p.amount} ${p.unit} de <strong>${p.name}</strong></li>`).join('')}
+            </ul>
+            <button class="btn-confirm-receipt" id="btn-confirm-receipt">
+                <i class="fa-solid fa-square-check"></i> ¡YA LLEGÓ! CONFIRMAR RECIBIDO
+            </button>
+        </div>
+    `;
+
+    document.getElementById('btn-confirm-receipt').addEventListener('click', onConfirm);
+}
+
+/**
+ * Render vitrina list items in the store view, filtered by category and search query
+ * @param {Array} products Current products list
+ * @param {Function} adjustStock Callback to adjust stock levels (id, amount, clickEvent)
+ * @param {string} activeCategory Filter category ID
+ * @param {string} searchQuery Filter text query
+ */
+function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuery = '') {
+    const listContainer = document.getElementById('inventory-list');
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = '';
+
+    // Apply category filter
+    let filteredProducts = activeCategory === 'todos' 
+        ? products 
+        : products.filter(p => p.category === activeCategory);
+
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(query));
+    }
+
+    if (filteredProducts.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 2rem 0;">
+                No se encontraron productos.
+            </div>
+        `;
+        return;
+    }
+
+    filteredProducts.forEach(product => {
+        const isCritical = product.stock <= product.min;
+        const card = document.createElement('div');
+        
+        card.className = `product-card${isCritical ? ' critical' : ''}`;
+        
+        const alertBadge = isCritical 
+            ? `<span class="badge-alert animate-pulse">¡Falta!</span>` 
+            : '';
+            
+        const stockStyle = isCritical ? 'stock-value critical' : 'stock-value';
+
+        card.innerHTML = `
+            <div class="product-info">
+                <div class="product-header-row">
+                    <h3 class="product-name" title="${product.name}">${product.name}</h3>
+                    ${alertBadge}
+                </div>
+                <p class="product-stock-desc">
+                    Quedan: <span class="${stockStyle}">${product.stock}</span> de ${product.max} ${product.unit} 
+                    <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">$${(product.price || 0).toFixed(2)}</span>
+                </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button data-id="${product.id}" data-action="decrease" class="btn-touch btn-danger" title="Vender 1">-</button>
+                <button data-id="${product.id}" data-action="increase" class="btn-touch btn-success" title="Sumar 1">+</button>
+            </div>
+        `;
+
+        card.querySelector('[data-action="decrease"]').addEventListener('click', (e) => {
+            adjustStock(product.id, -1, e);
+        });
+        card.querySelector('[data-action="increase"]').addEventListener('click', (e) => {
+            adjustStock(product.id, 1, e);
+        });
+
+        listContainer.appendChild(card);
+    });
+
+    updateKitchenBadge(products);
+}
+
+/**
+ * Spawns a floating indicator anim element at the specified screen coordinates
+ * @param {number} x clientX Coordinate
+ * @param {number} y clientY Coordinate
+ * @param {string} text Symbol to show (e.g. '-1', '+1')
+ * @param {string} colorClass CSS color class (e.g. 'float-plus', 'float-minus')
+ */
+function spawnFloatingIndicator(x, y, text, colorClass) {
+    if (x === undefined || y === undefined) return;
+
+    const el = document.createElement('div');
+    el.className = `floating-indicator ${colorClass}`;
+    el.innerText = text;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+
+    document.body.appendChild(el);
+
+    // Remove element once CSS animation ends
+    setTimeout(() => {
+        el.remove();
+    }, 800);
+}
+
+/**
+ * Update the red circle indicator count on the Kitchen tab
+ * @param {Array} products Current products list
+ */
+function updateKitchenBadge(products) {
+    const neededCount = products.filter(p => p.stock < p.max).length;
+    const badge = document.getElementById('kitchen-badge');
+    const wsBtn = document.getElementById('btn-whatsapp-share');
+
+    if (badge) {
+        if (neededCount > 0) {
+            badge.innerText = neededCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    if (wsBtn) {
+        if (neededCount > 0) {
+            wsBtn.classList.remove('opacity-50');
+            wsBtn.style.pointerEvents = 'auto';
+        } else {
+            wsBtn.classList.add('opacity-50');
+            wsBtn.style.pointerEvents = 'none';
+        }
+    }
+}
+
+/**
+ * Render the orders needed to be cooked in the kitchen view, including raw ingredients
+ * @param {Array} products Current products list
+ * @param {Function} deliverProduct Callback when product is filled (id)
+ * @param {Array} replenishments Dispatches list to show pending
+ */
+function renderCocina(products, deliverProduct, replenishments = []) {
+    const container = document.getElementById('kitchen-orders-container');
+    if (!container) return;
+
+    const neededItems = products.filter(p => p.stock < p.max);
+    const pendingDispatches = replenishments.filter(r => r.status === 'en_camino');
+
+    if (neededItems.length === 0) {
+        let dispatchesHtml = '';
+        if (pendingDispatches.length > 0) {
+            dispatchesHtml = `
+                <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
+                    <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
+                    <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
+                        ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 class="empty-state-title">¡Todo Completo!</h3>
+                <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
+            </div>
+            ${dispatchesHtml}
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <p class="kitchen-notice">
+            📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 1rem;" id="kitchen-list"></div>
+    `;
+
+    const list = document.getElementById('kitchen-list');
+
+    neededItems.forEach(item => {
+        const amountNeeded = item.max - item.stock;
+        const isDispatched = pendingDispatches.some(d => d.productId === item.id);
+
+        const row = document.createElement('div');
+        row.className = "kitchen-card";
+        
+        row.innerHTML = `
+            <div class="kitchen-card-header">
+                <div>
+                    <h3 class="product-name" style="font-size: 1.125rem;">${item.name}</h3>
+                    <p class="stock-value critical" style="font-size: 0.75rem; margin-top: 0.25rem;">
+                        Solo quedan ${item.stock} en la vitrina.
+                    </p>
+                </div>
+                <div class="kitchen-amount-needed">
+                    <span class="kitchen-amount-label">Falta Cocinar:</span>
+                    <span class="kitchen-amount-val">
+                        ${amountNeeded} <span class="kitchen-amount-unit">${item.unit}</span>
+                    </span>
+                </div>
+            </div>
+            ${isDispatched 
+                ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.5rem; border-radius: var(--radius-md);">
+                     <i class="fa-solid fa-truck-fast"></i> ¡Enviado! Esperando confirmación de la tienda.
+                   </div>`
+                : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local">
+                     <i class="fa-solid fa-truck-ramp-box"></i>
+                     ¡YA LO COCINÉ Y LO ENVIÉ!
+                   </button>`
+            }
+        `;
+
+        if (!isDispatched) {
+            row.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
+                deliverProduct(item.id);
+            });
+        }
+
+        list.appendChild(row);
+    });
+
+    if (window.RecipeCalculator) {
+        const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
+        if (ingredients.length > 0) {
+            const recipeSection = document.createElement('div');
+            recipeSection.className = 'recipe-container';
+            recipeSection.innerHTML = `
+                <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
+                <div class="recipe-grid">
+                    ${ingredients.map(ing => `
+                        <div class="recipe-item">
+                            <span class="recipe-item-name">${ing.name}</span>
+                            <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.appendChild(recipeSection);
+        }
+    }
+}
+
+/**
+ * Render the daily cash total card (calculates Net Cash: Sales - Expenses)
+ * @param {Array} salesLog History of sales
+ * @param {Array} expenses Daily expenses
+ */
+function renderCashRegister(salesLog, expenses = []) {
+    const valueEl = document.getElementById('cash-value');
+    if (!valueEl) return;
+
+    const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    const netCash = totalSales - totalExpenses;
+
+    valueEl.innerText = `$${netCash.toFixed(2)}`;
+}
+
+/**
+ * Render the sales transaction log list with undo buttons
+ * @param {Array} salesLog History of sales
+ * @param {Function} onUndo Callback to trigger undo action (uuid)
+ */
+function renderSalesHistory(salesLog, onUndo) {
+    const listContainer = document.getElementById('history-list');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+
+    if (salesLog.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1.25rem 0;">
+                No hay ventas registradas hoy.
+            </div>
+        `;
+        return;
+    }
+
+    const reversedLog = [...salesLog].reverse();
+
+    reversedLog.forEach(sale => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+
+        let timeStr = '';
+        try {
+            const date = new Date(sale.timestamp);
+            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch(e) {
+            timeStr = 'Ahora';
+        }
+
+        item.innerHTML = `
+            <div class="history-item-desc">
+                <span class="history-item-title">${sale.name}</span>
+                <span class="history-item-time">${timeStr} &bull; $${(sale.price || 0).toFixed(2)}</span>
+            </div>
+            <button class="btn-undo">Deshacer</button>
+        `;
+
+        item.querySelector('.btn-undo').addEventListener('click', () => {
+            onUndo(sale.uuid);
+        });
+
+        listContainer.appendChild(item);
+    });
+}
+
+/**
+ * Render daily expenses ledger list
+ * @param {Array} expenses List of expenses
+ * @param {Function} onRemove Callback to delete an expense item (uuid)
+ */
+function renderExpenses(expenses, onRemove) {
+    const listContainer = document.getElementById('expense-list');
+    const totalEl = document.getElementById('expense-total');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+
+    const total = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
+
+    if (expenses.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.7rem; padding: 0.5rem 0;">
+                No hay gastos registrados hoy.
+            </div>
+        `;
+        return;
+    }
+
+    expenses.forEach(exp => {
+        const row = document.createElement('div');
+        row.className = 'expense-item';
+        row.innerHTML = `
+            <span class="expense-desc">${exp.description}</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="expense-amount">-$${exp.amount.toFixed(2)}</span>
+                <button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>
+            </div>
+        `;
+
+        row.querySelector('[data-action="remove-expense"]').addEventListener('click', () => {
+            onRemove(exp.uuid);
+        });
+
+        listContainer.appendChild(row);
+    });
+}
+
+/**
+ * Render the clients lists and balances in the Debts tab
+ * @param {Array} debts List of customer debts
+ * @param {Function} onRecordPayment Callback when a payment is processed (uuid)
+ */
+function renderDebts(debts, onRecordPayment) {
+    const container = document.getElementById('debts-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (debts.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 3rem 0;">
+                No hay deudas anotadas en el cuaderno virtual.
+            </div>
+        `;
+        return;
+    }
+
+    debts.forEach(debt => {
+        const isDebtor = debt.amount > 0;
+        const card = document.createElement('div');
+        card.className = `client-card${isDebtor ? ' debtor' : ''}`;
+        
+        let dateStr = '';
+        try {
+            dateStr = new Date(debt.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        } catch(e) {
+            dateStr = 'Reciente';
+        }
+
+        card.innerHTML = `
+            <div class="client-info">
+                <span class="client-name">${debt.clientName}</span>
+                <span class="client-debt-desc">
+                    Última act: ${dateStr} ${debt.description ? `&bull; ${debt.description}` : ''}
+                </span>
+            </div>
+            <div class="client-balance-group">
+                <span class="client-balance">${isDebtor ? `$${debt.amount.toFixed(2)}` : '$0.00'}</span>
+                ${isDebtor 
+                    ? `<button class="btn-pay">Abonar / Pagar</button>` 
+                    : '<span style="color: var(--color-success); font-size: 11px; font-weight: 700; margin-top: 0.25rem;">Al Día</span>'
+                }
+            </div>
+        `;
+
+        if (isDebtor) {
+            card.querySelector('.btn-pay').addEventListener('click', () => {
+                onRecordPayment(debt.uuid);
+            });
+        }
+
+        container.appendChild(card);
+    });
+}
+
+/**
+ * Renders financial breakdown inside the Day Close Modal
+ * @param {Array} salesLog History of sales
+ * @param {Array} expenses Daily expenses
+ */
+function renderDayCloseModal(salesLog, expenses) {
+    const modalBody = document.getElementById('day-close-modal-body');
+    if (!modalBody) return;
+
+    const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    const netCash = totalSales - totalExpenses;
+
+    const salesCount = {};
+    salesLog.forEach(sale => {
+        if (!salesCount[sale.name]) {
+            salesCount[sale.name] = { count: 0, total: 0 };
+        }
+        salesCount[sale.name].count++;
+        salesCount[sale.name].total += sale.price;
+    });
+
+    let salesHtml = '';
+    for (const [name, data] of Object.entries(salesCount)) {
+        salesHtml += `
+            <div class="summary-row">
+                <span>${data.count}x ${name}</span>
+                <span>$${data.total.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    modalBody.innerHTML = `
+        <div style="margin-bottom: 1.25rem;">
+            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Ventas por Producto</h4>
+            ${salesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hubo ventas hoy.</div>'}
+        </div>
+        
+        <div>
+            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Resultados Financieros</h4>
+            <div class="summary-row">
+                <span>Ingreso por Ventas:</span>
+                <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)}</span>
+            </div>
+            <div class="summary-row">
+                <span>Total Gastos:</span>
+                <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)}</span>
+            </div>
+            <div class="summary-row total">
+                <span>Total en Caja:</span>
+                <span>$${netCash.toFixed(2)}</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Render list of products inside the admin settings modal
+ * @param {Array} products Current products list
+ * @param {Function} editProduct Callback to prompt editing a product (id)
+ * @param {Function} deleteProduct Callback to delete a product (id)
+ */
+function renderSettingsProducts(products, editProduct, deleteProduct) {
+    const container = document.getElementById('settings-products-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    products.forEach(p => {
+        const item = document.createElement('div');
+        item.className = "settings-product-item";
+        
+        let catLabel = 'Pastelitos';
+        if (p.category === 'bebidas') catLabel = 'Bebidas';
+        if (p.category === 'tortas') catLabel = 'Tortas';
+
+        item.innerHTML = `
+            <div class="settings-product-info">
+                <span class="settings-product-name" title="${p.name}">${p.name}</span>
+                <span class="settings-product-details">
+                    Precio: $${(p.price || 0).toFixed(2)} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${p.unit}
+                </span>
+            </div>
+            <div class="settings-actions">
+                <button class="btn-settings-action edit" data-action="edit" title="Editar">
+                    <i class="fa-solid fa-pen" style="font-size: 10px;"></i>
+                </button>
+                <button class="btn-settings-action delete" data-action="delete" title="Eliminar">
+                    <i class="fa-solid fa-trash-can" style="font-size: 10px;"></i>
+                </button>
+            </div>
+        `;
+
+        item.querySelector('[data-action="edit"]').addEventListener('click', () => {
+            editProduct(p.id);
+        });
+        
+        item.querySelector('[data-action="delete"]').addEventListener('click', () => {
+            deleteProduct(p.id);
+        });
+
+        container.appendChild(item);
+    });
+}
+
+/**
+ * Toggle admin settings modal visibility
+ * @param {boolean} show Open or close
+ * @param {Array} products Optional products list to render if opening
+ * @param {Function} editProduct Callback for editing a product
+ * @param {Function} deleteProduct Callback for deleting a product
+ */
+function toggleSettingsModal(show, products, editProduct, deleteProduct) {
+    const modal = document.getElementById('settings-modal');
+    if (!modal) return;
+
+    if (show) {
+        modal.classList.remove('hidden');
+        if (products) {
+            renderSettingsProducts(products, editProduct, deleteProduct);
+        }
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+
+/**
+ * Show a sleek toast message at the bottom of the screen
+ * @param {string} message Text to display
+ * @param {string} iconClass FontAwesome class list (e.g. 'fa-solid fa-circle-check')
+ */
+function showToast(message, iconClass) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    const toastIcon = document.getElementById('toast-icon');
+
+    if (!toast || !toastMessage || !toastIcon) return;
+
+    toastMessage.innerText = message;
+    toastIcon.innerHTML = `<i class="${iconClass}"></i>`;
+
+    toast.classList.add('show');
+
+    const hideTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3500);
+
+    toast.onclick = () => {
+        clearTimeout(hideTimeout);
+        toast.classList.remove('show');
+    };
+}
+
+// Expose to window namespace
+window.UIManager = {
+    switchView,
+    renderSearchBar,
+    renderCategoryFilterBar,
+    renderPendingDispatches,
+    renderLocal,
+    spawnFloatingIndicator,
+    updateKitchenBadge,
+    renderCocina,
+    renderCashRegister,
+    renderSalesHistory,
+    renderExpenses,
+    renderDebts,
+    renderDayCloseModal,
+    renderSettingsProducts,
+    toggleSettingsModal,
+    showToast
+};

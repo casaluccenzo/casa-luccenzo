@@ -531,7 +531,7 @@ details.settings-group summary {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    z-index: 150;
+    z-index: 999999;
     font-size: 0.875rem;
     
     /* Animation and initial state */
@@ -1036,4 +1036,245 @@ input:checked + .slider {
 
 input:checked + .slider:before {
     transform: translateX(20px);
+}
+
+/* Connection Status Dot */
+.conn-status {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+    margin-left: 0.5rem;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+    vertical-align: middle;
+}
+
+.conn-status.online {
+    background-color: var(--color-success);
+    box-shadow: 0 0 10px var(--color-success), 0 0 2px #FFFFFF;
+}
+
+.conn-status.local {
+    background-color: var(--color-gold);
+    box-shadow: 0 0 10px var(--color-gold);
+}
+
+.conn-status.offline {
+    background-color: var(--color-danger);
+    box-shadow: 0 0 10px var(--color-danger), 0 0 2px #FFFFFF;
+}
+
+/* Role lock button */
+.btn-lock {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.125rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: color var(--transition-fast);
+    outline: none;
+}
+
+.btn-lock:hover {
+    color: var(--color-gold);
+}
+
+/* PIN Screen Keypad Overlay */
+.pin-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: var(--color-bg-navy);
+    z-index: 9999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.pin-content {
+    width: 100%;
+    max-width: 290px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.pin-display {
+    width: 100%;
+    height: 54px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--color-gold);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.875rem;
+    letter-spacing: 0.5rem;
+    font-weight: 900;
+    color: var(--color-gold);
+    text-shadow: 0 0 5px rgba(243, 198, 63, 0.3);
+}
+
+.pin-grid {
+    display: grid;
+    grid-template-cols: repeat(3, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.btn-pin {
+    height: 60px;
+    width: 60px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--color-white);
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    transition: background-color 0.1s ease, transform 0.1s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-pin:active {
+    background-color: var(--color-gold);
+    color: #000000;
+    transform: scale(0.92);
+}
+
+.btn-pin-action {
+    background-color: rgba(239, 68, 68, 0.08);
+    color: #FCA5A5;
+    border-color: rgba(239, 68, 68, 0.15);
+    font-size: 0.875rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+/* Charts / Analytics Dashboard components */
+.chart-container {
+    margin-top: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    padding: 0.875rem;
+}
+
+.chart-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+}
+
+.chart-bar-row:last-child {
+    margin-bottom: 0;
+}
+
+.chart-bar-label {
+    width: 70px;
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.chart-bar-track {
+    flex-grow: 1;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+}
+
+.chart-bar-fill {
+    height: 100%;
+    background-color: var(--color-gold);
+    border-radius: var(--radius-full);
+    width: 0; /* Animated dynamically in js/ui.js */
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-bar-val {
+    width: 50px;
+    text-align: right;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--color-white);
+}
+
+/* Ingredient list elements */
+.ingredient-list-card {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    padding: 0.875rem;
+    margin-top: 1rem;
+}
+
+.ingredient-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ingredient-row:last-child {
+    border-bottom: none;
+}
+
+.ingredient-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.ingredient-name {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-white);
+}
+
+.ingredient-stock {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    margin-top: 0.125rem;
+}
+
+.ingredient-stock-val {
+    font-weight: 700;
+    color: var(--color-gold);
+}
+
+.ingredient-stock-val.low {
+    color: var(--color-danger);
+    font-weight: 900;
+}
+
+.btn-add-stock {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(243, 198, 63, 0.3);
+    background-color: transparent;
+    color: var(--color-gold);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.btn-add-stock:hover {
+    background-color: rgba(243, 198, 63, 0.1);
 }

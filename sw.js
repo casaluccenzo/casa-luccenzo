@@ -1,9 +1,10 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v3';
+const CACHE_NAME = 'casa-lucenzo-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './vercel.json',
   './css/main.css',
   './css/variables.css',
   './css/layout.css',

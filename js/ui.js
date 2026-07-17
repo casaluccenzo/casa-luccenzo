@@ -683,6 +683,235 @@ function showToast(message, iconClass) {
     };
 }
 
+// ================= NEW ACCESSIBILITY & SECURITY FUNCTIONS =================
+
+/**
+ * Binds the click handlers for the PIN keypad overlay
+ * @param {Function} onPINValid Validation callback (returns true if valid)
+ */
+function initPinKeypad(onPINValid) {
+    const display = document.getElementById('pin-display');
+    const buttons = document.querySelectorAll('.btn-pin');
+    if (!display || buttons.length === 0) return;
+
+    let pin = '';
+    
+    function updateDisplay() {
+        let dots = '';
+        for (let i = 0; i < 4; i++) {
+            if (i < pin.length) {
+                dots += '* ';
+            } else {
+                dots += '• ';
+            }
+        }
+        display.innerText = dots.trim();
+    }
+
+    buttons.forEach(btn => {
+        // Clone and replace button node to clear previous event listeners
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+
+        newBtn.addEventListener('click', (e) => {
+            const val = newBtn.getAttribute('data-val');
+            
+            if (val === 'clear') {
+                pin = '';
+                updateDisplay();
+            } else if (val === 'back') {
+                pin = pin.slice(0, -1);
+                updateDisplay();
+            } else {
+                if (pin.length < 4) {
+                    pin += val;
+                    updateDisplay();
+                    
+                    if (pin.length === 4) {
+                        setTimeout(() => {
+                            const isValid = onPINValid(pin);
+                            if (!isValid) {
+                                pin = '';
+                                updateDisplay();
+                            }
+                        }, 100);
+                    }
+                }
+            }
+        });
+    });
+
+    updateDisplay();
+}
+
+/**
+ * Update the connection status dot
+ * @param {'online' | 'local' | 'offline'} status Status mode
+ */
+function updateConnectionStatus(status) {
+    const dot = document.getElementById('conn-status');
+    if (!dot) return;
+
+    dot.className = `conn-status ${status}`;
+    
+    let title = 'Sincronizado con base de datos (En vivo)';
+    if (status === 'local') title = 'Modo Local Activo (Sin Base de Datos)';
+    if (status === 'offline') title = 'Sin Internet / Guardando cambios localmente';
+
+    dot.setAttribute('title', title);
+}
+
+/**
+ * Render ingredients pantry stock levels inside the kitchen view
+ * @param {Array} ingredients Current ingredients stock
+ * @param {Function} onAddStock Callback when clicked "Comprar" to add stock
+ */
+function renderIngredientsPantry(ingredients, onAddStock) {
+    const container = document.getElementById('kitchen-orders-container');
+    if (!container) return;
+
+    let pantry = document.getElementById('kitchen-pantry-card');
+    if (!pantry) {
+        pantry = document.createElement('div');
+        pantry.id = 'kitchen-pantry-card';
+        pantry.className = 'ingredient-list-card';
+        container.appendChild(pantry);
+    }
+
+    pantry.innerHTML = `
+        <h4 class="recipe-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-warehouse"></i> Inventario en Alacena:</h4>
+        <div style="display: flex; flex-direction: column;">
+            ${ingredients.map(ing => {
+                const isLow = ing.stock <= (ing.id === 'harina' ? 5.0 : 2.0);
+                const stockClass = isLow ? 'ingredient-stock-val low' : 'ingredient-stock-val';
+                return `
+                    <div class="ingredient-row">
+                        <div class="ingredient-info">
+                            <span class="ingredient-name">${ing.name}</span>
+                            <span class="ingredient-stock">
+                                Quedan: <span class="${stockClass}">${parseFloat(ing.stock).toFixed(1)} ${ing.unit}</span>
+                            </span>
+                        </div>
+                        <button class="btn-add-stock" data-id="${ing.id}">
+                            <i class="fa-solid fa-plus"></i> Comprar
+                        </button>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    pantry.querySelectorAll('.btn-add-stock').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            onAddStock(id);
+        });
+    });
+}
+
+/**
+ * Render weekly statistics inside the Admin panel
+ * @param {Array} salesLog History of sales
+ * @param {Array} expenses Daily expenses list
+ */
+function renderStats(salesLog, expenses = []) {
+    const container = document.getElementById('stats-chart-content');
+    if (!container) return;
+
+    // 1. Calculate daily income for last 7 days
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0,0,0,0);
+        last7Days.push({
+            date: d,
+            label: d.toLocaleDateString([], { weekday: 'short', day: 'numeric' }),
+            income: 0
+        });
+    }
+
+    salesLog.forEach(sale => {
+        const saleDate = new Date(sale.timestamp);
+        last7Days.forEach(day => {
+            const dayEnd = new Date(day.date);
+            dayEnd.setHours(23,59,59,999);
+            if (saleDate >= day.date && saleDate <= dayEnd) {
+                day.income += sale.price || 0;
+            }
+        });
+    });
+
+    const maxIncome = Math.max(...last7Days.map(d => d.income), 1.0);
+
+    let barsHtml = '';
+    last7Days.forEach(day => {
+        const pct = (day.income / maxIncome) * 100;
+        barsHtml += `
+            <div class="chart-bar-row">
+                <span class="chart-bar-label">${day.label}</span>
+                <div class="chart-bar-track">
+                    <div class="chart-bar-fill" style="width: ${pct}%"></div>
+                </div>
+                <span class="chart-bar-val">$${day.income.toFixed(1)}</span>
+            </div>
+        `;
+    });
+
+    // 2. Best-selling flavors
+    const productCounts = {};
+    salesLog.forEach(sale => {
+        if (sale.productId !== 'abono') {
+            productCounts[sale.name] = (productCounts[sale.name] || 0) + 1;
+        }
+    });
+
+    const topProducts = Object.entries(productCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    let topHtml = '';
+    if (topProducts.length > 0) {
+        topHtml = `
+            <div style="margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.75rem;">
+                <h5 style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos de la Semana</h5>
+                ${topProducts.map(([name, count], index) => `
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
+                        <span>${index+1}. ${name}</span>
+                        <span style="font-weight: 700; color: var(--color-gold);">${count} vendid.</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // 3. Combined net profit
+    const totalIncome = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const netProfit = totalIncome - totalExpenses;
+
+    container.innerHTML = `
+        <div style="margin-bottom: 0.75rem;">
+            ${barsHtml}
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
+            <span>Total Ventas:</span>
+            <span style="color: var(--color-success);">+$${totalIncome.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-top: 0.25rem;">
+            <span>Gastos:</span>
+            <span style="color: var(--color-danger);">-$${totalExpenses.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; color: var(--color-gold); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.25rem;">
+            <span>Ganancia Neta:</span>
+            <span>$${netProfit.toFixed(2)}</span>
+        </div>
+        
+        ${topHtml}
+    `;
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -700,5 +929,9 @@ window.UIManager = {
     renderDayCloseModal,
     renderSettingsProducts,
     toggleSettingsModal,
-    showToast
+    showToast,
+    initPinKeypad,
+    updateConnectionStatus,
+    renderIngredientsPantry,
+    renderStats
 };

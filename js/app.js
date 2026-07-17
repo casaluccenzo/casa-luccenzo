@@ -6,11 +6,15 @@ let salesLog = [];
 let expenses = [];
 let debts = [];
 let replenishments = [];
+let ingredients = [];
 let activeCategory = 'todos';
 let searchQuery = '';
 
 // Sound and vibration preferences
 let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: '' };
+
+// User access role
+let currentRole = null;
 
 // ================= HANDLERS & LOGIC =================
 
@@ -95,6 +99,11 @@ function adjustStock(id, amount, event) {
 
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+
+        // Update stats graph if admin is active
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
     }
 
     product.stock = newStock;
@@ -154,6 +163,10 @@ function handleUndoSale(uuid) {
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
 
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
+
     window.UIManager.showToast(`🔄 Venta de "${sale.name}" deshecha con éxito.`, "fa-solid fa-rotate-left");
 }
 
@@ -172,6 +185,11 @@ function clearAllSales() {
         window.StorageManager.clearSalesLog();
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
+
         window.UIManager.showToast("🧹 Historial de ventas y caja reiniciados.", "fa-solid fa-trash-can");
     }
 }
@@ -200,6 +218,29 @@ function deliverProduct(id) {
         status: 'en_camino',
         timestamp: new Date().toISOString()
     };
+
+    // Deduct recipe ingredients from pantry stock
+    if (window.RecipeCalculator) {
+        const recipeList = window.RecipeCalculator.calculateIngredients([{ ...product, stock: product.stock, max: product.max }]);
+        recipeList.forEach(recipeItem => {
+            const targetIng = ingredients.find(ing => {
+                if (recipeItem.name === "Harina de Trigo") return ing.id === 'harina';
+                if (recipeItem.name === "Margarina") return ing.id === 'margarina';
+                if (recipeItem.name === "Relleno Carne Mechada") return ing.id === 'carne_mechada';
+                if (recipeItem.name === "Relleno Pollo Desmechado") return ing.id === 'pollo';
+                if (recipeItem.name === "Queso Blanco Rayado") return ing.id === 'queso';
+                return false;
+            });
+            if (targetIng) {
+                targetIng.stock = Math.max(0, targetIng.stock - recipeItem.amount);
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.upsertIngredient(targetIng);
+                }
+            }
+        });
+        window.StorageManager.saveIngredients(ingredients);
+        window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+    }
 
     // Filter local dispatches
     replenishments = replenishments.filter(r => r.productId !== id || r.status !== 'en_camino');
@@ -237,7 +278,6 @@ function confirmReceipt() {
         dispatch.status = 'recibido';
         
         if (window.SupabaseManager.isConfigured()) {
-            // Delete dispatch log inside Supabase once local local resolves it
             window.SupabaseManager.deleteReplenishment(dispatch.uuid);
         }
     });
@@ -305,6 +345,10 @@ function addExpense(e) {
 
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderCashRegister(salesLog, expenses);
+    
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
 
     document.getElementById('add-expense-form').reset();
     window.UIManager.showToast("💸 Gasto registrado correctamente.", "fa-solid fa-file-invoice-dollar");
@@ -325,6 +369,11 @@ function deleteExpense(uuid) {
 
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderCashRegister(salesLog, expenses);
+
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
+
     window.UIManager.showToast("🗑️ Gasto eliminado.", "fa-solid fa-trash");
 }
 
@@ -431,7 +480,42 @@ function settleDebtPayment(uuid) {
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
 
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
+
     window.UIManager.showToast(`💵 Pago de $${paymentAmount.toFixed(2)} registrado en caja.`, "fa-solid fa-hand-holding-dollar");
+}
+
+// ================= INGREDIENTS STOCK =================
+
+/**
+ * Prompt to add stock to kitchen ingredient alacena
+ * @param {string} id Ingredient identifier
+ */
+function addIngredientStock(id) {
+    const ing = ingredients.find(i => i.id === id);
+    if (!ing) return;
+
+    triggerHaptic(15);
+    const promptAmount = prompt(`¿Cuántos ${ing.unit} de "${ing.name}" deseas agregar?`, "5.0");
+    if (promptAmount === null) return;
+    const amountVal = parseFloat(promptAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+        alert("Cantidad inválida.");
+        return;
+    }
+
+    triggerHaptic(15);
+    ing.stock += amountVal;
+    window.StorageManager.saveIngredients(ingredients);
+
+    if (window.SupabaseManager.isConfigured()) {
+        window.SupabaseManager.upsertIngredient(ing);
+    }
+
+    window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+    window.UIManager.showToast(`📦 Se agregaron +${amountVal} ${ing.unit} de ${ing.name}.`, "fa-solid fa-circle-check");
 }
 
 // ================= DAY CLOSE BROADCASTS =================
@@ -527,11 +611,11 @@ function handlePreferencesChange() {
         console.log("Supabase connection credentials changed. Re-initializing...");
         const initialized = window.SupabaseManager.init();
         if (initialized) {
-            window.UIManager.showToast("🔗 Conectado a Supabase en vivo.", "fa-solid fa-link");
+            window.UIManager.updateConnectionStatus('online');
             loadAllDataFromSupabase();
             window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
         } else {
-            window.UIManager.showToast("📴 Desconectado de Supabase. Modo local activo.", "fa-solid fa-link-slash");
+            window.UIManager.updateConnectionStatus('local');
             loadAllDataFromLocalStorage();
         }
     }
@@ -696,9 +780,11 @@ function restoreDefaultProducts() {
         }
 
         products = window.StorageManager.resetToDefaults();
+        ingredients = window.StorageManager.loadIngredients(); // reset ingredients too
 
         if (window.SupabaseManager.isConfigured()) {
             products.forEach(p => window.SupabaseManager.upsertProduct(p));
+            ingredients.forEach(i => window.SupabaseManager.upsertIngredient(i));
         }
 
         salesLog = [];
@@ -765,6 +851,15 @@ async function loadAllDataFromSupabase() {
         replenishments = window.StorageManager.loadReplenishments();
     }
 
+    // Fetch raw materials ingredients stock
+    const supIng = await window.SupabaseManager.fetchIngredients();
+    if (supIng && supIng.length > 0) {
+        ingredients = supIng;
+        window.StorageManager.saveIngredients(ingredients);
+    } else {
+        ingredients = window.StorageManager.loadIngredients();
+    }
+
     renderAllViews();
 }
 
@@ -777,6 +872,7 @@ function loadAllDataFromLocalStorage() {
     expenses = window.StorageManager.loadExpenses();
     debts = window.StorageManager.loadDebts();
     replenishments = window.StorageManager.loadReplenishments();
+    ingredients = window.StorageManager.loadIngredients();
     renderAllViews();
 }
 
@@ -792,6 +888,11 @@ function renderAllViews() {
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderDebts(debts, settleDebtPayment);
+    window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
 }
 
 /**
@@ -818,6 +919,9 @@ async function handleRealtimeDbUpdate(tableName) {
             window.StorageManager.saveSalesLog(salesLog);
             window.UIManager.renderCashRegister(salesLog, expenses);
             window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+            if (currentRole === 'admin') {
+                window.UIManager.renderStats(salesLog, expenses);
+            }
         }
     } else if (tableName === 'expenses') {
         const data = await window.SupabaseManager.fetchExpenses();
@@ -826,6 +930,9 @@ async function handleRealtimeDbUpdate(tableName) {
             window.StorageManager.saveExpenses(expenses);
             window.UIManager.renderCashRegister(salesLog, expenses);
             window.UIManager.renderExpenses(expenses, deleteExpense);
+            if (currentRole === 'admin') {
+                window.UIManager.renderStats(salesLog, expenses);
+            }
         }
     } else if (tableName === 'debts') {
         const data = await window.SupabaseManager.fetchDebts();
@@ -844,7 +951,114 @@ async function handleRealtimeDbUpdate(tableName) {
                 window.UIManager.renderCocina(products, deliverProduct, replenishments);
             }
         }
+    } else if (tableName === 'ingredients') {
+        const data = await window.SupabaseManager.fetchIngredients();
+        if (data) {
+            ingredients = data;
+            window.StorageManager.saveIngredients(ingredients);
+            window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+        }
     }
+}
+
+// ================= USER ROLES ACCESS =================
+
+/**
+ * Validates PIN input codes and applies corresponding role UI layout
+ * @param {string} pin 4-digit code
+ * @returns {boolean} True if PIN matched a role
+ */
+function handlePINInput(pin) {
+    if (pin === '1111') {
+        applyUserRole('local');
+        window.UIManager.showToast("🔓 Acceso Local Concedido (Venta).", "fa-solid fa-shop");
+        return true;
+    } else if (pin === '2222') {
+        applyUserRole('cocina');
+        window.UIManager.showToast("🔓 Acceso Cocina Concedido (Producción).", "fa-solid fa-fire-burner");
+        return true;
+    } else if (pin === '9999') {
+        applyUserRole('admin');
+        window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
+        return true;
+    } else {
+        triggerHaptic([80, 80]); // Double haptic feedback on error
+        window.UIManager.showToast("❌ PIN incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");
+        return false;
+    }
+}
+
+/**
+ * Configures the DOM UI visibility states by active role permissions
+ * @param {string} role 'local' | 'cocina' | 'admin'
+ */
+function applyUserRole(role) {
+    currentRole = role;
+    sessionStorage.setItem('casa_lucenzo_active_role', role);
+
+    const pinOverlay = document.getElementById('pin-overlay');
+    if (pinOverlay) pinOverlay.style.display = 'none';
+
+    const navBar = document.getElementById('switch-nav-bar');
+    const btnSettings = document.getElementById('btn-settings-toggle');
+    
+    // Default unlocked structures
+    document.getElementById('btn-local').classList.remove('hidden');
+    document.getElementById('btn-cocina').classList.remove('hidden');
+    document.getElementById('btn-fiados').classList.remove('hidden');
+    navBar.classList.remove('hidden');
+    btnSettings.classList.remove('hidden');
+    
+    // Hide administrative actions inside sections if local
+    const undoSales = document.getElementById('sales-history-section');
+    const clearSales = document.getElementById('btn-clear-sales');
+    const dayCloseSec = document.getElementById('day-close-trigger-section');
+
+    if (undoSales) undoSales.classList.remove('hidden');
+    if (clearSales) clearSales.classList.remove('hidden');
+    if (dayCloseSec) dayCloseSec.classList.remove('hidden');
+
+    if (role === 'local') {
+        // Local seller: only Local + Fiados views. Settings and stats blocked.
+        document.getElementById('btn-cocina').classList.add('hidden');
+        btnSettings.classList.add('hidden');
+        if (clearSales) clearSales.classList.add('hidden');
+        
+        window.UIManager.switchView('local');
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    } else if (role === 'cocina') {
+        // Kitchen parents: ONLY Kitchen view. Navigation bar hidden entirely.
+        navBar.classList.add('hidden');
+        btnSettings.classList.add('hidden');
+        
+        window.UIManager.switchView('cocina');
+        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+    } else if (role === 'admin') {
+        // Full Admin: Everything visible, statistics dashboard loaded
+        window.UIManager.switchView('local');
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderStats(salesLog, expenses);
+    }
+}
+
+/**
+ * Locks the current role and forces PIN re-entry overlay
+ */
+function lockSession() {
+    triggerHaptic(15);
+    sessionStorage.removeItem('casa_lucenzo_active_role');
+    currentRole = null;
+
+    const pinOverlay = document.getElementById('pin-overlay');
+    if (pinOverlay) {
+        pinOverlay.style.display = 'flex';
+        // Clear display text inside keypad
+        const display = document.getElementById('pin-display');
+        if (display) display.innerText = '• • • •';
+    }
+
+    window.UIManager.initPinKeypad(handlePINInput);
 }
 
 // ================= APP INITIALIZATION =================
@@ -865,7 +1079,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pref-supabase-url').value = preferences.supabaseUrl || '';
     document.getElementById('pref-supabase-key').value = preferences.supabaseKey || '';
 
-    // 3. Initialize Supabase if keys are provided
+    // 3. Initialize connection status dots
+    if (window.StorageManager.loadPreferences().supabaseUrl) {
+        if (navigator.onLine) {
+            window.UIManager.updateConnectionStatus('online');
+        } else {
+            window.UIManager.updateConnectionStatus('offline');
+        }
+    } else {
+        window.UIManager.updateConnectionStatus('local');
+    }
+
+    // 4. Initialize Supabase if keys are provided
     const isSupabaseReady = window.SupabaseManager.init();
 
     if (isSupabaseReady) {
@@ -875,7 +1100,15 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAllDataFromLocalStorage();
     }
 
-    // 4. Bind navigation buttons (Vitrina, Cocina, Fiados)
+    // 5. User roles validation checks
+    const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
+    if (activeRole) {
+        applyUserRole(activeRole);
+    } else {
+        lockSession();
+    }
+
+    // 6. Bind navigation buttons (Vitrina, Cocina, Fiados)
     document.getElementById('btn-local').addEventListener('click', () => {
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -885,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');
         window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     });
 
     document.getElementById('btn-fiados').addEventListener('click', () => {
@@ -892,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.renderDebts(debts, settleDebtPayment);
     });
 
-    // 5. Bind configuration modal toggles
+    // 7. Bind configuration modal toggles
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {
         window.UIManager.toggleSettingsModal(true, products, editProductPrompt, deleteProduct);
     });
@@ -905,30 +1139,30 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.toggleSettingsModal(false);
     });
 
-    // 6. Bind WhatsApp sharing (Kitchen report)
+    // 8. Bind WhatsApp sharing (Kitchen report)
     document.getElementById('btn-whatsapp-share').addEventListener('click', () => {
         window.ShareManager.shareToWhatsApp(products, window.UIManager.showToast);
     });
 
-    // 7. Bind vitrina refill all
+    // 9. Bind vitrina refill all
     document.getElementById('btn-reset-all').addEventListener('click', resetToMax);
 
-    // 8. Bind factory reset
+    // 10. Bind factory reset
     document.getElementById('btn-factory-reset').addEventListener('click', restoreDefaultProducts);
 
-    // 9. Bind clear sales history
+    // 11. Bind clear sales history
     document.getElementById('btn-clear-sales').addEventListener('click', clearAllSales);
 
-    // 10. Bind add product form
+    // 12. Bind add product form
     document.getElementById('add-product-form').addEventListener('submit', addNewProduct);
 
-    // 11. Bind expenses form
+    // 13. Bind expenses form
     document.getElementById('add-expense-form').addEventListener('submit', addExpense);
 
-    // 12. Bind debts form
+    // 14. Bind debts form
     document.getElementById('add-debt-form').addEventListener('submit', addDebt);
 
-    // 13. Bind Day Close triggers
+    // 15. Bind Day Close triggers
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', () => {
@@ -936,9 +1170,25 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDayCloseModal();
     });
 
-    // 14. Bind preference toggle checkboxes and credentials
+    // 16. Bind preference toggle checkboxes and credentials
     document.getElementById('pref-sound').addEventListener('change', handlePreferencesChange);
     document.getElementById('pref-vibrate').addEventListener('change', handlePreferencesChange);
     document.getElementById('pref-supabase-url').addEventListener('change', handlePreferencesChange);
     document.getElementById('pref-supabase-key').addEventListener('change', handlePreferencesChange);
+
+    // 17. Bind lock icon buttons
+    document.getElementById('btn-lock-user').addEventListener('click', lockSession);
+
+    // 18. Bind online/offline indicator dot changes
+    window.addEventListener('online', () => {
+        if (window.SupabaseManager.isConfigured()) {
+            window.UIManager.updateConnectionStatus('online');
+            window.SupabaseManager.syncOfflineQueue();
+        }
+    });
+    window.addEventListener('offline', () => {
+        if (window.SupabaseManager.isConfigured()) {
+            window.UIManager.updateConnectionStatus('offline');
+        }
+    });
 });

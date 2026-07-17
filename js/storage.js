@@ -1,4 +1,4 @@
-// LocalStorage management for Casa Lucenzo inventory, sales, expenses, and debts
+// LocalStorage management for Casa Lucenzo inventory, sales, expenses, debts, and ingredients
 
 const DEFAULT_PRODUCTS = [
     { id: 'mechada', name: 'Carne Mechada', stock: 20, min: 6, max: 20, unit: 'unid.', price: 1.50, category: 'pastelitos' },
@@ -13,12 +13,21 @@ const DEFAULT_PRODUCTS = [
     { id: 'malta', name: 'Malta Retornable', stock: 24, min: 6, max: 24, unit: 'botellas', price: 1.00, category: 'bebidas' }
 ];
 
+const DEFAULT_INGREDIENTS = [
+    { id: 'harina', name: 'Harina de Trigo', stock: 25.0, unit: 'kg' },
+    { id: 'margarina', name: 'Margarina / Grasa', stock: 10.0, unit: 'kg' },
+    { id: 'carne_mechada', name: 'Carne Mechada (Relleno)', stock: 15.0, unit: 'kg' },
+    { id: 'pollo', name: 'Pollo Desmechado (Relleno)', stock: 15.0, unit: 'kg' },
+    { id: 'queso', name: 'Queso Blanco (Relleno)', stock: 10.0, unit: 'kg' }
+];
+
 const INVENTORY_KEY = 'casa_lucenzo_inventory_modular';
 const SALES_LOG_KEY = 'casa_lucenzo_sales_log';
 const EXPENSES_KEY = 'casa_lucenzo_expenses';
 const DEBTS_KEY = 'casa_lucenzo_debts';
 const REPLENISHMENTS_KEY = 'casa_lucenzo_replenishments';
 const PREFERENCES_KEY = 'casa_lucenzo_preferences';
+const INGREDIENTS_KEY = 'casa_lucenzo_ingredients';
 
 /**
  * Loads products from localStorage, or returns default products if empty.
@@ -67,6 +76,7 @@ function resetToDefaults() {
         localStorage.removeItem(DEBTS_KEY);
         localStorage.removeItem(REPLENISHMENTS_KEY);
         localStorage.removeItem(PREFERENCES_KEY);
+        localStorage.removeItem(INGREDIENTS_KEY);
     } catch(e) {
         console.error("Failed to clear local storage", e);
     }
@@ -133,6 +143,24 @@ function clearReplenishments() {
     localStorage.removeItem(REPLENISHMENTS_KEY);
 }
 
+// ================= INGREDIENTS =================
+
+function loadIngredients() {
+    const saved = localStorage.getItem(INGREDIENTS_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch(e) {
+            return JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
+        }
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
+}
+
+function saveIngredients(ingredients) {
+    localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(ingredients));
+}
+
 // ================= PREFERENCES =================
 
 function loadPreferences() {
@@ -158,6 +186,7 @@ function savePreferences(prefs) {
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
+    DEFAULT_INGREDIENTS,
     loadProducts,
     saveProducts,
     resetToDefaults,
@@ -173,6 +202,8 @@ window.StorageManager = {
     loadReplenishments,
     saveReplenishments,
     clearReplenishments,
+    loadIngredients,
+    saveIngredients,
     loadPreferences,
     savePreferences
 };

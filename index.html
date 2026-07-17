@@ -39,16 +39,26 @@
                     <div class="logo-badge">
                         <span class="logo-badge-text">CASA<br>L</span>
                     </div>
-                    <h1 class="brand-title">CASA LUCENZO</h1>
+                    <h1 class="brand-title">
+                        CASA LUCENZO
+                        <span id="conn-status" class="conn-status local" title="Modo Local Activo"></span>
+                    </h1>
                 </div>
-                <!-- Gear button to open Settings Modal -->
-                <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
-                    <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
-                </button>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <!-- Lock button to lock screen and change user role -->
+                    <button id="btn-lock-user" class="btn-lock" title="Bloquear Pantalla / Cambiar Rol">
+                        <i class="fa-solid fa-lock"></i>
+                    </button>
+                    <!-- Gear button to open Settings Modal -->
+                    <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
+                        <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- View switch controller (Vitrina vs Cocina vs Fiados) -->
-            <div class="switch-nav" role="tablist">
+            <div class="switch-nav" id="switch-nav-bar" role="tablist">
                 <button id="btn-local" class="active" role="tab" aria-selected="true" aria-controls="view-local">
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-shop"></i></span>
                     <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">1. LOCAL</span>
@@ -73,7 +83,7 @@
     <main class="container-md">
         
         <!-- Info alert banner -->
-        <div class="info-box">
+        <div class="info-box" id="info-alert-box">
             <p class="info-box-text">
                 <span class="info-box-highlight">¡Súper fácil!</span> Disminuye el stock en la pestaña <span class="info-box-emphasis">"Local"</span> cuando vendas, y ve a <span class="info-box-emphasis">"Cocina"</span> para ver lo que se debe reponer.
             </p>
@@ -129,7 +139,7 @@
                 </div>
 
                 <!-- Sales History Log -->
-                <div class="history-container">
+                <div class="history-container" id="sales-history-section">
                     <div class="history-header">
                         <h3 class="history-title">Registro de Ventas</h3>
                         <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
@@ -142,7 +152,7 @@
                 </div>
 
                 <!-- Daily Expenses Section -->
-                <div class="expenses-container">
+                <div class="expenses-container" id="daily-expenses-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <h3 class="history-title">Gastos del Local</h3>
                         <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
@@ -162,7 +172,7 @@
                 </div>
 
                 <!-- Day Close trigger -->
-                <div style="margin-top: 2rem;">
+                <div style="margin-top: 2rem;" id="day-close-trigger-section">
                     <button id="btn-cierre-dia-open" class="btn-touch btn-kitchen-deliver" style="background-color: var(--color-gold); color: #000000; font-weight: 900; gap: 0.5rem; width: 100%;">
                         <i class="fa-solid fa-door-closed text-lg"></i>
                         CERRAR JORNADA (CIERRE DE DÍA)
@@ -280,6 +290,14 @@
                     </div>
                 </div>
 
+                <!-- Foldable Weekly Statistics -->
+                <details class="settings-group" style="margin-bottom: 1.25rem;">
+                    <summary><i class="fa-solid fa-chart-simple" style="margin-right: 0.25rem;"></i> Reporte de Ventas Semanales</summary>
+                    <div id="stats-chart-content" class="chart-container">
+                        <!-- Dynamic bar charts injected by js/ui.js -->
+                    </div>
+                </details>
+
                 <!-- Foldable Add New Product Form -->
                 <details class="settings-group">
                     <summary><i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Agregar Nuevo Pastelito</summary>
@@ -361,6 +379,36 @@
                 <button id="btn-cierre-dia-confirm" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-success); border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none;">
                     <i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR INFORME POR WHATSAPP
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PIN LOGIN OVERLAY ================= -->
+    <div id="pin-overlay" class="pin-overlay">
+        <div class="pin-content">
+            <div style="text-align: center; margin-bottom: 0.5rem;">
+                <div class="logo-badge" style="margin: 0 auto 0.75rem; width: 3.5rem; height: 3.5rem; border-color: var(--color-gold);">
+                    <span class="logo-badge-text" style="font-size: 14px;">CASA<br>L</span>
+                </div>
+                <h2 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em;">CASA LUCENZO</h2>
+                <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem;">Ingresa tu código PIN de acceso</p>
+            </div>
+            
+            <div id="pin-display" class="pin-display">&bull; &bull; &bull; &bull;</div>
+            
+            <div class="pin-grid">
+                <button class="btn-pin" data-val="1">1</button>
+                <button class="btn-pin" data-val="2">2</button>
+                <button class="btn-pin" data-val="3">3</button>
+                <button class="btn-pin" data-val="4">4</button>
+                <button class="btn-pin" data-val="5">5</button>
+                <button class="btn-pin" data-val="6">6</button>
+                <button class="btn-pin" data-val="7">7</button>
+                <button class="btn-pin" data-val="8">8</button>
+                <button class="btn-pin" data-val="9">9</button>
+                <button class="btn-pin btn-pin-action" data-val="clear">C</button>
+                <button class="btn-pin" data-val="0">0</button>
+                <button class="btn-pin btn-pin-action" data-val="back"><i class="fa-solid fa-delete-left"></i></button>
             </div>
         </div>
     </div>

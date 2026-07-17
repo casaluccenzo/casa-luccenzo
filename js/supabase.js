@@ -115,7 +115,6 @@ async function fetchProducts() {
 async function fetchSales() {
     if (!client) return null;
     try {
-        // Only load sales from today for POS dashboard (timezone-safe)
         const todayStr = new Date();
         todayStr.setHours(0, 0, 0, 0);
         const { data, error } = await client.from('sales').select('*').gte('timestamp', todayStr.toISOString());
@@ -161,6 +160,18 @@ async function fetchReplenishments() {
         return data.map(r => ({ ...r, productId: r.product_id }));
     } catch (e) {
         console.error("Error fetching replenishments from Supabase:", e);
+        return null;
+    }
+}
+
+async function fetchIngredients() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.from('ingredients').select('*').order('name');
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.error("Error fetching ingredients from Supabase:", e);
         return null;
     }
 }
@@ -367,6 +378,30 @@ async function deleteReplenishment(uuid) {
     }
 }
 
+async function upsertIngredient(ing) {
+    if (!client) return;
+    try {
+        const payload = {
+            id: ing.id,
+            name: ing.name,
+            stock: ing.stock,
+            unit: ing.unit,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine) {
+            enqueueOfflineOp('ingredients', 'upsert', payload);
+            return;
+        }
+
+        const { error } = await client.from('ingredients').upsert(payload);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase upsertIngredient failed. Enqueuing offline...", e);
+        enqueueOfflineOp('ingredients', 'upsert', ing);
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -386,6 +421,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onDbChange('expenses'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, () => onDbChange('debts'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, () => onDbChange('replenishments'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => onDbChange('ingredients'))
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");
@@ -402,6 +438,7 @@ window.SupabaseManager = {
     fetchExpenses,
     fetchDebts,
     fetchReplenishments,
+    fetchIngredients,
     upsertProduct,
     deleteProduct,
     insertSale,
@@ -412,6 +449,7 @@ window.SupabaseManager = {
     deleteDebt,
     upsertReplenishment,
     deleteReplenishment,
+    upsertIngredient,
     subscribeToChanges,
     syncOfflineQueue
 };

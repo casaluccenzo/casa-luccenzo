@@ -1103,67 +1103,32 @@ input:checked + .slider:before {
     gap: 1.5rem;
 }
 
-.pin-dots-container {
-    display: flex;
-    justify-content: center;
-    gap: 1.25rem;
-    margin: 1.5rem 0;
-}
-
-.pin-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-full);
-    border: 2px solid var(--color-gold);
-    background-color: transparent;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.pin-dot.active {
-    background-color: var(--color-gold);
-    box-shadow: 0 0 10px var(--color-gold), 0 0 2px #FFFFFF;
-    transform: scale(1.25);
-}
-
-.pin-grid {
-    display: grid;
-    grid-template-cols: repeat(3, 1fr);
-    gap: 0.75rem;
+.pin-input-wrapper {
+    margin: 1rem 0;
     width: 100%;
-}
-
-.btn-pin {
-    height: 60px;
-    width: 60px;
-    border-radius: var(--radius-full);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--color-white);
-    font-size: 1.5rem;
-    font-weight: 700;
-    cursor: pointer;
     display: flex;
-    align-items: center;
     justify-content: center;
-    margin: 0 auto;
-    transition: background-color 0.1s ease, transform 0.1s ease;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
 }
 
-.btn-pin:active {
-    background-color: var(--color-gold);
-    color: #000000;
-    transform: scale(0.92);
+#pin-input {
+    width: 150px;
+    height: 52px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--color-gold);
+    border-radius: var(--radius-lg);
+    color: var(--color-gold);
+    font-size: 1.625rem;
+    text-align: center;
+    letter-spacing: 0.75rem;
+    font-weight: 900;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    padding-left: 0.75rem;
 }
 
-.btn-pin-action {
-    background-color: rgba(239, 68, 68, 0.08);
-    color: #FCA5A5;
-    border-color: rgba(239, 68, 68, 0.15);
-    font-size: 0.875rem;
-    font-weight: 800;
-    text-transform: uppercase;
+#pin-input:focus {
+    border-color: var(--color-success);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
 }
 
 /* Charts / Analytics Dashboard components */

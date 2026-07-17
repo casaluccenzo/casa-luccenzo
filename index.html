@@ -394,27 +394,11 @@
                 <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem;">Ingresa tu código PIN de acceso</p>
             </div>
             
-            <div id="pin-display" class="pin-dots-container">
-                <span class="pin-dot"></span>
-                <span class="pin-dot"></span>
-                <span class="pin-dot"></span>
-                <span class="pin-dot"></span>
+            <div class="pin-input-wrapper">
+                <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" autofocus>
             </div>
             
-            <div class="pin-grid">
-                <button class="btn-pin" data-val="1">1</button>
-                <button class="btn-pin" data-val="2">2</button>
-                <button class="btn-pin" data-val="3">3</button>
-                <button class="btn-pin" data-val="4">4</button>
-                <button class="btn-pin" data-val="5">5</button>
-                <button class="btn-pin" data-val="6">6</button>
-                <button class="btn-pin" data-val="7">7</button>
-                <button class="btn-pin" data-val="8">8</button>
-                <button class="btn-pin" data-val="9">9</button>
-                <button class="btn-pin btn-pin-action" data-val="clear">C</button>
-                <button class="btn-pin" data-val="0">0</button>
-                <button class="btn-pin btn-pin-action" data-val="back"><i class="fa-solid fa-delete-left"></i></button>
-            </div>
+            <p style="font-size: 10px; color: var(--color-text-muted); text-align: center;">Toca la caja para ingresar los 4 números con el teclado.</p>
         </div>
     </div>
 

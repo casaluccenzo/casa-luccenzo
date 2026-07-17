@@ -690,57 +690,40 @@ function showToast(message, iconClass) {
  * @param {Function} onPINValid Validation callback (returns true if valid)
  */
 function initPinKeypad(onPINValid) {
-    const container = document.getElementById('pin-display');
-    const buttons = document.querySelectorAll('.btn-pin');
-    if (!container || buttons.length === 0) return;
+    const input = document.getElementById('pin-input');
+    if (!input) return;
 
-    const dots = container.querySelectorAll('.pin-dot');
-    let pin = '';
+    input.value = '';
     
-    function updateDisplay() {
-        dots.forEach((dot, index) => {
-            if (index < pin.length) {
-                dot.classList.add('active');
-            } else {
-                dot.classList.remove('active');
-            }
-        });
-    }
+    // Create clone and replace to clear old event listeners
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
 
-    buttons.forEach(btn => {
-        // Clone and replace button node to clear previous event listeners
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-
-        newBtn.addEventListener('click', (e) => {
-            const val = newBtn.getAttribute('data-val');
-            
-            if (val === 'clear') {
-                pin = '';
-                updateDisplay();
-            } else if (val === 'back') {
-                pin = pin.slice(0, -1);
-                updateDisplay();
-            } else {
-                if (pin.length < 4) {
-                    pin += val;
-                    updateDisplay();
-                    
-                    if (pin.length === 4) {
-                        setTimeout(() => {
-                            const isValid = onPINValid(pin);
-                            if (!isValid) {
-                                pin = '';
-                                updateDisplay();
-                            }
-                        }, 100);
-                    }
+    newInput.addEventListener('input', (e) => {
+        const val = newInput.value;
+        
+        if (val.length === 4) {
+            setTimeout(() => {
+                const isValid = onPINValid(val);
+                if (!isValid) {
+                    newInput.value = '';
                 }
-            }
-        });
+            }, 100);
+        }
     });
 
-    updateDisplay();
+    // Tap overlay anywhere to focus
+    const overlay = document.getElementById('pin-overlay');
+    if (overlay) {
+        overlay.onclick = () => {
+            newInput.focus();
+        };
+    }
+
+    // Auto-focus input
+    setTimeout(() => {
+        newInput.focus();
+    }, 300);
 }
 
 /**

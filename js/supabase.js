@@ -425,12 +425,12 @@ function subscribeToChanges(onDbChange) {
     }
 
     activeSubscription = client.channel('casa-lucenzo-realtime-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onDbChange('products'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => onDbChange('sales'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onDbChange('expenses'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, () => onDbChange('debts'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, () => onDbChange('replenishments'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => onDbChange('ingredients'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (p) => onDbChange('products', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, (p) => onDbChange('sales', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, (p) => onDbChange('expenses', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, (p) => onDbChange('debts', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, (p) => onDbChange('replenishments', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, (p) => onDbChange('ingredients', p))
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");

@@ -899,9 +899,170 @@ function renderAllViews() {
  * Handle real-time PostgreSQL updates, syncing memory state and re-rendering grids
  * @param {string} tableName Updated table key
  */
-async function handleRealtimeDbUpdate(tableName) {
-    console.log(`Realtime postgres update detected for table: ${tableName}`);
+async function handleRealtimeDbUpdate(tableName, payload) {
+    console.log(`Realtime postgres update detected for table: ${tableName}`, payload);
     
+    // Fallback: If no payload is supplied, perform standard full fetch
+    if (!payload || !payload.eventType) {
+        performFullFetch(tableName);
+        return;
+    }
+
+    const { eventType, new: newRow, old: oldRow } = payload;
+
+    if (tableName === 'products') {
+        if (eventType === 'DELETE') {
+            products = products.filter(p => p.id !== oldRow.id);
+        } else {
+            const idx = products.findIndex(p => p.id === newRow.id);
+            const formatted = {
+                id: newRow.id,
+                name: newRow.name,
+                stock: parseInt(newRow.stock),
+                min: parseInt(newRow.min),
+                max: parseInt(newRow.max),
+                unit: newRow.unit,
+                price: parseFloat(newRow.price) || 0,
+                category: newRow.category || 'pastelitos'
+            };
+            if (idx !== -1) {
+                products[idx] = formatted;
+            } else {
+                products.push(formatted);
+            }
+        }
+        window.StorageManager.saveProducts(products);
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.updateKitchenBadge(products);
+    } else if (tableName === 'sales') {
+        const startOfDay = new Date();
+        startOfDay.setHours(0,0,0,0);
+
+        if (eventType === 'DELETE') {
+            salesLog = salesLog.filter(s => s.uuid !== oldRow.uuid);
+        } else {
+            const saleDate = new Date(newRow.timestamp);
+            if (saleDate >= startOfDay) {
+                const idx = salesLog.findIndex(s => s.uuid === newRow.uuid);
+                const formatted = {
+                    uuid: newRow.uuid,
+                    productId: newRow.product_id,
+                    name: newRow.name,
+                    price: parseFloat(newRow.price) || 0,
+                    timestamp: newRow.timestamp
+                };
+                if (idx !== -1) {
+                    salesLog[idx] = formatted;
+                } else {
+                    salesLog.push(formatted);
+                }
+            }
+        }
+        window.StorageManager.saveSalesLog(salesLog);
+        window.UIManager.renderCashRegister(salesLog, expenses);
+        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
+    } else if (tableName === 'expenses') {
+        const startOfDay = new Date();
+        startOfDay.setHours(0,0,0,0);
+
+        if (eventType === 'DELETE') {
+            expenses = expenses.filter(e => e.uuid !== oldRow.uuid);
+        } else {
+            const expDate = new Date(newRow.timestamp);
+            if (expDate >= startOfDay) {
+                const idx = expenses.findIndex(e => e.uuid === newRow.uuid);
+                const formatted = {
+                    uuid: newRow.uuid,
+                    description: newRow.description,
+                    amount: parseFloat(newRow.amount) || 0,
+                    timestamp: newRow.timestamp
+                };
+                if (idx !== -1) {
+                    expenses[idx] = formatted;
+                } else {
+                    expenses.push(formatted);
+                }
+            }
+        }
+        window.StorageManager.saveExpenses(expenses);
+        window.UIManager.renderCashRegister(salesLog, expenses);
+        window.UIManager.renderExpenses(expenses, deleteExpense);
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
+    } else if (tableName === 'debts') {
+        if (eventType === 'DELETE') {
+            debts = debts.filter(d => d.uuid !== oldRow.uuid);
+        } else {
+            const idx = debts.findIndex(d => d.uuid === newRow.uuid);
+            const formatted = {
+                uuid: newRow.uuid,
+                clientName: newRow.client_name,
+                amount: parseFloat(newRow.amount) || 0,
+                description: newRow.description,
+                timestamp: newRow.timestamp
+            };
+            if (idx !== -1) {
+                debts[idx] = formatted;
+            } else {
+                debts.push(formatted);
+            }
+        }
+        window.StorageManager.saveDebts(debts);
+        window.UIManager.renderDebts(debts, settleDebtPayment);
+    } else if (tableName === 'replenishments') {
+        if (eventType === 'DELETE') {
+            replenishments = replenishments.filter(r => r.uuid !== oldRow.uuid);
+        } else {
+            const idx = replenishments.findIndex(r => r.uuid === newRow.uuid);
+            const formatted = {
+                uuid: newRow.uuid,
+                productId: newRow.product_id,
+                name: newRow.name,
+                amount: parseInt(newRow.amount),
+                unit: newRow.unit,
+                status: newRow.status,
+                timestamp: newRow.timestamp
+            };
+            if (idx !== -1) {
+                replenishments[idx] = formatted;
+            } else {
+                replenishments.push(formatted);
+            }
+        }
+        window.StorageManager.saveReplenishments(replenishments);
+        window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+    } else if (tableName === 'ingredients') {
+        if (eventType === 'DELETE') {
+            ingredients = ingredients.filter(i => i.id !== oldRow.id);
+        } else {
+            const idx = ingredients.findIndex(i => i.id === newRow.id);
+            const formatted = {
+                id: newRow.id,
+                name: newRow.name,
+                stock: parseFloat(newRow.stock) || 0,
+                unit: newRow.unit
+            };
+            if (idx !== -1) {
+                ingredients[idx] = formatted;
+            } else {
+                ingredients.push(formatted);
+            }
+        }
+        window.StorageManager.saveIngredients(ingredients);
+        window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+    }
+}
+
+/**
+ * Fallback full-fetch logic if real-time payloads fail or sync starts
+ */
+async function performFullFetch(tableName) {
     if (tableName === 'products') {
         const data = await window.SupabaseManager.fetchProducts();
         if (data) {

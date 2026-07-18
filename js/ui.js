@@ -1178,6 +1178,211 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
 }
 
 /**
+ * Create and show a modal dialog with options for a specific table
+ */
+function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, products) {
+    // Find active sales for this table
+    const tableSales = salesLog.filter(s => {
+        const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+        if (match) {
+            const client = match[2];
+            const isPaid = !!match[3];
+            return client === tableName && !isPaid;
+        }
+        return false;
+    });
+
+    const isOccupied = tableSales.length > 0;
+    const totalConsumed = tableSales.reduce((sum, s) => sum + (s.price || 0), 0);
+    const timestamp = isOccupied ? tableSales[0].timestamp : null;
+
+    // Create modal backdrop overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.background = 'rgba(10, 15, 30, 0.8)';
+    overlay.style.backdropFilter = 'blur(6px)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '3000';
+    overlay.style.padding = '1rem';
+    overlay.style.boxSizing = 'border-box';
+    
+    // Group active items for display
+    let itemsListHtml = '';
+    const grouped = {};
+    if (isOccupied) {
+        tableSales.forEach(s => {
+            const cleanName = s.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            if (!grouped[cleanName]) {
+                grouped[cleanName] = { count: 0, total: 0 };
+            }
+            grouped[cleanName].count++;
+            grouped[cleanName].total += s.price;
+        });
+        
+        itemsListHtml = `
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 0.875rem; border-radius: 8px; margin: 1rem 0; font-size: 0.8rem; text-align: left; max-height: 150px; overflow-y: auto;">
+                <strong style="color: var(--color-gold); display: block; margin-bottom: 0.5rem; font-size: 0.85rem; border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 0.25rem;">
+                    <i class="fa-solid fa-receipt"></i> Consumo de la Mesa:
+                </strong>
+                <div style="display: flex; flex-direction: column; gap: 0.35rem; line-height: 1.4;">
+                    ${Object.entries(grouped).map(([name, data]) => `
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--color-white); opacity: 0.9;">${data.count}x ${name}</span>
+                            <span style="font-weight: 700; color: var(--color-gold);">$${data.total.toFixed(2)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.85rem; color: var(--color-white);">
+                        <span>Total USD:</span>
+                        <span style="color: var(--color-success); font-size: 0.95rem;">$${totalConsumed.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.15rem;">
+                        <span>Total Bs:</span>
+                        <span>Bs. ${(totalConsumed * (window.bcvRate || 1)).toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        itemsListHtml = `
+            <div style="background: rgba(255,255,255,0.01); border: 1px dashed rgba(255,255,255,0.08); padding: 1.25rem; border-radius: 8px; margin: 1rem 0; font-size: 0.8rem; color: var(--color-text-muted);">
+                <i class="fa-solid fa-circle-info" style="font-size: 1.25rem; color: var(--color-gold); display: block; margin-bottom: 0.5rem;"></i>
+                Esta mesa no tiene consumos activos registrados.
+            </div>
+        `;
+    }
+
+    const modalBody = document.createElement('div');
+    modalBody.className = 'card-pantry';
+    modalBody.style.width = '100%';
+    modalBody.style.maxWidth = '360px';
+    modalBody.style.padding = '1.5rem';
+    modalBody.style.borderRadius = '12px';
+    modalBody.style.boxSizing = 'border-box';
+    modalBody.style.border = '1px solid var(--color-gold)';
+    modalBody.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.15)';
+
+    modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem; margin-bottom: 0.5rem;">
+            <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-utensils"></i> ${tableName}
+            </h3>
+            <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 4px; ${isOccupied ? 'background: rgba(212,175,55,0.15); border: 1px solid var(--color-gold); color: var(--color-gold);' : 'background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--color-text-muted);'}">
+                ${isOccupied ? 'Ocupada' : 'Libre'}
+            </span>
+        </div>
+        
+        ${itemsListHtml}
+        
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.25rem;">
+            ${isOccupied ? `
+                <button class="btn-modify-modal" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 800; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background-color: var(--color-gold); color: #000000; width: 100%;">
+                    <i class="fa-solid fa-cart-plus"></i> Comprar Más Cosas
+                </button>
+                <button class="btn-pay-modal" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 800; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background-color: var(--color-success); color: #000000; width: 100%;">
+                    <i class="fa-solid fa-circle-check"></i> Cerrar Venta (Pagar)
+                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%;">
+                    <button class="btn-share-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(16,185,129,0.3); cursor: pointer; transition: all 0.2s; background-color: rgba(16,185,129,0.05); color: #A7F3D0;">
+                        <i class="fa-brands fa-whatsapp"></i> Compartir
+                    </button>
+                    <button class="btn-detail-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white);">
+                        <i class="fa-solid fa-eye"></i> Ver Detalle
+                    </button>
+                </div>
+            ` : `
+                <button class="btn-open-modal" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 800; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background-color: var(--color-gold); color: #000000; width: 100%;">
+                    <i class="fa-solid fa-cart-plus"></i> Abrir Mesa (Consumir)
+                </button>
+            `}
+            <button class="btn-close-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: all 0.2s; background-color: transparent; color: var(--color-text-muted); width: 100%;">
+                Cancelar
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modalBody);
+    document.body.appendChild(overlay);
+
+    // Event listener setup
+    const closeModal = () => {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    };
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+    });
+
+    modalBody.querySelector('.btn-close-modal').addEventListener('click', closeModal);
+
+    if (isOccupied) {
+        modalBody.querySelector('.btn-modify-modal').addEventListener('click', () => {
+            closeModal();
+            if (onEdit) onEdit(timestamp);
+        });
+        modalBody.querySelector('.btn-pay-modal').addEventListener('click', () => {
+            closeModal();
+            if (onPay) onPay(timestamp);
+        });
+        modalBody.querySelector('.btn-share-modal').addEventListener('click', () => {
+            closeModal();
+            let msg = `*CASA LUCCENZO* 🥖\n`;
+            msg += `*Ticket de Consumo* 🧾\n`;
+            msg += `--------------------------------------\n`;
+            msg += `👤 *Cliente/Mesa:* ${tableName}\n`;
+            msg += `📅 *Fecha/Hora:* ${new Date(timestamp).toLocaleString()}\n`;
+            msg += `--------------------------------------\n`;
+            Object.entries(grouped).forEach(([name, data]) => {
+                msg += `• ${data.count}x ${name} - $${data.total.toFixed(2)}\n`;
+            });
+            msg += `--------------------------------------\n`;
+            msg += `💵 *Total a Pagar:* *$${totalConsumed.toFixed(2)} USD*\n`;
+            msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
+            msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(totalConsumed * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
+            msg += `--------------------------------------\n`;
+            msg += `¡Muchas gracias por su compra! 🌟`;
+
+            const encoded = encodeURIComponent(msg);
+            window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+        });
+        modalBody.querySelector('.btn-detail-modal').addEventListener('click', () => {
+            closeModal();
+            // Switch to Cuentas tab and scroll
+            const btnSubCuentas = document.getElementById('btn-sub-cuentas');
+            if (btnSubCuentas) btnSubCuentas.click();
+            
+            setTimeout(() => {
+                const element = document.querySelector(`[data-client-timestamp="${timestamp}"]`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.style.background = 'rgba(212,175,55,0.12)';
+                    setTimeout(() => {
+                        element.style.background = '';
+                    }, 1500);
+                }
+            }, 100);
+        });
+    } else {
+        modalBody.querySelector('.btn-open-modal').addEventListener('click', () => {
+            closeModal();
+            sessionStorage.setItem('casa_lucenzo_editing_client_name', tableName);
+            switchView('local');
+            showToast(`📝 Cuenta iniciada para ${tableName}. ¡Agrega pastelitos!`, 'fa-solid fa-pen-to-square');
+        });
+    }
+}
+
+/**
  * Render the dedicated Clientes view
  * @param {Array} salesLog Today's sales log
  * @param {Function} onUndo Undo sale callback
@@ -1258,46 +1463,11 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         tablesHtml += `</div>`;
         tablesContainer.innerHTML = tablesHtml;
 
-        // Add event listeners to table cards
+        // Add event listeners to table cards to open options modal
         tablesContainer.querySelectorAll('.table-card').forEach(card => {
             card.addEventListener('click', () => {
                 const tableName = card.getAttribute('data-table');
-                
-                // Find active sales for this table
-                const tableSales = salesLog.filter(s => {
-                    const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
-                    if (match) {
-                        const client = match[2];
-                        const isPaid = !!match[3];
-                        return client === tableName && !isPaid;
-                    }
-                    return false;
-                });
-
-                if (tableSales.length > 0) {
-                    // Mesa Ocupada: Switch to Cuentas sub-tab and scroll to detail
-                    const btnSubCuentas = document.getElementById('btn-sub-cuentas');
-                    if (btnSubCuentas) {
-                        btnSubCuentas.click();
-                    }
-                    
-                    const timestamp = tableSales[0].timestamp;
-                    const element = document.querySelector(`[data-client-timestamp="${timestamp}"]`);
-                    if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        element.style.background = 'rgba(212,175,55,0.12)';
-                        setTimeout(() => {
-                            element.style.background = '';
-                        }, 1500);
-                    }
-                } else {
-                    // Mesa Libre: Ask to open new account
-                    if (confirm(`¿Deseas abrir la cuenta para la ${tableName}?`)) {
-                        sessionStorage.setItem('casa_lucenzo_editing_client_name', tableName);
-                        switchView('local');
-                        showToast(`📝 Cuenta iniciada para ${tableName}. ¡Agrega pastelitos!`, 'fa-solid fa-pen-to-square');
-                    }
-                }
+                showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, products);
             });
         });
     }
@@ -1310,16 +1480,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     activosContainer.innerHTML = '';
     pagadosContainer.innerHTML = '';
 
-    if (salesLog.length === 0) {
-        const emptyHtml = `
-            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1.25rem 0;">
-                No hay registros en la jornada de hoy.
-            </div>
-        `;
-        activosContainer.innerHTML = emptyHtml;
-        pagadosContainer.innerHTML = emptyHtml;
-        return;
-    }
+
+
 
     // Group salesLog by timestamp
     const groups = {};

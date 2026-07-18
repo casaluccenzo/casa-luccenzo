@@ -89,6 +89,9 @@ async function syncOfflineQueue() {
             } else if (op.action === 'delete') {
                 const res = await client.from(op.table).delete().eq(op.key, op.keyValue);
                 error = res.error;
+            } else if (op.action === 'update_stock') {
+                const res = await client.from(op.table).update(op.data).eq(op.key, op.keyValue);
+                error = res.error;
             }
             
             if (error) {
@@ -212,6 +215,27 @@ async function upsertProduct(product) {
     } catch (e) {
         console.error("Supabase upsertProduct failed. Enqueuing offline...", e);
         enqueueOfflineOp('products', 'upsert', product);
+    }
+}
+
+async function updateProductStock(id, stock) {
+    if (!client) return;
+    try {
+        const payload = {
+            stock: stock,
+            updated_at: new Date().toISOString()
+        };
+        
+        if (!navigator.onLine) {
+            enqueueOfflineOp('products', 'update_stock', payload, 'id', id);
+            return;
+        }
+
+        const { error } = await client.from('products').update(payload).eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase updateProductStock failed. Enqueuing offline...", e);
+        enqueueOfflineOp('products', 'update_stock', { stock }, 'id', id);
     }
 }
 
@@ -485,6 +509,7 @@ window.SupabaseManager = {
     fetchReplenishments,
     fetchIngredients,
     upsertProduct,
+    updateProductStock,
     deleteProduct,
     insertSale,
     deleteSale,

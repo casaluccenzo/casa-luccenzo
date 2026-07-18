@@ -113,9 +113,9 @@ function adjustStock(id, amount, event) {
     product.stock = newStock;
     window.StorageManager.saveProducts(products);
     
-    // Sync to Supabase
+    // Sync to Supabase (stock updates only)
     if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.upsertProduct(product);
+        window.SupabaseManager.updateProductStock(product.id, product.stock);
     }
 
     // Audio warning and haptic pulses if stock falls under threshold
@@ -151,7 +151,7 @@ function handleUndoSale(uuid) {
         window.StorageManager.saveProducts(products);
         
         if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.upsertProduct(product);
+            window.SupabaseManager.updateProductStock(product.id, product.stock);
         }
     }
 
@@ -276,7 +276,7 @@ function confirmReceipt() {
         if (product) {
             product.stock = product.max;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.upsertProduct(product);
+                window.SupabaseManager.updateProductStock(product.id, product.stock);
             }
         }
         dispatch.status = 'recibido';
@@ -306,7 +306,7 @@ function resetToMax() {
     products.forEach(p => {
         p.stock = p.max;
         if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.upsertProduct(p);
+            window.SupabaseManager.updateProductStock(p.id, p.max);
         }
     });
     window.StorageManager.saveProducts(products);
@@ -615,7 +615,7 @@ async function closeDayAndResetLogs() {
         products.forEach(p => {
             p.stock = p.max;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.upsertProduct(p);
+                window.SupabaseManager.updateProductStock(p.id, p.max);
             }
         });
         window.StorageManager.saveProducts(products);

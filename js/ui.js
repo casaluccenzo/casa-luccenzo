@@ -178,9 +178,10 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
     // Render vitrina header summary stats
     const statsContainer = document.getElementById('vitrina-summary-stats');
     if (statsContainer) {
-        const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-        const totalMax = products.reduce((sum, p) => sum + (p.max || 0), 0);
-        const totalCritical = products.filter(p => p.stock <= p.min).length;
+        const pastelitoProducts = products.filter(p => p.category === 'pastelitos');
+        const totalStock = pastelitoProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
+        const totalMax = pastelitoProducts.reduce((sum, p) => sum + (p.max || 0), 0);
+        const totalCritical = pastelitoProducts.filter(p => p.stock <= p.min).length;
 
         statsContainer.innerHTML = `
             <div class="vitrina-stat-badge gold">

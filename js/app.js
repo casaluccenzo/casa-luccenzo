@@ -9,6 +9,8 @@ let replenishments = [];
 let ingredients = [];
 let activeCategory = 'todos';
 let searchQuery = '';
+let currentCart = [];
+
 
 // Sound and vibration preferences
 let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: '' };
@@ -66,103 +68,222 @@ function adjustStock(id, amount, event) {
     const product = products.find(p => p.id === id);
     if (!product) return;
 
-    const originalStock = product.stock;
-    const newStock = Math.max(0, Math.min(product.max, product.stock + amount));
-    
-    if (newStock === product.stock) {
-        triggerHaptic(30); // Double error haptic tap if limits are reached
-        return; 
+    if (amount === -1) {
+        // Adding 1 to cart / selling
+        if (product.stock <= 0) {
+            triggerHaptic(30);
+            window.UIManager.showToast(`⚠️ "${product.name}" no tiene stock en vitrina.`, "fa-solid fa-triangle-exclamation");
+            return;
+        }
+
+        // Spawn floating number indicator on tap coordinates
+        if (event && event.clientX !== undefined) {
+            window.UIManager.spawnFloatingIndicator(event.clientX, event.clientY, `-1`, 'float-minus');
+        }
+
+        triggerHaptic(15);
+
+        // Add to active cart
+        const cartItem = currentCart.find(item => item.productId === id);
+        if (cartItem) {
+            cartItem.quantity++;
+        } else {
+            currentCart.push({
+                productId: product.id,
+                name: product.name,
+                price: product.price || 0,
+                quantity: 1
+            });
+        }
+        localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+        const originalStock = product.stock;
+        product.stock = Math.max(0, product.stock - 1);
+        window.StorageManager.saveProducts(products);
+
+        if (window.SupabaseManager.isConfigured()) {
+            window.SupabaseManager.updateProductStock(product.id, product.stock);
+        }
+
+        // Audio warning if stock falls under threshold
+        if (product.stock <= product.min && originalStock > product.min) {
+            window.UIManager.showToast(`⚠️ ¡Atención! "${product.name}" se está agotando. Ya se avisó a la cocina.`, "fa-solid fa-bell");
+            if (preferences.sound) {
+                window.AudioManager.playAlertSound();
+            }
+            triggerHaptic([50, 60, 50]);
+        }
+
+        // Render Cart and Local
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    } else if (amount === 1) {
+        // Restocking vitrina (standard + button)
+        const originalStock = product.stock;
+        const newStock = Math.min(product.max, product.stock + 1);
+
+        if (newStock === product.stock) {
+            triggerHaptic(30);
+            return;
+        }
+
+        if (event && event.clientX !== undefined) {
+            window.UIManager.spawnFloatingIndicator(event.clientX, event.clientY, `+1`, 'float-plus');
+        }
+
+        triggerHaptic(15);
+
+        product.stock = newStock;
+        window.StorageManager.saveProducts(products);
+
+        if (window.SupabaseManager.isConfigured()) {
+            window.SupabaseManager.updateProductStock(product.id, product.stock);
+        }
+
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    }
+}
+
+/**
+ * Increment cart item quantity (taking from vitrina stock)
+ */
+function handleAddToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product || product.stock <= 0) {
+        triggerHaptic(30);
+        window.UIManager.showToast(`⚠️ No hay más "${product ? product.name : ''}" en vitrina.`, "fa-solid fa-triangle-exclamation");
+        return;
     }
 
-    // Spawn floating number indicator on tap coordinates
-    if (event && event.clientX !== undefined) {
-        const text = amount > 0 ? `+1` : `-1`;
-        const colorClass = amount > 0 ? 'float-plus' : 'float-minus';
-        window.UIManager.spawnFloatingIndicator(event.clientX, event.clientY, text, colorClass);
-    }
-
-    // Standard haptic confirmation tap
     triggerHaptic(15);
 
-    // If stock decreased (Vendido / Sold)
-    if (amount === -1) {
-        const saleItem = {
-            uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+    const cartItem = currentCart.find(item => item.productId === productId);
+    if (cartItem) {
+        cartItem.quantity++;
+    } else {
+        currentCart.push({
             productId: product.id,
             name: product.name,
             price: product.price || 0,
-            timestamp: new Date().toISOString()
-        };
-        salesLog.push(saleItem);
-        window.StorageManager.saveSalesLog(salesLog);
-        
-        // Sync to Supabase
-        if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.insertSale(saleItem);
-        }
-
-        window.UIManager.renderCashRegister(salesLog, expenses);
-        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
-
-        // Update stats graph if admin is active
-        if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
-        }
+            quantity: 1
+        });
     }
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
 
-    product.stock = newStock;
+    product.stock = Math.max(0, product.stock - 1);
     window.StorageManager.saveProducts(products);
-    
-    // Sync to Supabase (stock updates only)
+
     if (window.SupabaseManager.isConfigured()) {
         window.SupabaseManager.updateProductStock(product.id, product.stock);
     }
 
-    // Audio warning and haptic pulses if stock falls under threshold
-    if (product.stock <= product.min && originalStock > product.min) {
-        window.UIManager.showToast(`⚠️ ¡Atención! "${product.name}" se está agotando. Ya se avisó a la cocina.`, "fa-solid fa-bell");
-        
-        if (preferences.sound) {
-            window.AudioManager.playAlertSound();
-        }
-        
-        // Warning double vibration pulse
-        triggerHaptic([50, 60, 50]);
-    }
-
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
 }
 
 /**
- * Undoes a sales transaction by restoring stock and subtracting from register
- * @param {string} uuid Sales log entry uuid
+ * Decrement cart item quantity (returning to vitrina stock)
  */
-function handleUndoSale(uuid) {
-    const saleIndex = salesLog.findIndex(s => s.uuid === uuid);
-    if (saleIndex === -1) return;
-
-    const sale = salesLog[saleIndex];
-    const product = products.find(p => p.id === sale.productId);
+function handleRemoveFromCart(productId) {
+    const cartItemIndex = currentCart.findIndex(item => item.productId === productId);
+    if (cartItemIndex === -1) return;
 
     triggerHaptic(15);
+
+    const cartItem = currentCart[cartItemIndex];
+    const product = products.find(p => p.id === productId);
 
     if (product) {
         product.stock = Math.min(product.max, product.stock + 1);
         window.StorageManager.saveProducts(products);
-        
         if (window.SupabaseManager.isConfigured()) {
             window.SupabaseManager.updateProductStock(product.id, product.stock);
         }
     }
 
-    salesLog.splice(saleIndex, 1);
+    cartItem.quantity--;
+    if (cartItem.quantity <= 0) {
+        currentCart.splice(cartItemIndex, 1);
+    }
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+}
+
+/**
+ * Empty the current cart, returning all items back to vitrina stock
+ */
+function handleClearCart() {
+    if (currentCart.length === 0) return;
+
+    triggerHaptic(20);
+    if (confirm("¿Estás seguro de que quieres vaciar la cuenta del cliente? Todos los productos se devolverán a la vitrina.")) {
+        currentCart.forEach(cartItem => {
+            const product = products.find(p => p.id === cartItem.productId);
+            if (product) {
+                product.stock = Math.min(product.max, product.stock + cartItem.quantity);
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.updateProductStock(product.id, product.stock);
+                }
+            }
+        });
+        currentCart = [];
+        localStorage.removeItem('casa_lucenzo_current_cart');
+        window.StorageManager.saveProducts(products);
+
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.showToast("🧹 Cuenta del cliente vaciada.", "fa-solid fa-trash-can");
+    }
+}
+
+/**
+ * Checkout active cart: ask for client name, record grouped sales log, sync to Supabase, and clear cart
+ */
+async function handleCheckoutCart() {
+    if (currentCart.length === 0) return;
+
+    triggerHaptic(15);
+    const clientNameInput = prompt("Ingresa el nombre del cliente / mesa (Opcional):", "");
+    if (clientNameInput === null) return; // Cancelled
+
+    const clientName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
+    const timestamp = new Date().toISOString();
+    
+    // Create sales log items for each cart product (repeated rows if quantity > 1, or just separate rows)
+    const newSales = [];
+    currentCart.forEach(cartItem => {
+        for (let i = 0; i < cartItem.quantity; i++) {
+            const saleItem = {
+                uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+                productId: cartItem.productId,
+                name: `${cartItem.name} [${clientName}]`, // Store client name in brackets
+                price: cartItem.price || 0,
+                timestamp: timestamp
+            };
+            newSales.push(saleItem);
+        }
+    });
+
+    salesLog.push(...newSales);
     window.StorageManager.saveSalesLog(salesLog);
 
+    // Sync to Supabase
     if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.deleteSale(sale.uuid);
+        try {
+            const syncPromises = newSales.map(sale => window.SupabaseManager.insertSale(sale));
+            await Promise.all(syncPromises);
+        } catch (e) {
+            console.error("Error syncing cart checkout sales to Supabase", e);
+        }
     }
 
-    // Refresh UI
+    currentCart = [];
+    localStorage.removeItem('casa_lucenzo_current_cart');
+
+    // Refresh UI views
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
@@ -171,8 +292,51 @@ function handleUndoSale(uuid) {
         window.UIManager.renderStats(salesLog, expenses);
     }
 
-    window.UIManager.showToast(`🔄 Venta de "${sale.name}" deshecha con éxito.`, "fa-solid fa-rotate-left");
+    window.UIManager.showToast(`💵 Cuenta de "${clientName}" cobrada con éxito.`, "fa-solid fa-circle-check");
 }
+
+/**
+ * Undoes a sales transaction by restoring stock and subtracting from register
+ * @param {string} timestamp Sales log entry transaction timestamp
+ */
+function handleUndoSale(timestamp) {
+    const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
+    if (matchingSales.length === 0) return;
+
+    triggerHaptic(15);
+
+    if (confirm(`¿Estás seguro de deshacer esta cuenta completa y devolver los productos al stock?`)) {
+        matchingSales.forEach(sale => {
+            const product = products.find(p => p.id === sale.productId);
+            if (product) {
+                product.stock = Math.min(product.max, product.stock + 1);
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.updateProductStock(product.id, product.stock);
+                }
+            }
+            if (window.SupabaseManager.isConfigured()) {
+                window.SupabaseManager.deleteSale(sale.uuid);
+            }
+        });
+
+        // Filter out these sales from memory
+        salesLog = salesLog.filter(s => s.timestamp !== timestamp);
+        window.StorageManager.saveSalesLog(salesLog);
+        window.StorageManager.saveProducts(products);
+
+        // Refresh UI
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderCashRegister(salesLog, expenses);
+        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
+
+        window.UIManager.showToast(`🔄 Cuenta deshecha y productos devueltos a vitrina.`, "fa-solid fa-rotate-left");
+    }
+}
+
 
 /**
  * Reset all log history and cash register to $0.00
@@ -535,9 +699,16 @@ function shareDayClose() {
     
     const salesCount = {};
     salesLog.forEach(sale => {
-        if (!salesCount[sale.name]) salesCount[sale.name] = 0;
-        salesCount[sale.name]++;
+        if (sale.productId !== 'abono') {
+            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            if (!salesCount[cleanName]) salesCount[cleanName] = 0;
+            salesCount[cleanName]++;
+        } else {
+            if (!salesCount[sale.name]) salesCount[sale.name] = 0;
+            salesCount[sale.name]++;
+        }
     });
+
     
     let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
     message += `Fecha: ${new Date().toLocaleDateString()}\n`;
@@ -963,9 +1134,11 @@ function renderAllViews() {
     window.UIManager.renderSearchBar(handleSearchChange);
     window.UIManager.renderCategoryFilterBar(activeCategory, handleCategoryChange);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderDebts(debts, settleDebtPayment);
     window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
@@ -1316,6 +1489,7 @@ function applyUserRole(role) {
         
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     } else if (role === 'cocina') {
         // Kitchen parents: ONLY Kitchen view. Navigation bar hidden entirely.
         navBar.classList.add('hidden');
@@ -1328,8 +1502,10 @@ function applyUserRole(role) {
         // Full Admin: Everything visible, statistics dashboard loaded
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
         window.UIManager.renderStats(salesLog, expenses);
     }
+
 }
 
 /**
@@ -1437,6 +1613,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Load preferences and inputs configuration
     preferences = window.StorageManager.loadPreferences();
+    
+    // Load active cart if stored
+    const savedCart = localStorage.getItem('casa_lucenzo_current_cart');
+    if (savedCart) {
+        try {
+            currentCart = JSON.parse(savedCart);
+        } catch (e) {
+            currentCart = [];
+        }
+    }
+
     
     // Initialize BCV Exchange Rate
     const bcvPrefs = window.StorageManager.loadBcvPreferences();
@@ -1554,8 +1741,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-local').addEventListener('click', () => {
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
         window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
     });
+
 
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');

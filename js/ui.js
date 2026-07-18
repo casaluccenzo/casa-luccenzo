@@ -427,35 +427,82 @@ function renderSalesHistory(salesLog, onUndo) {
         return;
     }
 
-    const reversedLog = [...salesLog].reverse();
+    // Group salesLog by timestamp
+    const groups = {};
+    salesLog.forEach(sale => {
+        let productName = sale.name;
+        let clientName = '';
+        const match = sale.name.match(/^(.*)\s+\[(.*)\]$/);
+        if (match) {
+            productName = match[1];
+            clientName = match[2];
+        } else {
+            productName = sale.name;
+            clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
+        }
+        
+        const key = sale.timestamp;
+        if (!groups[key]) {
+            groups[key] = {
+                timestamp: sale.timestamp,
+                clientName: clientName,
+                items: [],
+                total: 0
+            };
+        }
+        
+        const existingItem = groups[key].items.find(item => item.name === productName);
+        if (existingItem) {
+            existingItem.quantity += 1;
+            existingItem.totalPrice += sale.price;
+        } else {
+            groups[key].items.push({
+                name: productName,
+                price: sale.price,
+                quantity: 1,
+                totalPrice: sale.price
+            });
+        }
+        groups[key].total += sale.price;
+    });
 
-    reversedLog.forEach(sale => {
+    const groupedList = Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    groupedList.forEach(group => {
         const item = document.createElement('div');
         item.className = 'history-item';
 
         let timeStr = '';
         try {
-            const date = new Date(sale.timestamp);
+            const date = new Date(group.timestamp);
             timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch(e) {
             timeStr = 'Ahora';
         }
 
+        const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
+
         item.innerHTML = `
-            <div class="history-item-desc">
-                <span class="history-item-title">${sale.name}</span>
-                <span class="history-item-time">${timeStr} &bull; $${(sale.price || 0).toFixed(2)} <span style="opacity: 0.8; font-size: 0.675rem; margin-left: 0.25rem;">(Bs. ${((sale.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span></span>
+            <div class="history-item-desc" style="flex: 1; min-width: 0;">
+                <span class="history-item-title" style="font-weight: 800; color: var(--color-gold);">
+                    ${group.clientName} <span style="font-weight: normal; color: var(--color-white); font-size: 0.75rem;">(${itemsSummary})</span>
+                </span>
+                <span class="history-item-time">
+                    ${timeStr} &bull; Total: $${group.total.toFixed(2)} 
+                    <span style="opacity: 0.8; font-size: 0.675rem; margin-left: 0.25rem;">(Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)})</span>
+                </span>
             </div>
             <button class="btn-undo">Deshacer</button>
         `;
 
         item.querySelector('.btn-undo').addEventListener('click', () => {
-            onUndo(sale.uuid);
+            onUndo(group.timestamp);
         });
 
         listContainer.appendChild(item);
     });
 }
+
 
 /**
  * Render daily expenses ledger list
@@ -574,12 +621,17 @@ function renderDayCloseModal(salesLog, expenses) {
 
     const salesCount = {};
     salesLog.forEach(sale => {
-        if (!salesCount[sale.name]) {
-            salesCount[sale.name] = { count: 0, total: 0 };
+        let cleanName = sale.name;
+        if (sale.productId !== 'abono') {
+            cleanName = sale.name.replace(/\s*\[.*\]$/, '');
         }
-        salesCount[sale.name].count++;
-        salesCount[sale.name].total += sale.price;
+        if (!salesCount[cleanName]) {
+            salesCount[cleanName] = { count: 0, total: 0 };
+        }
+        salesCount[cleanName].count++;
+        salesCount[cleanName].total += sale.price;
     });
+
 
     let salesHtml = '';
     for (const [name, data] of Object.entries(salesCount)) {
@@ -873,9 +925,11 @@ function renderStats(salesLog, expenses = []) {
     const productCounts = {};
     salesLog.forEach(sale => {
         if (sale.productId !== 'abono') {
-            productCounts[sale.name] = (productCounts[sale.name] || 0) + 1;
+            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            productCounts[cleanName] = (productCounts[cleanName] || 0) + 1;
         }
     });
+
 
     const topProducts = Object.entries(productCounts)
         .sort((a, b) => b[1] - a[1])
@@ -947,6 +1001,116 @@ function renderQuickConversionTable() {
     });
 }
 
+/**
+ * Render active customer account / cart card
+ * @param {Array} cart Current items in cart
+ * @param {Function} onAdd Callback to add 1 quantity
+ * @param {Function} onRemove Callback to remove 1 quantity
+ * @param {Function} onClear Callback to empty the cart
+ * @param {Function} onCheckout Callback to checkout
+ */
+function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
+    const container = document.getElementById('active-cart-container');
+    if (!container) return;
+
+    if (!cart || cart.length === 0) {
+        container.innerHTML = '';
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+
+    const totalUSD = cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    const totalVES = totalUSD * (window.bcvRate || 1);
+
+    container.innerHTML = `
+        <div class="active-cart-card">
+            <div class="active-cart-header">
+                <span class="active-cart-title">
+                    <i class="fa-solid fa-cart-shopping animate-pulse"></i> Cuenta del Cliente Activa
+                </span>
+                <span style="font-size: 10px; color: var(--color-gold); font-weight: bold;">
+                    ${cart.reduce((sum, item) => sum + item.quantity, 0)} artículos
+                </span>
+            </div>
+            
+            <div class="cart-items-list">
+                ${cart.map(item => `
+                    <div class="cart-item-row">
+                        <div class="cart-item-details">
+                            <span class="cart-item-title">${item.name}</span>
+                            <span class="cart-item-sub">
+                                $${(item.price || 0).toFixed(2)} &bull; Sub: $${((item.price || 0) * item.quantity).toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="cart-item-controls">
+                            <button class="btn-cart-adjust-circle minus" data-id="${item.productId}" data-action="minus">-</button>
+                            <span class="cart-qty-badge">${item.quantity}</span>
+                            <button class="btn-cart-adjust-circle plus" data-id="${item.productId}" data-action="plus">+</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="cart-totals-section">
+                <div class="cart-total-row">
+                    <span class="cart-total-lbl">Total a Cobrar:</span>
+                    <span class="cart-total-val-usd">$${totalUSD.toFixed(2)}</span>
+                </div>
+                <div class="cart-total-row" style="justify-content: flex-end;">
+                    <span class="cart-total-val-ves">Bs. ${totalVES.toFixed(2)} VES</span>
+                </div>
+            </div>
+
+            <div class="cart-actions-grid">
+                <button class="btn-cart-submit" id="btn-cart-checkout">
+                    <i class="fa-solid fa-hand-holding-dollar text-lg"></i> COBRAR / REGISTRAR VENTA
+                </button>
+                <button class="btn-cart-secondary danger-outline" id="btn-cart-clear">
+                    <i class="fa-solid fa-trash-can"></i> Vaciar
+                </button>
+                <button class="btn-cart-secondary whatsapp-outline" id="btn-cart-share">
+                    <i class="fa-brands fa-whatsapp"></i> Ticket Cliente
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Bind event listeners
+    container.querySelectorAll('[data-action="minus"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            onRemove(btn.getAttribute('data-id'));
+        });
+    });
+
+    container.querySelectorAll('[data-action="plus"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            onAdd(btn.getAttribute('data-id'));
+        });
+    });
+
+    document.getElementById('btn-cart-checkout').addEventListener('click', onCheckout);
+    document.getElementById('btn-cart-clear').addEventListener('click', onClear);
+    document.getElementById('btn-cart-share').addEventListener('click', () => {
+        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        let msg = `🛒 *TICKET DE COMPRA - CASA LUCENZO*\n`;
+        msg += `--------------------------------------\n`;
+        cart.forEach(item => {
+            msg += `• ${item.quantity}x ${item.name} - $${(item.price * item.quantity).toFixed(2)}\n`;
+        });
+        msg += `--------------------------------------\n`;
+        msg += `💰 *TOTAL A PAGAR:* *$${total.toFixed(2)} USD*\n`;
+        msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
+        msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
+        msg += `--------------------------------------\n`;
+        msg += `¡Muchas gracias por su compra! 🌟`;
+
+        const encoded = encodeURIComponent(msg);
+        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    });
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -969,5 +1133,7 @@ window.UIManager = {
     updateConnectionStatus,
     renderIngredientsPantry,
     renderStats,
-    renderQuickConversionTable
+    renderQuickConversionTable,
+    renderActiveCart
 };
+

@@ -1297,17 +1297,22 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         });
     }
 
-    // 3. Render Clients List
-    const listContainer = document.getElementById('clientes-list-container');
-    if (!listContainer) return;
-    listContainer.innerHTML = '';
+    // 3. Render Clients Lists (Active vs Closed)
+    const activosContainer = document.getElementById('clientes-activos-container');
+    const pagadosContainer = document.getElementById('clientes-pagados-container');
+    if (!activosContainer || !pagadosContainer) return;
+
+    activosContainer.innerHTML = '';
+    pagadosContainer.innerHTML = '';
 
     if (salesLog.length === 0) {
-        listContainer.innerHTML = `
+        const emptyHtml = `
             <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1.25rem 0;">
-                No hay consumos o clientes registrados hoy.
+                No hay registros en la jornada de hoy.
             </div>
         `;
+        activosContainer.innerHTML = emptyHtml;
+        pagadosContainer.innerHTML = emptyHtml;
         return;
     }
 
@@ -1355,6 +1360,9 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     });
 
     const groupedList = Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    let activeCount = 0;
+    let paidCount = 0;
 
     groupedList.forEach(group => {
         const card = document.createElement('div');
@@ -1448,8 +1456,31 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             if (onUndo) onUndo(group.timestamp);
         });
 
-        listContainer.appendChild(card);
+        // Split into containers
+        if (group.isPaid) {
+            pagadosContainer.appendChild(card);
+            paidCount++;
+        } else {
+            activosContainer.appendChild(card);
+            activeCount++;
+        }
     });
+
+    // Handle empty messages for sub-sections
+    if (activeCount === 0) {
+        activosContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem 0;">
+                No hay cuentas activas (todos los clientes han pagado).
+            </div>
+        `;
+    }
+    if (paidCount === 0) {
+        pagadosContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem 0;">
+                No se han registrado cierres de cuenta hoy.
+            </div>
+        `;
+    }
 }
 
 // Expose to window namespace

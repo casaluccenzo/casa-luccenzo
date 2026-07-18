@@ -258,18 +258,29 @@
                     </div>
                 </div>
 
-                <!-- Custom/Regular clients list card -->
-                <div class="card-pantry" style="padding: 1.25rem;">
+                <!-- Active/Unpaid accounts card -->
+                <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem;">
                     <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fa-solid fa-users"></i> Registro de Clientes del Día
+                        <i class="fa-solid fa-utensils"></i> Cuentas Activas (Consumiendo)
                     </h3>
-                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1.25rem;">
-                        Cuentas registradas y consumo activo de mesas o clientes individuales de la jornada.
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                        Clientes y mesas que siguen consumiendo y aún no han pagado.
                     </p>
+                    <div id="clientes-activos-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Dynamic active clients -->
+                    </div>
+                </div>
 
-                    <!-- Dynamic container for clients list -->
-                    <div id="clientes-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <!-- Injected dynamically by js/ui.js -->
+                <!-- Closed/Paid accounts history card -->
+                <div class="card-pantry" style="padding: 1.25rem;">
+                    <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-success); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Historial de Cierres por Cliente (Pagados)
+                    </h3>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                        Cuentas que ya fueron cobradas y cerradas en la jornada de hoy.
+                    </p>
+                    <div id="clientes-pagados-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Dynamic paid closures history -->
                     </div>
                 </div>
             </section>

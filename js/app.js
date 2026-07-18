@@ -1962,13 +1962,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.renderQuickConversionTable();
     });
 
-    // 7. Bind Clientes sub-navigation buttons (Mesas vs Cuentas Activas)
+    // 7. Bind Clientes sub-navigation buttons (Mesas vs Cuentas Activas vs Historial)
     const btnSubMesas = document.getElementById('btn-sub-mesas');
     const btnSubCuentas = document.getElementById('btn-sub-cuentas');
+    const btnSubHistorial = document.getElementById('btn-sub-historial');
     const subViewMesas = document.getElementById('sub-view-mesas');
     const subViewCuentas = document.getElementById('sub-view-cuentas');
+    const subViewHistorial = document.getElementById('sub-view-historial');
 
-    if (btnSubMesas && btnSubCuentas && subViewMesas && subViewCuentas) {
+    if (btnSubMesas && btnSubCuentas && btnSubHistorial && subViewMesas && subViewCuentas && subViewHistorial) {
         btnSubMesas.addEventListener('click', () => {
             btnSubMesas.classList.add('active');
             btnSubMesas.classList.remove('inactive');
@@ -1977,9 +1979,14 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubCuentas.classList.remove('active');
             btnSubCuentas.classList.add('inactive');
             btnSubCuentas.setAttribute('aria-selected', 'false');
+            
+            btnSubHistorial.classList.remove('active');
+            btnSubHistorial.classList.add('inactive');
+            btnSubHistorial.setAttribute('aria-selected', 'false');
 
             subViewMesas.classList.remove('hidden');
             subViewCuentas.classList.add('hidden');
+            subViewHistorial.classList.add('hidden');
             triggerHaptic(10);
         });
 
@@ -1991,9 +1998,33 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubMesas.classList.remove('active');
             btnSubMesas.classList.add('inactive');
             btnSubMesas.setAttribute('aria-selected', 'false');
+            
+            btnSubHistorial.classList.remove('active');
+            btnSubHistorial.classList.add('inactive');
+            btnSubHistorial.setAttribute('aria-selected', 'false');
 
             subViewCuentas.classList.remove('hidden');
             subViewMesas.classList.add('hidden');
+            subViewHistorial.classList.add('hidden');
+            triggerHaptic(10);
+        });
+
+        btnSubHistorial.addEventListener('click', () => {
+            btnSubHistorial.classList.add('active');
+            btnSubHistorial.classList.remove('inactive');
+            btnSubHistorial.setAttribute('aria-selected', 'true');
+            
+            btnSubMesas.classList.remove('active');
+            btnSubMesas.classList.add('inactive');
+            btnSubMesas.setAttribute('aria-selected', 'false');
+            
+            btnSubCuentas.classList.remove('active');
+            btnSubCuentas.classList.add('inactive');
+            btnSubCuentas.setAttribute('aria-selected', 'false');
+
+            subViewHistorial.classList.remove('hidden');
+            subViewMesas.classList.add('hidden');
+            subViewCuentas.classList.add('hidden');
             triggerHaptic(10);
         });
     }

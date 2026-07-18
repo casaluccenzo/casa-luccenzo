@@ -1650,7 +1650,7 @@ function applyUserRole(role) {
     const clearSales = document.getElementById('btn-clear-sales');
     const dayCloseSec = document.getElementById('day-close-trigger-section');
 
-    if (undoSales) undoSales.classList.remove('hidden');
+    if (undoSales) undoSales.classList.add('hidden');
     if (clearSales) clearSales.classList.remove('hidden');
     if (dayCloseSec) dayCloseSec.classList.remove('hidden');
 

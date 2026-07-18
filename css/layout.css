@@ -101,6 +101,33 @@ header .container-md {
     color: var(--color-white);
 }
 
+.nav-icon {
+    font-size: 1.25rem;
+    margin-bottom: 0.125rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+    .nav-icon {
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+    }
+    .nav-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.03em;
+    }
+}
+
 /* Main Area and section views */
 main {
     flex-grow: 1;

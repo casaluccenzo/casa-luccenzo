@@ -120,7 +120,7 @@ function adjustStock(id, amount, event) {
     } else if (amount === 1) {
         // Restocking vitrina (standard + button)
         const originalStock = product.stock;
-        const newStock = Math.min(product.max, product.stock + 1);
+        const newStock = originalStock >= product.max ? originalStock + 1 : Math.min(product.max, originalStock + 1);
 
         if (newStock === product.stock) {
             triggerHaptic(30);
@@ -194,7 +194,7 @@ function handleRemoveFromCart(productId) {
     const product = products.find(p => p.id === productId);
 
     if (product) {
-        product.stock = Math.min(product.max, product.stock + 1);
+        product.stock = product.stock >= product.max ? product.stock + 1 : Math.min(product.max, product.stock + 1);
         window.StorageManager.saveProducts(products);
         if (window.SupabaseManager.isConfigured()) {
             window.SupabaseManager.updateProductStock(product.id, product.stock);
@@ -222,7 +222,7 @@ function handleClearCart() {
         currentCart.forEach(cartItem => {
             const product = products.find(p => p.id === cartItem.productId);
             if (product) {
-                product.stock = Math.min(product.max, product.stock + cartItem.quantity);
+                product.stock = product.stock >= product.max ? product.stock + cartItem.quantity : Math.min(product.max, product.stock + cartItem.quantity);
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.updateProductStock(product.id, product.stock);
                 }
@@ -309,7 +309,7 @@ function handleUndoSale(timestamp) {
         matchingSales.forEach(sale => {
             const product = products.find(p => p.id === sale.productId);
             if (product) {
-                product.stock = Math.min(product.max, product.stock + 1);
+                product.stock = product.stock >= product.max ? product.stock + 1 : Math.min(product.max, product.stock + 1);
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.updateProductStock(product.id, product.stock);
                 }
@@ -936,6 +936,14 @@ function editProductPrompt(id) {
         return;
     }
 
+    const newStockVal = prompt("Cantidad actual en vitrina (Stock):", product.stock);
+    if (newStockVal === null) return;
+    const stockVal = parseInt(newStockVal);
+    if (isNaN(stockVal) || stockVal < 0) {
+        alert("Cantidad de stock inválida.");
+        return;
+    }
+
     const categoriesPrompt = "Escribe la categoría del producto:\n- pastelitos\n- tortas\n- bebidas";
     const newCategory = prompt(categoriesPrompt, product.category || 'pastelitos');
     if (newCategory === null) return;
@@ -950,7 +958,7 @@ function editProductPrompt(id) {
     product.max = maxVal;
     product.min = minVal;
     product.category = catVal;
-    product.stock = Math.min(product.stock, maxVal);
+    product.stock = stockVal;
 
     window.StorageManager.saveProducts(products);
 

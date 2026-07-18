@@ -636,8 +636,11 @@
                     <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem; line-height: 1.4;">Ingresa el código de 6 dígitos<br>de tu aplicación de autenticación.</p>
                 </div>
                 
-                <div style="margin: 1.25rem 0; text-align: center;">
+                <div style="margin: 1.25rem 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
                     <input type="password" id="totp-input" pattern="[0-9]*" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="font-size: 1.5rem; letter-spacing: 0.25em; text-align: center; background: rgba(255,255,255,0.03); border: 2px solid var(--color-gold); border-radius: var(--radius-md); color: white; width: 180px; height: 46px; outline: none; margin: 0 auto; display: block;">
+                    <button id="btn-totp-submit" class="btn-touch btn-kitchen-deliver" style="width: 180px; height: 40px; min-height: 40px; background-color: var(--color-gold); color: #000000; font-weight: 900; font-size: 0.75rem; border-radius: var(--radius-md); border: none; letter-spacing: 0.05em; text-transform: uppercase;">
+                        <i class="fa-solid fa-unlock-keyhole"></i> ENTRAR
+                    </button>
                 </div>
                 
                 <div style="text-align: center;">

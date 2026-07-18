@@ -2301,32 +2301,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function submitTotp() {
+        const totpInput = document.getElementById('totp-input');
+        if (!totpInput || !totpInstance) return;
+        
+        const val = totpInput.value.trim();
+        if (val.length !== 6) {
+            window.UIManager.showToast("⚠️ El código debe tener 6 dígitos.", "fa-solid fa-circle-exclamation");
+            return;
+        }
+        
+        const delta = totpInstance.validate({ token: val, window: 1 });
+        if (delta !== null) {
+            const pinOverlay = document.getElementById('pin-overlay');
+            const pinLoginSection = document.getElementById('pin-login-section');
+            const totpLoginSection = document.getElementById('totp-login-section');
+            
+            if (pinOverlay) pinOverlay.style.display = 'none';
+            if (pinLoginSection) pinLoginSection.classList.remove('hidden');
+            if (totpLoginSection) totpLoginSection.classList.add('hidden');
+            
+            totpInput.value = '';
+            applyUserRole('admin');
+            window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
+        } else {
+            triggerHaptic([80, 80]);
+            window.UIManager.showToast("❌ Código 2FA incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");
+            totpInput.value = '';
+            totpInput.focus();
+        }
+    }
+
     const totpInput = document.getElementById('totp-input');
     if (totpInput) {
         totpInput.addEventListener('input', () => {
             const val = totpInput.value.trim();
             if (val.length === 6) {
-                if (totpInstance) {
-                    const delta = totpInstance.validate({ token: val, window: 1 });
-                    if (delta !== null) {
-                        const pinOverlay = document.getElementById('pin-overlay');
-                        const pinLoginSection = document.getElementById('pin-login-section');
-                        const totpLoginSection = document.getElementById('totp-login-section');
-                        
-                        if (pinOverlay) pinOverlay.style.display = 'none';
-                        if (pinLoginSection) pinLoginSection.classList.remove('hidden');
-                        if (totpLoginSection) totpLoginSection.classList.add('hidden');
-                        
-                        totpInput.value = '';
-                        applyUserRole('admin');
-                        window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
-                    } else {
-                        triggerHaptic([80, 80]);
-                        window.UIManager.showToast("❌ Código 2FA incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");
-                        totpInput.value = '';
-                    }
-                }
+                submitTotp();
             }
+        });
+        totpInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitTotp();
+            }
+        });
+    }
+
+    const btnTotpSubmit = document.getElementById('btn-totp-submit');
+    if (btnTotpSubmit) {
+        btnTotpSubmit.addEventListener('click', () => {
+            triggerHaptic(10);
+            submitTotp();
         });
     }
 });

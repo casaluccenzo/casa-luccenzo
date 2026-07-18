@@ -1275,7 +1275,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 });
 
                 if (tableSales.length > 0) {
-                    // Mesa Ocupada: Scroll to detail in client list
+                    // Mesa Ocupada: Switch to Cuentas sub-tab and scroll to detail
+                    const btnSubCuentas = document.getElementById('btn-sub-cuentas');
+                    if (btnSubCuentas) {
+                        btnSubCuentas.click();
+                    }
+                    
                     const timestamp = tableSales[0].timestamp;
                     const element = document.querySelector(`[data-client-timestamp="${timestamp}"]`);
                     if (element) {

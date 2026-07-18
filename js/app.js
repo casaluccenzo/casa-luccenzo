@@ -1932,6 +1932,42 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.renderQuickConversionTable();
     });
 
+    // 7. Bind Clientes sub-navigation buttons (Mesas vs Cuentas Activas)
+    const btnSubMesas = document.getElementById('btn-sub-mesas');
+    const btnSubCuentas = document.getElementById('btn-sub-cuentas');
+    const subViewMesas = document.getElementById('sub-view-mesas');
+    const subViewCuentas = document.getElementById('sub-view-cuentas');
+
+    if (btnSubMesas && btnSubCuentas && subViewMesas && subViewCuentas) {
+        btnSubMesas.addEventListener('click', () => {
+            btnSubMesas.classList.add('active');
+            btnSubMesas.classList.remove('inactive');
+            btnSubMesas.setAttribute('aria-selected', 'true');
+            
+            btnSubCuentas.classList.remove('active');
+            btnSubCuentas.classList.add('inactive');
+            btnSubCuentas.setAttribute('aria-selected', 'false');
+
+            subViewMesas.classList.remove('hidden');
+            subViewCuentas.classList.add('hidden');
+            triggerHaptic(10);
+        });
+
+        btnSubCuentas.addEventListener('click', () => {
+            btnSubCuentas.classList.add('active');
+            btnSubCuentas.classList.remove('inactive');
+            btnSubCuentas.setAttribute('aria-selected', 'true');
+            
+            btnSubMesas.classList.remove('active');
+            btnSubMesas.classList.add('inactive');
+            btnSubMesas.setAttribute('aria-selected', 'false');
+
+            subViewCuentas.classList.remove('hidden');
+            subViewMesas.classList.add('hidden');
+            triggerHaptic(10);
+        });
+    }
+
     // Converter Calculator Logic
     const calcUsd = document.getElementById('calc-usd');
     const calcVes = document.getElementById('calc-ves');

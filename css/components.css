@@ -1620,3 +1620,25 @@ input:checked + .slider:before {
     color: var(--color-success);
 }
 
+.sub-switch-nav button {
+    background: transparent;
+    color: var(--color-text-muted);
+}
+
+.sub-switch-nav button.active {
+    background-color: var(--color-gold) !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+}
+
+.sub-switch-nav button.inactive {
+    background-color: transparent !important;
+    color: var(--color-text-muted) !important;
+}
+
+.sub-switch-nav button.inactive:hover {
+    color: var(--color-white) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+

@@ -1396,9 +1396,10 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const liveVendidosEl = document.getElementById('live-stat-vendidos');
     const liveVentasEl = document.getElementById('live-stat-ventas');
 
-    // Total in vitrina: sum of all product stock
-    const totalInVitrina = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-    const totalMaxVitrina = products.reduce((sum, p) => sum + (p.max || 0), 0);
+    // Total in vitrina: sum of all product stock (only savory pastelitos)
+    const pastelitoProducts = products.filter(p => p.category === 'pastelitos');
+    const totalInVitrina = pastelitoProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalMaxVitrina = pastelitoProducts.reduce((sum, p) => sum + (p.max || 0), 0);
     if (liveVitrinaEl) {
         liveVitrinaEl.textContent = `${totalInVitrina} / ${totalMaxVitrina}`;
     }
@@ -1555,36 +1556,39 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             : `<span class="client-status-badge active">Consumiendo</span>`;
 
         card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-weight: 800; color: var(--color-gold); font-size: 0.875rem;">${group.clientName}</span>
-                        ${statusBadge}
-                    </div>
-                    <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.125rem;">
-                        ${timeStr} &bull; Total: $${group.total.toFixed(2)} (Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)})
-                    </div>
-                </div>
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 0.25rem;">
-                    <button class="btn-action-small btn-share-client" title="Compartir Ticket">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </button>
-                    ${!group.isPaid ? `
-                        <button class="btn-action-small btn-modify-client" style="background-color: var(--color-gold); color: var(--color-bg-navy);" title="Agregar más cosas">
-                            <i class="fa-solid fa-pen-to-square"></i> Modificar
-                        </button>
-                        <button class="btn-action-small btn-pay-client" style="background-color: var(--color-success); color: var(--color-bg-navy);" title="Marcar como pagada y liberar mesa">
-                            <i class="fa-solid fa-circle-check"></i> Pagar
-                        </button>
-                    ` : ''}
-                    <button class="btn-action-small btn-undo-client" style="background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
-                        <i class="fa-solid fa-rotate-left"></i>
-                    </button>
-                </div>
+            <!-- Top Row: Name and Status Badge -->
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span style="font-weight: 800; color: var(--color-gold); font-size: 0.95rem;">${group.clientName}</span>
+                ${statusBadge}
             </div>
-            <div style="font-size: 11px; color: var(--color-white); opacity: 0.85; padding-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03);">
+            
+            <!-- Subtitle: Time and Total -->
+            <div style="font-size: 11px; color: var(--color-text-muted); margin-top: -0.15rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>${timeStr}</span>
+                <span style="font-weight: 700; color: var(--color-white);">Total: $${group.total.toFixed(2)} <span style="font-weight: 500; font-size: 10px; color: var(--color-text-muted);">(Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)})</span></span>
+            </div>
+            
+            <!-- Items list -->
+            <div style="font-size: 11px; color: var(--color-white); opacity: 0.85; padding-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.04); margin-bottom: 0.25rem;">
                 <strong>Lleva:</strong> ${itemsSummary}
+            </div>
+            
+            <!-- Action Buttons Row -->
+            <div style="display: flex; gap: 0.5rem; width: 100%; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.5rem; justify-content: flex-end;">
+                <button class="btn-action-small btn-share-client" title="Compartir Ticket" style="flex: 1; height: 36px; justify-content: center; font-size: 0.75rem;">
+                    <i class="fa-brands fa-whatsapp"></i> Compartir
+                </button>
+                ${!group.isPaid ? `
+                    <button class="btn-action-small btn-modify-client" style="flex: 2; height: 36px; justify-content: center; background-color: var(--color-gold); color: var(--color-bg-navy); font-size: 0.75rem;" title="Agregar más cosas">
+                        <i class="fa-solid fa-pen-to-square"></i> Modificar
+                    </button>
+                    <button class="btn-action-small btn-pay-client" style="flex: 2; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem;" title="Marcar como pagada y liberar mesa">
+                        <i class="fa-solid fa-circle-check"></i> Pagar
+                    </button>
+                ` : ''}
+                <button class="btn-action-small btn-undo-client" style="height: 36px; justify-content: center; width: 40px; background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
             </div>
         `;
 

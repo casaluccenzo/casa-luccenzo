@@ -214,7 +214,7 @@ function handleRemoveFromCart(productId) {
 /**
  * Empty the current cart, returning all items back to vitrina stock
  */
-function handleClearCart() {
+async function handleClearCart() {
     if (currentCart.length === 0) return;
 
     triggerHaptic(20);
@@ -228,6 +228,24 @@ function handleClearCart() {
                 }
             }
         });
+
+        // Delete old sales from Supabase if we were editing an existing account
+        const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
+        if (editingSalesStr) {
+            try {
+                const editingSales = JSON.parse(editingSalesStr);
+                if (window.SupabaseManager.isConfigured()) {
+                    const deletePromises = editingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
+                    await Promise.all(deletePromises);
+                }
+            } catch (e) {
+                console.error("Failed to delete old sales on clear cart:", e);
+            }
+            sessionStorage.removeItem('casa_lucenzo_editing_sales');
+            sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
+            sessionStorage.removeItem('casa_lucenzo_editing_client_name');
+        }
+
         currentCart = [];
         localStorage.removeItem('casa_lucenzo_current_cart');
         window.StorageManager.saveProducts(products);
@@ -249,10 +267,29 @@ async function handleCheckoutCart() {
     const clientNameInput = prompt("Ingresa el nombre del cliente / mesa (Opcional):", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
-    sessionStorage.removeItem('casa_lucenzo_editing_client_name');
-
     const clientName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
-    const timestamp = new Date().toISOString();
+    
+    const editingTimestamp = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
+    const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
+    const timestamp = editingTimestamp || new Date().toISOString();
+
+    if (editingSalesStr && editingTimestamp) {
+        try {
+            const editingSales = JSON.parse(editingSalesStr);
+            if (window.SupabaseManager.isConfigured()) {
+                const deletePromises = editingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
+                await Promise.all(deletePromises);
+            }
+        } catch (e) {
+            console.error("Failed to delete old sales during checkout modification:", e);
+        }
+        // Remove old entries from local memory log
+        salesLog = salesLog.filter(s => s.timestamp !== editingTimestamp);
+        
+        sessionStorage.removeItem('casa_lucenzo_editing_sales');
+        sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
+    }
+    sessionStorage.removeItem('casa_lucenzo_editing_client_name');
     
     // Create sales log items for each cart product (repeated rows if quantity > 1, or just separate rows)
     const newSales = [];
@@ -387,17 +424,10 @@ async function handleEditSale(timestamp) {
     currentCart = cartReconstructed;
     localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
     sessionStorage.setItem('casa_lucenzo_editing_client_name', clientName);
+    sessionStorage.setItem('casa_lucenzo_editing_timestamp', timestamp);
+    sessionStorage.setItem('casa_lucenzo_editing_sales', JSON.stringify(matchingSales));
 
-    // 3. Delete old sales records from Supabase and memory (no stock restoration, since they are now in the active cart)
-    if (window.SupabaseManager.isConfigured()) {
-        try {
-            const deletePromises = matchingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
-            await Promise.all(deletePromises);
-        } catch (e) {
-            console.error("Error deleting old sales during modification", e);
-        }
-    }
-
+    // 3. Remove old sales locally to avoid double counting in active cart
     salesLog = salesLog.filter(s => s.timestamp !== timestamp);
     window.StorageManager.saveSalesLog(salesLog);
 
@@ -2058,3 +2088,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Expose functions globally for UI callbacks and fallbacks
+window.handleEditSale = handleEditSale;
+window.handleUndoSale = handleUndoSale;
+

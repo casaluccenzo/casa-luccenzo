@@ -1323,17 +1323,17 @@ function updateBcvHeaderDisplay() {
 }
 
 /**
- * Fetch the official BCV rate from DolarAPI
+ * Fetch the official BCV rate from DolarVZLA API (which updates correctly with next business day value date)
  */
 async function fetchBcvRate() {
     if (!useAutoBcv) return;
     try {
         console.log("Fetching official BCV exchange rate...");
-        const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+        const response = await fetch('https://rates.dolarvzla.com/bcv/current.json');
         if (response.ok) {
             const data = await response.json();
-            if (data && data.promedio) {
-                bcvRate = parseFloat(data.promedio);
+            if (data && data.current && data.current.usd) {
+                bcvRate = parseFloat(data.current.usd);
                 window.bcvRate = bcvRate;
                 saveAndSyncBcvConfig();
                 console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
@@ -1350,6 +1350,7 @@ async function fetchBcvRate() {
                 window.UIManager.renderCashRegister(salesLog, expenses);
                 window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
                 window.UIManager.renderDebts(debts, settleDebtPayment);
+                window.UIManager.renderQuickConversionTable();
             }
         }
     } catch (e) {

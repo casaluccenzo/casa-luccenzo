@@ -411,6 +411,41 @@ async function upsertIngredient(ing) {
     }
 }
 
+async function fetchAppConfig() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.from('app_config').select('*').eq('id', 1).maybeSingle();
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.error("Error fetching app config from Supabase:", e);
+        return null;
+    }
+}
+
+async function upsertAppConfig(config) {
+    if (!client) return;
+    try {
+        const payload = {
+            id: 1,
+            bcv_rate: parseFloat(config.bcvRate) || 732.48,
+            use_auto_bcv: !!config.useAutoBcv,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine) {
+            enqueueOfflineOp('app_config', 'upsert', payload);
+            return;
+        }
+
+        const { error } = await client.from('app_config').upsert(payload);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase upsertAppConfig failed. Enqueuing offline...", e);
+        enqueueOfflineOp('app_config', 'upsert', { id: 1, bcv_rate: config.bcvRate, use_auto_bcv: config.useAutoBcv });
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -431,6 +466,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, (p) => onDbChange('debts', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, (p) => onDbChange('replenishments', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, (p) => onDbChange('ingredients', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, (p) => onDbChange('app_config', p))
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");
@@ -459,6 +495,8 @@ window.SupabaseManager = {
     upsertReplenishment,
     deleteReplenishment,
     upsertIngredient,
+    fetchAppConfig,
+    upsertAppConfig,
     subscribeToChanges,
     syncOfflineQueue
 };

@@ -865,6 +865,26 @@ async function loadAllDataFromSupabase() {
         ingredients = window.StorageManager.loadIngredients();
     }
 
+    // Fetch app configuration (exchange rate)
+    const supConfig = await window.SupabaseManager.fetchAppConfig();
+    if (supConfig) {
+        bcvRate = parseFloat(supConfig.bcv_rate) || 732.48;
+        useAutoBcv = supConfig.use_auto_bcv !== false;
+        window.bcvRate = bcvRate;
+        window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+        
+        // Sync DOM components
+        const autoCheckbox = document.getElementById('pref-bcv-auto');
+        const bcvRateInput = document.getElementById('pref-bcv-rate');
+        const headerBcvInput = document.getElementById('header-bcv-rate-input');
+        if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
+        if (bcvRateInput) {
+            bcvRateInput.value = bcvRate;
+            bcvRateInput.disabled = useAutoBcv;
+        }
+        if (headerBcvInput) headerBcvInput.value = bcvRate;
+    }
+
     renderAllViews();
 }
 
@@ -878,6 +898,12 @@ function loadAllDataFromLocalStorage() {
     debts = window.StorageManager.loadDebts();
     replenishments = window.StorageManager.loadReplenishments();
     ingredients = window.StorageManager.loadIngredients();
+    
+    const bcvPrefs = window.StorageManager.loadBcvPreferences();
+    bcvRate = bcvPrefs.bcvRate || 732.48;
+    useAutoBcv = bcvPrefs.useAutoBcv !== false;
+    window.bcvRate = bcvRate;
+    
     renderAllViews();
 }
 
@@ -1061,6 +1087,31 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         }
         window.StorageManager.saveIngredients(ingredients);
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+    } else if (tableName === 'app_config') {
+        if (newRow) {
+            bcvRate = parseFloat(newRow.bcv_rate) || 732.48;
+            useAutoBcv = newRow.use_auto_bcv !== false;
+            window.bcvRate = bcvRate;
+            window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+            
+            // Sync DOM components
+            const autoCheckbox = document.getElementById('pref-bcv-auto');
+            const bcvRateInput = document.getElementById('pref-bcv-rate');
+            const headerBcvInput = document.getElementById('header-bcv-rate-input');
+            if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
+            if (bcvRateInput) {
+                bcvRateInput.value = bcvRate;
+                bcvRateInput.disabled = useAutoBcv;
+            }
+            if (headerBcvInput) headerBcvInput.value = bcvRate;
+
+            // Re-render all views
+            window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+            window.UIManager.renderCashRegister(salesLog, expenses);
+            window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+            window.UIManager.renderDebts(debts, settleDebtPayment);
+            window.UIManager.renderQuickConversionTable();
+        }
     }
 }
 
@@ -1120,6 +1171,32 @@ async function performFullFetch(tableName) {
             ingredients = data;
             window.StorageManager.saveIngredients(ingredients);
             window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
+        }
+    } else if (tableName === 'app_config') {
+        const data = await window.SupabaseManager.fetchAppConfig();
+        if (data) {
+            bcvRate = parseFloat(data.bcv_rate) || 732.48;
+            useAutoBcv = data.use_auto_bcv !== false;
+            window.bcvRate = bcvRate;
+            window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+            
+            // Sync DOM components
+            const autoCheckbox = document.getElementById('pref-bcv-auto');
+            const bcvRateInput = document.getElementById('pref-bcv-rate');
+            const headerBcvInput = document.getElementById('header-bcv-rate-input');
+            if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
+            if (bcvRateInput) {
+                bcvRateInput.value = bcvRate;
+                bcvRateInput.disabled = useAutoBcv;
+            }
+            if (headerBcvInput) headerBcvInput.value = bcvRate;
+
+            // Re-render
+            window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+            window.UIManager.renderCashRegister(salesLog, expenses);
+            window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+            window.UIManager.renderDebts(debts, settleDebtPayment);
+            window.UIManager.renderQuickConversionTable();
         }
     }
 }
@@ -1228,6 +1305,14 @@ function lockSession() {
 // ================= APP INITIALIZATION =================
 
 /**
+ * Saves BCV configuration locally and updates Supabase
+ */
+function saveAndSyncBcvConfig() {
+    window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+    window.SupabaseManager.upsertAppConfig({ bcvRate, useAutoBcv });
+}
+
+/**
  * Update the header exchange rate text
  */
 function updateBcvHeaderDisplay() {
@@ -1250,7 +1335,7 @@ async function fetchBcvRate() {
             if (data && data.promedio) {
                 bcvRate = parseFloat(data.promedio);
                 window.bcvRate = bcvRate;
-                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                saveAndSyncBcvConfig();
                 console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
                 
                 const bcvRateInput = document.getElementById('pref-bcv-rate');
@@ -1302,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 bcvRate = val;
                 window.bcvRate = bcvRate;
                 useAutoBcv = false; // Disable automatic sync since they manually set the rate
-                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                saveAndSyncBcvConfig();
                 
                 // Sync Settings Modal components
                 if (autoBcvCheckbox) autoBcvCheckbox.checked = false;
@@ -1333,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (useAutoBcv) {
                 fetchBcvRate();
             } else {
-                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                saveAndSyncBcvConfig();
             }
         });
         
@@ -1342,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (val > 0) {
                 bcvRate = val;
                 window.bcvRate = bcvRate;
-                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                saveAndSyncBcvConfig();
                 
                 // Sync Header input
                 if (headerBcvInput) headerBcvInput.value = bcvRate;

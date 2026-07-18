@@ -25,6 +25,21 @@ body {
     margin-right: auto;
     padding-left: 1rem;
     padding-right: 1rem;
+    transition: max-width var(--transition-normal);
+}
+
+@media (min-width: 768px) {
+    .container-md {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .container-md {
+        max-width: 1100px;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
 }
 
 /* Header styling */
@@ -250,4 +265,60 @@ main {
     font-size: 9px;
     font-weight: 800;
     text-transform: uppercase;
+}
+
+.local-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.local-catalog-col,
+.local-checkout-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .local-layout-wrapper {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    #view-cambio:not(.hidden) {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    #clientes-activos-container,
+    #clientes-pagados-container,
+    #debts-list,
+    #kitchen-orders-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .local-layout-wrapper {
+        grid-template-columns: 1.4fr 1fr;
+        gap: 2rem;
+    }
+
+    header .container-md {
+        flex-direction: row !important;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    #switch-nav-bar {
+        max-width: 650px;
+    }
 }

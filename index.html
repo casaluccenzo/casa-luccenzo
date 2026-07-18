@@ -115,85 +115,94 @@
                         <i class="fa-solid fa-rotate-left"></i> Rellenar todo
                     </button>
                 </div>
-
-                <!-- Vitrina dynamic summary stats -->
-                <div id="vitrina-summary-stats" class="vitrina-stats-bar"></div>
-
-                <!-- Alert card when kitchen has dispatched items (confirm receipt) -->
-                <div id="dispatch-container" class="hidden">
-                    <!-- Dynamic injections from js/ui.js -->
-                </div>
-
-                <!-- Active Customer Account / Cart -->
-                <div id="active-cart-container" class="hidden">
-                    <!-- Dynamic injections from js/ui.js -->
-                </div>
-
-                <!-- Search bar input -->
-                <div id="search-bar-container">
-                    <!-- Dynamic search bar from js/ui.js -->
-                </div>
-
-                <!-- PWA Category filter pills -->
-                <div id="category-filter-container" class="category-filter-bar">
-                    <!-- Dynamic tabs from js/ui.js -->
-                </div>
-
-                <!-- Main dynamic stock control list -->
-                <div class="inventory-list" id="inventory-list">
-                    <!-- Dynamic injections from js/ui.js -->
-                </div>
-
-                <!-- Cash Register Estimator Card -->
-                <div class="cash-card">
-                    <div class="cash-label-group">
-                        <span class="cash-label">Caja Estimada (Hoy)</span>
-                        <span id="cash-value" class="cash-value">$0.00</span>
-                    </div>
-                    <div style="font-size: 1.5rem; color: var(--color-gold);">
-                        <i class="fa-solid fa-cash-register"></i>
-                    </div>
-                </div>
-
-                <!-- Sales History Log -->
-                <div class="history-container hidden" id="sales-history-section">
-                    <div class="history-header">
-                        <h3 class="history-title">Registro de Ventas</h3>
-                        <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
-                            <i class="fa-solid fa-trash-can"></i> Limpiar Caja
-                        </button>
-                    </div>
-                    <div id="history-list" class="history-list">
-                        <!-- Dynamic items from js/ui.js -->
-                    </div>
-                </div>
-
-                <!-- Daily Expenses Section -->
-                <div class="expenses-container" id="daily-expenses-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <h3 class="history-title">Gastos del Local</h3>
-                        <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
-                    </div>
+                <!-- Responsive Grid/Flex wrapper for catalog and checkout -->
+                <div class="local-layout-wrapper">
                     
-                    <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
-                        <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
-                        <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
-                        <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </form>
-                    
-                    <div id="expense-list" class="expense-list">
-                        <!-- Dynamic items from js/ui.js -->
-                    </div>
-                </div>
+                    <!-- Left/Main Column: Product Catalog & Search -->
+                    <div class="local-catalog-col">
+                        <!-- Vitrina dynamic summary stats -->
+                        <div id="vitrina-summary-stats" class="vitrina-stats-bar"></div>
 
-                <!-- Day Close trigger -->
-                <div style="margin-top: 2rem;" id="day-close-trigger-section">
-                    <button id="btn-cierre-dia-open" class="btn-touch btn-kitchen-deliver" style="background-color: var(--color-gold); color: #000000; font-weight: 900; gap: 0.5rem; width: 100%;">
-                        <i class="fa-solid fa-door-closed text-lg"></i>
-                        CERRAR JORNADA (CIERRE DE DÍA)
-                    </button>
+                        <!-- Alert card when kitchen has dispatched items (confirm receipt) -->
+                        <div id="dispatch-container" class="hidden">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+
+                        <!-- Search bar input -->
+                        <div id="search-bar-container">
+                            <!-- Dynamic search bar from js/ui.js -->
+                        </div>
+
+                        <!-- PWA Category filter pills -->
+                        <div id="category-filter-container" class="category-filter-bar">
+                            <!-- Dynamic tabs from js/ui.js -->
+                        </div>
+
+                        <!-- Main dynamic stock control list -->
+                        <div class="inventory-list" id="inventory-list">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+                    </div>
+
+                    <!-- Right/Side Column: Cart, Caja register, and Daily Actions -->
+                    <div class="local-checkout-col">
+                        <!-- Active Customer Account / Cart -->
+                        <div id="active-cart-container" class="hidden">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+
+                        <!-- Cash Register Estimator Card -->
+                        <div class="cash-card">
+                            <div class="cash-label-group">
+                                <span class="cash-label">Caja Estimada (Hoy)</span>
+                                <span id="cash-value" class="cash-value">$0.00</span>
+                            </div>
+                            <div style="font-size: 1.5rem; color: var(--color-gold);">
+                                <i class="fa-solid fa-cash-register"></i>
+                            </div>
+                        </div>
+
+                        <!-- Sales History Log -->
+                        <div class="history-container hidden" id="sales-history-section">
+                            <div class="history-header">
+                                <h3 class="history-title">Registro de Ventas</h3>
+                                <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
+                                    <i class="fa-solid fa-trash-can"></i> Limpiar Caja
+                                </button>
+                            </div>
+                            <div id="history-list" class="history-list">
+                                <!-- Dynamic items from js/ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- Daily Expenses Section -->
+                        <div class="expenses-container" id="daily-expenses-section">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <h3 class="history-title">Gastos del Local</h3>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
+                            </div>
+                            
+                            <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
+                                <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
+                                <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
+                                <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </form>
+                            
+                            <div id="expense-list" class="expense-list">
+                                <!-- Dynamic items from js/ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- Day Close trigger -->
+                        <div style="margin-top: 1.5rem;" id="day-close-trigger-section">
+                            <button id="btn-cierre-dia-open" class="btn-touch btn-kitchen-deliver" style="background-color: var(--color-gold); color: #000000; font-weight: 900; gap: 0.5rem; width: 100%;">
+                                <i class="fa-solid fa-door-closed text-lg"></i>
+                                CERRAR JORNADA (CIERRE DE DÍA)
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
 

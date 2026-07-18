@@ -214,7 +214,7 @@ async function upsertProduct(product) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase upsertProduct failed. Enqueuing offline...", e);
-        enqueueOfflineOp('products', 'upsert', product);
+        enqueueOfflineOp('products', 'upsert', payload);
     }
 }
 
@@ -235,7 +235,7 @@ async function updateProductStock(id, stock) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase updateProductStock failed. Enqueuing offline...", e);
-        enqueueOfflineOp('products', 'update_stock', { stock }, 'id', id);
+        enqueueOfflineOp('products', 'update_stock', payload, 'id', id);
     }
 }
 
@@ -274,7 +274,7 @@ async function insertSale(sale) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase insertSale failed. Enqueuing offline...", e);
-        enqueueOfflineOp('sales', 'insert', sale);
+        enqueueOfflineOp('sales', 'insert', payload);
     }
 }
 
@@ -312,7 +312,7 @@ async function insertExpense(expense) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase insertExpense failed. Enqueuing offline...", e);
-        enqueueOfflineOp('expenses', 'insert', expense);
+        enqueueOfflineOp('expenses', 'insert', payload);
     }
 }
 
@@ -351,7 +351,7 @@ async function upsertDebt(debt) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase upsertDebt failed. Enqueuing offline...", e);
-        enqueueOfflineOp('debts', 'upsert', debt);
+        enqueueOfflineOp('debts', 'upsert', payload);
     }
 }
 
@@ -392,7 +392,7 @@ async function upsertReplenishment(repl) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase upsertReplenishment failed. Enqueuing offline...", e);
-        enqueueOfflineOp('replenishments', 'upsert', repl);
+        enqueueOfflineOp('replenishments', 'upsert', payload);
     }
 }
 
@@ -431,7 +431,7 @@ async function upsertIngredient(ing) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase upsertIngredient failed. Enqueuing offline...", e);
-        enqueueOfflineOp('ingredients', 'upsert', ing);
+        enqueueOfflineOp('ingredients', 'upsert', payload);
     }
 }
 
@@ -466,7 +466,7 @@ async function upsertAppConfig(config) {
         if (error) throw error;
     } catch (e) {
         console.error("Supabase upsertAppConfig failed. Enqueuing offline...", e);
-        enqueueOfflineOp('app_config', 'upsert', { id: 1, bcv_rate: config.bcvRate, use_auto_bcv: config.useAutoBcv });
+        enqueueOfflineOp('app_config', 'upsert', payload);
     }
 }
 

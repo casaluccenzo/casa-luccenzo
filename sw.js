@@ -1,5 +1,5 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v41';
+const CACHE_NAME = 'casa-lucenzo-v42';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -17,7 +17,9 @@ const ASSETS_TO_CACHE = [
   './js/share.js',
   './js/ui.js',
   './img/logo-192.png',
-  './img/logo-512.png'
+  './img/logo-512.png',
+  'https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
 ];
 
 // Install Event - cache assets

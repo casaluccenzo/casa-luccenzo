@@ -27,6 +27,10 @@
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
 
+    <!-- OTPAuth & QRCode libraries for 2FA verification -->
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <!-- iOS PWA Support Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -477,6 +481,39 @@
                     </div>
                 </div>
 
+                <!-- Foldable Security (2FA) Config -->
+                <details class="settings-group" style="margin-bottom: 1.25rem;">
+                    <summary><i class="fa-solid fa-key" style="margin-right: 0.25rem;"></i> Seguridad de 2 Factores (2FA)</summary>
+                    <div style="margin-top: 0.75rem; padding: 0.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <p style="font-size: 11px; color: var(--color-text-muted);">Añade un nivel extra de seguridad para el acceso de Administrador.</p>
+                        
+                        <div id="2fa-disabled-view">
+                            <button id="btn-2fa-setup" type="button" class="btn-touch btn-kitchen-deliver" style="width: 100%; min-height: 38px; background-color: var(--color-gold); color: #000000; font-weight: bold; font-size: 0.75rem; border: none;">
+                                <i class="fa-solid fa-shield"></i> Configurar 2FA
+                            </button>
+                        </div>
+                        
+                        <div id="2fa-setup-view" class="hidden" style="display: flex; flex-direction: column; gap: 0.75rem; align-items: center;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--color-gold);">1. Escanea este código QR en Google Authenticator:</span>
+                            <div id="2fa-qr-code" style="background: white; padding: 0.5rem; border-radius: 6px; display: inline-block;"></div>
+                            <span style="font-size: 10px; color: var(--color-text-muted); font-family: monospace; word-break: break-all; text-align: center;" id="2fa-secret-text"></span>
+                            
+                            <span style="font-size: 11px; font-weight: 700; color: var(--color-gold);">2. Confirma el código generado de 6 dígitos:</span>
+                            <div style="display: flex; gap: 0.375rem; width: 100%;">
+                                <input type="number" id="2fa-verification-code" placeholder="123456" class="form-input" style="flex: 1; height: 38px; font-size: 0.875rem; letter-spacing: 0.25em; text-align: center;">
+                                <button id="btn-2fa-verify" type="button" class="btn-action-small" style="height: 38px; font-size: 0.75rem; border-color: var(--color-gold-border); color: var(--color-gold);">Verificar</button>
+                            </div>
+                        </div>
+
+                        <div id="2fa-enabled-view" class="hidden">
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.625rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                                <span style="font-size: 0.75rem; color: #34D399; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> 2FA Activo</span>
+                                <button id="btn-2fa-disable" type="button" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg); padding: 0.25rem 0.5rem; font-size: 0.7rem;">Desactivar</button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
                 <!-- Foldable Weekly Statistics -->
                 <details class="settings-group" style="margin-bottom: 1.25rem;">
                     <summary><i class="fa-solid fa-chart-simple" style="margin-right: 0.25rem;"></i> Reporte de Ventas Semanales</summary>
@@ -573,18 +610,42 @@
     <!-- ================= PIN LOGIN OVERLAY ================= -->
     <div id="pin-overlay" class="pin-overlay">
         <div class="pin-content">
-            <div style="text-align: center; margin-bottom: 0.5rem;">
-                <!-- Round logo cropped to hide white corners -->
-                <div style="margin: 0 auto 1rem; width: 6.5rem; height: 6.5rem; border-radius: 50%; background-image: url('img/logo.jpg'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2.5px solid var(--color-gold); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);"></div>
-                <h2 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em;">CASA LUCENZO</h2>
-                <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem;">Ingresa tu código PIN de acceso</p>
+            <!-- 4-digit PIN section -->
+            <div id="pin-login-section">
+                <div style="text-align: center; margin-bottom: 0.5rem;">
+                    <!-- Round logo cropped to hide white corners -->
+                    <div style="margin: 0 auto 1rem; width: 6.5rem; height: 6.5rem; border-radius: 50%; background-image: url('img/logo.jpg'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2.5px solid var(--color-gold); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);"></div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em;">CASA LUCENZO</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem;">Ingresa tu código PIN de acceso</p>
+                </div>
+                
+                <div class="pin-input-wrapper">
+                    <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" autofocus>
+                </div>
+                
+                <p style="font-size: 10px; color: var(--color-text-muted); text-align: center;">Toca la caja para ingresar los 4 números con el teclado.</p>
             </div>
-            
-            <div class="pin-input-wrapper">
-                <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" autofocus>
+
+            <!-- 2FA verification section (Initially hidden) -->
+            <div id="totp-login-section" class="hidden">
+                <div style="text-align: center; margin-bottom: 0.5rem;">
+                    <div style="margin: 0 auto 1rem; font-size: 3rem; color: var(--color-gold);">
+                        <i class="fa-solid fa-user-shield animate-pulse"></i>
+                    </div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em;">VERIFICACIÓN 2FA</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem; line-height: 1.4;">Ingresa el código de 6 dígitos<br>de tu aplicación de autenticación.</p>
+                </div>
+                
+                <div style="margin: 1.25rem 0; text-align: center;">
+                    <input type="password" id="totp-input" pattern="[0-9]*" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="font-size: 1.5rem; letter-spacing: 0.25em; text-align: center; background: rgba(255,255,255,0.03); border: 2px solid var(--color-gold); border-radius: var(--radius-md); color: white; width: 180px; height: 46px; outline: none; margin: 0 auto; display: block;">
+                </div>
+                
+                <div style="text-align: center;">
+                    <button id="btn-totp-back" class="btn-action-small" style="font-size: 0.75rem; border-color: rgba(255,255,255,0.2); color: var(--color-text-muted); width: 120px; height: 34px;">
+                        <i class="fa-solid fa-arrow-left"></i> Volver
+                    </button>
+                </div>
             </div>
-            
-            <p style="font-size: 10px; color: var(--color-text-muted); text-align: center;">Toca la caja para ingresar los 4 números con el teclado.</p>
         </div>
         
         <!-- Copyright Seal at the bottom of login screen -->

@@ -2,6 +2,7 @@
 
 let client = null;
 let activeSubscription = null;
+let dbSupportsTotp = false;
 
 // Production Hardcoded Defaults (to prevent manual configuration on new devices)
 const DEFAULT_SUPABASE_URL = "https://xttpaqokeyywjaajvjyu.supabase.co";
@@ -440,6 +441,9 @@ async function fetchAppConfig() {
     try {
         const { data, error } = await client.from('app_config').select('*').eq('id', 1).maybeSingle();
         if (error) throw error;
+        if (data) {
+            dbSupportsTotp = ('totp_secret' in data) || ('totp_enabled' in data);
+        }
         return data;
     } catch (e) {
         console.error("Error fetching app config from Supabase:", e);
@@ -456,6 +460,11 @@ async function upsertAppConfig(config) {
             use_auto_bcv: !!config.useAutoBcv,
             updated_at: new Date().toISOString()
         };
+
+        if (dbSupportsTotp) {
+            if (config.totpSecret !== undefined) payload.totp_secret = config.totpSecret;
+            if (config.totpEnabled !== undefined) payload.totp_enabled = !!config.totpEnabled;
+        }
 
         if (!navigator.onLine) {
             enqueueOfflineOp('app_config', 'upsert', payload);
@@ -523,5 +532,6 @@ window.SupabaseManager = {
     fetchAppConfig,
     upsertAppConfig,
     subscribeToChanges,
-    syncOfflineQueue
+    syncOfflineQueue,
+    getDbSupportsTotp: () => dbSupportsTotp
 };

@@ -205,6 +205,28 @@ function saveBcvPreferences(rate, auto) {
     }
 }
 
+const TOTP_PREFS_KEY = 'casa_lucenzo_totp_prefs';
+
+function loadTotpPreferences() {
+    const saved = localStorage.getItem(TOTP_PREFS_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch(e) {
+            return { enabled: false, secret: '' };
+        }
+    }
+    return { enabled: false, secret: '' };
+}
+
+function saveTotpPreferences(enabled, secret) {
+    try {
+        localStorage.setItem(TOTP_PREFS_KEY, JSON.stringify({ enabled: !!enabled, secret: secret || '' }));
+    } catch(e) {
+        console.error("Failed to save TOTP preferences", e);
+    }
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
@@ -229,5 +251,7 @@ window.StorageManager = {
     loadPreferences,
     savePreferences,
     loadBcvPreferences,
-    saveBcvPreferences
+    saveBcvPreferences,
+    loadTotpPreferences,
+    saveTotpPreferences
 };

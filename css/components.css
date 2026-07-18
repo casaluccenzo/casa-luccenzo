@@ -655,6 +655,24 @@ details.settings-group summary {
     color: var(--color-text-muted);
 }
 
+.btn-modify-sale {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(220, 160, 40, 0.4);
+    background-color: rgba(220, 160, 40, 0.15);
+    color: var(--color-gold);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+}
+
+.btn-modify-sale:hover {
+    background-color: rgba(220, 160, 40, 0.3);
+}
+
 .btn-undo {
     font-size: 10px;
     font-weight: 700;

@@ -245,8 +245,11 @@ async function handleCheckoutCart() {
     if (currentCart.length === 0) return;
 
     triggerHaptic(15);
-    const clientNameInput = prompt("Ingresa el nombre del cliente / mesa (Opcional):", "");
+    const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
+    const clientNameInput = prompt("Ingresa el nombre del cliente / mesa (Opcional):", defaultName);
     if (clientNameInput === null) return; // Cancelled
+
+    sessionStorage.removeItem('casa_lucenzo_editing_client_name');
 
     const clientName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
     const timestamp = new Date().toISOString();
@@ -327,7 +330,7 @@ function handleUndoSale(timestamp) {
         // Refresh UI
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderCashRegister(salesLog, expenses);
-        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
 
         if (currentRole === 'admin') {
             window.UIManager.renderStats(salesLog, expenses);
@@ -337,6 +340,80 @@ function handleUndoSale(timestamp) {
     }
 }
 
+/**
+ * Loads a sales transaction back into the active cart for modification, deleting old sales records
+ * @param {string} timestamp Sales log entry transaction timestamp
+ */
+async function handleEditSale(timestamp) {
+    const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
+    if (matchingSales.length === 0) return;
+
+    if (currentCart.length > 0) {
+        if (!confirm("Ya tienes productos en la cuenta activa. ¿Deseas vaciarla para cargar esta cuenta del historial?")) {
+            return;
+        }
+    }
+
+    triggerHaptic(15);
+
+    // 1. Group matching sales by product_id to reconstruct the cart
+    const cartReconstructed = [];
+    matchingSales.forEach(sale => {
+        const existing = cartReconstructed.find(item => item.productId === sale.productId);
+        if (existing) {
+            existing.quantity++;
+        } else {
+            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            cartReconstructed.push({
+                productId: sale.productId,
+                name: cleanName,
+                price: sale.price || 0,
+                quantity: 1
+            });
+        }
+    });
+
+    // Extract client name
+    let clientName = 'Cliente';
+    const firstSale = matchingSales[0];
+    const match = firstSale.name.match(/^(.*)\s+\[(.*)\]$/);
+    if (match) {
+        clientName = match[2];
+    } else {
+        clientName = firstSale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
+    }
+
+    // 2. Set active cart in memory and localStorage
+    currentCart = cartReconstructed;
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+    sessionStorage.setItem('casa_lucenzo_editing_client_name', clientName);
+
+    // 3. Delete old sales records from Supabase and memory (no stock restoration, since they are now in the active cart)
+    if (window.SupabaseManager.isConfigured()) {
+        try {
+            const deletePromises = matchingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
+            await Promise.all(deletePromises);
+        } catch (e) {
+            console.error("Error deleting old sales during modification", e);
+        }
+    }
+
+    salesLog = salesLog.filter(s => s.timestamp !== timestamp);
+    window.StorageManager.saveSalesLog(salesLog);
+
+    // 4. Switch to local view and update UI
+    window.UIManager.switchView('local');
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.renderCashRegister(salesLog, expenses);
+    window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+
+    if (currentRole === 'admin') {
+        window.UIManager.renderStats(salesLog, expenses);
+    }
+
+    window.UIManager.showToast(`✏️ Cuenta de "${clientName}" cargada para modificar.`, "fa-solid fa-pen-to-square");
+}
 
 /**
  * Reset all log history and cash register to $0.00

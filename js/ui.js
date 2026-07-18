@@ -412,7 +412,7 @@ function renderCashRegister(salesLog, expenses = []) {
  * @param {Array} salesLog History of sales
  * @param {Function} onUndo Callback to trigger undo action (uuid)
  */
-function renderSalesHistory(salesLog, onUndo) {
+function renderSalesHistory(salesLog, onUndo, onEdit) {
     const listContainer = document.getElementById('history-list');
     if (!listContainer) return;
 
@@ -482,6 +482,8 @@ function renderSalesHistory(salesLog, onUndo) {
 
         const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
 
+        const activeEdit = onEdit || window.handleEditSale;
+
         item.innerHTML = `
             <div class="history-item-desc" style="flex: 1; min-width: 0;">
                 <span class="history-item-title" style="font-weight: 800; color: var(--color-gold);">
@@ -492,8 +494,20 @@ function renderSalesHistory(salesLog, onUndo) {
                     <span style="opacity: 0.8; font-size: 0.675rem; margin-left: 0.25rem;">(Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)})</span>
                 </span>
             </div>
-            <button class="btn-undo">Deshacer</button>
+            <div style="display: flex; align-items: center;">
+                ${activeEdit ? `<button class="btn-modify-sale">Modificar</button>` : ''}
+                <button class="btn-undo">Deshacer</button>
+            </div>
         `;
+
+        if (activeEdit) {
+            const btnModify = item.querySelector('.btn-modify-sale');
+            if (btnModify) {
+                btnModify.addEventListener('click', () => {
+                    activeEdit(group.timestamp);
+                });
+            }
+        }
 
         item.querySelector('.btn-undo').addEventListener('click', () => {
             onUndo(group.timestamp);

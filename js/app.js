@@ -1793,7 +1793,7 @@ function init2FaState() {
             algorithm: 'SHA1',
             digits: 6,
             period: 30,
-            secret: totpSecret
+            secret: window.OTPAuth.Secret.fromBase32(totpSecret)
         });
     } else {
         disabledView.classList.remove('hidden');
@@ -2212,7 +2212,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 algorithm: 'SHA1',
                 digits: 6,
                 period: 30,
-                secret: totpSecret
+                secret: window.OTPAuth.Secret.fromBase32(totpSecret)
             });
             
             const otpauthUrl = totpInstance.toString();

@@ -1169,6 +1169,7 @@ function applyUserRole(role) {
     document.getElementById('btn-local').classList.remove('hidden');
     document.getElementById('btn-cocina').classList.remove('hidden');
     document.getElementById('btn-fiados').classList.remove('hidden');
+    document.getElementById('btn-cambio').classList.remove('hidden');
     navBar.classList.remove('hidden');
     btnSettings.classList.remove('hidden');
     
@@ -1411,6 +1412,34 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.switchView('fiados');
         window.UIManager.renderDebts(debts, settleDebtPayment);
     });
+
+    document.getElementById('btn-cambio').addEventListener('click', () => {
+        window.UIManager.switchView('cambio');
+        window.UIManager.renderQuickConversionTable();
+    });
+
+    // Converter Calculator Logic
+    const calcUsd = document.getElementById('calc-usd');
+    const calcVes = document.getElementById('calc-ves');
+    if (calcUsd && calcVes) {
+        calcUsd.addEventListener('input', () => {
+            const usd = parseFloat(calcUsd.value);
+            if (!isNaN(usd)) {
+                calcVes.value = (usd * bcvRate).toFixed(2);
+            } else {
+                calcVes.value = '';
+            }
+        });
+        
+        calcVes.addEventListener('input', () => {
+            const ves = parseFloat(calcVes.value);
+            if (!isNaN(ves)) {
+                calcUsd.value = (ves / bcvRate).toFixed(2);
+            } else {
+                calcUsd.value = '';
+            }
+        });
+    }
 
     // 7. Bind configuration modal toggles
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {

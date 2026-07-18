@@ -79,6 +79,10 @@
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-book"></i></span>
                     <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">3. FIADOS</span>
                 </button>
+                <button id="btn-cambio" class="inactive" role="tab" aria-selected="false" aria-controls="view-cambio">
+                    <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-money-bill-transfer"></i></span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">4. CAMBIO</span>
+                </button>
             </div>
 
         </div>
@@ -238,6 +242,47 @@
                 <!-- Debts list -->
                 <div id="debts-list" class="client-ledger-container" style="margin-top: 1rem;">
                     <!-- Dynamic items from js/ui.js -->
+                </div>
+            </section>
+
+            <!-- ================= VIEW 4: CURRENCY CONVERTER ================= -->
+            <section id="view-cambio" class="view-section hidden">
+                <div class="card-pantry" style="padding: 1.25rem;">
+                    <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-money-bill-transfer"></i> Conversor de Monedas
+                    </h3>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1.25rem;">Calcula el cambio instantáneamente usando la tasa del día.</p>
+                    
+                    <!-- Calculator inputs -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="form-field">
+                            <label class="form-label" style="display: flex; justify-content: space-between;">
+                                <span>Monto en Dólares ($)</span>
+                                <span style="font-weight: 900; color: var(--color-gold);">USD</span>
+                            </label>
+                            <input type="number" id="calc-usd" step="0.01" placeholder="Ej: 10.00" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                        </div>
+                        
+                        <div style="text-align: center; color: var(--color-gold); font-size: 1.25rem; margin: -0.25rem 0;">
+                            <i class="fa-solid fa-repeat"></i>
+                        </div>
+                        
+                        <div class="form-field">
+                            <label class="form-label" style="display: flex; justify-content: space-between;">
+                                <span>Monto en Bolívares (Bs.)</span>
+                                <span style="font-weight: 900; color: var(--color-gold);">VES</span>
+                            </label>
+                            <input type="number" id="calc-ves" step="0.01" placeholder="Ej: 7324.78" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equivalencias rápidas -->
+                <div class="card-pantry" style="padding: 1.25rem;">
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Tabla de Cambio Rápido</h4>
+                    <div id="conversion-quick-table" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Injected dynamically by js/ui.js -->
+                    </div>
                 </div>
             </section>
             <!-- Page Footer with Copyright & Seal -->

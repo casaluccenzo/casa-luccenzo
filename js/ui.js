@@ -8,10 +8,12 @@ function switchView(view) {
     const btnLocal = document.getElementById('btn-local');
     const btnCocina = document.getElementById('btn-cocina');
     const btnFiados = document.getElementById('btn-fiados');
+    const btnCambio = document.getElementById('btn-cambio');
     
     const viewLocal = document.getElementById('view-local');
     const viewCocina = document.getElementById('view-cocina');
     const viewFiados = document.getElementById('view-fiados');
+    const viewCambio = document.getElementById('view-cambio');
 
     btnLocal.classList.remove('active');
     btnLocal.classList.add('inactive');
@@ -25,9 +27,16 @@ function switchView(view) {
     btnFiados.classList.add('inactive');
     btnFiados.setAttribute('aria-selected', 'false');
 
+    if (btnCambio) {
+        btnCambio.classList.remove('active');
+        btnCambio.classList.add('inactive');
+        btnCambio.setAttribute('aria-selected', 'false');
+    }
+
     viewLocal.classList.add('hidden');
     viewCocina.classList.add('hidden');
     viewFiados.classList.add('hidden');
+    if (viewCambio) viewCambio.classList.add('hidden');
 
     if (view === 'local') {
         btnLocal.classList.add('active');
@@ -44,6 +53,13 @@ function switchView(view) {
         btnFiados.classList.remove('inactive');
         btnFiados.setAttribute('aria-selected', 'true');
         viewFiados.classList.remove('hidden');
+    } else if (view === 'cambio') {
+        if (btnCambio) {
+            btnCambio.classList.add('active');
+            btnCambio.classList.remove('inactive');
+            btnCambio.setAttribute('aria-selected', 'true');
+        }
+        if (viewCambio) viewCambio.classList.remove('hidden');
     }
 }
 
@@ -907,6 +923,30 @@ function renderStats(salesLog, expenses = []) {
     `;
 }
 
+/**
+ * Render quick conversion table for common bills
+ */
+function renderQuickConversionTable() {
+    const container = document.getElementById('conversion-quick-table');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const bills = [1, 2, 5, 10, 20, 50, 100];
+    
+    bills.forEach(usd => {
+        const ves = usd * (window.bcvRate || 1);
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.style.padding = '0.375rem 0';
+        row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+        row.innerHTML = `
+            <span style="font-weight: 700; color: var(--color-white); font-size: 0.8125rem;">$${usd.toFixed(2)} USD</span>
+            <span style="color: var(--color-gold); font-weight: 800; font-size: 0.8125rem;">Bs. ${ves.toFixed(2)} VES</span>
+        `;
+        container.appendChild(row);
+    });
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -928,5 +968,6 @@ window.UIManager = {
     initPinKeypad,
     updateConnectionStatus,
     renderIngredientsPantry,
-    renderStats
+    renderStats,
+    renderQuickConversionTable
 };

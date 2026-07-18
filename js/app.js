@@ -589,13 +589,13 @@ function closeDayCloseModal() {
 }
 
 /**
- * Clear daily sales and expenses logs locally and sync to Supabase
+ * Clear daily sales and expenses logs locally and sync to Supabase, and refill vitrina stock to max for tomorrow
  */
 async function closeDayAndResetLogs() {
     try {
-        window.UIManager.showToast("⏳ Cerrando jornada...", "fa-solid fa-hourglass-start");
+        window.UIManager.showToast("⏳ Cerrando jornada y preparando vitrina...", "fa-solid fa-hourglass-start");
         
-        // Sync deletes to Supabase if configured
+        // 1. Sync deletes to Supabase if configured
         if (window.SupabaseManager.isConfigured()) {
             console.log("Clearing daily sales and expenses from Supabase...");
             const salesDeletes = salesLog.map(s => window.SupabaseManager.deleteSale(s.uuid));
@@ -603,15 +603,25 @@ async function closeDayAndResetLogs() {
             await Promise.all([...salesDeletes, ...expensesDeletes]);
         }
 
-        // Clear local arrays
+        // 2. Clear local arrays
         salesLog = [];
         expenses = [];
 
-        // Clear local storage logs
+        // 3. Clear local storage logs
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // Re-render UI
+        // 4. Refill all vitrina products to their maximum capacity
+        products.forEach(p => {
+            p.stock = p.max;
+            if (window.SupabaseManager.isConfigured()) {
+                window.SupabaseManager.upsertProduct(p);
+            }
+        });
+        window.StorageManager.saveProducts(products);
+
+        // 5. Re-render UI
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderExpenses(expenses, deleteExpense);
@@ -620,7 +630,7 @@ async function closeDayAndResetLogs() {
             window.UIManager.renderStats(salesLog, expenses);
         }
 
-        window.UIManager.showToast("🌅 Jornada cerrada. Caja y gastos reiniciados a $0.00.", "fa-solid fa-sun");
+        window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
     } catch (e) {
         console.error("Failed to reset logs during day close", e);
         window.UIManager.showToast("❌ Error al cerrar la jornada.", "fa-solid fa-circle-xmark");
@@ -1605,16 +1615,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 15. Bind Day Close triggers
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
-    document.getElementById('btn-cierre-dia-confirm').addEventListener('click', () => {
+    document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
         shareDayClose();
         closeDayCloseModal();
-        
-        // Prompt to clear the dashboard logs for the next day
-        setTimeout(async () => {
-            if (confirm("⚠️ ¿Deseas VACIAR las ventas y gastos de hoy para iniciar la nueva jornada a $0.00?")) {
-                await closeDayAndResetLogs();
-            }
-        }, 1500);
+        await closeDayAndResetLogs();
     });
 
     // 16. Bind preference toggle checkboxes and credentials

@@ -588,6 +588,45 @@ function closeDayCloseModal() {
     document.getElementById('day-close-modal').classList.add('hidden');
 }
 
+/**
+ * Clear daily sales and expenses logs locally and sync to Supabase
+ */
+async function closeDayAndResetLogs() {
+    try {
+        window.UIManager.showToast("⏳ Cerrando jornada...", "fa-solid fa-hourglass-start");
+        
+        // Sync deletes to Supabase if configured
+        if (window.SupabaseManager.isConfigured()) {
+            console.log("Clearing daily sales and expenses from Supabase...");
+            const salesDeletes = salesLog.map(s => window.SupabaseManager.deleteSale(s.uuid));
+            const expensesDeletes = expenses.map(e => window.SupabaseManager.deleteExpense(e.uuid));
+            await Promise.all([...salesDeletes, ...expensesDeletes]);
+        }
+
+        // Clear local arrays
+        salesLog = [];
+        expenses = [];
+
+        // Clear local storage logs
+        window.StorageManager.clearSalesLog();
+        window.StorageManager.clearExpenses();
+
+        // Re-render UI
+        window.UIManager.renderCashRegister(salesLog, expenses);
+        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        window.UIManager.renderExpenses(expenses, deleteExpense);
+        
+        if (currentRole === 'admin') {
+            window.UIManager.renderStats(salesLog, expenses);
+        }
+
+        window.UIManager.showToast("🌅 Jornada cerrada. Caja y gastos reiniciados a $0.00.", "fa-solid fa-sun");
+    } catch (e) {
+        console.error("Failed to reset logs during day close", e);
+        window.UIManager.showToast("❌ Error al cerrar la jornada.", "fa-solid fa-circle-xmark");
+    }
+}
+
 // ================= ADMIN PREFERENCES =================
 
 /**
@@ -1569,6 +1608,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', () => {
         shareDayClose();
         closeDayCloseModal();
+        
+        // Prompt to clear the dashboard logs for the next day
+        setTimeout(async () => {
+            if (confirm("⚠️ ¿Deseas VACIAR las ventas y gastos de hoy para iniciar la nueva jornada a $0.00?")) {
+                await closeDayAndResetLogs();
+            }
+        }, 1500);
     });
 
     // 16. Bind preference toggle checkboxes and credentials

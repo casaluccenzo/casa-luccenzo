@@ -1411,7 +1411,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Register PWA Service Worker (only if running on local server or online)
     if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
         navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker Registered with scope:', reg.scope))
+            .then(reg => {
+                console.log('Service Worker Registered with scope:', reg.scope);
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    if (installingWorker) {
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    console.log('New update installed, performing auto-reload.');
+                                    if (window.UIManager && window.UIManager.showToast) {
+                                        window.UIManager.showToast("🔄 Nueva versión cargada. Actualizando...", "fa-solid fa-arrows-rotate");
+                                    }
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1500);
+                                }
+                            }
+                        };
+                    }
+                };
+            })
             .catch(err => console.warn('Service Worker registration failed:', err));
     }
 

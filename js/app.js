@@ -1230,9 +1230,9 @@ function lockSession() {
  * Update the header exchange rate text
  */
 function updateBcvHeaderDisplay() {
-    const el = document.getElementById('bcv-rate-display');
+    const el = document.getElementById('header-bcv-rate-input');
     if (el) {
-        el.innerText = `Tasa BCV: ${bcvRate.toFixed(2)} Bs.`;
+        el.value = bcvRate;
     }
 }
 
@@ -1288,8 +1288,39 @@ document.addEventListener('DOMContentLoaded', () => {
     useAutoBcv = bcvPrefs.useAutoBcv !== false;
     window.bcvRate = bcvRate;
     
+    const headerBcvInput = document.getElementById('header-bcv-rate-input');
     const autoBcvCheckbox = document.getElementById('pref-bcv-auto');
     const bcvRateInput = document.getElementById('pref-bcv-rate');
+    
+    if (headerBcvInput) {
+        headerBcvInput.value = bcvRate;
+        
+        headerBcvInput.addEventListener('change', () => {
+            const val = parseFloat(headerBcvInput.value);
+            if (val > 0) {
+                bcvRate = val;
+                window.bcvRate = bcvRate;
+                useAutoBcv = false; // Disable automatic sync since they manually set the rate
+                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                
+                // Sync Settings Modal components
+                if (autoBcvCheckbox) autoBcvCheckbox.checked = false;
+                if (bcvRateInput) {
+                    bcvRateInput.value = bcvRate;
+                    bcvRateInput.disabled = false;
+                }
+                
+                // Re-render all views
+                window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                window.UIManager.renderCashRegister(salesLog, expenses);
+                window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+                window.UIManager.renderDebts(debts, settleDebtPayment);
+                
+                window.UIManager.showToast(`💵 Tasa cambiada a ${bcvRate.toFixed(2)} Bs.`, "fa-solid fa-dollar-sign");
+            }
+        });
+    }
+
     if (autoBcvCheckbox && bcvRateInput) {
         autoBcvCheckbox.checked = useAutoBcv;
         bcvRateInput.value = bcvRate;
@@ -1312,12 +1343,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.bcvRate = bcvRate;
                 window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
                 
+                // Sync Header input
+                if (headerBcvInput) headerBcvInput.value = bcvRate;
+                
                 // Re-render
                 window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
                 window.UIManager.renderCashRegister(salesLog, expenses);
                 window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
                 window.UIManager.renderDebts(debts, settleDebtPayment);
-                updateBcvHeaderDisplay();
             }
         });
     }

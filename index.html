@@ -68,20 +68,24 @@
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-shop"></i></span>
                     <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">1. LOCAL</span>
                 </button>
+                <button id="btn-clientes" class="inactive" role="tab" aria-selected="false" aria-controls="view-clientes">
+                    <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-users"></i></span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">2. CLIENTES</span>
+                </button>
                 <button id="btn-cocina" class="inactive" role="tab" aria-selected="false" aria-controls="view-cocina">
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem; display: flex; align-items: center; gap: 0.375rem;">
                         <i class="fa-solid fa-fire-burner"></i>
                         <span id="kitchen-badge" class="badge-kitchen-nav hidden">0</span>
                     </span>
-                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">2. COCINA</span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">3. COCINA</span>
                 </button>
                 <button id="btn-fiados" class="inactive" role="tab" aria-selected="false" aria-controls="view-fiados">
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-book"></i></span>
-                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">3. FIADOS</span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">4. FIADOS</span>
                 </button>
                 <button id="btn-cambio" class="inactive" role="tab" aria-selected="false" aria-controls="view-cambio">
                     <span style="font-size: 1.125rem; margin-bottom: 0.125rem;"><i class="fa-solid fa-money-bill-transfer"></i></span>
-                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">4. CAMBIO</span>
+                    <span style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">5. CAMBIO</span>
                 </button>
             </div>
 
@@ -115,6 +119,9 @@
                         <i class="fa-solid fa-rotate-left"></i> Rellenar todo
                     </button>
                 </div>
+
+                <!-- Vitrina dynamic summary stats -->
+                <div id="vitrina-summary-stats" class="vitrina-stats-bar"></div>
 
                 <!-- Alert card when kitchen has dispatched items (confirm receipt) -->
                 <div id="dispatch-container" class="hidden">
@@ -209,9 +216,61 @@
                     </button>
                 </div>
 
+                <!-- Alert banner if items are critical -->
+                <div id="kitchen-alert-banner" class="kitchen-alert-banner hidden">
+                    <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> 
+                    <span>🚨 ALERTA: Hacen falta productos en vitrina. ¡Revisar reposiciones necesarias abajo!</span>
+                </div>
+
                 <!-- Replenishment orders list -->
                 <div id="kitchen-orders-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
                     <!-- Dynamic injections from js/ui.js -->
+                </div>
+            </section>
+
+            <!-- ================= VIEW 5: CLIENTS AND TABLES ================= -->
+            <section id="view-clientes" class="view-section hidden">
+                <!-- Live statistics summary card -->
+                <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-gold);">
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-chart-line animate-pulse"></i> RESUMEN EN VIVO (HOY)
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">En Vitrina</div>
+                            <div id="live-stat-vitrina" style="font-size: 1.125rem; font-weight: 900; color: var(--color-white); margin-top: 0.25rem;">0</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Vendidos Hoy</div>
+                            <div id="live-stat-vendidos" style="font-size: 1.125rem; font-weight: 900; color: var(--color-gold); margin-top: 0.25rem;">0</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Total Ventas</div>
+                            <div id="live-stat-ventas" style="font-size: 1.125rem; font-weight: 900; color: var(--color-success); margin-top: 0.25rem;">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tables grid card -->
+                <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem;">
+                    <div id="tables-grid-container">
+                        <!-- Dynamic tables grid injected by js/ui.js -->
+                    </div>
+                </div>
+
+                <!-- Custom/Regular clients list card -->
+                <div class="card-pantry" style="padding: 1.25rem;">
+                    <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-users"></i> Registro de Clientes del Día
+                    </h3>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1.25rem;">
+                        Cuentas registradas y consumo activo de mesas o clientes individuales de la jornada.
+                    </p>
+
+                    <!-- Dynamic container for clients list -->
+                    <div id="clientes-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Injected dynamically by js/ui.js -->
+                    </div>
                 </div>
             </section>
 

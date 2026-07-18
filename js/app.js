@@ -363,7 +363,7 @@ async function handleEditSale(timestamp) {
         if (existing) {
             existing.quantity++;
         } else {
-            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
             cartReconstructed.push({
                 productId: sale.productId,
                 name: cleanName,
@@ -376,7 +376,7 @@ async function handleEditSale(timestamp) {
     // Extract client name
     let clientName = 'Cliente';
     const firstSale = matchingSales[0];
-    const match = firstSale.name.match(/^(.*)\s+\[(.*)\]$/);
+    const match = firstSale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
     if (match) {
         clientName = match[2];
     } else {
@@ -413,6 +413,62 @@ async function handleEditSale(timestamp) {
     }
 
     window.UIManager.showToast(`✏️ Cuenta de "${clientName}" cargada para modificar.`, "fa-solid fa-pen-to-square");
+}
+
+/**
+ * Marks a sales transaction as paid, updating Supabase and memory (changing suffix to include (Pagado))
+ * @param {string} timestamp Sales log entry transaction timestamp
+ */
+async function markTransactionAsPaid(timestamp) {
+    const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
+    if (matchingSales.length === 0) return;
+
+    triggerHaptic(15);
+
+    // 1. Map to updated sales
+    const updatedSales = matchingSales.map(sale => {
+        let newName = sale.name;
+        if (!newName.endsWith(' (Pagado)')) {
+            newName = `${sale.name} (Pagado)`;
+        }
+        return {
+            ...sale,
+            name: newName
+        };
+    });
+
+    // 2. Delete old sales in Supabase, and insert updated sales
+    if (window.SupabaseManager.isConfigured()) {
+        try {
+            // Delete old
+            const deletePromises = matchingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
+            await Promise.all(deletePromises);
+            
+            // Insert updated
+            const insertPromises = updatedSales.map(sale => window.SupabaseManager.insertSale(sale));
+            await Promise.all(insertPromises);
+        } catch (e) {
+            console.error("Error updating sale status to paid in Supabase", e);
+        }
+    }
+
+    // Update local salesLog
+    salesLog = salesLog.map(s => {
+        if (s.timestamp === timestamp) {
+            let newName = s.name;
+            if (!newName.endsWith(' (Pagado)')) {
+                newName = `${s.name} (Pagado)`;
+            }
+            return { ...s, name: newName };
+        }
+        return s;
+    });
+
+    window.StorageManager.saveSalesLog(salesLog);
+
+    // Render
+    renderAllViews();
+    window.UIManager.showToast("💵 Cuenta marcada como Pagada.", "fa-solid fa-circle-check");
 }
 
 /**
@@ -777,7 +833,7 @@ function shareDayClose() {
     const salesCount = {};
     salesLog.forEach(sale => {
         if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
             if (!salesCount[cleanName]) salesCount[cleanName] = 0;
             salesCount[cleanName]++;
         } else {
@@ -1222,7 +1278,8 @@ function renderAllViews() {
     window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
     window.UIManager.renderCashRegister(salesLog, expenses);
-    window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+    window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+    window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
 
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderDebts(debts, settleDebtPayment);
@@ -1551,6 +1608,7 @@ function applyUserRole(role) {
     
     // Default unlocked structures
     document.getElementById('btn-local').classList.remove('hidden');
+    document.getElementById('btn-clientes').classList.remove('hidden');
     document.getElementById('btn-cocina').classList.remove('hidden');
     document.getElementById('btn-fiados').classList.remove('hidden');
     document.getElementById('btn-cambio').classList.remove('hidden');
@@ -1567,11 +1625,21 @@ function applyUserRole(role) {
     if (dayCloseSec) dayCloseSec.classList.remove('hidden');
 
     if (role === 'local') {
-        // Local seller: only Local + Fiados views. Settings and stats blocked.
+        // Local seller: only Local + Clientes + Fiados + Cambio
         document.getElementById('btn-cocina').classList.add('hidden');
         btnSettings.classList.add('hidden');
         if (clearSales) clearSales.classList.add('hidden');
         
+        // Dynamic numbering for local role
+        const localSpan = document.querySelector('#btn-local span:last-child');
+        const clientesSpan = document.querySelector('#btn-clientes span:last-child');
+        const fiadosSpan = document.querySelector('#btn-fiados span:last-child');
+        const cambioSpan = document.querySelector('#btn-cambio span:last-child');
+        if (localSpan) localSpan.textContent = '1. LOCAL';
+        if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
+        if (fiadosSpan) fiadosSpan.textContent = '3. FIADOS';
+        if (cambioSpan) cambioSpan.textContent = '4. CAMBIO';
+
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
@@ -1585,6 +1653,19 @@ function applyUserRole(role) {
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     } else if (role === 'admin') {
         // Full Admin: Everything visible, statistics dashboard loaded
+        
+        // Dynamic numbering for admin role
+        const localSpan = document.querySelector('#btn-local span:last-child');
+        const clientesSpan = document.querySelector('#btn-clientes span:last-child');
+        const cocinaSpan = document.querySelector('#btn-cocina span:last-child');
+        const fiadosSpan = document.querySelector('#btn-fiados span:last-child');
+        const cambioSpan = document.querySelector('#btn-cambio span:last-child');
+        if (localSpan) localSpan.textContent = '1. LOCAL';
+        if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
+        if (cocinaSpan) cocinaSpan.textContent = '3. COCINA';
+        if (fiadosSpan) fiadosSpan.textContent = '4. FIADOS';
+        if (cambioSpan) cambioSpan.textContent = '5. CAMBIO';
+
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
@@ -1822,7 +1903,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lockSession();
     }
 
-    // 6. Bind navigation buttons (Vitrina, Cocina, Fiados)
+    // 6. Bind navigation buttons (Vitrina, Clientes, Cocina, Fiados, Cambio)
     document.getElementById('btn-local').addEventListener('click', () => {
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -1830,6 +1911,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
     });
 
+    document.getElementById('btn-clientes').addEventListener('click', () => {
+        window.UIManager.switchView('clientes');
+        window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+    });
 
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');

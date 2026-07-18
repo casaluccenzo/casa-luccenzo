@@ -1517,3 +1517,106 @@ input:checked + .slider:before {
     background-color: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.5);
 }
+
+/* ================= CUSTOM NEW STYLES: VITRINA, CLIENTES, COCINA ================= */
+
+.vitrina-stats-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.vitrina-stat-badge {
+    background-color: var(--color-card-navy);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.vitrina-stat-badge.gold {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+}
+
+.vitrina-stat-badge.success {
+    border-color: rgba(16, 185, 129, 0.4);
+    color: var(--color-success);
+}
+
+.kitchen-alert-banner {
+    background-color: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    color: #FCA5A5;
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    animation: alertPulse 2s infinite ease-in-out;
+}
+
+@keyframes alertPulse {
+    0%, 100% { opacity: 0.85; border-color: rgba(239, 68, 68, 0.4); }
+    50% { opacity: 1; border-color: var(--color-danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+}
+
+.status-free {
+    color: var(--color-text-muted);
+}
+
+.status-occupied {
+    color: var(--color-success);
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; text-shadow: 0 0 4px rgba(16, 185, 129, 0.4); }
+}
+
+.table-card {
+    transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
+}
+
+.table-card:hover {
+    transform: translateY(-2px);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.table-card:active {
+    transform: scale(0.97);
+}
+
+.client-status-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.client-status-badge.active {
+    background-color: rgba(212, 175, 55, 0.15);
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+}
+
+.client-status-badge.paid {
+    background-color: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+}
+

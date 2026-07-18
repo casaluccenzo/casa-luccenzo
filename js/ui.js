@@ -6,11 +6,13 @@
  */
 function switchView(view) {
     const btnLocal = document.getElementById('btn-local');
+    const btnClientes = document.getElementById('btn-clientes');
     const btnCocina = document.getElementById('btn-cocina');
     const btnFiados = document.getElementById('btn-fiados');
     const btnCambio = document.getElementById('btn-cambio');
     
     const viewLocal = document.getElementById('view-local');
+    const viewClientes = document.getElementById('view-clientes');
     const viewCocina = document.getElementById('view-cocina');
     const viewFiados = document.getElementById('view-fiados');
     const viewCambio = document.getElementById('view-cambio');
@@ -18,6 +20,12 @@ function switchView(view) {
     btnLocal.classList.remove('active');
     btnLocal.classList.add('inactive');
     btnLocal.setAttribute('aria-selected', 'false');
+
+    if (btnClientes) {
+        btnClientes.classList.remove('active');
+        btnClientes.classList.add('inactive');
+        btnClientes.setAttribute('aria-selected', 'false');
+    }
 
     btnCocina.classList.remove('active');
     btnCocina.classList.add('inactive');
@@ -34,6 +42,7 @@ function switchView(view) {
     }
 
     viewLocal.classList.add('hidden');
+    if (viewClientes) viewClientes.classList.add('hidden');
     viewCocina.classList.add('hidden');
     viewFiados.classList.add('hidden');
     if (viewCambio) viewCambio.classList.add('hidden');
@@ -43,6 +52,13 @@ function switchView(view) {
         btnLocal.classList.remove('inactive');
         btnLocal.setAttribute('aria-selected', 'true');
         viewLocal.classList.remove('hidden');
+    } else if (view === 'clientes') {
+        if (btnClientes) {
+            btnClientes.classList.add('active');
+            btnClientes.classList.remove('inactive');
+            btnClientes.setAttribute('aria-selected', 'true');
+        }
+        if (viewClientes) viewClientes.classList.remove('hidden');
     } else if (view === 'cocina') {
         btnCocina.classList.add('active');
         btnCocina.classList.remove('inactive');
@@ -158,6 +174,32 @@ function renderPendingDispatches(replenishments, onConfirm) {
 function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuery = '') {
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
+
+    // Render vitrina header summary stats
+    const statsContainer = document.getElementById('vitrina-summary-stats');
+    if (statsContainer) {
+        const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+        const totalMax = products.reduce((sum, p) => sum + (p.max || 0), 0);
+        const totalCritical = products.filter(p => p.stock <= p.min).length;
+
+        statsContainer.innerHTML = `
+            <div class="vitrina-stat-badge gold">
+                <i class="fa-solid fa-cookie-bite"></i> 
+                <span>Total Vitrina: <strong>${totalStock} / ${totalMax}</strong> piezas</span>
+            </div>
+            ${totalCritical > 0 ? `
+                <div class="vitrina-stat-badge" style="border-color: rgba(239,68,68,0.4); color: var(--color-danger);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> 
+                    <span>Críticos: <strong>${totalCritical}</strong></span>
+                </div>
+            ` : `
+                <div class="vitrina-stat-badge success">
+                    <i class="fa-solid fa-circle-check"></i> 
+                    <span>Vitrina Llena</span>
+                </div>
+            `}
+        `;
+    }
     
     listContainer.innerHTML = '';
 
@@ -288,6 +330,16 @@ function updateKitchenBadge(products) {
 function renderCocina(products, deliverProduct, replenishments = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
+
+    const alertBanner = document.getElementById('kitchen-alert-banner');
+    if (alertBanner) {
+        const hasCritical = products.some(p => p.stock <= p.min);
+        if (hasCritical) {
+            alertBanner.classList.remove('hidden');
+        } else {
+            alertBanner.classList.add('hidden');
+        }
+    }
 
     const neededItems = products.filter(p => p.stock < p.max);
     const pendingDispatches = replenishments.filter(r => r.status === 'en_camino');
@@ -432,7 +484,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
     salesLog.forEach(sale => {
         let productName = sale.name;
         let clientName = '';
-        const match = sale.name.match(/^(.*)\s+\[(.*)\]$/);
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
         if (match) {
             productName = match[1];
             clientName = match[2];
@@ -637,7 +689,7 @@ function renderDayCloseModal(salesLog, expenses) {
     salesLog.forEach(sale => {
         let cleanName = sale.name;
         if (sale.productId !== 'abono') {
-            cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
         }
         if (!salesCount[cleanName]) {
             salesCount[cleanName] = { count: 0, total: 0 };
@@ -939,7 +991,7 @@ function renderStats(salesLog, expenses = []) {
     const productCounts = {};
     salesLog.forEach(sale => {
         if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\]$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
             productCounts[cleanName] = (productCounts[cleanName] || 0) + 1;
         }
     });
@@ -1125,6 +1177,281 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     });
 }
 
+/**
+ * Render the dedicated Clientes view
+ * @param {Array} salesLog Today's sales log
+ * @param {Function} onUndo Undo sale callback
+ * @param {Function} onEdit Edit sale callback
+ * @param {Function} onPay Pay/Close sale callback
+ * @param {Array} products All products list
+ */
+function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
+    // 1. Update Live Statistics Card
+    const liveVitrinaEl = document.getElementById('live-stat-vitrina');
+    const liveVendidosEl = document.getElementById('live-stat-vendidos');
+    const liveVentasEl = document.getElementById('live-stat-ventas');
+
+    // Total in vitrina: sum of all product stock
+    const totalInVitrina = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalMaxVitrina = products.reduce((sum, p) => sum + (p.max || 0), 0);
+    if (liveVitrinaEl) {
+        liveVitrinaEl.textContent = `${totalInVitrina} / ${totalMaxVitrina}`;
+    }
+
+    // Total sold: count of all checked out sales (except debt payments 'abono')
+    const totalPiecesSold = salesLog.filter(s => s.productId !== 'abono').length;
+    if (liveVendidosEl) {
+        liveVendidosEl.textContent = totalPiecesSold;
+    }
+
+    // Total sales money
+    const totalSalesMoney = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
+    if (liveVentasEl) {
+        liveVentasEl.textContent = `$${totalSalesMoney.toFixed(2)}`;
+    }
+
+    // 2. Render 6 Tables Grid
+    const tablesContainer = document.getElementById('tables-grid-container');
+    if (tablesContainer) {
+        let tablesHtml = `
+            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                <i class="fa-solid fa-table-cells-large"></i> Mesas en el Local
+            </h4>
+            <div class="tables-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+        `;
+
+        for (let t = 1; t <= 6; t++) {
+            const tableName = `Mesa ${t}`;
+            
+            // Find if this table has any active (unpaid) entries
+            const tableSales = salesLog.filter(s => {
+                const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+                if (match) {
+                    const client = match[2];
+                    const isPaid = !!match[3];
+                    return client === tableName && !isPaid;
+                }
+                return false;
+            });
+
+            const isOccupied = tableSales.length > 0;
+            const totalConsumed = tableSales.reduce((sum, s) => sum + (s.price || 0), 0);
+            
+            let statusText = 'Libre';
+            let statusClass = 'status-free';
+            let cardStyle = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; text-align: center; cursor: pointer; transition: all 0.2s;';
+            
+            if (isOccupied) {
+                statusText = `Ocupada ($${totalConsumed.toFixed(2)})`;
+                statusClass = 'status-occupied';
+                cardStyle = 'background: rgba(212,175,55,0.05); border: 1px solid var(--color-gold); padding: 0.75rem; border-radius: 6px; text-align: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(212,175,55,0.1);';
+            }
+
+            tablesHtml += `
+                <div class="table-card" style="${cardStyle}" data-table="${tableName}">
+                    <div style="font-size: 0.75rem; font-weight: 800; color: ${isOccupied ? 'var(--color-gold)' : 'var(--color-text-muted)'};">${tableName}</div>
+                    <div style="font-size: 9px; margin-top: 0.25rem; font-weight: 700;" class="${statusClass}">${statusText}</div>
+                </div>
+            `;
+        }
+
+        tablesHtml += `</div>`;
+        tablesContainer.innerHTML = tablesHtml;
+
+        // Add event listeners to table cards
+        tablesContainer.querySelectorAll('.table-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const tableName = card.getAttribute('data-table');
+                
+                // Find active sales for this table
+                const tableSales = salesLog.filter(s => {
+                    const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+                    if (match) {
+                        const client = match[2];
+                        const isPaid = !!match[3];
+                        return client === tableName && !isPaid;
+                    }
+                    return false;
+                });
+
+                if (tableSales.length > 0) {
+                    // Mesa Ocupada: Scroll to detail in client list
+                    const timestamp = tableSales[0].timestamp;
+                    const element = document.querySelector(`[data-client-timestamp="${timestamp}"]`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.style.background = 'rgba(212,175,55,0.12)';
+                        setTimeout(() => {
+                            element.style.background = '';
+                        }, 1500);
+                    }
+                } else {
+                    // Mesa Libre: Ask to open new account
+                    if (confirm(`¿Deseas abrir la cuenta para la ${tableName}?`)) {
+                        sessionStorage.setItem('casa_lucenzo_editing_client_name', tableName);
+                        switchView('local');
+                        showToast(`📝 Cuenta iniciada para ${tableName}. ¡Agrega pastelitos!`, 'fa-solid fa-pen-to-square');
+                    }
+                }
+            });
+        });
+    }
+
+    // 3. Render Clients List
+    const listContainer = document.getElementById('clientes-list-container');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (salesLog.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1.25rem 0;">
+                No hay consumos o clientes registrados hoy.
+            </div>
+        `;
+        return;
+    }
+
+    // Group salesLog by timestamp
+    const groups = {};
+    salesLog.forEach(sale => {
+        let productName = sale.name;
+        let clientName = '';
+        let isPaid = false;
+        
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+        if (match) {
+            productName = match[1];
+            clientName = match[2];
+            isPaid = !!match[3];
+        } else {
+            productName = sale.name;
+            clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
+        }
+        
+        const key = sale.timestamp;
+        if (!groups[key]) {
+            groups[key] = {
+                timestamp: sale.timestamp,
+                clientName: clientName,
+                isPaid: isPaid,
+                items: [],
+                total: 0
+            };
+        }
+        
+        const existingItem = groups[key].items.find(item => item.name === productName);
+        if (existingItem) {
+            existingItem.quantity += 1;
+            existingItem.totalPrice += sale.price;
+        } else {
+            groups[key].items.push({
+                name: productName,
+                price: sale.price,
+                quantity: 1,
+                totalPrice: sale.price
+            });
+        }
+        groups[key].total += sale.price;
+    });
+
+    const groupedList = Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    groupedList.forEach(group => {
+        const card = document.createElement('div');
+        card.className = 'history-item';
+        card.setAttribute('data-client-timestamp', group.timestamp);
+        card.style.flexDirection = 'column';
+        card.style.alignItems = 'stretch';
+        card.style.gap = '0.5rem';
+        card.style.padding = '0.75rem';
+
+        let timeStr = '';
+        try {
+            const date = new Date(group.timestamp);
+            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch(e) {
+            timeStr = 'Ahora';
+        }
+
+        const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
+
+        const statusBadge = group.isPaid 
+            ? `<span class="client-status-badge paid">Pagado</span>` 
+            : `<span class="client-status-badge active">Consumiendo</span>`;
+
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-weight: 800; color: var(--color-gold); font-size: 0.875rem;">${group.clientName}</span>
+                        ${statusBadge}
+                    </div>
+                    <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        ${timeStr} &bull; Total: $${group.total.toFixed(2)} (Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)})
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 0.25rem;">
+                    <button class="btn-action-small btn-share-client" title="Compartir Ticket">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </button>
+                    ${!group.isPaid ? `
+                        <button class="btn-action-small btn-modify-client" style="background-color: var(--color-gold); color: var(--color-bg-navy);" title="Agregar más cosas">
+                            <i class="fa-solid fa-pen-to-square"></i> Modificar
+                        </button>
+                        <button class="btn-action-small btn-pay-client" style="background-color: var(--color-success); color: var(--color-bg-navy);" title="Marcar como pagada y liberar mesa">
+                            <i class="fa-solid fa-circle-check"></i> Pagar
+                        </button>
+                    ` : ''}
+                    <button class="btn-action-small btn-undo-client" style="background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="font-size: 11px; color: var(--color-white); opacity: 0.85; padding-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03);">
+                <strong>Lleva:</strong> ${itemsSummary}
+            </div>
+        `;
+
+        // Bind event listeners
+        card.querySelector('.btn-share-client').addEventListener('click', () => {
+            let msg = `*CASA LUCCENZO* 🥖\n`;
+            msg += `*Ticket de Consumo* 🧾\n`;
+            msg += `--------------------------------------\n`;
+            msg += `👤 *Cliente/Mesa:* ${group.clientName}\n`;
+            msg += `📅 *Fecha/Hora:* ${new Date(group.timestamp).toLocaleString()}\n`;
+            msg += `--------------------------------------\n`;
+            group.items.forEach(it => {
+                msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;
+            });
+            msg += `--------------------------------------\n`;
+            msg += `💵 *Total a Pagar:* *$${group.total.toFixed(2)} USD*\n`;
+            msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
+            msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(group.total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
+            msg += `--------------------------------------\n`;
+            msg += `¡Muchas gracias por su compra! 🌟`;
+
+            const encoded = encodeURIComponent(msg);
+            window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+        });
+
+        if (!group.isPaid) {
+            card.querySelector('.btn-modify-client').addEventListener('click', () => {
+                if (onEdit) onEdit(group.timestamp);
+            });
+            card.querySelector('.btn-pay-client').addEventListener('click', () => {
+                if (onPay) onPay(group.timestamp);
+            });
+        }
+
+        card.querySelector('.btn-undo-client').addEventListener('click', () => {
+            if (onUndo) onUndo(group.timestamp);
+        });
+
+        listContainer.appendChild(card);
+    });
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -1148,6 +1475,7 @@ window.UIManager = {
     renderIngredientsPantry,
     renderStats,
     renderQuickConversionTable,
-    renderActiveCart
+    renderActiveCart,
+    renderClientesView
 };
 

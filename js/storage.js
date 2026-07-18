@@ -183,6 +183,28 @@ function savePreferences(prefs) {
     }
 }
 
+const BCV_PREFS_KEY = 'casa_lucenzo_bcv_prefs';
+
+function loadBcvPreferences() {
+    const saved = localStorage.getItem(BCV_PREFS_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch(e) {
+            return { bcvRate: 732.48, useAutoBcv: true };
+        }
+    }
+    return { bcvRate: 732.48, useAutoBcv: true };
+}
+
+function saveBcvPreferences(rate, auto) {
+    try {
+        localStorage.setItem(BCV_PREFS_KEY, JSON.stringify({ bcvRate: parseFloat(rate) || 732.48, useAutoBcv: !!auto }));
+    } catch(e) {
+        console.error("Failed to save BCV preferences", e);
+    }
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
@@ -205,5 +227,7 @@ window.StorageManager = {
     loadIngredients,
     saveIngredients,
     loadPreferences,
-    savePreferences
+    savePreferences,
+    loadBcvPreferences,
+    saveBcvPreferences
 };

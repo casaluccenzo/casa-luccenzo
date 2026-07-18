@@ -16,6 +16,10 @@ let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: 
 // User access role
 let currentRole = null;
 
+// BCV Exchange Rate state
+let bcvRate = 732.48;
+let useAutoBcv = true;
+
 // ================= HANDLERS & LOGIC =================
 
 /**
@@ -537,6 +541,7 @@ function shareDayClose() {
     
     let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
     message += `Fecha: ${new Date().toLocaleDateString()}\n`;
+    message += `Tasa BCV del Día: ${bcvRate.toFixed(2)} Bs.\n`;
     message += `--------------------------------------\n`;
     message += `*Pastelitos Vendidos:*\n`;
     for (const [name, count] of Object.entries(salesCount)) {
@@ -549,16 +554,16 @@ function shareDayClose() {
     message += `--------------------------------------\n`;
     message += `*Gastos del Día:*\n`;
     expenses.forEach(exp => {
-        message += `• ${exp.description}: -$${exp.amount.toFixed(2)}\n`;
+        message += `• ${exp.description}: -$${exp.amount.toFixed(2)} (Bs. ${(exp.amount * bcvRate).toFixed(2)})\n`;
     });
     if (expenses.length === 0) {
         message += `• Sin gastos registrados.\n`;
     }
     
     message += `--------------------------------------\n`;
-    message += `💰 *Ingresos Ventas:* +$${totalSales.toFixed(2)}\n`;
-    message += `💸 *Total Gastos:* -$${totalExpenses.toFixed(2)}\n`;
-    message += `💵 *Caja Neta Final:* *$${netCash.toFixed(2)}*\n`;
+    message += `💰 *Ingresos Ventas:* +$${totalSales.toFixed(2)} (Bs. ${(totalSales * bcvRate).toFixed(2)})\n`;
+    message += `💸 *Total Gastos:* -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * bcvRate).toFixed(2)})\n`;
+    message += `💵 *Caja Neta Final:* *$${netCash.toFixed(2)}* (Bs. *( ${(netCash * bcvRate).toFixed(2)} )*)\n`;
     message += `--------------------------------------\n`;
     message += `📢 _Cierre generado automáticamente. ¡Feliz noche!_ 🌟`;
 
@@ -1221,6 +1226,51 @@ function lockSession() {
 
 // ================= APP INITIALIZATION =================
 
+/**
+ * Update the header exchange rate text
+ */
+function updateBcvHeaderDisplay() {
+    const el = document.getElementById('bcv-rate-display');
+    if (el) {
+        el.innerText = `Tasa BCV: ${bcvRate.toFixed(2)} Bs.`;
+    }
+}
+
+/**
+ * Fetch the official BCV rate from DolarAPI
+ */
+async function fetchBcvRate() {
+    if (!useAutoBcv) return;
+    try {
+        console.log("Fetching official BCV exchange rate...");
+        const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.promedio) {
+                bcvRate = parseFloat(data.promedio);
+                window.bcvRate = bcvRate;
+                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
+                
+                const bcvRateInput = document.getElementById('pref-bcv-rate');
+                if (bcvRateInput) {
+                    bcvRateInput.value = bcvRate;
+                }
+                
+                updateBcvHeaderDisplay();
+                
+                // Re-render UI
+                window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                window.UIManager.renderCashRegister(salesLog, expenses);
+                window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+                window.UIManager.renderDebts(debts, settleDebtPayment);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch BCV rate, using fallback/cached value.", e);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Register PWA Service Worker (only if running on local server or online)
     if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
@@ -1231,6 +1281,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Load preferences and inputs configuration
     preferences = window.StorageManager.loadPreferences();
+    
+    // Initialize BCV Exchange Rate
+    const bcvPrefs = window.StorageManager.loadBcvPreferences();
+    bcvRate = bcvPrefs.bcvRate || 732.48;
+    useAutoBcv = bcvPrefs.useAutoBcv !== false;
+    window.bcvRate = bcvRate;
+    
+    const autoBcvCheckbox = document.getElementById('pref-bcv-auto');
+    const bcvRateInput = document.getElementById('pref-bcv-rate');
+    if (autoBcvCheckbox && bcvRateInput) {
+        autoBcvCheckbox.checked = useAutoBcv;
+        bcvRateInput.value = bcvRate;
+        bcvRateInput.disabled = useAutoBcv;
+        
+        autoBcvCheckbox.addEventListener('change', () => {
+            useAutoBcv = autoBcvCheckbox.checked;
+            bcvRateInput.disabled = useAutoBcv;
+            if (useAutoBcv) {
+                fetchBcvRate();
+            } else {
+                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+            }
+        });
+        
+        bcvRateInput.addEventListener('change', () => {
+            const val = parseFloat(bcvRateInput.value);
+            if (val > 0) {
+                bcvRate = val;
+                window.bcvRate = bcvRate;
+                window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
+                
+                // Re-render
+                window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                window.UIManager.renderCashRegister(salesLog, expenses);
+                window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+                window.UIManager.renderDebts(debts, settleDebtPayment);
+                updateBcvHeaderDisplay();
+            }
+        });
+    }
+    
+    updateBcvHeaderDisplay();
+    if (useAutoBcv) {
+        fetchBcvRate();
+    }
 
     document.getElementById('pref-sound').checked = preferences.sound !== false;
     document.getElementById('pref-vibrate').checked = preferences.vibration !== false;

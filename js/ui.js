@@ -185,7 +185,10 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                 </div>
                 <p class="product-stock-desc">
                     Quedan: <span class="${stockStyle}">${product.stock}</span> de ${product.max} ${product.unit} 
-                    <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">$${(product.price || 0).toFixed(2)}</span>
+                    <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
+                        $${(product.price || 0).toFixed(2)} 
+                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>
+                    </span>
                 </p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -384,7 +387,8 @@ function renderCashRegister(salesLog, expenses = []) {
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
 
-    valueEl.innerText = `$${netCash.toFixed(2)}`;
+    const vesCash = netCash * (window.bcvRate || 1);
+    valueEl.innerHTML = `$${netCash.toFixed(2)} <span style="font-size: 0.875rem; font-weight: normal; opacity: 0.8; margin-left: 0.5rem;">(Bs. ${vesCash.toFixed(2)})</span>`;
 }
 
 /**
@@ -424,7 +428,7 @@ function renderSalesHistory(salesLog, onUndo) {
         item.innerHTML = `
             <div class="history-item-desc">
                 <span class="history-item-title">${sale.name}</span>
-                <span class="history-item-time">${timeStr} &bull; $${(sale.price || 0).toFixed(2)}</span>
+                <span class="history-item-time">${timeStr} &bull; $${(sale.price || 0).toFixed(2)} <span style="opacity: 0.8; font-size: 0.675rem; margin-left: 0.25rem;">(Bs. ${((sale.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span></span>
             </div>
             <button class="btn-undo">Deshacer</button>
         `;
@@ -450,7 +454,7 @@ function renderExpenses(expenses, onRemove) {
     listContainer.innerHTML = '';
 
     const total = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
+    if (totalEl) totalEl.innerHTML = `$${total.toFixed(2)} <span style="font-size: 0.675rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(total * (window.bcvRate || 1)).toFixed(2)})</span>`;
 
     if (expenses.length === 0) {
         listContainer.innerHTML = `
@@ -467,7 +471,7 @@ function renderExpenses(expenses, onRemove) {
         row.innerHTML = `
             <span class="expense-desc">${exp.description}</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span class="expense-amount">-$${exp.amount.toFixed(2)}</span>
+                <span class="expense-amount">-$${exp.amount.toFixed(2)} <span style="font-size: 0.625rem; opacity: 0.75; margin-left: 0.125rem;">(Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)})</span></span>
                 <button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>
             </div>
         `;
@@ -521,6 +525,7 @@ function renderDebts(debts, onRecordPayment) {
             </div>
             <div class="client-balance-group">
                 <span class="client-balance">${isDebtor ? `$${debt.amount.toFixed(2)}` : '$0.00'}</span>
+                ${isDebtor ? `<span style="font-size: 0.675rem; opacity: 0.8; font-weight: normal; margin-top: 0.125rem; margin-bottom: 0.25rem;">(Bs. ${(debt.amount * (window.bcvRate || 1)).toFixed(2)})</span>` : ''}
                 ${isDebtor 
                     ? `<button class="btn-pay">Abonar / Pagar</button>` 
                     : '<span style="color: var(--color-success); font-size: 11px; font-weight: 700; margin-top: 0.25rem;">Al Día</span>'
@@ -580,15 +585,15 @@ function renderDayCloseModal(salesLog, expenses) {
             <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Resultados Financieros</h4>
             <div class="summary-row">
                 <span>Ingreso por Ventas:</span>
-                <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)}</span>
+                <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * (window.bcvRate || 1)).toFixed(2)})</span></span>
             </div>
             <div class="summary-row">
                 <span>Total Gastos:</span>
-                <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)}</span>
+                <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalExpenses * (window.bcvRate || 1)).toFixed(2)})</span></span>
             </div>
             <div class="summary-row total">
                 <span>Total en Caja:</span>
-                <span>$${netCash.toFixed(2)}</span>
+                <span>$${netCash.toFixed(2)} <span style="font-size: 0.825rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(netCash * (window.bcvRate || 1)).toFixed(2)})</span></span>
             </div>
         </div>
     `;

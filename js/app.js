@@ -1360,6 +1360,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderCocina(products, deliverProduct, replenishments);
         window.UIManager.updateKitchenBadge(products);
+        window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
     } else if (tableName === 'sales') {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
@@ -1387,6 +1388,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.StorageManager.saveSalesLog(salesLog);
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
         if (currentRole === 'admin') {
             window.UIManager.renderStats(salesLog, expenses);
         }

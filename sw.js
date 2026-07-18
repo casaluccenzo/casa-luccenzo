@@ -1,24 +1,10 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v40';
-
-
-
-
-
-
-
-
-
-
-
-
-
+const CACHE_NAME = 'casa-lucenzo-v41';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './vercel.json',
   './css/main.css',
   './css/variables.css',
   './css/layout.css',
@@ -34,7 +20,7 @@ const ASSETS_TO_CACHE = [
   './img/logo-512.png'
 ];
 
-// Install Event
+// Install Event - cache assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -46,23 +32,22 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate Event
+// Activate Event - clean old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Clearing old cache');
-            return caches.delete(cache);
-          }
-        })
-      );
+      const cleanupPromises = cacheNames
+        .filter(name => name !== CACHE_NAME)
+        .map(name => {
+          console.log('Clearing old cache:', name);
+          return caches.delete(name);
+        });
+      return Promise.all(cleanupPromises);
     }).then(() => self.clients.claim())
   );
 });
 
-// Fetch Event
+// Fetch Event - Stale-While-Revalidate caching strategy
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
@@ -70,25 +55,32 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
+          // background fetch to update the cache (stale-while-revalidate)
           fetch(event.request)
             .then(networkResponse => {
               if (networkResponse.status === 200) {
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse));
+                caches.open(CACHE_NAME).then(cache => {
+                  cache.put(event.request, networkResponse.clone());
+                });
               }
             })
             .catch(() => {});
           return cachedResponse;
         }
 
+        // Cache miss: request from network
         return fetch(event.request)
           .then(networkResponse => {
             if (networkResponse.status === 200) {
               const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseClone);
+              });
             }
             return networkResponse;
           })
           .catch(() => {
+            // Offline fallback for navigation requests
             if (event.request.mode === 'navigate') {
               return caches.match('./index.html');
             }

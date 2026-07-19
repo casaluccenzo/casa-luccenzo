@@ -1222,16 +1222,10 @@ async function loadAllDataFromSupabase() {
         window.bcvRate = bcvRate;
         window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
         
-        // Load 2FA status
-        if (window.SupabaseManager.getDbSupportsTotp()) {
-            totpEnabled = !!supConfig.totp_enabled;
-            totpSecret = supConfig.totp_secret || '';
-            window.StorageManager.saveTotpPreferences(totpEnabled, totpSecret);
-        } else {
-            const totpPrefs = window.StorageManager.loadTotpPreferences();
-            totpEnabled = totpPrefs.enabled;
-            totpSecret = totpPrefs.secret;
-        }
+        // Load 2FA status - Always force disabled
+        totpEnabled = false;
+        totpSecret = '';
+        window.StorageManager.saveTotpPreferences(false, '');
 
         // Load Day Close status
         if (window.SupabaseManager.getDbSupportsLastClose() && supConfig.last_close_time) {
@@ -1328,10 +1322,10 @@ function loadAllDataFromLocalStorage() {
     useAutoBcv = bcvPrefs.useAutoBcv !== false;
     window.bcvRate = bcvRate;
     
-    // Load 2FA status from localStorage
-    const totpPrefs = window.StorageManager.loadTotpPreferences();
-    totpEnabled = totpPrefs.enabled;
-    totpSecret = totpPrefs.secret;
+    // Load 2FA status from localStorage - Always force disabled
+    totpEnabled = false;
+    totpSecret = '';
+    window.StorageManager.saveTotpPreferences(false, '');
 
     // Load last close time from localStorage
     lastCloseTime = window.StorageManager.loadLastCloseTime();
@@ -1685,41 +1679,9 @@ function handlePINInput(pin) {
         window.UIManager.showToast("🔓 Acceso Cocina Concedido (Producción).", "fa-solid fa-fire-burner");
         return true;
     } else if (pin === '9999') {
-        if (totpEnabled && totpSecret) {
-            // Initialize OTPAuth instance for verification
-            try {
-                totpInstance = new window.OTPAuth.TOTP({
-                    issuer: "CasaLuccenzo",
-                    label: "Admin",
-                    algorithm: "SHA1",
-                    digits: 6,
-                    period: 30,
-                    secret: window.OTPAuth.Secret.fromBase32(totpSecret)
-                });
-            } catch(e) {
-                console.error("Failed to initialize totpInstance in handlePINInput", e);
-            }
-
-            // Trigger 2FA view transition in the login overlay
-            const pinLoginSection = document.getElementById('pin-login-section');
-            const totpLoginSection = document.getElementById('totp-login-section');
-            const totpInput = document.getElementById('totp-input');
-            const pinInput = document.getElementById('pin-input');
-            
-            if (pinLoginSection && totpLoginSection && totpInput) {
-                triggerHaptic(15);
-                pinLoginSection.classList.add('hidden');
-                totpLoginSection.classList.remove('hidden');
-                totpInput.value = '';
-                if (pinInput) pinInput.value = '';
-                setTimeout(() => totpInput.focus(), 200);
-            }
-            return true;
-        } else {
-            applyUserRole('admin');
-            window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
-            return true;
-        }
+        applyUserRole('admin');
+        window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
+        return true;
     } else {
         triggerHaptic([80, 80]); // Double haptic feedback on error
         window.UIManager.showToast("❌ PIN incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");

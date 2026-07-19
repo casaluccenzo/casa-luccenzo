@@ -830,15 +830,14 @@ function confirmReceipt() {
     window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina al 100%.", "fa-solid fa-circle-check");
 }
 
-/**
- * Restock all vitrina products to max limits
- */
 function resetToMax() {
     triggerHaptic(15);
     products.forEach(p => {
-        p.stock = p.max;
-        if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.updateProductStock(p.id, p.max);
+        if (p.category !== 'bebidas') {
+            p.stock = p.max;
+            if (window.SupabaseManager.isConfigured()) {
+                window.SupabaseManager.updateProductStock(p.id, p.max);
+            }
         }
     });
     window.StorageManager.saveProducts(products);
@@ -1356,15 +1355,9 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Reset showcase products' stock/max, preserving 'bebidas' remaining stock for the next day
+        // 4. Reset showcase products' stock/max, keeping 'bebidas' remaining stock and max capacity completely untouched
         products.forEach(p => {
-            if (p.category === 'bebidas') {
-                const remainingStock = p.stock || 0;
-                p.max = remainingStock;
-                if (window.SupabaseManager.isConfigured()) {
-                    window.SupabaseManager.updateProductStock(p.id, remainingStock, remainingStock);
-                }
-            } else {
+            if (p.category !== 'bebidas') {
                 p.stock = 0;
                 p.max = 0;
                 if (window.SupabaseManager.isConfigured()) {

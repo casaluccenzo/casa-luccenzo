@@ -1686,6 +1686,20 @@ function handlePINInput(pin) {
         return true;
     } else if (pin === '9999') {
         if (totpEnabled && totpSecret) {
+            // Initialize OTPAuth instance for verification
+            try {
+                totpInstance = new window.OTPAuth.TOTP({
+                    issuer: "CasaLuccenzo",
+                    label: "Admin",
+                    algorithm: "SHA1",
+                    digits: 6,
+                    period: 30,
+                    secret: window.OTPAuth.Secret.fromBase32(totpSecret)
+                });
+            } catch(e) {
+                console.error("Failed to initialize totpInstance in handlePINInput", e);
+            }
+
             // Trigger 2FA view transition in the login overlay
             const pinLoginSection = document.getElementById('pin-login-section');
             const totpLoginSection = document.getElementById('totp-login-section');

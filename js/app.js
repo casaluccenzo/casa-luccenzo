@@ -1855,6 +1855,7 @@ function applyUserRole(role) {
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     } else if (role === 'admin') {
         // Full Admin: Everything visible, statistics dashboard loaded
+        if (undoSales) undoSales.classList.remove('hidden');
         
         // Dynamic numbering for admin role
         const localSpan = document.querySelector('#btn-local span:last-child');

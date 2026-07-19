@@ -639,6 +639,12 @@ function renderCashRegister(salesLog, expenses = []) {
 
     const vesCash = netCash * (window.bcvRate || 1);
     valueEl.innerHTML = `$${netCash.toFixed(2)} <span style="font-size: 0.875rem; font-weight: normal; opacity: 0.8; margin-left: 0.5rem;">(Bs. ${vesCash.toFixed(2)})</span>`;
+
+    // Update header cash register badge
+    const headerCashValEl = document.getElementById('header-cash-val');
+    if (headerCashValEl) {
+        headerCashValEl.textContent = `$${netCash.toFixed(2)}`;
+    }
 }
 
 /**

@@ -315,6 +315,23 @@ main {
         align-items: start;
     }
 
+    .local-checkout-col {
+        position: sticky;
+        top: 135px;
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+
+    .local-checkout-col::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .local-checkout-col::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius-full);
+    }
+
     #view-cambio:not(.hidden) {
         display: grid;
         grid-template-columns: 1fr 1fr;

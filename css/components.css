@@ -1675,4 +1675,86 @@ input:checked + .slider:before {
     -moz-appearance: textfield;
 }
 
+/* Category Statistics Rows inside Clientes Resumen Card */
+.category-stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.6rem;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.category-stat-row:hover {
+    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(212, 163, 89, 0.15);
+}
+
+.category-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.775rem;
+    font-weight: 700;
+    color: var(--color-white);
+}
+
+.category-label i {
+    font-size: 0.85rem;
+    width: 1.1rem;
+    text-align: center;
+}
+
+.category-values {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.775rem;
+}
+
+.category-qty-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 0.675rem;
+    text-transform: lowercase;
+}
+
+/* Category Specific Badges */
+.category-qty-badge.pastelitos {
+    background-color: rgba(255, 176, 133, 0.08);
+    color: #FFB085;
+    border: 1px solid rgba(255, 176, 133, 0.18);
+}
+.category-qty-badge.bebidas {
+    background-color: rgba(139, 232, 203, 0.08);
+    color: #8BE8CB;
+    border: 1px solid rgba(139, 232, 203, 0.18);
+}
+.category-qty-badge.tortas {
+    background-color: rgba(255, 170, 166, 0.08);
+    color: #FFAAA6;
+    border: 1px solid rgba(255, 170, 166, 0.18);
+}
+.category-qty-badge.otros {
+    background-color: rgba(212, 163, 89, 0.08);
+    color: var(--color-gold);
+    border: 1px solid rgba(212, 163, 89, 0.18);
+}
+
+.category-price-usd {
+    color: var(--color-success);
+    font-weight: 800;
+    font-family: var(--font-mono, monospace);
+}
+
+.category-price-ves {
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-family: var(--font-mono, monospace);
+    margin-left: 0.15rem;
+}
+
 

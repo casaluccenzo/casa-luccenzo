@@ -473,7 +473,7 @@ async function handleEditSale(timestamp) {
         if (existing) {
             existing.quantity++;
         } else {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
             cartReconstructed.push({
                 productId: sale.productId,
                 name: cleanName,
@@ -486,7 +486,7 @@ async function handleEditSale(timestamp) {
     // Extract client name
     let clientName = 'Cliente';
     const firstSale = matchingSales[0];
-    const match = firstSale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+    const match = firstSale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
     if (match) {
         clientName = match[2];
     } else {
@@ -522,18 +522,37 @@ async function handleEditSale(timestamp) {
  * Marks a sales transaction as paid, updating Supabase and memory (changing suffix to include (Pagado))
  * @param {string} timestamp Sales log entry transaction timestamp
  */
-async function markTransactionAsPaid(timestamp) {
+async function markTransactionAsPaid(timestamp, paymentMethod) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
 
+    // Ask for payment method if not provided yet
+    if (!paymentMethod) {
+        const totalAmount = matchingSales.reduce((sum, s) => sum + (s.price || 0), 0);
+        let clientName = "Cliente";
+        const firstSale = matchingSales[0];
+        const bracketMatch = firstSale.name.match(/\[(.*?)\]/);
+        if (bracketMatch) {
+            clientName = bracketMatch[1];
+        }
+
+        if (window.UIManager && window.UIManager.showPaymentMethodModal) {
+            window.UIManager.showPaymentMethodModal(clientName, totalAmount, (method) => {
+                markTransactionAsPaid(timestamp, method);
+            });
+        } else {
+            // Fallback if modal is not loaded
+            markTransactionAsPaid(timestamp, "Efectivo");
+        }
+        return;
+    }
+
     triggerHaptic(15);
 
-    // 1. Map to updated sales
+    // 1. Map to updated sales with selected payment method
     const updatedSales = matchingSales.map(sale => {
-        let newName = sale.name;
-        if (!newName.endsWith(' (Pagado)')) {
-            newName = `${sale.name} (Pagado)`;
-        }
+        let newName = sale.name.replace(/\s*\(Pagado(?: - .*?)?\)$/, '');
+        newName = `${newName} (Pagado - ${paymentMethod})`;
         return {
             ...sale,
             name: newName
@@ -558,10 +577,8 @@ async function markTransactionAsPaid(timestamp) {
     // Update local salesLog
     salesLog = salesLog.map(s => {
         if (s.timestamp === timestamp) {
-            let newName = s.name;
-            if (!newName.endsWith(' (Pagado)')) {
-                newName = `${s.name} (Pagado)`;
-            }
+            let newName = s.name.replace(/\s*\(Pagado(?: - .*?)?\)$/, '');
+            newName = `${newName} (Pagado - ${paymentMethod})`;
             return { ...s, name: newName };
         }
         return s;
@@ -571,7 +588,7 @@ async function markTransactionAsPaid(timestamp) {
 
     // Render
     renderAllViews();
-    window.UIManager.showToast("💵 Cuenta marcada como Pagada.", "fa-solid fa-circle-check");
+    window.UIManager.showToast(`💵 Cuenta pagada con ${paymentMethod}.`, "fa-solid fa-circle-check");
 }
 
 /**
@@ -660,6 +677,32 @@ function deliverProduct(id) {
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
     window.UIManager.showToast(`🚚 "${product.name}" marcado como Enviado al local.`, "fa-solid fa-paper-plane");
+}
+
+/**
+ * Update stock manually for a product (direct load from kitchen)
+ * @param {string} id Product identifier
+ * @param {number} newStock New stock value
+ */
+async function updateProductStockDirect(id, newStock) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    triggerHaptic(15);
+    product.stock = Math.max(0, newStock);
+    product.max = Math.max(0, newStock); // Update maximum capacity to match loaded quantity
+    window.StorageManager.saveProducts(products);
+
+    if (window.SupabaseManager.isConfigured()) {
+        try {
+            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+        } catch (e) {
+            console.error("Failed to update product stock and max in Supabase", e);
+        }
+    }
+
+    renderAllViews();
+    window.UIManager.showToast(`✅ Vitrina actualizada: "${product.name}" ahora tiene ${product.stock} ${product.unit || 'unid.'}.`, "fa-solid fa-circle-check");
 }
 
 /**
@@ -936,7 +979,7 @@ function shareDayClose() {
     const salesCount = {};
     salesLog.forEach(sale => {
         if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
             if (!salesCount[cleanName]) salesCount[cleanName] = 0;
             salesCount[cleanName]++;
         } else {
@@ -1026,11 +1069,11 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Refill all vitrina products to their maximum capacity
+        // 4. Reset all showcase products' stock to 0
         products.forEach(p => {
-            p.stock = p.max;
+            p.stock = 0;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(p.id, p.max);
+                window.SupabaseManager.updateProductStock(p.id, 0);
             }
         });
         window.StorageManager.saveProducts(products);
@@ -1913,18 +1956,53 @@ async function fetchBcvRate() {
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Register PWA Service Worker (only if running on local server or online)
     if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+        let refreshing = false;
+        
+        // Listen for controllerchange to trigger automated reload when new sw takes over
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            console.log('Service Worker controller changed, reloading.');
+            if (window.UIManager && window.UIManager.showUpdateOverlay) {
+                window.UIManager.showUpdateOverlay();
+                window.UIManager.updateOverlayStatusSuccess();
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 1200);
+        });
+
         navigator.serviceWorker.register('./sw.js')
             .then(reg => {
                 console.log('Service Worker Registered with scope:', reg.scope);
+                
+                // If there's an update already waiting to be activated, trigger it!
+                if (reg.waiting) {
+                    console.log('New update is waiting in background. Triggering activation.');
+                    if (window.UIManager && window.UIManager.showUpdateOverlay) {
+                        window.UIManager.showUpdateOverlay();
+                        window.UIManager.updateOverlayStatusSuccess();
+                    }
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                    return;
+                }
+
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     if (installingWorker) {
+                        // Display full screen update overlay when installing begins
+                        if (window.UIManager && window.UIManager.showUpdateOverlay) {
+                            window.UIManager.showUpdateOverlay();
+                        }
+                        
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
                                     console.log('New update installed, performing auto-reload.');
-                                    if (window.UIManager && window.UIManager.showToast) {
-                                        window.UIManager.showToast("🔄 Nueva versión cargada. Actualizando...", "fa-solid fa-arrows-rotate");
+                                    if (window.UIManager && window.UIManager.updateOverlayStatusSuccess) {
+                                        window.UIManager.updateOverlayStatusSuccess();
                                     }
                                     setTimeout(() => {
                                         window.location.reload();
@@ -2256,6 +2334,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.handleEditSale = handleEditSale;
 window.handleUndoSale = handleUndoSale;
 window.handleCartQtyChange = handleCartQtyChange;
+window.updateProductStockDirect = updateProductStockDirect;
 
 // Dynamically link currentCart to window.currentCart to avoid array reference mismatch
 Object.defineProperty(window, 'currentCart', {

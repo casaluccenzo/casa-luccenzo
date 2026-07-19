@@ -358,6 +358,10 @@ function renderCocina(products, deliverProduct, replenishments = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
 
+    if (!window.currentKitchenTab) {
+        window.currentKitchenTab = 'stock';
+    }
+
     const alertBanner = document.getElementById('kitchen-alert-banner');
     if (alertBanner) {
         const hasCritical = products.some(p => p.stock <= p.min);
@@ -371,100 +375,251 @@ function renderCocina(products, deliverProduct, replenishments = []) {
     const neededItems = products.filter(p => p.stock < p.max);
     const pendingDispatches = replenishments.filter(r => r.status === 'en_camino');
 
-    if (neededItems.length === 0) {
-        let dispatchesHtml = '';
-        if (pendingDispatches.length > 0) {
-            dispatchesHtml = `
-                <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
-                    <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
-                    <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
-                        ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
+    // Generate HTML for Stock tab (Cargar Stock)
+    let stockHtml = `
+        <p class="kitchen-notice" style="margin-bottom: 1rem;">
+            🥖 Carga el stock disponible en la vitrina para iniciar la jornada.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    `;
+
+    const categories = {
+        'pastelitos': { name: 'Pastelitos', icon: 'fa-cookie', color: '#FFB085' },
+        'bebidas': { name: 'Bebidas (Refrescos)', icon: 'fa-bottle-water', color: '#8BE8CB' },
+        'tortas': { name: 'Tortas', icon: 'fa-cake-slice', color: '#FFAAA6' },
+        'otros': { name: 'Otros', icon: 'fa-boxes-stacked', color: '#D4A373' }
+    };
+
+    const groupedProducts = {};
+    products.forEach(p => {
+        const cat = p.category || 'otros';
+        if (!groupedProducts[cat]) groupedProducts[cat] = [];
+        groupedProducts[cat].push(p);
+    });
+
+    Object.entries(categories).forEach(([catKey, catMeta]) => {
+        const items = groupedProducts[catKey] || [];
+        if (items.length === 0) return;
+
+        stockHtml += `
+            <div class="card-pantry" style="padding: 1rem; border-color: rgba(255, 255, 255, 0.05); background: rgba(10, 15, 30, 0.4);">
+                <h4 style="font-size: 11px; font-weight: 900; color: ${catMeta.color}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid ${catMeta.icon}"></i> ${catMeta.name}
+                </h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        `;
+
+        items.forEach(p => {
+            stockHtml += `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</div>
+                        <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.15rem;">
+                            Stock: <strong style="color: ${p.stock <= p.min ? 'var(--color-danger)' : 'var(--color-success)'};">${p.stock}</strong> / Max: ${p.max} ${p.unit || 'unid.'}
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <!-- Set to Max shortcut button -->
+                        <button class="btn-set-max" data-id="${p.id}" data-max="${p.max}" style="height: 28px; padding: 0 0.5rem; font-size: 9px; font-weight: 800; border-radius: 4px; border: 1px solid rgba(212,175,55,0.3); background: rgba(212,175,55,0.05); color: var(--color-gold); cursor: pointer; transition: all 0.2s;" title="Fijar al Máximo">
+                            Max (${p.max})
+                        </button>
+                        <!-- Minus button -->
+                        <button class="btn-qty-minus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">-</button>
+                        <!-- Input -->
+                        <input type="number" class="input-stock-val" id="input-stock-${p.id}" data-id="${p.id}" value="${p.stock}" min="0" max="999" style="width: 38px; height: 28px; text-align: center; font-size: 0.8rem; font-weight: 800; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: var(--color-white); outline: none; -moz-appearance: textfield; padding: 0;">
+                        <!-- Plus button -->
+                        <button class="btn-qty-plus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">+</button>
+                        <!-- Save button -->
+                        <button class="btn-save-stock" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: var(--color-success); color: #000000; cursor: pointer; transition: all 0.2s;" title="Actualizar en Vitrina">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
                     </div>
                 </div>
             `;
-        }
+        });
 
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-                <h3 class="empty-state-title">¡Todo Completo!</h3>
-                <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
-            </div>
-            ${dispatchesHtml}
-        `;
-        return;
-    }
-
-    container.innerHTML = `
-        <p class="kitchen-notice">
-            📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
-        </p>
-        <div style="display: flex; flex-direction: column; gap: 1rem;" id="kitchen-list"></div>
-    `;
-
-    const list = document.getElementById('kitchen-list');
-
-    neededItems.forEach(item => {
-        const amountNeeded = item.max - item.stock;
-        const isDispatched = pendingDispatches.some(d => d.productId === item.id);
-
-        const row = document.createElement('div');
-        row.className = "kitchen-card";
-        
-        row.innerHTML = `
-            <div class="kitchen-card-header">
-                <div>
-                    <h3 class="product-name" style="font-size: 1.125rem;">${item.name}</h3>
-                    <p class="stock-value critical" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                        Solo quedan ${item.stock} en la vitrina.
-                    </p>
-                </div>
-                <div class="kitchen-amount-needed">
-                    <span class="kitchen-amount-label">Falta Cocinar:</span>
-                    <span class="kitchen-amount-val">
-                        ${amountNeeded} <span class="kitchen-amount-unit">${item.unit}</span>
-                    </span>
+        stockHtml += `
                 </div>
             </div>
-            ${isDispatched 
-                ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.5rem; border-radius: var(--radius-md);">
-                     <i class="fa-solid fa-truck-fast"></i> ¡Enviado! Esperando confirmación de la tienda.
-                   </div>`
-                : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local">
-                     <i class="fa-solid fa-truck-ramp-box"></i>
-                     ¡YA LO COCINÉ Y LO ENVIÉ!
-                   </button>`
-            }
         `;
-
-        if (!isDispatched) {
-            row.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
-                deliverProduct(item.id);
-            });
-        }
-
-        list.appendChild(row);
     });
 
-    if (window.RecipeCalculator) {
-        const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
-        if (ingredients.length > 0) {
-            const recipeSection = document.createElement('div');
-            recipeSection.className = 'recipe-container';
-            recipeSection.innerHTML = `
-                <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
-                <div class="recipe-grid">
-                    ${ingredients.map(ing => `
-                        <div class="recipe-item">
-                            <span class="recipe-item-name">${ing.name}</span>
-                            <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
+    stockHtml += `</div>`;
+
+    // Render Container structure with sub-tabs
+    container.innerHTML = `
+        <div class="sub-switch-nav" id="kitchen-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
+            <button class="${window.currentKitchenTab === 'stock' ? 'active' : 'inactive'}" id="btn-kitchen-stock" role="tab" style="flex: 1; height: 32px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; transition: all 0.2s;">
+                <i class="fa-solid fa-boxes-stacked"></i> Cargar Stock
+            </button>
+            <button class="${window.currentKitchenTab === 'todo' ? 'active' : 'inactive'}" id="btn-kitchen-todo" role="tab" style="flex: 1; height: 32px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; transition: all 0.2s;">
+                <i class="fa-solid fa-fire-burner"></i> Por Cocinar / Reponer
+            </button>
+        </div>
+
+        <div id="kitchen-tab-content"></div>
+    `;
+
+    // Bind sub-navigation button events
+    const btnStock = document.getElementById('btn-kitchen-stock');
+    const btnTodo = document.getElementById('btn-kitchen-todo');
+    const contentDiv = document.getElementById('kitchen-tab-content');
+
+    if (btnStock && btnTodo && contentDiv) {
+        btnStock.addEventListener('click', () => {
+            window.currentKitchenTab = 'stock';
+            renderCocina(products, deliverProduct, replenishments);
+        });
+
+        btnTodo.addEventListener('click', () => {
+            window.currentKitchenTab = 'todo';
+            renderCocina(products, deliverProduct, replenishments);
+        });
+
+        if (window.currentKitchenTab === 'stock') {
+            contentDiv.innerHTML = stockHtml;
+
+            // Bind stock control buttons
+            contentDiv.querySelectorAll('.btn-qty-minus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const input = document.getElementById(`input-stock-${id}`);
+                    if (input) {
+                        const val = Math.max(0, parseInt(input.value) - 1);
+                        input.value = val;
+                    }
+                });
+            });
+
+            contentDiv.querySelectorAll('.btn-qty-plus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const input = document.getElementById(`input-stock-${id}`);
+                    if (input) {
+                        const val = parseInt(input.value) + 1;
+                        input.value = val;
+                    }
+                });
+            });
+
+            contentDiv.querySelectorAll('.btn-set-max').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const maxVal = btn.getAttribute('data-max');
+                    const input = document.getElementById(`input-stock-${id}`);
+                    if (input) {
+                        input.value = maxVal;
+                    }
+                });
+            });
+
+            contentDiv.querySelectorAll('.btn-save-stock').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const input = document.getElementById(`input-stock-${id}`);
+                    if (input && window.updateProductStockDirect) {
+                        window.updateProductStockDirect(id, parseInt(input.value) || 0);
+                    }
+                });
+            });
+        } else {
+            // Render traditional todo list
+            if (neededItems.length === 0) {
+                let dispatchesHtml = '';
+                if (pendingDispatches.length > 0) {
+                    dispatchesHtml = `
+                        <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
+                            <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
+                            <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
+                                ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
+                            </div>
                         </div>
-                    `).join('')}
-                </div>
+                    `;
+                }
+
+                contentDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <h3 class="empty-state-title">¡Todo Completo!</h3>
+                        <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
+                    </div>
+                    ${dispatchesHtml}
+                `;
+                return;
+            }
+
+            contentDiv.innerHTML = `
+                <p class="kitchen-notice">
+                    📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 1rem;" id="kitchen-list"></div>
             `;
-            container.appendChild(recipeSection);
+
+            const list = document.getElementById('kitchen-list');
+
+            neededItems.forEach(item => {
+                const amountNeeded = item.max - item.stock;
+                const isDispatched = pendingDispatches.some(d => d.productId === item.id);
+
+                const row = document.createElement('div');
+                row.className = "kitchen-card";
+                
+                row.innerHTML = `
+                    <div class="kitchen-card-header">
+                        <div>
+                            <h3 class="product-name" style="font-size: 1.125rem;">${item.name}</h3>
+                            <p class="stock-value critical" style="font-size: 0.75rem; margin-top: 0.25rem;">
+                                Solo quedan ${item.stock} en la vitrina.
+                            </p>
+                        </div>
+                        <div class="kitchen-amount-needed">
+                            <span class="kitchen-amount-label">Falta Cocinar:</span>
+                            <span class="kitchen-amount-val">
+                                ${amountNeeded} <span class="kitchen-amount-unit">${item.unit}</span>
+                            </span>
+                        </div>
+                    </div>
+                    ${isDispatched 
+                        ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.5rem; border-radius: var(--radius-md);">
+                             <i class="fa-solid fa-truck-fast"></i> ¡Enviado! Esperando confirmación de la tienda.
+                           </div>`
+                        : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local">
+                             <i class="fa-solid fa-truck-ramp-box"></i>
+                             ¡YA LO COCINÉ Y LO ENVIÉ!
+                           </button>`
+                    }
+                `;
+
+                if (!isDispatched) {
+                    row.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
+                        deliverProduct(item.id);
+                    });
+                }
+
+                list.appendChild(row);
+            });
+
+            if (window.RecipeCalculator) {
+                const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
+                if (ingredients.length > 0) {
+                    const recipeSection = document.createElement('div');
+                    recipeSection.className = 'recipe-container';
+                    recipeSection.innerHTML = `
+                        <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
+                        <div class="recipe-grid">
+                            ${ingredients.map(ing => `
+                                <div class="recipe-item">
+                                    <span class="recipe-item-name">${ing.name}</span>
+                                    <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    contentDiv.appendChild(recipeSection);
+                }
+            }
         }
     }
 }
@@ -511,7 +666,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
     salesLog.forEach(sale => {
         let productName = sale.name;
         let clientName = '';
-        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
         if (match) {
             productName = match[1];
             clientName = match[2];
@@ -716,7 +871,7 @@ function renderDayCloseModal(salesLog, expenses) {
     salesLog.forEach(sale => {
         let cleanName = sale.name;
         if (sale.productId !== 'abono') {
-            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
         }
         if (!salesCount[cleanName]) {
             salesCount[cleanName] = { count: 0, total: 0 };
@@ -1018,7 +1173,7 @@ function renderStats(salesLog, expenses = []) {
     const productCounts = {};
     salesLog.forEach(sale => {
         if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
             productCounts[cleanName] = (productCounts[cleanName] || 0) + 1;
         }
     });
@@ -1210,7 +1365,7 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
 function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, products) {
     // Find active sales for this table
     const tableSales = salesLog.filter(s => {
-        const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+        const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
         if (match) {
             const client = match[2];
             const isPaid = !!match[3];
@@ -1245,7 +1400,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
     const grouped = {};
     if (isOccupied) {
         tableSales.forEach(s => {
-            const cleanName = s.name.replace(/\s*\[.*\](\s*\(Pagado\))?$/, '');
+            const cleanName = s.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
             if (!grouped[cleanName]) {
                 grouped[cleanName] = { count: 0, total: 0 };
             }
@@ -1477,47 +1632,55 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const categoriesContainer = document.getElementById('live-stat-categories');
     if (categoriesContainer) {
         const rate = window.bcvRate || 1;
+        
+        const formatUSD = (val) => '$' + (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
         categoriesContainer.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
-                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
-                    <i class="fa-solid fa-cookie" style="color: #FFB085;"></i> Pastelitos:
-                </span>
-                <span style="font-weight: 800; color: var(--color-white);">
-                    ${qtyPastelitos} piezas &rarr; 
-                    <span style="color: var(--color-gold); font-family: monospace;">$${usdPastelitos.toFixed(2)}</span>
-                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdPastelitos * rate).toFixed(2)})</span>
-                </span>
+            <div class="category-stat-row">
+                <div class="category-label">
+                    <i class="fa-solid fa-cookie" style="color: #FFB085;"></i>
+                    <span>Pastelitos</span>
+                </div>
+                <div class="category-values">
+                    <span class="category-qty-badge pastelitos">${qtyPastelitos} piezas</span>
+                    <span class="category-price-usd">${formatUSD(usdPastelitos)}</span>
+                    <span class="category-price-ves">(${formatVES(usdPastelitos * rate)})</span>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
-                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
-                    <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i> Bebidas:
-                </span>
-                <span style="font-weight: 800; color: var(--color-white);">
-                    ${qtyBebidas} unid. &rarr; 
-                    <span style="color: var(--color-gold); font-family: monospace;">$${usdBebidas.toFixed(2)}</span>
-                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdBebidas * rate).toFixed(2)})</span>
-                </span>
+            <div class="category-stat-row">
+                <div class="category-label">
+                    <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i>
+                    <span>Bebidas</span>
+                </div>
+                <div class="category-values">
+                    <span class="category-qty-badge bebidas">${qtyBebidas} unid.</span>
+                    <span class="category-price-usd">${formatUSD(usdBebidas)}</span>
+                    <span class="category-price-ves">(${formatVES(usdBebidas * rate)})</span>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
-                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
-                    <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i> Tortas:
-                </span>
-                <span style="font-weight: 800; color: var(--color-white);">
-                    ${qtyTortas} porc. &rarr; 
-                    <span style="color: var(--color-gold); font-family: monospace;">$${usdTortas.toFixed(2)}</span>
-                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdTortas * rate).toFixed(2)})</span>
-                </span>
+            <div class="category-stat-row">
+                <div class="category-label">
+                    <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i>
+                    <span>Tortas</span>
+                </div>
+                <div class="category-values">
+                    <span class="category-qty-badge tortas">${qtyTortas} porc.</span>
+                    <span class="category-price-usd">${formatUSD(usdTortas)}</span>
+                    <span class="category-price-ves">(${formatVES(usdTortas * rate)})</span>
+                </div>
             </div>
             ${qtyOtros > 0 ? `
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
-                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
-                    <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i> Abonos/Otros:
-                </span>
-                <span style="font-weight: 800; color: var(--color-white);">
-                    ${qtyOtros} op. &rarr; 
-                    <span style="color: var(--color-gold); font-family: monospace;">$${usdOtros.toFixed(2)}</span>
-                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdOtros * rate).toFixed(2)})</span>
-                </span>
+            <div class="category-stat-row">
+                <div class="category-label">
+                    <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i>
+                    <span>Abonos/Otros</span>
+                </div>
+                <div class="category-values">
+                    <span class="category-qty-badge otros">${qtyOtros} op.</span>
+                    <span class="category-price-usd">${formatUSD(usdOtros)}</span>
+                    <span class="category-price-ves">(${formatVES(usdOtros * rate)})</span>
+                </div>
             </div>
             ` : ''}
         `;
@@ -1538,7 +1701,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             
             // Find if this table has any active (unpaid) entries
             const tableSales = salesLog.filter(s => {
-                const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+                const match = s.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
                 if (match) {
                     const client = match[2];
                     const isPaid = !!match[3];
@@ -1597,12 +1760,17 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         let productName = sale.name;
         let clientName = '';
         let isPaid = false;
+        let paymentMethod = '';
         
-        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado\))?$/);
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
         if (match) {
             productName = match[1];
             clientName = match[2];
             isPaid = !!match[3];
+            if (isPaid && match[3]) {
+                const methodMatch = match[3].match(/\(Pagado\s*-\s*(.*?)\)/);
+                paymentMethod = methodMatch ? methodMatch[1] : 'Efectivo';
+            }
         } else {
             productName = sale.name;
             clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
@@ -1614,9 +1782,17 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 timestamp: sale.timestamp,
                 clientName: clientName,
                 isPaid: isPaid,
+                paymentMethod: paymentMethod,
                 items: [],
                 total: 0
             };
+        } else {
+            if (isPaid) {
+                groups[key].isPaid = true;
+            }
+            if (paymentMethod && !groups[key].paymentMethod) {
+                groups[key].paymentMethod = paymentMethod;
+            }
         }
         
         const existingItem = groups[key].items.find(item => item.name === productName);
@@ -1659,7 +1835,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
 
         const statusBadge = group.isPaid 
-            ? `<span class="client-status-badge paid">Pagado</span>` 
+            ? `<span class="client-status-badge paid">Pagado (${group.paymentMethod || 'Efectivo'})</span>` 
             : `<span class="client-status-badge active">Consumiendo</span>`;
 
         card.innerHTML = `
@@ -1761,6 +1937,185 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     }
 }
 
+/**
+ * Shows a modal to select the payment method for closing a sale
+ * @param {string} clientName Client/Table name
+ * @param {number} totalAmount Total sales amount
+ * @param {Function} onSelect Callback when a payment method is selected (string)
+ */
+function showPaymentMethodModal(clientName, totalAmount, onSelect) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.75)';
+    overlay.style.backdropFilter = 'blur(6px)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '2000';
+    overlay.style.padding = '1rem';
+    overlay.style.boxSizing = 'border-box';
+
+    const rate = window.bcvRate || 1;
+    const totalVes = totalAmount * rate;
+
+    const formatUSD = (val) => '$' + (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const modalBody = document.createElement('div');
+    modalBody.className = 'card-pantry';
+    modalBody.style.width = '100%';
+    modalBody.style.maxWidth = '360px';
+    modalBody.style.padding = '1.5rem';
+    modalBody.style.borderRadius = '12px';
+    modalBody.style.boxSizing = 'border-box';
+    modalBody.style.border = '1px solid var(--color-gold)';
+    modalBody.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.15)';
+    modalBody.style.animation = 'scaleIn 0.2s ease-out';
+
+    modalBody.innerHTML = `
+        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.15rem; margin-bottom: 0.25rem; text-align: center; text-transform: uppercase; letter-spacing: 0.03em;">
+            <i class="fa-solid fa-cash-register"></i> Registrar Pago
+        </h3>
+        <p style="font-size: 11px; color: var(--color-text-muted); text-align: center; margin-bottom: 1rem;">
+            Selecciona el método de pago para la cuenta de <strong>${clientName}</strong>
+        </p>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 8px; margin-bottom: 1.25rem; text-align: center;">
+            <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Total a Cobrar</div>
+            <div style="font-size: 1.6rem; font-weight: 900; color: var(--color-success); margin-top: 0.25rem; font-family: monospace;">${formatUSD(totalAmount)}</div>
+            <div style="font-size: 0.85rem; color: var(--color-gold); margin-top: 0.15rem; font-weight: 700; font-family: monospace;">${formatVES(totalVes)}</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+            <button class="btn-paymethod" data-method="Pago Móvil" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
+                <i class="fa-solid fa-mobile-screen-button" style="color: #8BE8CB; font-size: 1.1rem; width: 1.25rem;"></i> Pago Móvil
+            </button>
+            <button class="btn-paymethod" data-method="Punto de Venta" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
+                <i class="fa-solid fa-credit-card" style="color: #FFB085; font-size: 1.1rem; width: 1.25rem;"></i> Punto de Venta
+            </button>
+            <button class="btn-paymethod" data-method="Efectivo Bs." style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
+                <i class="fa-solid fa-money-bill-1-wave" style="color: #FFAAA6; font-size: 1.1rem; width: 1.25rem;"></i> Efectivo Bolívares
+            </button>
+            <button class="btn-paymethod" data-method="Efectivo $" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
+                <i class="fa-solid fa-dollar-sign" style="color: var(--color-gold); font-size: 1.1rem; width: 1.25rem; text-align: center;"></i> Efectivo Divisas
+            </button>
+        </div>
+
+        <button class="btn-cancel-paymethod" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: all 0.2s; background-color: transparent; color: var(--color-text-muted); width: 100%;">
+            Cancelar
+        </button>
+    `;
+
+    overlay.appendChild(modalBody);
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.25s ease-out';
+        setTimeout(() => {
+            overlay.remove();
+        }, 250);
+    };
+
+    modalBody.querySelector('.btn-cancel-paymethod').addEventListener('click', closeModal);
+
+    modalBody.querySelectorAll('.btn-paymethod').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const method = btn.getAttribute('data-method');
+            closeModal();
+            if (onSelect) onSelect(method);
+        });
+    });
+}
+
+/**
+ * Display a full screen blur overlay when a PWA/ServiceWorker update is found/downloading
+ */
+function showUpdateOverlay() {
+    if (document.getElementById('pwa-update-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pwa-update-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(10, 15, 30, 0.9)';
+    overlay.style.backdropFilter = 'blur(12px)';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '999999';
+    overlay.style.transition = 'opacity 0.3s ease-in-out';
+    overlay.style.color = '#FFFFFF';
+    overlay.style.textAlign = 'center';
+    overlay.style.padding = '2rem';
+    overlay.style.boxSizing = 'border-box';
+
+    overlay.innerHTML = `
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1.5px solid var(--color-gold); box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 30px rgba(212,175,55,0.15); max-width: 380px; padding: 2.25rem; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; transform: scale(0.9); animation: scaleIn 0.3s forwards ease-out;">
+            <div id="pwa-update-icon-container" style="position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(212, 175, 55, 0.1); border-radius: 100px; border: 1px solid rgba(212, 175, 55, 0.3);">
+                <i class="fa-solid fa-arrows-rotate fa-spin" style="color: var(--color-gold); font-size: 1.75rem;"></i>
+            </div>
+            <div>
+                <h3 id="pwa-update-title" style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; margin-top: 0;">Cargando Actualización</h3>
+                <p id="pwa-update-desc" style="font-size: 0.8rem; color: #E2E8F0; line-height: 1.5; margin: 0;">
+                    Estamos instalando la versión más reciente del sistema en producción. Espera un momento por favor...
+                </p>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; position: relative;">
+                <div style="height: 100%; background: var(--color-gold); border-radius: 3px; width: 35%; animation: loaderProgress 1.5s infinite linear; position: absolute; left: 0;"></div>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes loaderProgress {
+                0% { left: -35%; width: 35%; }
+                50% { left: 30%; width: 40%; }
+                100% { left: 100%; width: 35%; }
+            }
+            @keyframes pulseSuccess {
+                0% { transform: scale(0.7); opacity: 0; }
+                50% { transform: scale(1.1); }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+}
+
+/**
+ * Update the overlay UI state to indicate that the update has successfully completed
+ */
+function updateOverlayStatusSuccess() {
+    const iconContainer = document.getElementById('pwa-update-icon-container');
+    const title = document.getElementById('pwa-update-title');
+    const desc = document.getElementById('pwa-update-desc');
+
+    if (iconContainer) {
+        iconContainer.style.background = 'rgba(16, 185, 129, 0.15)';
+        iconContainer.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        iconContainer.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--color-success); font-size: 1.85rem; animation: pulseSuccess 0.5s;"></i>`;
+    }
+
+    if (title) {
+        title.style.color = 'var(--color-success)';
+        title.innerText = '¡Sistema Actualizado!';
+    }
+
+    if (desc) {
+        desc.innerText = 'Actualización completada con éxito. Reiniciando el sistema ahora...';
+    }
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -1785,6 +2140,9 @@ window.UIManager = {
     renderStats,
     renderQuickConversionTable,
     renderActiveCart,
-    renderClientesView
+    renderClientesView,
+    showPaymentMethodModal,
+    showUpdateOverlay,
+    updateOverlayStatusSuccess
 };
 

@@ -238,14 +238,16 @@ async function upsertProduct(product) {
     }
 }
 
-async function updateProductStock(id, stock) {
+async function updateProductStock(id, stock, max) {
     if (!client) return;
+    const payload = {
+        stock: stock,
+        updated_at: new Date().toISOString()
+    };
+    if (max !== undefined) {
+        payload.max = max;
+    }
     try {
-        const payload = {
-            stock: stock,
-            updated_at: new Date().toISOString()
-        };
-        
         if (!navigator.onLine) {
             enqueueOfflineOp('products', 'update_stock', payload, 'id', id);
             return;

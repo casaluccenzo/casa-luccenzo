@@ -1818,12 +1818,13 @@ async function handleRealtimeDbUpdate(tableName, payload) {
     } else if (tableName === 'sales') {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
+        const filterTime = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : startOfDay;
 
         if (eventType === 'DELETE') {
             salesLog = salesLog.filter(s => s.uuid !== oldRow.uuid);
         } else {
             const saleDate = window.parseUTCTimestamp(newRow.timestamp);
-            if (saleDate >= startOfDay) {
+            if (saleDate > filterTime) {
                 const idx = salesLog.findIndex(s => s.uuid === newRow.uuid);
                 const formatted = {
                     uuid: newRow.uuid,
@@ -1849,12 +1850,13 @@ async function handleRealtimeDbUpdate(tableName, payload) {
     } else if (tableName === 'expenses') {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
+        const filterTime = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : startOfDay;
 
         if (eventType === 'DELETE') {
             expenses = expenses.filter(e => e.uuid !== oldRow.uuid);
         } else {
             const expDate = window.parseUTCTimestamp(newRow.timestamp);
-            if (expDate >= startOfDay) {
+            if (expDate > filterTime) {
                 const idx = expenses.findIndex(e => e.uuid === newRow.uuid);
                 const formatted = {
                     uuid: newRow.uuid,

@@ -1598,10 +1598,16 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         liveVendidosEl.textContent = totalPiecesSold;
     }
 
+    const rate = window.bcvRate || 1;
+
     // Total sales money
     const totalSalesMoney = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
+    const totalSalesVES = totalSalesMoney * rate;
     if (liveVentasEl) {
-        liveVentasEl.textContent = `$${totalSalesMoney.toFixed(2)}`;
+        liveVentasEl.innerHTML = `
+            <div style="font-size: 1.125rem; font-weight: 900; color: var(--color-success);">$${totalSalesMoney.toFixed(2)}</div>
+            <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); margin-top: 1px;">Bs. ${totalSalesVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        `;
     }
 
     // Total Real Sold (based on physical difference in vitrina: max - stock)
@@ -1617,9 +1623,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const abonosValue = salesLog.filter(s => s.productId === 'abono').reduce((sum, s) => sum + (s.price || 0), 0);
 
     const totalRealMoney = expectedSalesValue + abonosValue;
+    const totalRealVES = totalRealMoney * rate;
     const liveTotalRealEl = document.getElementById('live-stat-total-real');
     if (liveTotalRealEl) {
-        liveTotalRealEl.textContent = `$${totalRealMoney.toFixed(2)}`;
+        liveTotalRealEl.innerHTML = `
+            <div style="font-size: 1.125rem; font-weight: 900; color: #34D399;">$${totalRealMoney.toFixed(2)}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #A7F3D0; margin-top: 1px;">Bs. ${totalRealVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        `;
     }
 
     // Calculate category breakdowns

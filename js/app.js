@@ -754,6 +754,35 @@ async function updateProductStockDirect(id, newStock) {
 }
 
 /**
+ * Add stock manually for a product (incremental load from kitchen)
+ * @param {string} id Product identifier
+ * @param {number} amountToAdd Stock to add
+ */
+async function addProductStockDirect(id, amountToAdd) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    if (amountToAdd <= 0) return;
+
+    triggerHaptic(15);
+    product.stock = product.stock + amountToAdd;
+    product.max = product.max + amountToAdd;
+    window.StorageManager.saveProducts(products);
+
+    if (window.SupabaseManager.isConfigured()) {
+        try {
+            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+        } catch (e) {
+            console.error("Failed to add product stock and max in Supabase", e);
+        }
+    }
+
+    renderAllViews();
+    window.UIManager.showToast(`✅ Vitrina actualizada: Se sumaron ${amountToAdd} piezas a "${product.name}". Total: ${product.stock}.`, "fa-solid fa-circle-check");
+}
+window.addProductStockDirect = addProductStockDirect;
+
+
+/**
  * Local trigger: Mark all pending dispatches as received, replenishing stocks
  */
 function confirmReceipt() {
@@ -765,9 +794,11 @@ function confirmReceipt() {
     pending.forEach(dispatch => {
         const product = products.find(p => p.id === dispatch.productId);
         if (product) {
-            product.stock = product.max;
+            const added = dispatch.amount || 0;
+            product.stock = product.stock + added;
+            product.max = product.max + added;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(product.id, product.stock);
+                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
             }
         }
         dispatch.status = 'recibido';
@@ -1405,8 +1436,17 @@ async function loadAllDataFromSupabase() {
         lastCloseTime = window.StorageManager.loadLastCloseTime();
     }
 
-    // 2. Fetch products
-    const supProducts = await window.SupabaseManager.fetchProducts();
+    // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
+    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng] = await Promise.all([
+        window.SupabaseManager.fetchProducts(),
+        window.SupabaseManager.fetchSales(),
+        window.SupabaseManager.fetchExpenses(),
+        window.SupabaseManager.fetchDebts(),
+        window.SupabaseManager.fetchReplenishments(),
+        window.SupabaseManager.fetchIngredients()
+    ]);
+
+    // Save and load products
     if (supProducts && supProducts.length > 0) {
         products = supProducts;
         window.StorageManager.saveProducts(products);
@@ -1414,8 +1454,7 @@ async function loadAllDataFromSupabase() {
         products = window.StorageManager.loadProducts();
     }
     
-    // 3. Fetch today's sales (filtered by lastCloseTime)
-    const supSales = await window.SupabaseManager.fetchSales();
+    // Save and load sales
     if (supSales) {
         salesLog = supSales;
         window.StorageManager.saveSalesLog(salesLog);
@@ -1423,8 +1462,7 @@ async function loadAllDataFromSupabase() {
         salesLog = window.StorageManager.loadSalesLog();
     }
 
-    // 4. Fetch today's expenses (filtered by lastCloseTime)
-    const supExpenses = await window.SupabaseManager.fetchExpenses();
+    // Save and load expenses
     if (supExpenses) {
         expenses = supExpenses;
         window.StorageManager.saveExpenses(expenses);
@@ -1432,8 +1470,7 @@ async function loadAllDataFromSupabase() {
         expenses = window.StorageManager.loadExpenses();
     }
 
-    // 5. Fetch debts list
-    const supDebts = await window.SupabaseManager.fetchDebts();
+    // Save and load debts
     if (supDebts) {
         debts = supDebts;
         window.StorageManager.saveDebts(debts);
@@ -1441,8 +1478,7 @@ async function loadAllDataFromSupabase() {
         debts = window.StorageManager.loadDebts();
     }
 
-    // 6. Fetch active dispatches
-    const supRepls = await window.SupabaseManager.fetchReplenishments();
+    // Save and load replenishments
     if (supRepls) {
         replenishments = supRepls;
         window.StorageManager.saveReplenishments(replenishments);
@@ -1450,8 +1486,7 @@ async function loadAllDataFromSupabase() {
         replenishments = window.StorageManager.loadReplenishments();
     }
 
-    // 7. Fetch raw materials ingredients stock
-    const supIng = await window.SupabaseManager.fetchIngredients();
+    // Save and load raw ingredients
     if (supIng && supIng.length > 0) {
         ingredients = supIng;
         window.StorageManager.saveIngredients(ingredients);
@@ -1577,7 +1612,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         if (eventType === 'DELETE') {
             salesLog = salesLog.filter(s => s.uuid !== oldRow.uuid);
         } else {
-            const saleDate = new Date(newRow.timestamp);
+            const saleDate = window.parseUTCTimestamp(newRow.timestamp);
             if (saleDate >= startOfDay) {
                 const idx = salesLog.findIndex(s => s.uuid === newRow.uuid);
                 const formatted = {
@@ -1608,7 +1643,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         if (eventType === 'DELETE') {
             expenses = expenses.filter(e => e.uuid !== oldRow.uuid);
         } else {
-            const expDate = new Date(newRow.timestamp);
+            const expDate = window.parseUTCTimestamp(newRow.timestamp);
             if (expDate >= startOfDay) {
                 const idx = expenses.findIndex(e => e.uuid === newRow.uuid);
                 const formatted = {

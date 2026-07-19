@@ -1,5 +1,18 @@
 // UI Rendering and DOM Interactions
 
+function parseUTCTimestamp(timestampStr) {
+    if (!timestampStr) return new Date();
+    let cleanStr = timestampStr;
+    if (typeof cleanStr === 'string') {
+        cleanStr = cleanStr.replace(' ', 'T');
+        if (!cleanStr.includes('Z') && !cleanStr.includes('+') && !/-\d{2}:\d{2}$/.test(cleanStr)) {
+            cleanStr += 'Z';
+        }
+    }
+    return new Date(cleanStr);
+}
+window.parseUTCTimestamp = parseUTCTimestamp;
+
 /**
  * Switch view tabs in the header and toggle main sections
  * @param {string} view 'local' or 'cocina' or 'fiados'
@@ -429,8 +442,14 @@ function renderCocina(products, deliverProduct, replenishments = []) {
                         <input type="number" class="input-stock-val" id="input-stock-${p.id}" data-id="${p.id}" value="${p.stock}" min="0" max="999" style="width: 38px; height: 28px; text-align: center; font-size: 0.8rem; font-weight: 800; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: var(--color-white); outline: none; -moz-appearance: textfield; padding: 0;">
                         <!-- Plus button -->
                         <button class="btn-qty-plus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">+</button>
+                        
+                        <!-- Add stock shortcut button -->
+                        <button class="btn-add-stock-prompt" data-id="${p.id}" data-name="${p.name}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: #3b82f6; color: #ffffff; cursor: pointer; transition: all 0.2s;" title="Sumar Nuevas Piezas">
+                            <i class="fa-solid fa-plus-minus"></i>
+                        </button>
+                        
                         <!-- Save button -->
-                        <button class="btn-save-stock" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: var(--color-success); color: #000000; cursor: pointer; transition: all 0.2s;" title="Actualizar en Vitrina">
+                        <button class="btn-save-stock" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: var(--color-success); color: #000000; cursor: pointer; transition: all 0.2s;" title="Fijar Stock Total">
                             <i class="fa-solid fa-check"></i>
                         </button>
                     </div>
@@ -509,6 +528,23 @@ function renderCocina(products, deliverProduct, replenishments = []) {
                     const input = document.getElementById(`input-stock-${id}`);
                     if (input) {
                         input.value = maxVal;
+                    }
+                });
+            });
+
+            contentDiv.querySelectorAll('.btn-add-stock-prompt').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const name = btn.getAttribute('data-name');
+                    const amountStr = prompt(`¿Cuántas piezas de "${name}" llegaron para sumar a la vitrina?`);
+                    if (amountStr === null) return;
+                    const amount = parseInt(amountStr);
+                    if (isNaN(amount) || amount <= 0) {
+                        alert("Por favor ingresa un número válido mayor a 0.");
+                        return;
+                    }
+                    if (window.addProductStockDirect) {
+                        window.addProductStockDirect(id, amount);
                     }
                 });
             });
@@ -706,7 +742,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
         groups[key].total += sale.price;
     });
 
-    const groupedList = Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const groupedList = Object.values(groups).sort((a, b) => parseUTCTimestamp(b.timestamp) - parseUTCTimestamp(a.timestamp));
 
     groupedList.forEach(group => {
         const item = document.createElement('div');
@@ -714,7 +750,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
 
         let timeStr = '';
         try {
-            const date = new Date(group.timestamp);
+            const date = parseUTCTimestamp(group.timestamp);
             timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch(e) {
             timeStr = 'Ahora';
@@ -828,7 +864,7 @@ function renderDebts(debts, onRecordPayment) {
         
         let dateStr = '';
         try {
-            dateStr = new Date(debt.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+            dateStr = parseUTCTimestamp(debt.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
         } catch(e) {
             dateStr = 'Reciente';
         }
@@ -1149,7 +1185,7 @@ function renderStats(salesLog, expenses = []) {
     }
 
     salesLog.forEach(sale => {
-        const saleDate = new Date(sale.timestamp);
+        const saleDate = parseUTCTimestamp(sale.timestamp);
         last7Days.forEach(day => {
             const dayEnd = new Date(day.date);
             dayEnd.setHours(23,59,59,999);
@@ -1528,7 +1564,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
             msg += `*Ticket de Consumo* 🧾\n`;
             msg += `--------------------------------------\n`;
             msg += `👤 *Cliente/Mesa:* ${tableName}\n`;
-            msg += `📅 *Fecha/Hora:* ${new Date(timestamp).toLocaleString()}\n`;
+            msg += `📅 *Fecha/Hora:* ${parseUTCTimestamp(timestamp).toLocaleString()}\n`;
             msg += `--------------------------------------\n`;
             Object.entries(grouped).forEach(([name, data]) => {
                 msg += `• ${data.count}x ${name} - $${data.total.toFixed(2)}\n`;
@@ -2083,7 +2119,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         groups[key].total += sale.price;
     });
 
-    const groupedList = Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const groupedList = Object.values(groups).sort((a, b) => parseUTCTimestamp(b.timestamp) - parseUTCTimestamp(a.timestamp));
 
     let activeCount = 0;
     let paidCount = 0;
@@ -2099,7 +2135,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
         let timeStr = '';
         try {
-            const date = new Date(group.timestamp);
+            const date = parseUTCTimestamp(group.timestamp);
             timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch(e) {
             timeStr = 'Ahora';
@@ -2154,7 +2190,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             msg += `*Ticket de Consumo* 🧾\n`;
             msg += `--------------------------------------\n`;
             msg += `👤 *Cliente/Mesa:* ${group.clientName}\n`;
-            msg += `📅 *Fecha/Hora:* ${new Date(group.timestamp).toLocaleString()}\n`;
+            msg += `📅 *Fecha/Hora:* ${parseUTCTimestamp(group.timestamp).toLocaleString()}\n`;
             msg += `--------------------------------------\n`;
             group.items.forEach(it => {
                 msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;

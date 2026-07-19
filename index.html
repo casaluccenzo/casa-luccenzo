@@ -21,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=67">
+    <link rel="stylesheet" href="css/main.css?v=74">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=67"></script>
-    <script src="js/supabase.js?v=67"></script>
-    <script src="js/recipes.js?v=67"></script>
-    <script src="js/audio.js?v=67"></script>
-    <script src="js/share.js?v=67"></script>
-    <script src="js/ui.js?v=67"></script>
-    <script src="js/app.js?v=67"></script>
+    <script src="js/storage.js?v=74"></script>
+    <script src="js/supabase.js?v=74"></script>
+    <script src="js/recipes.js?v=74"></script>
+    <script src="js/audio.js?v=74"></script>
+    <script src="js/share.js?v=74"></script>
+    <script src="js/ui.js?v=74"></script>
+    <script src="js/app.js?v=74"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -347,91 +347,102 @@
             </section>
 
             <!-- ================= VIEW 4: CURRENCY CONVERTER ================= -->
+            <!-- ================= VIEW 4: CURRENCY CONVERTER ================= -->
             <section id="view-cambio" class="view-section hidden">
-                <!-- Column 1: Calculator and Quick Reference -->
-                <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                    <div class="card-pantry" style="padding: 1.25rem;">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i class="fa-solid fa-money-bill-transfer"></i> Conversor de Monedas
-                        </h3>
-                        <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1.25rem;">Calcula el cambio instantáneamente usando la tasa del día.</p>
-                        
-                        <!-- Calculator inputs -->
-                        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
-                            <div class="form-field">
-                                <label class="form-label" style="display: flex; justify-content: space-between;">
-                                    <span>Monto en Dólares ($)</span>
-                                    <span style="font-weight: 900; color: var(--color-gold);">USD</span>
-                                </label>
-                                <input type="number" id="calc-usd" step="0.01" placeholder="Ej: 10.00" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                <!-- Columns wrapper -->
+                <div class="cambio-cols-grid">
+                    <!-- Column 1: Calculator and Quick Reference (Red Box / Cambio) -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Left Column Header Card: Conversor de Monedas -->
+                        <div class="cash-card" style="margin-top: 0; margin-bottom: 0; padding: 1.25rem; justify-content: space-between; border-color: rgba(255,255,255,0.15); background: linear-gradient(135deg, #012852 0%, #000F20 100%); box-shadow: var(--shadow-lg);">
+                            <div class="cash-label-group">
+                                <span class="cash-label" style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--color-gold);">Conversor de Monedas</span>
+                                <span style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.15rem;">Calculadora de cambio del día</span>
+                            </div>
+                            <div style="font-size: 1.5rem; color: var(--color-gold);">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                        </div>
+
+                        <!-- Conversor Inputs Card -->
+                        <div class="card-pantry" style="padding: 1.25rem;">
+                            <!-- Calculator inputs -->
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div class="form-field">
+                                    <label class="form-label" style="display: flex; justify-content: space-between;">
+                                        <span>Monto en Dólares ($)</span>
+                                        <span style="font-weight: 900; color: var(--color-gold);">USD</span>
+                                    </label>
+                                    <input type="number" id="calc-usd" step="0.01" placeholder="Ej: 10.00" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                                </div>
+                                
+                                <div style="text-align: center; color: var(--color-gold); font-size: 1.25rem; margin: -0.25rem 0;">
+                                    <i class="fa-solid fa-repeat"></i>
+                                </div>
+                                
+                                <div class="form-field">
+                                    <label class="form-label" style="display: flex; justify-content: space-between;">
+                                        <span>Monto en Bolívares (Bs.)</span>
+                                        <span style="font-weight: 900; color: var(--color-gold);">VES</span>
+                                    </label>
+                                    <input type="number" id="calc-ves" step="0.01" placeholder="Ej: 7324.78" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equivalencias rápidas -->
+                        <div class="card-pantry" style="padding: 1.25rem;">
+                            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Tabla de Cambio Rápido</h4>
+                            <div id="conversion-quick-table" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Injected dynamically by js/ui.js -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Caja y Gastos de Hoy (Yellow Box / Caja y Historial) -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Right Column Header Card: Caja Estimada (Hoy) -->
+                        <div class="cash-card" style="margin-top: 0; margin-bottom: 0; padding: 1.25rem; justify-content: space-between;">
+                            <div class="cash-label-group">
+                                <span class="cash-label" style="font-size: 0.75rem; letter-spacing: 0.05em;">Caja Estimada (Hoy)</span>
+                                <span id="cash-value" class="cash-value" style="font-size: 1.5rem; font-weight: 900; color: var(--color-gold); margin-top: 0.15rem;">$0.00</span>
+                            </div>
+                            <div style="font-size: 1.5rem; color: var(--color-gold);">
+                                <i class="fa-solid fa-cash-register animate-pulse"></i>
+                            </div>
+                        </div>
+
+                        <!-- Daily Expenses Section -->
+                        <div class="expenses-container" id="daily-expenses-section" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <h3 class="history-title">Gastos del Local</h3>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
                             </div>
                             
-                            <div style="text-align: center; color: var(--color-gold); font-size: 1.25rem; margin: -0.25rem 0;">
-                                <i class="fa-solid fa-repeat"></i>
-                            </div>
+                            <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
+                                <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
+                                <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
+                                <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </form>
                             
-                            <div class="form-field">
-                                <label class="form-label" style="display: flex; justify-content: space-between;">
-                                    <span>Monto en Bolívares (Bs.)</span>
-                                    <span style="font-weight: 900; color: var(--color-gold);">VES</span>
-                                </label>
-                                <input type="number" id="calc-ves" step="0.01" placeholder="Ej: 7324.78" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                            <div id="expense-list" class="expense-list">
+                                <!-- Dynamic items from js/ui.js -->
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Equivalencias rápidas -->
-                    <div class="card-pantry" style="padding: 1.25rem;">
-                        <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Tabla de Cambio Rápido</h4>
-                        <div id="conversion-quick-table" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                            <!-- Injected dynamically by js/ui.js -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Column 2: Caja y Gastos de Hoy -->
-                <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                    <!-- Cash Register Estimator Card -->
-                    <div class="cash-card" style="margin-bottom: 0;">
-                        <div class="cash-label-group">
-                            <span class="cash-label">Caja Estimada (Hoy)</span>
-                            <span id="cash-value" class="cash-value">$0.00</span>
-                        </div>
-                        <div style="font-size: 1.5rem; color: var(--color-gold);">
-                            <i class="fa-solid fa-cash-register"></i>
-                        </div>
-                    </div>
-
-                    <!-- Daily Expenses Section -->
-                    <div class="expenses-container" id="daily-expenses-section" style="margin-bottom: 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                            <h3 class="history-title">Gastos del Local</h3>
-                            <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
-                        </div>
-                        
-                        <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
-                            <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
-                            <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
-                            <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </form>
-                        
-                        <div id="expense-list" class="expense-list">
-                            <!-- Dynamic items from js/ui.js -->
-                        </div>
-                    </div>
-
-                    <!-- Sales History Log -->
-                    <div class="history-container hidden" id="sales-history-section" style="margin-bottom: 0;">
-                        <div class="history-header">
-                            <h3 class="history-title">Registro de Ventas</h3>
-                            <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
-                                <i class="fa-solid fa-trash-can"></i> Limpiar Caja
-                            </button>
-                        </div>
-                        <div id="history-list" class="history-list">
-                            <!-- Dynamic items from js/ui.js -->
+                        <!-- Sales History Log -->
+                        <div class="history-container hidden" id="sales-history-section" style="margin-bottom: 0;">
+                            <div class="history-header">
+                                <h3 class="history-title">Registro de Ventas</h3>
+                                <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
+                                    <i class="fa-solid fa-trash-can"></i> Limpiar Caja
+                                </button>
+                            </div>
+                            <div id="history-list" class="history-list">
+                                <!-- Dynamic items from js/ui.js -->
+                            </div>
                         </div>
                     </div>
                 </div>

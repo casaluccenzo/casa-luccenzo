@@ -539,15 +539,16 @@ async function fetchStatsData() {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         sevenDaysAgo.setHours(0, 0, 0, 0);
 
-        const { data: sales, error: salesError } = await client
-            .from('sales')
-            .select('*')
-            .gte('timestamp', sevenDaysAgo.toISOString());
-            
-        const { data: expenses, error: expensesError } = await client
-            .from('expenses')
-            .select('*')
-            .gte('timestamp', sevenDaysAgo.toISOString());
+        // Fetch sales and expenses in parallel
+        const [salesRes, expensesRes] = await Promise.all([
+            client.from('sales').select('*').gte('timestamp', sevenDaysAgo.toISOString()),
+            client.from('expenses').select('*').gte('timestamp', sevenDaysAgo.toISOString())
+        ]);
+
+        const sales = salesRes.data;
+        const salesError = salesRes.error;
+        const expenses = expensesRes.data;
+        const expensesError = expensesRes.error;
 
         if (salesError) throw salesError;
         if (expensesError) throw expensesError;

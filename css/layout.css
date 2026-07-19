@@ -311,8 +311,21 @@ main {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    background-color: var(--color-bg-main);
-    z-index: 40;
+    margin-bottom: 0.5rem;
+    position: sticky;
+    top: 116px;
+    background-color: var(--color-bg-navy);
+    z-index: 30;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.cambio-cols-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
 }
 
 @media (min-width: 768px) {
@@ -324,11 +337,9 @@ main {
     }
 
     .sticky-catalog-header {
-        position: sticky;
         top: 120px;
         padding-top: 0.5rem;
         padding-bottom: 0.75rem;
-        box-shadow: 0 10px 15px -10px rgba(0, 0, 0, 0.4);
     }
 
     .local-checkout-col {
@@ -348,7 +359,7 @@ main {
         border-radius: var(--radius-full);
     }
 
-    #view-cambio:not(.hidden) {
+    .cambio-cols-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1.5rem;

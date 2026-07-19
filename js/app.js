@@ -146,6 +146,78 @@ function adjustStock(id, amount, event) {
 }
 
 /**
+ * Handle manual quantity entry, updating the active cart and adjusting available stock
+ * @param {string} id Product identifier
+ * @param {number} newQty Target quantity to purchase (from manual input)
+ */
+function handleCartQtyChange(id, newQty) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    const cartItem = currentCart.find(item => item.productId === id);
+    const q_old = cartItem ? cartItem.quantity : 0;
+    
+    // Total available stock that can be placed in cart for this product
+    const max_qty = product.stock + q_old;
+
+    if (newQty > max_qty) {
+        newQty = max_qty;
+        triggerHaptic(30);
+        window.UIManager.showToast(`⚠️ Stock insuficiente. Solo puedes cargar un máximo de ${max_qty} piezas.`, "fa-solid fa-triangle-exclamation");
+    }
+
+    if (newQty < 0 || isNaN(newQty)) {
+        newQty = 0;
+    }
+
+    const diff = newQty - q_old;
+    if (diff === 0) return; // No change
+
+    triggerHaptic(15);
+
+    const originalStock = product.stock;
+    product.stock = Math.max(0, product.stock - diff);
+    window.StorageManager.saveProducts(products);
+
+    if (window.SupabaseManager.isConfigured()) {
+        window.SupabaseManager.updateProductStock(product.id, product.stock);
+    }
+
+    // Update cart items array
+    if (newQty === 0) {
+        const cartItemIndex = currentCart.findIndex(item => item.productId === id);
+        if (cartItemIndex !== -1) {
+            currentCart.splice(cartItemIndex, 1);
+        }
+    } else {
+        if (cartItem) {
+            cartItem.quantity = newQty;
+        } else {
+            currentCart.push({
+                productId: product.id,
+                name: product.name,
+                price: product.price || 0,
+                quantity: newQty
+            });
+        }
+    }
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+    // Audio warning if stock falls under threshold
+    if (product.stock <= product.min && originalStock > product.min) {
+        window.UIManager.showToast(`⚠️ ¡Atención! "${product.name}" se está agotando. Ya se avisó a la cocina.`, "fa-solid fa-bell");
+        if (preferences.sound) {
+            window.AudioManager.playAlertSound();
+        }
+        triggerHaptic([50, 60, 50]);
+    }
+
+    // Re-render Views
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+}
+
+/**
  * Increment cart item quantity (taking from vitrina stock)
  */
 function handleAddToCart(productId) {
@@ -2183,4 +2255,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose functions globally for UI callbacks and fallbacks
 window.handleEditSale = handleEditSale;
 window.handleUndoSale = handleUndoSale;
+window.handleCartQtyChange = handleCartQtyChange;
+
+// Dynamically link currentCart to window.currentCart to avoid array reference mismatch
+Object.defineProperty(window, 'currentCart', {
+    get: () => currentCart,
+    set: (val) => { currentCart = val; }
+});
 

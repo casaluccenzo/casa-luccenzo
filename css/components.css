@@ -1641,4 +1641,38 @@ input:checked + .slider:before {
     background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Manual Quantity Input Field in Store View Card */
+.cart-qty-input {
+    width: 50px;
+    height: 56px; /* Matches btn-touch min-height */
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(212, 163, 89, 0.2); /* Light gold border matching the system theme */
+    border-radius: var(--radius-md);
+    color: var(--color-gold);
+    font-size: 1.15rem;
+    font-weight: 900;
+    text-align: center;
+    outline: none;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+    padding: 0;
+}
+
+.cart-qty-input:focus {
+    border-color: var(--color-gold);
+    background-color: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 8px rgba(212, 163, 89, 0.3);
+}
+
+/* Hide native number input spin buttons in Chrome, Safari, Edge, Opera */
+.cart-qty-input::-webkit-outer-spin-button,
+.cart-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Hide native number input spin buttons in Firefox */
+.cart-qty-input[type=number] {
+    -moz-appearance: textfield;
+}
+
 

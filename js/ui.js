@@ -236,6 +236,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
             
         const stockStyle = isCritical ? 'stock-value critical' : 'stock-value';
 
+        // Find current quantity of this product in the active cart
+        const cartItem = (window.currentCart || []).find(item => item.productId === product.id);
+        const cartQty = cartItem ? cartItem.quantity : 0;
+        const cartQtyDisplay = cartQty > 0 ? cartQty : '';
+
         card.innerHTML = `
             <div class="product-info">
                 <div class="product-header-row">
@@ -250,8 +255,9 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                     </span>
                 </p>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
                 <button data-id="${product.id}" data-action="decrease" class="btn-touch btn-danger" title="Vender 1">-</button>
+                <input type="number" data-id="${product.id}" class="cart-qty-input" min="0" value="${cartQtyDisplay}" placeholder="0" inputmode="numeric" pattern="[0-9]*">
                 <button data-id="${product.id}" data-action="increase" class="btn-touch btn-success" title="Sumar 1">+</button>
             </div>
         `;
@@ -259,9 +265,29 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         card.querySelector('[data-action="decrease"]').addEventListener('click', (e) => {
             adjustStock(product.id, -1, e);
         });
+
         card.querySelector('[data-action="increase"]').addEventListener('click', (e) => {
             adjustStock(product.id, 1, e);
         });
+
+        const qtyInput = card.querySelector('.cart-qty-input');
+        if (qtyInput) {
+            qtyInput.addEventListener('change', (e) => {
+                let val = parseInt(e.target.value);
+                if (isNaN(val) || val < 0) val = 0;
+                if (window.handleCartQtyChange) {
+                    window.handleCartQtyChange(product.id, val);
+                }
+            });
+            qtyInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.target.blur();
+                }
+            });
+            qtyInput.addEventListener('focus', (e) => {
+                e.target.select();
+            });
+        }
 
         listContainer.appendChild(card);
     });

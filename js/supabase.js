@@ -2,7 +2,6 @@
 
 let client = null;
 let activeSubscription = null;
-let dbSupportsTotp = false;
 let dbSupportsLastClose = false;
 let supabaseLastCloseTime = null;
 
@@ -462,7 +461,6 @@ async function fetchAppConfig() {
         const { data, error } = await client.from('app_config').select('*').eq('id', 1).maybeSingle();
         if (error) throw error;
         if (data) {
-            dbSupportsTotp = ('totp_secret' in data) || ('totp_enabled' in data);
             dbSupportsLastClose = ('last_close_time' in data);
             if (dbSupportsLastClose && data.last_close_time) {
                 supabaseLastCloseTime = data.last_close_time;
@@ -484,11 +482,6 @@ async function upsertAppConfig(config) {
             use_auto_bcv: !!config.useAutoBcv,
             updated_at: new Date().toISOString()
         };
-
-        if (dbSupportsTotp) {
-            if (config.totpSecret !== undefined) payload.totp_secret = config.totpSecret;
-            if (config.totpEnabled !== undefined) payload.totp_enabled = !!config.totpEnabled;
-        }
         
         if (dbSupportsLastClose) {
             if (config.lastCloseTime !== undefined) {

@@ -11,9 +11,6 @@ let activeCategory = 'todos';
 let searchQuery = '';
 let currentCart = [];
 
-// TOTP 2FA state variables
-let totpEnabled = false;
-let totpSecret = '';
 let lastCloseTime = null;
 
 // Sound and vibration preferences
@@ -1221,11 +1218,7 @@ async function loadAllDataFromSupabase() {
         useAutoBcv = supConfig.use_auto_bcv !== false;
         window.bcvRate = bcvRate;
         window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-        
-        // Load 2FA status - Always force disabled
-        totpEnabled = false;
-        totpSecret = '';
-        window.StorageManager.saveTotpPreferences(false, '');
+
 
         // Load Day Close status
         if (window.SupabaseManager.getDbSupportsLastClose() && supConfig.last_close_time) {
@@ -1322,10 +1315,7 @@ function loadAllDataFromLocalStorage() {
     useAutoBcv = bcvPrefs.useAutoBcv !== false;
     window.bcvRate = bcvRate;
     
-    // Load 2FA status from localStorage - Always force disabled
-    totpEnabled = false;
-    totpSecret = '';
-    window.StorageManager.saveTotpPreferences(false, '');
+
 
     // Load last close time from localStorage
     lastCloseTime = window.StorageManager.loadLastCloseTime();
@@ -1790,46 +1780,7 @@ function lockSession() {
     window.UIManager.initPinKeypad(handlePINInput);
 }
 
-// ================= SECURITY (2FA) LOGIC =================
 
-function generateRandomBase32() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    let secret = '';
-    for (let i = 0; i < 16; i++) {
-        secret += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return secret;
-}
-
-let totpInstance = null;
-
-function init2FaState() {
-    const disabledView = document.getElementById('2fa-disabled-view');
-    const setupView = document.getElementById('2fa-setup-view');
-    const enabledView = document.getElementById('2fa-enabled-view');
-
-    if (!disabledView || !setupView || !enabledView) return;
-
-    if (totpEnabled && totpSecret) {
-        disabledView.classList.add('hidden');
-        setupView.classList.add('hidden');
-        enabledView.classList.remove('hidden');
-        
-        totpInstance = new window.OTPAuth.TOTP({
-            issuer: 'Casa Luccenzo',
-            label: 'Admin',
-            algorithm: 'SHA1',
-            digits: 6,
-            period: 30,
-            secret: window.OTPAuth.Secret.fromBase32(totpSecret)
-        });
-    } else {
-        disabledView.classList.remove('hidden');
-        setupView.classList.add('hidden');
-        enabledView.classList.add('hidden');
-        totpInstance = null;
-    }
-}
 
 // ================= APP INITIALIZATION =================
 
@@ -2163,7 +2114,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. Bind configuration modal toggles
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {
         window.UIManager.toggleSettingsModal(true, products, editProductPrompt, deleteProduct);
-        init2FaState();
     });
 
     document.getElementById('btn-settings-close').addEventListener('click', () => {
@@ -2228,161 +2178,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 19. Bind Security (2FA) Events
-    const btn2FaSetup = document.getElementById('btn-2fa-setup');
-    if (btn2FaSetup) {
-        btn2FaSetup.addEventListener('click', () => {
-            triggerHaptic(10);
-            totpSecret = generateRandomBase32();
-            totpInstance = new window.OTPAuth.TOTP({
-                issuer: 'Casa Luccenzo',
-                label: 'Admin',
-                algorithm: 'SHA1',
-                digits: 6,
-                period: 30,
-                secret: window.OTPAuth.Secret.fromBase32(totpSecret)
-            });
-            
-            const otpauthUrl = totpInstance.toString();
-            
-            const qrContainer = document.getElementById('2fa-qr-code');
-            if (qrContainer) {
-                qrContainer.innerHTML = '';
-                new window.QRCode(qrContainer, {
-                    text: otpauthUrl,
-                    width: 140,
-                    height: 140,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: window.QRCode.CorrectLevel.M
-                });
-            }
-
-            const secretTextEl = document.getElementById('2fa-secret-text');
-            if (secretTextEl) {
-                secretTextEl.textContent = `Clave: ${totpSecret}`;
-            }
-
-            const setupView = document.getElementById('2fa-setup-view');
-            const disabledView = document.getElementById('2fa-disabled-view');
-            if (setupView) setupView.classList.remove('hidden');
-            if (disabledView) disabledView.classList.add('hidden');
-        });
-    }
-
-    const btn2FaVerify = document.getElementById('btn-2fa-verify');
-    if (btn2FaVerify) {
-        btn2FaVerify.addEventListener('click', () => {
-            const codeInput = document.getElementById('2fa-verification-code');
-            if (!codeInput || !totpInstance) return;
-            const code = codeInput.value.trim();
-            const delta = totpInstance.validate({ token: code, window: 1 });
-            if (delta !== null) {
-                totpEnabled = true;
-                window.StorageManager.saveTotpPreferences(totpEnabled, totpSecret);
-                window.SupabaseManager.upsertAppConfig({ totpEnabled, totpSecret });
-                triggerHaptic(15);
-                window.UIManager.showToast("🛡️ 2FA de Administrador configurado y activado.", "fa-solid fa-shield");
-                codeInput.value = '';
-                init2FaState();
-            } else {
-                triggerHaptic([80, 80]);
-                window.UIManager.showToast("❌ Código de verificación incorrecto.", "fa-solid fa-circle-xmark");
-            }
-        });
-    }
-
-    const btn2FaDisable = document.getElementById('btn-2fa-disable');
-    if (btn2FaDisable) {
-        btn2FaDisable.addEventListener('click', () => {
-            const confirmDisable = confirm("¿Estás seguro de que quieres desactivar la verificación de 2 factores?");
-            if (confirmDisable) {
-                totpEnabled = false;
-                totpSecret = '';
-                window.StorageManager.saveTotpPreferences(false, '');
-                window.SupabaseManager.upsertAppConfig({ totpEnabled: false, totpSecret: '' });
-                triggerHaptic(15);
-                window.UIManager.showToast("⚠️ 2FA de Administrador desactivado.", "fa-solid fa-circle-exclamation");
-                init2FaState();
-            }
-        });
-    }
-
-    const btnTotpBack = document.getElementById('btn-totp-back');
-    if (btnTotpBack) {
-        btnTotpBack.addEventListener('click', () => {
-            const pinLoginSection = document.getElementById('pin-login-section');
-            const totpLoginSection = document.getElementById('totp-login-section');
-            const pinInput = document.getElementById('pin-input');
-            const totpInput = document.getElementById('totp-input');
-            
-            if (pinLoginSection && totpLoginSection) {
-                triggerHaptic(10);
-                totpLoginSection.classList.add('hidden');
-                pinLoginSection.classList.remove('hidden');
-                if (pinInput) {
-                    pinInput.value = '';
-                    pinInput.focus();
-                }
-                if (totpInput) totpInput.value = '';
-            }
-        });
-    }
-
-    function submitTotp() {
-        const totpInput = document.getElementById('totp-input');
-        if (!totpInput || !totpInstance) return;
-        
-        const val = totpInput.value.trim();
-        if (val.length !== 6) {
-            window.UIManager.showToast("⚠️ El código debe tener 6 dígitos.", "fa-solid fa-circle-exclamation");
-            return;
-        }
-        
-        const delta = totpInstance.validate({ token: val, window: 1 });
-        if (delta !== null) {
-            const pinOverlay = document.getElementById('pin-overlay');
-            const pinLoginSection = document.getElementById('pin-login-section');
-            const totpLoginSection = document.getElementById('totp-login-section');
-            
-            if (pinOverlay) pinOverlay.style.display = 'none';
-            if (pinLoginSection) pinLoginSection.classList.remove('hidden');
-            if (totpLoginSection) totpLoginSection.classList.add('hidden');
-            
-            totpInput.value = '';
-            applyUserRole('admin');
-            window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
-        } else {
-            triggerHaptic([80, 80]);
-            window.UIManager.showToast("❌ Código 2FA incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");
-            totpInput.value = '';
-            totpInput.focus();
-        }
-    }
-
-    const totpInput = document.getElementById('totp-input');
-    if (totpInput) {
-        totpInput.addEventListener('input', () => {
-            const val = totpInput.value.trim();
-            if (val.length === 6) {
-                submitTotp();
-            }
-        });
-        totpInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitTotp();
-            }
-        });
-    }
-
-    const btnTotpSubmit = document.getElementById('btn-totp-submit');
-    if (btnTotpSubmit) {
-        btnTotpSubmit.addEventListener('click', () => {
-            triggerHaptic(10);
-            submitTotp();
-        });
-    }
 });
 
 // Expose functions globally for UI callbacks and fallbacks

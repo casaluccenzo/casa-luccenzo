@@ -710,6 +710,21 @@ async function blockSession(deviceId, isBlocked) {
     }
 }
 
+/**
+ * Trust or untrust a session
+ * @param {string} deviceId Device identifier
+ * @param {boolean} isTrusted Trust state
+ */
+async function trustSession(deviceId, isTrusted) {
+    if (!client) return;
+    try {
+        const { error } = await client.from('active_sessions').update({ is_trusted: isTrusted }).eq('device_id', deviceId);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Error setting session trust in Supabase:", e);
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -774,5 +789,6 @@ window.SupabaseManager = {
     fetchActiveSessions,
     registerSession,
     deleteSession,
-    blockSession
+    blockSession,
+    trustSession
 };

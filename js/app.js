@@ -2258,7 +2258,7 @@ async function loadAndRenderActiveDevices() {
     if (currentRole !== 'admin') return;
     if (window.SupabaseManager.isConfigured() && navigator.onLine) {
         const sessions = await window.SupabaseManager.fetchActiveSessions();
-        window.UIManager.renderActiveDevices(sessions, myDeviceId, handleEjectDevice);
+        window.UIManager.renderActiveDevices(sessions, myDeviceId, handleEjectDevice, handleTrustDevice);
     }
 }
 
@@ -2272,6 +2272,17 @@ async function handleEjectDevice(deviceId) {
         window.UIManager.showToast("🚫 Dispositivo expulsado.", "fa-solid fa-circle-check");
         loadAndRenderActiveDevices();
     }
+}
+
+/**
+ * Trust or untrust a device session
+ */
+async function handleTrustDevice(deviceId, isTrusted) {
+    triggerHaptic(15);
+    await window.SupabaseManager.trustSession(deviceId, isTrusted);
+    const msg = isTrusted ? "🛡️ Dispositivo marcado como confiable." : "🛡️ Confianza removida del dispositivo.";
+    window.UIManager.showToast(msg, "fa-solid fa-shield-halved");
+    loadAndRenderActiveDevices();
 }
 
 

@@ -2491,8 +2491,9 @@ function updateOverlayStatusSuccess() {
  * @param {Array} sessions List of active sessions
  * @param {string} currentDeviceId This device's UUID
  * @param {Function} onDisconnect Callback when clicking disconnect/expulsar
+ * @param {Function} onTrust Callback when clicking trust/autorizar
  */
-function renderActiveDevices(sessions, currentDeviceId, onDisconnect) {
+function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
     const listDiv = document.getElementById('settings-devices-list');
     if (!listDiv) return;
 
@@ -2508,31 +2509,42 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect) {
     let html = '';
     sessions.forEach(sess => {
         const isMe = sess.device_id === currentDeviceId;
+        const isTrusted = sess.is_trusted === true;
         const meBadge = isMe ? '<span style="font-size: 8px; background: rgba(243, 198, 63, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">ESTE DISPOSITIVO</span>' : '';
+        const trustBadge = isTrusted ? '<span style="font-size: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--color-success); color: #34D399; padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">CONFIABLE</span>' : '';
         const roleName = sess.role === 'admin' ? 'Administrador' : sess.role === 'cocina' ? 'Cocina' : 'Ventas (Local)';
         const dateObj = new Date(sess.last_active_at);
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         html += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.625rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-sm);">
-                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
-                    <div style="font-size: 1.15rem; color: ${isMe ? 'var(--color-gold)' : 'var(--color-text-muted)'};">
+                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1;">
+                    <div style="font-size: 1.15rem; color: ${isMe ? 'var(--color-gold)' : isTrusted ? '#34D399' : 'var(--color-text-muted)'};">
                         <i class="${sess.device_name.includes('Phone') || sess.device_name.includes('iPad') ? 'fa-solid fa-mobile-screen-button' : 'fa-solid fa-desktop'}"></i>
                     </div>
-                    <div style="min-width: 0;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-white); display: flex; align-items: center; gap: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            ${sess.device_name} ${meBadge}
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-white); display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem;">
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;">${sess.device_name}</span>
+                            ${meBadge} ${trustBadge}
                         </div>
                         <div style="font-size: 9px; color: var(--color-text-muted);">
                             Rol: <strong>${roleName}</strong> | Activo: ${timeStr}
                         </div>
                     </div>
                 </div>
-                ${!isMe ? `
-                    <button class="btn-eject-device" data-id="${sess.device_id}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
-                        <i class="fa-solid fa-right-from-bracket" style="font-size: 0.75rem;"></i>
+                <div style="display: flex; gap: 0.35rem; align-items: center;">
+                    <!-- Botón de Autorización (Verde) -->
+                    <button class="btn-trust-device" data-id="${sess.device_id}" data-trusted="${isTrusted}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid ${isTrusted ? 'var(--color-success)' : 'rgba(16, 185, 129, 0.3)'}; background: ${isTrusted ? 'rgba(16, 185, 129, 0.15)' : 'transparent'}; color: ${isTrusted ? '#34D399' : 'rgba(16, 185, 129, 0.7)'}; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: all 0.2s;">
+                        <i class="${isTrusted ? 'fa-solid fa-shield-halved' : 'fa-solid fa-shield'}" style="font-size: 0.75rem;"></i>
                     </button>
-                ` : ''}
+
+                    <!-- Botón de Expulsión (Rojo) -->
+                    ${!isMe ? `
+                        <button class="btn-eject-device" data-id="${sess.device_id}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
+                            <i class="fa-solid fa-right-from-bracket" style="font-size: 0.75rem;"></i>
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         `;
     });
@@ -2544,6 +2556,15 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect) {
         btn.addEventListener('click', (e) => {
             const devId = e.currentTarget.dataset.id;
             onDisconnect(devId);
+        });
+    });
+
+    // Bind trust button click events
+    listDiv.querySelectorAll('.btn-trust-device').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const devId = e.currentTarget.dataset.id;
+            const currentVal = e.currentTarget.dataset.trusted === 'true';
+            onTrust(devId, !currentVal);
         });
     });
 }

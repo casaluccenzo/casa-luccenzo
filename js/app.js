@@ -1148,11 +1148,12 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Reset all showcase products' stock to 0
+        // 4. Reset all showcase products' stock and max to 0 for the new day
         products.forEach(p => {
             p.stock = 0;
+            p.max = 0;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(p.id, 0);
+                window.SupabaseManager.updateProductStock(p.id, 0, 0);
             }
         });
         window.StorageManager.saveProducts(products);

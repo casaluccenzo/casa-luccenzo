@@ -639,6 +639,77 @@ async function fetchReportDays(days = 14) {
     }
 }
 
+/**
+ * Fetch all active sessions
+ * @returns {Array} List of session rows
+ */
+async function fetchActiveSessions() {
+    if (!client) return [];
+    try {
+        const { data, error } = await client.from('active_sessions').select('*').order('last_active_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    } catch (e) {
+        console.error("Error fetching active sessions from Supabase:", e);
+        return [];
+    }
+}
+
+/**
+ * Register or update device active session
+ * @param {string} deviceId Unique client identifier
+ * @param {string} deviceName User Agent string
+ * @param {string} role App role
+ * @returns {boolean} Success state
+ */
+async function registerSession(deviceId, deviceName, role) {
+    if (!client) return false;
+    try {
+        const payload = {
+            device_id: deviceId,
+            device_name: deviceName,
+            role: role || 'local',
+            last_active_at: new Date().toISOString(),
+            is_blocked: false
+        };
+        const { error } = await client.from('active_sessions').upsert(payload, { onConflict: 'device_id' });
+        if (error) throw error;
+        return true;
+    } catch (e) {
+        console.error("Error registering session to Supabase:", e);
+        return false;
+    }
+}
+
+/**
+ * Delete a session (kickout or logout)
+ * @param {string} deviceId Device identifier
+ */
+async function deleteSession(deviceId) {
+    if (!client) return;
+    try {
+        const { error } = await client.from('active_sessions').delete().eq('device_id', deviceId);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Error deleting session from Supabase:", e);
+    }
+}
+
+/**
+ * Block or unblock a session
+ * @param {string} deviceId Device identifier
+ * @param {boolean} isBlocked Block state
+ */
+async function blockSession(deviceId, isBlocked) {
+    if (!client) return;
+    try {
+        const { error } = await client.from('active_sessions').update({ is_blocked: isBlocked }).eq('device_id', deviceId);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Error blocking session in Supabase:", e);
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -660,6 +731,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, (p) => onDbChange('replenishments', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, (p) => onDbChange('ingredients', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, (p) => onDbChange('app_config', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'active_sessions' }, (p) => onDbChange('active_sessions', p))
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");
@@ -698,5 +770,9 @@ window.SupabaseManager = {
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,
     fetchDayReport,
-    fetchReportDays
+    fetchReportDays,
+    fetchActiveSessions,
+    registerSession,
+    deleteSession,
+    blockSession
 };

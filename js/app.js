@@ -26,6 +26,13 @@ let useAutoBcv = true;
 // Current report data displayed in the day close modal
 let currentReportData = { sales: [], expenses: [] };
 
+// Unique device identifier for active session management
+let myDeviceId = localStorage.getItem('casa_lucenzo_device_id');
+if (!myDeviceId) {
+    myDeviceId = crypto.randomUUID ? crypto.randomUUID() : 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('casa_lucenzo_device_id', myDeviceId);
+}
+
 // ================= HANDLERS & LOGIC =================
 
 /**
@@ -1973,6 +1980,23 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             window.UIManager.renderDebts(debts, settleDebtPayment);
             window.UIManager.renderQuickConversionTable();
         }
+    } else if (tableName === 'active_sessions') {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        const targetId = eventType === 'DELETE' ? oldRow.device_id : newRow.device_id;
+        
+        if (targetId === myDeviceId) {
+            if (eventType === 'DELETE' || (newRow && newRow.is_blocked)) {
+                console.warn("My session was deleted or blocked by administrator. Logging out...");
+                window.UIManager.showToast("🚫 Tu sesión ha sido cerrada por el administrador.", "fa-solid fa-lock");
+                lockSession();
+            }
+        }
+        
+        // Re-render the active devices list if currently open
+        const listDiv = document.getElementById('settings-devices-list');
+        if (listDiv && !document.getElementById('settings-modal').classList.contains('hidden')) {
+            loadAndRenderActiveDevices();
+        }
     }
 }
 
@@ -2170,6 +2194,8 @@ function applyUserRole(role) {
         window.UIManager.renderStats(salesLog, expenses);
     }
 
+    // Refresh active session on Supabase
+    refreshMySession();
 }
 
 /**
@@ -2180,6 +2206,11 @@ function lockSession() {
     sessionStorage.removeItem('casa_lucenzo_active_role');
     currentRole = null;
 
+    // Delete session from Supabase when logging out voluntarily
+    if (window.SupabaseManager.isConfigured()) {
+        window.SupabaseManager.deleteSession(myDeviceId);
+    }
+
     const pinOverlay = document.getElementById('pin-overlay');
     if (pinOverlay) {
         pinOverlay.style.display = 'flex';
@@ -2189,6 +2220,58 @@ function lockSession() {
     }
 
     window.UIManager.initPinKeypad(handlePINInput);
+}
+
+/**
+ * Helper to identify the current device user agent/platform
+ */
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    let name = "Dispositivo Genérico";
+    if (/android/i.test(ua)) name = "Android Phone/Tablet";
+    else if (/iphone|ipad|ipod/i.test(ua)) name = "iPhone/iPad";
+    else if (/windows/i.test(ua)) name = "PC Windows";
+    else if (/macintosh/i.test(ua)) name = "Macbook/Mac";
+    else if (/linux/i.test(ua)) name = "Linux System";
+    
+    if (/chrome|crios/i.test(ua)) name += " (Chrome)";
+    else if (/safari/i.test(ua) && !/chrome/i.test(ua)) name += " (Safari)";
+    else if (/firefox|fxios/i.test(ua)) name += " (Firefox)";
+    else if (/edge/i.test(ua)) name += " (Edge)";
+    
+    return name;
+}
+
+/**
+ * Register or refresh current active session on Supabase
+ */
+async function refreshMySession() {
+    if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+        await window.SupabaseManager.registerSession(myDeviceId, getDeviceName(), currentRole || 'local');
+    }
+}
+
+/**
+ * Fetch and render all active connected devices in the admin settings modal
+ */
+async function loadAndRenderActiveDevices() {
+    if (currentRole !== 'admin') return;
+    if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+        const sessions = await window.SupabaseManager.fetchActiveSessions();
+        window.UIManager.renderActiveDevices(sessions, myDeviceId, handleEjectDevice);
+    }
+}
+
+/**
+ * Kickout a device by deleting its session from Supabase
+ */
+async function handleEjectDevice(deviceId) {
+    if (confirm("¿Estás seguro de que deseas expulsar este dispositivo? Se le cerrará la sesión de inmediato.")) {
+        triggerHaptic(15);
+        await window.SupabaseManager.deleteSession(deviceId);
+        window.UIManager.showToast("🚫 Dispositivo expulsado.", "fa-solid fa-circle-check");
+        loadAndRenderActiveDevices();
+    }
 }
 
 
@@ -2426,6 +2509,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSupabaseReady) {
         loadAllDataFromSupabase();
         window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
+        
+        // Register active session & heartbeat
+        refreshMySession();
+        setInterval(refreshMySession, 45000); // 45s heartbeat
     } else {
         loadAllDataFromLocalStorage();
     }
@@ -2560,6 +2647,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. Bind configuration modal toggles
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {
         window.UIManager.toggleSettingsModal(true, products, editProductPrompt, deleteProduct);
+        if (currentRole === 'admin') {
+            loadAndRenderActiveDevices();
+        }
     });
 
     document.getElementById('btn-settings-close').addEventListener('click', () => {

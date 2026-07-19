@@ -21,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=79">
+    <link rel="stylesheet" href="css/main.css?v=80">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=79"></script>
-    <script src="js/supabase.js?v=79"></script>
-    <script src="js/recipes.js?v=79"></script>
-    <script src="js/audio.js?v=79"></script>
-    <script src="js/share.js?v=79"></script>
-    <script src="js/ui.js?v=79"></script>
-    <script src="js/app.js?v=79"></script>
+    <script src="js/storage.js?v=80"></script>
+    <script src="js/supabase.js?v=80"></script>
+    <script src="js/recipes.js?v=80"></script>
+    <script src="js/audio.js?v=80"></script>
+    <script src="js/share.js?v=80"></script>
+    <script src="js/ui.js?v=80"></script>
+    <script src="js/app.js?v=80"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -542,6 +542,14 @@
                     <summary><i class="fa-solid fa-chart-simple" style="margin-right: 0.25rem;"></i> Reporte de Ventas Semanales</summary>
                     <div id="stats-chart-content" class="chart-container">
                         <!-- Dynamic bar charts injected by js/ui.js -->
+                    </div>
+                </details>
+
+                <!-- Foldable Connected Devices -->
+                <details class="settings-group" style="margin-bottom: 1.25rem;">
+                    <summary><i class="fa-solid fa-network-wired" style="margin-right: 0.25rem;"></i> Dispositivos Conectados</summary>
+                    <div id="settings-devices-list" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Dynamic list of connected devices injected by js/ui.js -->
                     </div>
                 </details>
 

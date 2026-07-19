@@ -21,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=62">
+    <link rel="stylesheet" href="css/main.css?v=66">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=62"></script>
-    <script src="js/supabase.js?v=62"></script>
-    <script src="js/recipes.js?v=62"></script>
-    <script src="js/audio.js?v=62"></script>
-    <script src="js/share.js?v=62"></script>
-    <script src="js/ui.js?v=62"></script>
-    <script src="js/app.js?v=62"></script>
+    <script src="js/storage.js?v=66"></script>
+    <script src="js/supabase.js?v=66"></script>
+    <script src="js/recipes.js?v=66"></script>
+    <script src="js/audio.js?v=66"></script>
+    <script src="js/share.js?v=66"></script>
+    <script src="js/ui.js?v=66"></script>
+    <script src="js/app.js?v=66"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -155,14 +155,17 @@
                             <!-- Dynamic injections from js/ui.js -->
                         </div>
 
-                        <!-- Search bar input -->
-                        <div id="search-bar-container">
-                            <!-- Dynamic search bar from js/ui.js -->
-                        </div>
+                        <!-- Sticky Catalog Search and Filter Header -->
+                        <div class="sticky-catalog-header">
+                            <!-- Search bar input -->
+                            <div id="search-bar-container">
+                                <!-- Dynamic search bar from js/ui.js -->
+                            </div>
 
-                        <!-- PWA Category filter pills -->
-                        <div id="category-filter-container" class="category-filter-bar">
-                            <!-- Dynamic tabs from js/ui.js -->
+                            <!-- PWA Category filter pills -->
+                            <div id="category-filter-container" class="category-filter-bar">
+                                <!-- Dynamic tabs from js/ui.js -->
+                            </div>
                         </div>
 
                         <!-- Main dynamic stock control list -->
@@ -236,11 +239,20 @@
                             <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Total Ventas</div>
                             <div id="live-stat-ventas" style="font-size: 1.125rem; font-weight: 900; color: var(--color-success); margin-top: 0.25rem;">$0.00</div>
                         </div>
+                        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: #A7F3D0; text-transform: uppercase; font-weight: 700;">Total Real (Hoy)</div>
+                            <div id="live-stat-total-real" style="font-size: 1.125rem; font-weight: 900; color: #34D399; margin-top: 0.25rem;">$0.00</div>
+                        </div>
                     </div>
                     <!-- Live category breakdown -->
                     <div id="live-stat-categories" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr; gap: 0.4rem;">
                         <!-- Dynamic injections from js/ui.js -->
                     </div>
+                </div>
+
+                <!-- Conciliación / Auditoría de Inventario y Caja -->
+                <div id="inventory-match-section" class="card-pantry hidden" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-success-border); background-color: rgba(16, 185, 129, 0.02);">
+                    <!-- Dynamic reconciliation UI injected by js/ui.js -->
                 </div>
 
                 <!-- Sub-view switcher for Mesas vs Cuentas Activas vs Historial -->

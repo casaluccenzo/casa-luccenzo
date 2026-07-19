@@ -307,12 +307,28 @@ main {
     gap: 1rem;
 }
 
+.sticky-catalog-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background-color: var(--color-bg-main);
+    z-index: 40;
+}
+
 @media (min-width: 768px) {
     .local-layout-wrapper {
         display: grid;
         grid-template-columns: 1.2fr 1fr;
         gap: 1.5rem;
         align-items: start;
+    }
+
+    .sticky-catalog-header {
+        position: sticky;
+        top: 120px;
+        padding-top: 0.5rem;
+        padding-bottom: 0.75rem;
+        box-shadow: 0 10px 15px -10px rgba(0, 0, 0, 0.4);
     }
 
     .local-checkout-col {

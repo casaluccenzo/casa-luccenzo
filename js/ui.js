@@ -1604,6 +1604,24 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         liveVentasEl.textContent = `$${totalSalesMoney.toFixed(2)}`;
     }
 
+    // Total Real Sold (based on physical difference in vitrina: max - stock)
+    const expectedSalesValue = products.reduce((sum, p) => {
+        if (p.id === 'abono') return sum;
+        const max = p.max || 0;
+        const stock = p.stock || 0;
+        const expectedQty = Math.max(0, max - stock);
+        return sum + (expectedQty * (p.price || 0));
+    }, 0);
+
+    // Add any manual abonos/other non-inventory transactions recorded in salesLog
+    const abonosValue = salesLog.filter(s => s.productId === 'abono').reduce((sum, s) => sum + (s.price || 0), 0);
+
+    const totalRealMoney = expectedSalesValue + abonosValue;
+    const liveTotalRealEl = document.getElementById('live-stat-total-real');
+    if (liveTotalRealEl) {
+        liveTotalRealEl.textContent = `$${totalRealMoney.toFixed(2)}`;
+    }
+
     // Calculate category breakdowns
     let qtyPastelitos = 0, usdPastelitos = 0;
     let qtyBebidas = 0, usdBebidas = 0;
@@ -1822,6 +1840,113 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 });
             }
         });
+
+        // 1b. Render Inventory Reconciliation (Match)
+        const matchSection = document.getElementById('inventory-match-section');
+        if (matchSection) {
+            const auditedProducts = [];
+            products.forEach(p => {
+                if (p.id === 'abono') return;
+                const max = p.max || 0;
+                if (max === 0) return; // Ignore products that have no loaded capacity today
+                
+                const stock = p.stock || 0;
+                const expectedSales = Math.max(0, max - stock);
+                const loggedSales = salesLog.filter(s => s.productId === p.id).length;
+                const discrepancy = expectedSales - loggedSales;
+                
+                if (discrepancy !== 0) {
+                    auditedProducts.push({
+                        product: p,
+                        max: max,
+                        stock: stock,
+                        expected: expectedSales,
+                        logged: loggedSales,
+                        discrepancy: discrepancy,
+                        value: discrepancy * (p.price || 0)
+                    });
+                }
+            });
+
+            if (auditedProducts.length === 0) {
+                matchSection.classList.add('hidden');
+                matchSection.innerHTML = '';
+            } else {
+                matchSection.classList.remove('hidden');
+                
+                const totalMissingQty = auditedProducts.reduce((sum, p) => sum + (p.discrepancy > 0 ? p.discrepancy : 0), 0);
+                const totalMissingVal = auditedProducts.reduce((sum, p) => sum + (p.discrepancy > 0 ? p.value : 0), 0);
+                
+                let matchHtml = `
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-scale-balanced"></i> Conciliación de Vitrina y Caja</span>
+                        ${totalMissingQty > 0 ? `
+                        <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(248, 113, 113, 0.15); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.2); font-weight: 800;">
+                            ${totalMissingQty} unids. sin registrar
+                        </span>` : ''}
+                    </h4>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 0.75rem;">
+                        Hay diferencias entre las piezas vendidas físicas y los registros del sistema.
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;">
+                `;
+                
+                auditedProducts.forEach(item => {
+                    const color = item.discrepancy > 0 ? '#F87171' : '#60A5FA';
+                    const label = item.discrepancy > 0 ? `Faltan ${item.discrepancy} por registrar` : `Sobran ${Math.abs(item.discrepancy)} registradas`;
+                    const pricePrefix = item.discrepancy > 0 ? '+' : '';
+                    
+                    matchHtml += `
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 0.5rem 0.75rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                            <div>
+                                <div style="font-weight: bold; color: var(--color-white);">${item.product.name}</div>
+                                <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 2px;">
+                                    Inicial: ${item.max} | Quedan: ${item.stock} | Registrado: ${item.logged}
+                                </div>
+                            </div>
+                            <div style="text-align: right; font-family: monospace;">
+                                <div style="color: ${color}; font-weight: 800; font-size: 10px;">${label}</div>
+                                <div style="color: ${item.discrepancy > 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 800; font-size: 10px; margin-top: 1px;">
+                                    ${pricePrefix}$${Math.abs(item.value).toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                matchHtml += `
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); padding: 0.625rem; border-radius: 6px;">
+                        <div>
+                            <div style="font-size: 9px; color: var(--color-text-muted); text-transform: uppercase;">Caja por registrar:</div>
+                            <div style="font-size: 1rem; font-weight: 900; color: var(--color-success); font-family: monospace; margin-top: 2px;">
+                                +$${totalMissingVal.toFixed(2)}
+                            </div>
+                        </div>
+                        ${totalMissingQty > 0 ? `
+                        <button id="btn-reconcile-inventory" class="btn-action-small" style="background-color: var(--color-success); border-color: var(--color-success-border); color: #000000; font-weight: 900; padding: 0.4rem 0.75rem; font-size: 10px; height: auto;">
+                            <i class="fa-solid fa-bolt"></i> Autocorregir Caja
+                        </button>` : `
+                        <span style="font-size: 10px; font-weight: 700; color: var(--color-gold);">Exceso de registros</span>`}
+                    </div>
+                `;
+                
+                matchSection.innerHTML = matchHtml;
+                
+                const btnReconcile = document.getElementById('btn-reconcile-inventory');
+                if (btnReconcile) {
+                    btnReconcile.addEventListener('click', () => {
+                        if (confirm(`¿Estás seguro de registrar las ${totalMissingQty} ventas faltantes en la caja de hoy ($${totalMissingVal.toFixed(2)})?`)) {
+                            if (typeof window.handleAutocorrectSales === 'function') {
+                                window.handleAutocorrectSales(auditedProducts);
+                            }
+                        }
+                    });
+                }
+            }
+        }
     }
 
     // 2. Render 6 Tables Grid

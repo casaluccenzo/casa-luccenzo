@@ -300,6 +300,33 @@ async function insertSale(sale) {
     }
 }
 
+async function insertSales(sales) {
+    if (!client) return;
+    if (!Array.isArray(sales) || sales.length === 0) return;
+    
+    const payloads = sales.map(sale => ({
+        uuid: sale.uuid,
+        product_id: sale.productId,
+        name: sale.name,
+        price: sale.price,
+        timestamp: sale.timestamp
+    }));
+
+    try {
+        if (!navigator.onLine) {
+            payloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
+            return;
+        }
+
+        const { error } = await client.from('sales').insert(payloads);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase insertSales batch failed. Enqueuing offline...", e);
+        payloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
+    }
+}
+
+
 async function deleteSale(uuid) {
     if (!client) return;
     try {
@@ -577,6 +604,7 @@ window.SupabaseManager = {
     updateProductStock,
     deleteProduct,
     insertSale,
+    insertSales,
     deleteSale,
     insertExpense,
     deleteExpense,

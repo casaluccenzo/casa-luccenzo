@@ -385,8 +385,7 @@ async function handleCheckoutCart() {
     // Sync to Supabase
     if (window.SupabaseManager.isConfigured()) {
         try {
-            const syncPromises = newSales.map(sale => window.SupabaseManager.insertSale(sale));
-            await Promise.all(syncPromises);
+            await window.SupabaseManager.insertSales(newSales);
         } catch (e) {
             console.error("Error syncing cart checkout sales to Supabase", e);
         }
@@ -449,6 +448,55 @@ function handleUndoSale(timestamp) {
         window.UIManager.showToast(`🔄 Cuenta deshecha y productos devueltos a vitrina.`, "fa-solid fa-rotate-left");
     }
 }
+
+/**
+ * Autocorrects today's sales log to match the physical vitrina stock discrepancies
+ * @param {Array} discrepancyList Audited products with discrepancies
+ */
+async function handleAutocorrectSales(discrepancyList) {
+    triggerHaptic(15);
+    
+    const timestamp = new Date().toISOString();
+    const newSales = [];
+    
+    discrepancyList.forEach(item => {
+        if (item.discrepancy <= 0) return; // Only autocorrect missing items (expected > logged)
+        
+        for (let i = 0; i < item.discrepancy; i++) {
+            const saleItem = {
+                uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+                productId: item.product.id,
+                name: `${item.product.name} [Ajuste Inventario]`,
+                price: item.product.price || 0,
+                timestamp: timestamp
+            };
+            newSales.push(saleItem);
+        }
+    });
+    
+    if (newSales.length === 0) return;
+    
+    salesLog.push(...newSales);
+    window.StorageManager.saveSalesLog(salesLog);
+    
+    // Sync to Supabase
+    if (window.SupabaseManager.isConfigured()) {
+        try {
+            await window.SupabaseManager.insertSales(newSales);
+        } catch (e) {
+            console.error("Error syncing autocorrected sales to Supabase", e);
+        }
+    }
+    
+    window.UIManager.showToast(`✨ Se han registrado ${newSales.length} ventas faltantes con éxito.`, "fa-solid fa-circle-check");
+    
+    // Refresh UI dashboards
+    window.UIManager.renderCashRegister(salesLog, expenses);
+    window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+    window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+}
+window.handleAutocorrectSales = handleAutocorrectSales;
+
 
 /**
  * Loads a sales transaction back into the active cart for modification, deleting old sales records

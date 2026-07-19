@@ -1355,13 +1355,12 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Reset showcase products' stock/max, keeping 'bebidas' remaining stock and max capacity completely untouched
+        // 4. Reset showcase products' stock, keeping max capacity completely untouched
         products.forEach(p => {
             if (p.category !== 'bebidas') {
                 p.stock = 0;
-                p.max = 0;
                 if (window.SupabaseManager.isConfigured()) {
-                    window.SupabaseManager.updateProductStock(p.id, 0, 0);
+                    window.SupabaseManager.updateProductStock(p.id, 0, p.max);
                 }
             }
         });

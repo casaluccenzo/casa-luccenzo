@@ -2,6 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("CRASH DETECTADO:\n" + message + "\nLínea: " + lineno + "\nColumna: " + colno + "\nArchivo: " + source);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            alert("PROMISE REJECTED:\n" + event.reason);
+        });
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Stock Fácil - Casa Lucenzo</title>
     <!-- Google Fonts for premium typography -->
@@ -12,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=47">
+    <link rel="stylesheet" href="css/main.css?v=49">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=47"></script>
-    <script src="js/supabase.js?v=47"></script>
-    <script src="js/recipes.js?v=47"></script>
-    <script src="js/audio.js?v=47"></script>
-    <script src="js/share.js?v=47"></script>
-    <script src="js/ui.js?v=47"></script>
-    <script src="js/app.js?v=47"></script>
+    <script src="js/storage.js?v=49"></script>
+    <script src="js/supabase.js?v=49"></script>
+    <script src="js/recipes.js?v=49"></script>
+    <script src="js/audio.js?v=49"></script>
+    <script src="js/share.js?v=49"></script>
+    <script src="js/ui.js?v=49"></script>
+    <script src="js/app.js?v=49"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">

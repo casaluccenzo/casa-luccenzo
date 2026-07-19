@@ -4,7 +4,7 @@ let client = null;
 let activeSubscription = null;
 let dbSupportsTotp = false;
 let dbSupportsLastClose = false;
-let lastCloseTime = null;
+let supabaseLastCloseTime = null;
 
 // Production Hardcoded Defaults (to prevent manual configuration on new devices)
 const DEFAULT_SUPABASE_URL = "https://xttpaqokeyywjaajvjyu.supabase.co";
@@ -130,7 +130,7 @@ async function fetchProducts() {
 async function fetchSales() {
     if (!client) return null;
     try {
-        let filterTime = lastCloseTime;
+        let filterTime = supabaseLastCloseTime;
         if (!filterTime) {
             const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
             if (localSaved) {
@@ -153,7 +153,7 @@ async function fetchSales() {
 async function fetchExpenses() {
     if (!client) return null;
     try {
-        let filterTime = lastCloseTime;
+        let filterTime = supabaseLastCloseTime;
         if (!filterTime) {
             const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
             if (localSaved) {
@@ -465,7 +465,7 @@ async function fetchAppConfig() {
             dbSupportsTotp = ('totp_secret' in data) || ('totp_enabled' in data);
             dbSupportsLastClose = ('last_close_time' in data);
             if (dbSupportsLastClose && data.last_close_time) {
-                lastCloseTime = data.last_close_time;
+                supabaseLastCloseTime = data.last_close_time;
             }
         }
         return data;
@@ -493,7 +493,7 @@ async function upsertAppConfig(config) {
         if (dbSupportsLastClose) {
             if (config.lastCloseTime !== undefined) {
                 payload.last_close_time = config.lastCloseTime;
-                lastCloseTime = config.lastCloseTime;
+                supabaseLastCloseTime = config.lastCloseTime;
             }
         }
 

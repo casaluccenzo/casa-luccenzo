@@ -14,6 +14,7 @@ let currentCart = [];
 // TOTP 2FA state variables
 let totpEnabled = false;
 let totpSecret = '';
+let lastCloseTime = null;
 
 // Sound and vibration preferences
 let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: '' };
@@ -932,12 +933,20 @@ async function closeDayAndResetLogs() {
     try {
         window.UIManager.showToast("⏳ Cerrando jornada y preparando vitrina...", "fa-solid fa-hourglass-start");
         
-        // 1. Sync deletes to Supabase if configured
+        const nowStr = new Date().toISOString();
+        window.StorageManager.saveLastCloseTime(nowStr);
+
+        // 1. Sync close time to Supabase or delete active sales if old DB schema
         if (window.SupabaseManager.isConfigured()) {
-            console.log("Clearing daily sales and expenses from Supabase...");
-            const salesDeletes = salesLog.map(s => window.SupabaseManager.deleteSale(s.uuid));
-            const expensesDeletes = expenses.map(e => window.SupabaseManager.deleteExpense(e.uuid));
-            await Promise.all([...salesDeletes, ...expensesDeletes]);
+            if (window.SupabaseManager.getDbSupportsLastClose()) {
+                console.log("Saving last day close timestamp to Supabase app_config...");
+                await window.SupabaseManager.upsertAppConfig({ lastCloseTime: nowStr });
+            } else {
+                console.log("Database does not support last_close_time. Clearing daily sales and expenses from Supabase as fallback...");
+                const salesDeletes = salesLog.map(s => window.SupabaseManager.deleteSale(s.uuid));
+                const expensesDeletes = expenses.map(e => window.SupabaseManager.deleteExpense(e.uuid));
+                await Promise.all([...salesDeletes, ...expensesDeletes]);
+            }
         }
 
         // 2. Clear local arrays
@@ -964,7 +973,7 @@ async function closeDayAndResetLogs() {
         window.UIManager.renderExpenses(expenses, deleteExpense);
         
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
+            loadAndRenderAdminStats();
         }
 
         window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
@@ -1205,61 +1214,7 @@ function restoreDefaultProducts() {
 async function loadAllDataFromSupabase() {
     console.log("Loading dashboard statistics and logs from Supabase...");
     
-    // Fetch products
-    const supProducts = await window.SupabaseManager.fetchProducts();
-    if (supProducts && supProducts.length > 0) {
-        products = supProducts;
-        window.StorageManager.saveProducts(products);
-    } else {
-        products = window.StorageManager.loadProducts();
-    }
-    
-    // Fetch today's sales
-    const supSales = await window.SupabaseManager.fetchSales();
-    if (supSales) {
-        salesLog = supSales;
-        window.StorageManager.saveSalesLog(salesLog);
-    } else {
-        salesLog = window.StorageManager.loadSalesLog();
-    }
-
-    // Fetch today's expenses
-    const supExpenses = await window.SupabaseManager.fetchExpenses();
-    if (supExpenses) {
-        expenses = supExpenses;
-        window.StorageManager.saveExpenses(expenses);
-    } else {
-        expenses = window.StorageManager.loadExpenses();
-    }
-
-    // Fetch debts list
-    const supDebts = await window.SupabaseManager.fetchDebts();
-    if (supDebts) {
-        debts = supDebts;
-        window.StorageManager.saveDebts(debts);
-    } else {
-        debts = window.StorageManager.loadDebts();
-    }
-
-    // Fetch active dispatches
-    const supRepls = await window.SupabaseManager.fetchReplenishments();
-    if (supRepls) {
-        replenishments = supRepls;
-        window.StorageManager.saveReplenishments(replenishments);
-    } else {
-        replenishments = window.StorageManager.loadReplenishments();
-    }
-
-    // Fetch raw materials ingredients stock
-    const supIng = await window.SupabaseManager.fetchIngredients();
-    if (supIng && supIng.length > 0) {
-        ingredients = supIng;
-        window.StorageManager.saveIngredients(ingredients);
-    } else {
-        ingredients = window.StorageManager.loadIngredients();
-    }
-
-    // Fetch app configuration (exchange rate & 2FA)
+    // 1. Fetch app configuration first (to get exchange rate, 2FA status, and day close timestamps)
     const supConfig = await window.SupabaseManager.fetchAppConfig();
     if (supConfig) {
         bcvRate = parseFloat(supConfig.bcv_rate) || 732.48;
@@ -1278,6 +1233,14 @@ async function loadAllDataFromSupabase() {
             totpSecret = totpPrefs.secret;
         }
 
+        // Load Day Close status
+        if (window.SupabaseManager.getDbSupportsLastClose() && supConfig.last_close_time) {
+            lastCloseTime = supConfig.last_close_time;
+            window.StorageManager.saveLastCloseTime(lastCloseTime);
+        } else {
+            lastCloseTime = window.StorageManager.loadLastCloseTime();
+        }
+
         // Sync DOM components
         const autoCheckbox = document.getElementById('pref-bcv-auto');
         const bcvRateInput = document.getElementById('pref-bcv-rate');
@@ -1288,6 +1251,62 @@ async function loadAllDataFromSupabase() {
             bcvRateInput.disabled = useAutoBcv;
         }
         if (headerBcvInput) headerBcvInput.value = bcvRate;
+    } else {
+        lastCloseTime = window.StorageManager.loadLastCloseTime();
+    }
+
+    // 2. Fetch products
+    const supProducts = await window.SupabaseManager.fetchProducts();
+    if (supProducts && supProducts.length > 0) {
+        products = supProducts;
+        window.StorageManager.saveProducts(products);
+    } else {
+        products = window.StorageManager.loadProducts();
+    }
+    
+    // 3. Fetch today's sales (filtered by lastCloseTime)
+    const supSales = await window.SupabaseManager.fetchSales();
+    if (supSales) {
+        salesLog = supSales;
+        window.StorageManager.saveSalesLog(salesLog);
+    } else {
+        salesLog = window.StorageManager.loadSalesLog();
+    }
+
+    // 4. Fetch today's expenses (filtered by lastCloseTime)
+    const supExpenses = await window.SupabaseManager.fetchExpenses();
+    if (supExpenses) {
+        expenses = supExpenses;
+        window.StorageManager.saveExpenses(expenses);
+    } else {
+        expenses = window.StorageManager.loadExpenses();
+    }
+
+    // 5. Fetch debts list
+    const supDebts = await window.SupabaseManager.fetchDebts();
+    if (supDebts) {
+        debts = supDebts;
+        window.StorageManager.saveDebts(debts);
+    } else {
+        debts = window.StorageManager.loadDebts();
+    }
+
+    // 6. Fetch active dispatches
+    const supRepls = await window.SupabaseManager.fetchReplenishments();
+    if (supRepls) {
+        replenishments = supRepls;
+        window.StorageManager.saveReplenishments(replenishments);
+    } else {
+        replenishments = window.StorageManager.loadReplenishments();
+    }
+
+    // 7. Fetch raw materials ingredients stock
+    const supIng = await window.SupabaseManager.fetchIngredients();
+    if (supIng && supIng.length > 0) {
+        ingredients = supIng;
+        window.StorageManager.saveIngredients(ingredients);
+    } else {
+        ingredients = window.StorageManager.loadIngredients();
     }
 
     renderAllViews();
@@ -1314,7 +1333,31 @@ function loadAllDataFromLocalStorage() {
     totpEnabled = totpPrefs.enabled;
     totpSecret = totpPrefs.secret;
 
+    // Load last close time from localStorage
+    lastCloseTime = window.StorageManager.loadLastCloseTime();
+
     renderAllViews();
+}
+
+async function loadAndRenderAdminStats() {
+    if (currentRole !== 'admin') return;
+    
+    let statsSales = salesLog;
+    let statsExpenses = expenses;
+    
+    if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+        try {
+            const data = await window.SupabaseManager.fetchStatsData();
+            if (data) {
+                statsSales = data.sales;
+                statsExpenses = data.expenses;
+            }
+        } catch(e) {
+            console.error("Failed to load historical stats from Supabase", e);
+        }
+    }
+    
+    window.UIManager.renderStats(statsSales, statsExpenses);
 }
 
 /**
@@ -1335,7 +1378,7 @@ function renderAllViews() {
     window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
 
     if (currentRole === 'admin') {
-        window.UIManager.renderStats(salesLog, expenses);
+        loadAndRenderAdminStats();
     }
 }
 
@@ -1504,6 +1547,15 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     } else if (tableName === 'app_config') {
         if (newRow) {
+            // Check if last_close_time changed
+            if (newRow.last_close_time && newRow.last_close_time !== lastCloseTime) {
+                console.log("Detecting Day Close event from another device. Reloading data...");
+                lastCloseTime = newRow.last_close_time;
+                window.StorageManager.saveLastCloseTime(lastCloseTime);
+                loadAllDataFromSupabase();
+                return;
+            }
+
             bcvRate = parseFloat(newRow.bcv_rate) || 732.48;
             useAutoBcv = newRow.use_auto_bcv !== false;
             window.bcvRate = bcvRate;

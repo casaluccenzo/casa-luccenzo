@@ -3,6 +3,8 @@
 let client = null;
 let activeSubscription = null;
 let dbSupportsTotp = false;
+let dbSupportsLastClose = false;
+let lastCloseTime = null;
 
 // Production Hardcoded Defaults (to prevent manual configuration on new devices)
 const DEFAULT_SUPABASE_URL = "https://xttpaqokeyywjaajvjyu.supabase.co";
@@ -128,9 +130,18 @@ async function fetchProducts() {
 async function fetchSales() {
     if (!client) return null;
     try {
-        const todayStr = new Date();
-        todayStr.setHours(0, 0, 0, 0);
-        const { data, error } = await client.from('sales').select('*').gte('timestamp', todayStr.toISOString());
+        let filterTime = lastCloseTime;
+        if (!filterTime) {
+            const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
+            if (localSaved) {
+                filterTime = localSaved;
+            } else {
+                const todayStr = new Date();
+                todayStr.setHours(0, 0, 0, 0);
+                filterTime = todayStr.toISOString();
+            }
+        }
+        const { data, error } = await client.from('sales').select('*').gt('timestamp', filterTime);
         if (error) throw error;
         return data.map(s => ({ ...s, productId: s.product_id }));
     } catch (e) {
@@ -142,9 +153,18 @@ async function fetchSales() {
 async function fetchExpenses() {
     if (!client) return null;
     try {
-        const todayStr = new Date();
-        todayStr.setHours(0, 0, 0, 0);
-        const { data, error } = await client.from('expenses').select('*').gte('timestamp', todayStr.toISOString());
+        let filterTime = lastCloseTime;
+        if (!filterTime) {
+            const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
+            if (localSaved) {
+                filterTime = localSaved;
+            } else {
+                const todayStr = new Date();
+                todayStr.setHours(0, 0, 0, 0);
+                filterTime = todayStr.toISOString();
+            }
+        }
+        const { data, error } = await client.from('expenses').select('*').gt('timestamp', filterTime);
         if (error) throw error;
         return data;
     } catch (e) {
@@ -443,6 +463,10 @@ async function fetchAppConfig() {
         if (error) throw error;
         if (data) {
             dbSupportsTotp = ('totp_secret' in data) || ('totp_enabled' in data);
+            dbSupportsLastClose = ('last_close_time' in data);
+            if (dbSupportsLastClose && data.last_close_time) {
+                lastCloseTime = data.last_close_time;
+            }
         }
         return data;
     } catch (e) {
@@ -465,6 +489,13 @@ async function upsertAppConfig(config) {
             if (config.totpSecret !== undefined) payload.totp_secret = config.totpSecret;
             if (config.totpEnabled !== undefined) payload.totp_enabled = !!config.totpEnabled;
         }
+        
+        if (dbSupportsLastClose) {
+            if (config.lastCloseTime !== undefined) {
+                payload.last_close_time = config.lastCloseTime;
+                lastCloseTime = config.lastCloseTime;
+            }
+        }
 
         if (!navigator.onLine) {
             enqueueOfflineOp('app_config', 'upsert', payload);
@@ -476,6 +507,36 @@ async function upsertAppConfig(config) {
     } catch (e) {
         console.error("Supabase upsertAppConfig failed. Enqueuing offline...", e);
         enqueueOfflineOp('app_config', 'upsert', payload);
+    }
+}
+
+async function fetchStatsData() {
+    if (!client) return null;
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const { data: sales, error: salesError } = await client
+            .from('sales')
+            .select('*')
+            .gte('timestamp', sevenDaysAgo.toISOString());
+            
+        const { data: expenses, error: expensesError } = await client
+            .from('expenses')
+            .select('*')
+            .gte('timestamp', sevenDaysAgo.toISOString());
+
+        if (salesError) throw salesError;
+        if (expensesError) throw expensesError;
+
+        return {
+            sales: sales.map(s => ({ ...s, productId: s.product_id })),
+            expenses: expenses
+        };
+    } catch (e) {
+        console.error("Error fetching stats data from Supabase:", e);
+        return null;
     }
 }
 
@@ -533,5 +594,7 @@ window.SupabaseManager = {
     upsertAppConfig,
     subscribeToChanges,
     syncOfflineQueue,
-    getDbSupportsTotp: () => dbSupportsTotp
+    getDbSupportsTotp: () => dbSupportsTotp,
+    getDbSupportsLastClose: () => dbSupportsLastClose,
+    fetchStatsData
 };

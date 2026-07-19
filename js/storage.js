@@ -227,6 +227,16 @@ function saveTotpPreferences(enabled, secret) {
     }
 }
 
+const LAST_CLOSE_KEY = 'casa_lucenzo_last_close_time';
+
+function loadLastCloseTime() {
+    return localStorage.getItem(LAST_CLOSE_KEY);
+}
+
+function saveLastCloseTime(time) {
+    localStorage.setItem(LAST_CLOSE_KEY, time || '');
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
@@ -253,5 +263,7 @@ window.StorageManager = {
     loadBcvPreferences,
     saveBcvPreferences,
     loadTotpPreferences,
-    saveTotpPreferences
+    saveTotpPreferences,
+    loadLastCloseTime,
+    saveLastCloseTime
 };

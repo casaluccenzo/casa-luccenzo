@@ -1629,6 +1629,40 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         }
     });
 
+    // Group sales by flavor/product for dropdown details
+    const categoryFlavorSales = {
+        'pastelitos': {},
+        'bebidas': {},
+        'tortas': {},
+        'otros': {}
+    };
+
+    salesLog.forEach(s => {
+        if (s.productId === 'abono') {
+            if (!categoryFlavorSales['otros']['abono']) {
+                categoryFlavorSales['otros']['abono'] = { name: 'Abonos a Cuenta', qty: 0, usd: 0 };
+            }
+            categoryFlavorSales['otros']['abono'].qty++;
+            categoryFlavorSales['otros']['abono'].usd += s.price || 0;
+            return;
+        }
+
+        const product = products.find(p => p.id === s.productId);
+        if (product) {
+            const cat = product.category || 'otros';
+            if (!categoryFlavorSales[cat]) categoryFlavorSales[cat] = {};
+            if (!categoryFlavorSales[cat][product.id]) {
+                categoryFlavorSales[cat][product.id] = {
+                    name: product.name,
+                    qty: 0,
+                    usd: 0
+                };
+            }
+            categoryFlavorSales[cat][product.id].qty++;
+            categoryFlavorSales[cat][product.id].usd += s.price || 0;
+        }
+    });
+
     const categoriesContainer = document.getElementById('live-stat-categories');
     if (categoriesContainer) {
         const rate = window.bcvRate || 1;
@@ -1637,53 +1671,151 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         categoriesContainer.innerHTML = `
-            <div class="category-stat-row">
-                <div class="category-label">
-                    <i class="fa-solid fa-cookie" style="color: #FFB085;"></i>
-                    <span>Pastelitos</span>
+            <!-- Pastelitos Wrapper -->
+            <div class="category-stat-wrapper">
+                <div class="category-stat-row" id="pastelitos-stat-row" style="cursor: pointer; user-select: none;">
+                    <div class="category-label">
+                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
+                        <i class="fa-solid fa-cookie" style="color: #FFB085;"></i>
+                        <span>Pastelitos</span>
+                    </div>
+                    <div class="category-values">
+                        <span class="category-qty-badge pastelitos">${qtyPastelitos} piezas</span>
+                        <span class="category-price-usd">${formatUSD(usdPastelitos)}</span>
+                        <span class="category-price-ves">(${formatVES(usdPastelitos * rate)})</span>
+                    </div>
                 </div>
-                <div class="category-values">
-                    <span class="category-qty-badge pastelitos">${qtyPastelitos} piezas</span>
-                    <span class="category-price-usd">${formatUSD(usdPastelitos)}</span>
-                    <span class="category-price-ves">(${formatVES(usdPastelitos * rate)})</span>
+                <div class="category-stat-dropdown" id="pastelitos-stat-dropdown">
+                    ${Object.values(categoryFlavorSales['pastelitos']).length > 0 
+                        ? Object.values(categoryFlavorSales['pastelitos'])
+                            .sort((a,b) => b.qty - a.qty)
+                            .map(f => `
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
+                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
+                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
+                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} piezas</span>
+                                        <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
+                                    </div>
+                                </div>
+                            `).join('')
+                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
+                             No hay ventas de pastelitos registradas hoy.
+                           </div>`
+                    }
                 </div>
             </div>
-            <div class="category-stat-row">
-                <div class="category-label">
-                    <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i>
-                    <span>Bebidas</span>
+
+            <!-- Bebidas Wrapper -->
+            <div class="category-stat-wrapper">
+                <div class="category-stat-row" id="bebidas-stat-row" style="cursor: pointer; user-select: none;">
+                    <div class="category-label">
+                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
+                        <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i>
+                        <span>Bebidas</span>
+                    </div>
+                    <div class="category-values">
+                        <span class="category-qty-badge bebidas">${qtyBebidas} unid.</span>
+                        <span class="category-price-usd">${formatUSD(usdBebidas)}</span>
+                        <span class="category-price-ves">(${formatVES(usdBebidas * rate)})</span>
+                    </div>
                 </div>
-                <div class="category-values">
-                    <span class="category-qty-badge bebidas">${qtyBebidas} unid.</span>
-                    <span class="category-price-usd">${formatUSD(usdBebidas)}</span>
-                    <span class="category-price-ves">(${formatVES(usdBebidas * rate)})</span>
+                <div class="category-stat-dropdown" id="bebidas-stat-dropdown">
+                    ${Object.values(categoryFlavorSales['bebidas']).length > 0 
+                        ? Object.values(categoryFlavorSales['bebidas'])
+                            .sort((a,b) => b.qty - a.qty)
+                            .map(f => `
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
+                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
+                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
+                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} unid.</span>
+                                        <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
+                                    </div>
+                                </div>
+                            `).join('')
+                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
+                             No hay ventas de bebidas registradas hoy.
+                           </div>`
+                    }
                 </div>
             </div>
-            <div class="category-stat-row">
-                <div class="category-label">
-                    <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i>
-                    <span>Tortas</span>
+
+            <!-- Tortas Wrapper -->
+            <div class="category-stat-wrapper">
+                <div class="category-stat-row" id="tortas-stat-row" style="cursor: pointer; user-select: none;">
+                    <div class="category-label">
+                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
+                        <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i>
+                        <span>Tortas</span>
+                    </div>
+                    <div class="category-values">
+                        <span class="category-qty-badge tortas">${qtyTortas} porc.</span>
+                        <span class="category-price-usd">${formatUSD(usdTortas)}</span>
+                        <span class="category-price-ves">(${formatVES(usdTortas * rate)})</span>
+                    </div>
                 </div>
-                <div class="category-values">
-                    <span class="category-qty-badge tortas">${qtyTortas} porc.</span>
-                    <span class="category-price-usd">${formatUSD(usdTortas)}</span>
-                    <span class="category-price-ves">(${formatVES(usdTortas * rate)})</span>
+                <div class="category-stat-dropdown" id="tortas-stat-dropdown">
+                    ${Object.values(categoryFlavorSales['tortas']).length > 0 
+                        ? Object.values(categoryFlavorSales['tortas'])
+                            .sort((a,b) => b.qty - a.qty)
+                            .map(f => `
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
+                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
+                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
+                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} porc.</span>
+                                        <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
+                                    </div>
+                                </div>
+                            `).join('')
+                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
+                             No hay ventas de tortas registradas hoy.
+                           </div>`
+                    }
                 </div>
             </div>
+
+            <!-- Otros Wrapper -->
             ${qtyOtros > 0 ? `
-            <div class="category-stat-row">
-                <div class="category-label">
-                    <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i>
-                    <span>Abonos/Otros</span>
+            <div class="category-stat-wrapper">
+                <div class="category-stat-row" id="otros-stat-row" style="cursor: pointer; user-select: none;">
+                    <div class="category-label">
+                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
+                        <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i>
+                        <span>Abonos/Otros</span>
+                    </div>
+                    <div class="category-values">
+                        <span class="category-qty-badge otros">${qtyOtros} op.</span>
+                        <span class="category-price-usd">${formatUSD(usdOtros)}</span>
+                        <span class="category-price-ves">(${formatVES(usdOtros * rate)})</span>
+                    </div>
                 </div>
-                <div class="category-values">
-                    <span class="category-qty-badge otros">${qtyOtros} op.</span>
-                    <span class="category-price-usd">${formatUSD(usdOtros)}</span>
-                    <span class="category-price-ves">(${formatVES(usdOtros * rate)})</span>
+                <div class="category-stat-dropdown" id="otros-stat-dropdown">
+                    ${Object.values(categoryFlavorSales['otros'])
+                        .map(f => `
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
+                                <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
+                                <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
+                                    <span style="color: var(--color-gold); font-weight: 800;">${f.qty} op.</span>
+                                    <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
+                                </div>
+                            </div>
+                        `).join('')
+                    }
                 </div>
             </div>
             ` : ''}
         `;
+
+        // Bind toggle click handlers
+        ['pastelitos', 'bebidas', 'tortas', 'otros'].forEach(cat => {
+            const row = document.getElementById(`${cat}-stat-row`);
+            const dropdown = document.getElementById(`${cat}-stat-dropdown`);
+            if (row && dropdown) {
+                row.addEventListener('click', () => {
+                    row.classList.toggle('open');
+                    dropdown.classList.toggle('open');
+                });
+            }
+        });
     }
 
     // 2. Render 6 Tables Grid

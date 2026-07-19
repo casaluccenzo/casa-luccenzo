@@ -1757,4 +1757,40 @@ input:checked + .slider:before {
     margin-left: 0.15rem;
 }
 
+/* Category Statistics Dropdowns */
+.category-stat-wrapper {
+    margin-bottom: 0.35rem;
+}
+
+.category-stat-dropdown {
+    overflow: hidden;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out, padding 0.25s ease-out;
+    max-height: 0;
+    opacity: 0;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 0 0 6px 6px;
+    margin-top: -2px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-top: none;
+    box-sizing: border-box;
+}
+
+.category-stat-dropdown.open {
+    max-height: 500px;
+    opacity: 1;
+    padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+}
+
+.category-stat-row .fa-chevron-down {
+    transition: transform 0.25s ease;
+    font-size: 0.65rem;
+    width: 0.8rem;
+    text-align: center;
+}
+
+.category-stat-row.open .fa-chevron-down {
+    transform: rotate(-180deg);
+    color: var(--color-gold);
+}
+
 

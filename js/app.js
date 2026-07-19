@@ -23,6 +23,9 @@ let currentRole = null;
 let bcvRate = 732.48;
 let useAutoBcv = true;
 
+// Current report data displayed in the day close modal
+let currentReportData = { sales: [], expenses: [] };
+
 // ================= HANDLERS & LOGIC =================
 
 /**
@@ -1057,44 +1060,51 @@ function shareDayClose() {
     
     const salesCount = {};
     salesLog.forEach(sale => {
+        let cleanName = sale.name;
         if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
-            if (!salesCount[cleanName]) salesCount[cleanName] = 0;
-            salesCount[cleanName]++;
-        } else {
-            if (!salesCount[sale.name]) salesCount[sale.name] = 0;
-            salesCount[sale.name]++;
+            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
         }
+        if (!salesCount[cleanName]) {
+            salesCount[cleanName] = { count: 0, unitPrice: sale.price || 0, total: 0 };
+        }
+        salesCount[cleanName].count++;
+        salesCount[cleanName].total += sale.price || 0;
     });
 
+    const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
     
     let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
-    message += `Fecha: ${new Date().toLocaleDateString()}\n`;
-    message += `Tasa BCV del Día: ${bcvRate.toFixed(2)} Bs.\n`;
-    message += `--------------------------------------\n`;
-    message += `*Pastelitos Vendidos:*\n`;
-    for (const [name, count] of Object.entries(salesCount)) {
-        message += `• ${count}x ${name}\n`;
+    message += `📅 Fecha: ${new Date().toLocaleDateString()}\n`;
+    message += `💱 Tasa BCV: ${bcvRate.toFixed(2)} Bs.\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🛒 *VENTAS DEL DÍA* (${totalItemsSold} unidades)\n\n`;
+    for (const [name, data] of Object.entries(salesCount)) {
+        message += `  ${data.count}x ${name}\n`;
+        message += `     $${data.unitPrice.toFixed(2)} c/u → *$${data.total.toFixed(2)}* (Bs. ${(data.total * bcvRate).toFixed(2)})\n`;
     }
     if (Object.keys(salesCount).length === 0) {
-        message += `• Sin ventas registradas.\n`;
+        message += `  Sin ventas registradas.\n`;
     }
     
-    message += `--------------------------------------\n`;
-    message += `*Gastos del Día:*\n`;
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🏪 *GASTOS DEL LOCAL* (${expenses.length})\n\n`;
     expenses.forEach(exp => {
-        message += `• ${exp.description}: -$${exp.amount.toFixed(2)} (Bs. ${(exp.amount * bcvRate).toFixed(2)})\n`;
+        message += `  • ${exp.description}: -$${exp.amount.toFixed(2)} (Bs. ${(exp.amount * bcvRate).toFixed(2)})\n`;
     });
     if (expenses.length === 0) {
-        message += `• Sin gastos registrados.\n`;
+        message += `  Sin gastos registrados.\n`;
     }
     
-    message += `--------------------------------------\n`;
-    message += `💰 *Ingresos Ventas:* +$${totalSales.toFixed(2)} (Bs. ${(totalSales * bcvRate).toFixed(2)})\n`;
-    message += `💸 *Total Gastos:* -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * bcvRate).toFixed(2)})\n`;
-    message += `💵 *Caja Neta Final:* *$${netCash.toFixed(2)}* (Bs. *( ${(netCash * bcvRate).toFixed(2)} )*)\n`;
-    message += `--------------------------------------\n`;
-    message += `📢 _Cierre generado automáticamente. ¡Feliz noche!_ 🌟`;
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📊 *RESUMEN FINANCIERO*\n\n`;
+    message += `  💰 Ventas:  +$${totalSales.toFixed(2)} (Bs. ${(totalSales * bcvRate).toFixed(2)})\n`;
+    message += `  💸 Gastos:  -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * bcvRate).toFixed(2)})\n`;
+    message += `  ─────────────────\n`;
+    message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;
+    message += `     _(Bs. ${(netCash * bcvRate).toFixed(2)})_\n`;
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📢 _Cierre generado automáticamente._\n`;
+    message += `_¡Feliz noche!_ 🌟`;
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
@@ -1105,7 +1115,8 @@ function shareDayClose() {
  */
 function openDayCloseModal() {
     triggerHaptic(15);
-    window.UIManager.renderDayCloseModal(salesLog, expenses);
+    currentReportData = { sales: salesLog, expenses: expenses };
+    window.UIManager.renderDayCloseModal(salesLog, expenses, products);
     document.getElementById('day-close-modal').classList.remove('hidden');
 }
 
@@ -1115,6 +1126,196 @@ function openDayCloseModal() {
 function closeDayCloseModal() {
     triggerHaptic(15);
     document.getElementById('day-close-modal').classList.add('hidden');
+}
+
+function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, productsList = []) {
+    const totalSales = reportSales.reduce((sum, s) => sum + (s.price || 0), 0);
+    const totalExpenses = reportExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const netCash = totalSales - totalExpenses;
+
+    const categories = {
+        'pastelitos': { label: '🥐 Pastelitos', sales: {} },
+        'bebidas': { label: '🥤 Bebidas', sales: {} },
+        'tortas': { label: '🍰 Tortas', sales: {} },
+        'otros': { label: '📦 Otros / Varios', sales: {} }
+    };
+
+    reportSales.forEach(sale => {
+        let cleanName = sale.name;
+        if (sale.productId !== 'abono') {
+            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
+        }
+        
+        let categoryKey = 'otros';
+        if (sale.productId !== 'abono') {
+            const product = productsList.find(p => p.id === sale.productId);
+            if (product && categories[product.category]) {
+                categoryKey = product.category;
+            }
+        }
+
+        const catGroup = categories[categoryKey].sales;
+        if (!catGroup[cleanName]) {
+            catGroup[cleanName] = { count: 0, unitPrice: sale.price || 0, total: 0 };
+        }
+        catGroup[cleanName].count++;
+        catGroup[cleanName].total += sale.price || 0;
+    });
+
+    const totalItemsSold = reportSales.filter(s => s.productId !== 'abono').length;
+
+    let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
+    message += `📅 Fecha: ${dateLabel}\n`;
+    message += `💱 Tasa BCV: ${rate.toFixed(2)} Bs.\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🛒 *VENTAS DEL DÍA* (${totalItemsSold} unidades)\n\n`;
+
+    for (const [key, catData] of Object.entries(categories)) {
+        const items = Object.entries(catData.sales);
+        if (items.length > 0) {
+            message += `*${catData.label.toUpperCase()}*\n`;
+            for (const [name, data] of items) {
+                message += `  • ${data.count}x ${name}\n`;
+                message += `    $${data.unitPrice.toFixed(2)} c/u → *$${data.total.toFixed(2)}* (Bs. ${(data.total * rate).toFixed(2)})\n`;
+            }
+            message += `\n`;
+        }
+    }
+    if (totalItemsSold === 0) {
+        message += `  Sin ventas registradas.\n`;
+    }
+
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🏪 *GASTOS DEL LOCAL* (${reportExpenses.length})\n\n`;
+    reportExpenses.forEach(exp => {
+        message += `  • ${exp.description}: -$${exp.amount.toFixed(2)} (Bs. ${(exp.amount * rate).toFixed(2)})\n`;
+    });
+    if (reportExpenses.length === 0) {
+        message += `  Sin gastos registrados.\n`;
+    }
+
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📊 *RESUMEN FINANCIERO*\n\n`;
+    message += `  💰 Ventas:  +$${totalSales.toFixed(2)} (Bs. ${(totalSales * rate).toFixed(2)})\n`;
+    message += `  💸 Gastos:  -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * rate).toFixed(2)})\n`;
+    message += `  ─────────────────\n`;
+    message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;
+    message += `     _(Bs. ${(netCash * rate).toFixed(2)})_\n`;
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📢 _Reporte generado desde historial._\n`;
+    message += `_¡Casa Lucenzo!_ 🌟`;
+
+    return message;
+}
+
+/**
+ * Open report history modal and load days from Supabase
+ */
+async function openReportHistoryModal() {
+    triggerHaptic(15);
+    const modal = document.getElementById('report-history-modal');
+    const body = document.getElementById('report-history-modal-body');
+    modal.classList.remove('hidden');
+
+    // Show loading
+    body.innerHTML = `
+        <div style="text-align: center; padding: 2rem 0; color: var(--color-text-muted); font-size: 0.8125rem;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+            Cargando historial...
+        </div>
+    `;
+
+    if (!window.SupabaseManager.isConfigured()) {
+        body.innerHTML = `
+            <div style="text-align: center; padding: 2rem 0; color: var(--color-text-muted); font-size: 0.8125rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--color-gold);"></i>
+                Configura Supabase para acceder al historial de reportes.
+            </div>
+        `;
+        return;
+    }
+
+    const days = await window.SupabaseManager.fetchReportDays(14);
+
+    if (!days || days.length === 0) {
+        body.innerHTML = `
+            <div style="text-align: center; padding: 2rem 0; color: var(--color-text-muted); font-size: 0.8125rem;">
+                <i class="fa-solid fa-inbox" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--color-text-muted);"></i>
+                No se encontraron reportes recientes.
+            </div>
+        `;
+        return;
+    }
+
+    // Day name helper
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    let html = '';
+    days.forEach(dateStr => {
+        const d = new Date(dateStr + 'T12:00:00');
+        const dayName = dayNames[d.getDay()];
+        const displayDate = d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+        const today = new Date().toISOString().split('T')[0];
+        const isToday = dateStr === today;
+        const badge = isToday ? '<span style="font-size: 9px; background: var(--color-gold); color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 800; margin-left: 0.35rem;">HOY</span>' : '';
+
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); margin-bottom: 0.5rem;">
+                <div>
+                    <div style="font-size: 0.8125rem; font-weight: 700; color: var(--color-white);">${dayName} ${badge}</div>
+                    <div style="font-size: 0.6875rem; color: var(--color-text-muted);">${displayDate}</div>
+                </div>
+                <div style="display: flex; gap: 0.375rem;">
+                    <button class="btn-report-view" data-date="${dateStr}" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-gold); background: transparent; color: var(--color-gold); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="fa-solid fa-eye" style="font-size: 10px;"></i> Ver
+                    </button>
+                    <button class="btn-report-whatsapp" data-date="${dateStr}" data-label="${dayName} ${displayDate}" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: none; background: var(--color-success); color: #fff; font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 12px;"></i> Enviar
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    body.innerHTML = html;
+
+    // Bind view buttons
+    body.querySelectorAll('.btn-report-view').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const dateStr = e.currentTarget.dataset.date;
+            triggerHaptic(15);
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            const report = await window.SupabaseManager.fetchDayReport(dateStr);
+            if (report) {
+                currentReportData = { sales: report.sales, expenses: report.expenses };
+                modal.classList.add('hidden');
+                window.UIManager.renderDayCloseModal(report.sales, report.expenses, products);
+                document.getElementById('day-close-modal').classList.remove('hidden');
+            } else {
+                window.UIManager.showToast("❌ No se pudo cargar el reporte.", "fa-solid fa-circle-xmark");
+            }
+            btn.innerHTML = '<i class="fa-solid fa-eye" style="font-size: 10px;"></i> Ver';
+        });
+    });
+
+    // Bind WhatsApp buttons
+    body.querySelectorAll('.btn-report-whatsapp').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const dateStr = e.currentTarget.dataset.date;
+            const dateLabel = e.currentTarget.dataset.label;
+            triggerHaptic(15);
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            const report = await window.SupabaseManager.fetchDayReport(dateStr);
+            if (report) {
+                const message = generateWhatsAppReport(report.sales, report.expenses, dateLabel, bcvRate, products);
+                const encodedMessage = encodeURIComponent(message);
+                window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
+            } else {
+                window.UIManager.showToast("❌ No se pudo cargar el reporte.", "fa-solid fa-circle-xmark");
+            }
+            btn.innerHTML = '<i class="fa-brands fa-whatsapp" style="font-size: 12px;"></i> Enviar';
+        });
+    });
 }
 
 /**
@@ -2394,9 +2595,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
-        shareDayClose();
+        // Send WhatsApp using whatever data is currently displayed in the modal
+        const dateLabel = new Date().toLocaleDateString();
+        const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, bcvRate, products);
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
         closeDayCloseModal();
-        await closeDayAndResetLogs();
+    });
+
+    // 15b. Bind Report Preview button (opens report modal without closing day)
+    document.getElementById('btn-preview-report').addEventListener('click', () => {
+        triggerHaptic(15);
+        currentReportData = { sales: salesLog, expenses: expenses };
+        window.UIManager.renderDayCloseModal(salesLog, expenses, products);
+        document.getElementById('day-close-modal').classList.remove('hidden');
+    });
+
+    // 15c. Bind Report History button and modal controls
+    document.getElementById('btn-report-history').addEventListener('click', openReportHistoryModal);
+    document.getElementById('btn-report-history-close').addEventListener('click', () => {
+        triggerHaptic(15);
+        document.getElementById('report-history-modal').classList.add('hidden');
+    });
+    document.getElementById('btn-report-history-done').addEventListener('click', () => {
+        triggerHaptic(15);
+        document.getElementById('report-history-modal').classList.add('hidden');
     });
 
     // 16. Bind preference toggle checkboxes and credentials

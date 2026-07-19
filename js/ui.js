@@ -901,7 +901,7 @@ function renderDebts(debts, onRecordPayment) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses
  */
-function renderDayCloseModal(salesLog, expenses) {
+function renderDayCloseModal(salesLog, expenses, products = []) {
     const modalBody = document.getElementById('day-close-modal-body');
     if (!modalBody) return;
 
@@ -909,37 +909,98 @@ function renderDayCloseModal(salesLog, expenses) {
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
 
-    const salesCount = {};
+    const categories = {
+        'pastelitos': { label: '🥐 Pastelitos', sales: {} },
+        'bebidas': { label: '🥤 Bebidas', sales: {} },
+        'tortas': { label: '🍰 Tortas', sales: {} },
+        'otros': { label: '📦 Otros / Varios', sales: {} }
+    };
+
     salesLog.forEach(sale => {
         let cleanName = sale.name;
         if (sale.productId !== 'abono') {
             cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
         }
-        if (!salesCount[cleanName]) {
-            salesCount[cleanName] = { count: 0, total: 0 };
+
+        let categoryKey = 'otros';
+        if (sale.productId !== 'abono') {
+            const product = products.find(p => p.id === sale.productId);
+            if (product && categories[product.category]) {
+                categoryKey = product.category;
+            }
         }
-        salesCount[cleanName].count++;
-        salesCount[cleanName].total += sale.price;
+
+        const catGroup = categories[categoryKey].sales;
+        if (!catGroup[cleanName]) {
+            catGroup[cleanName] = { count: 0, price: sale.price || 0, total: 0 };
+        }
+        catGroup[cleanName].count++;
+        catGroup[cleanName].total += sale.price || 0;
     });
 
-
     let salesHtml = '';
-    for (const [name, data] of Object.entries(salesCount)) {
-        salesHtml += `
-            <div class="summary-row">
-                <span>${data.count}x ${name}</span>
-                <span>$${data.total.toFixed(2)}</span>
+    for (const [key, catData] of Object.entries(categories)) {
+        const items = Object.entries(catData.sales);
+        if (items.length > 0) {
+            salesHtml += `
+                <div style="margin-top: 0.85rem; margin-bottom: 0.35rem; padding: 0.15rem 0.25rem; background: rgba(243, 198, 63, 0.07); border-left: 3.5px solid var(--color-gold); font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+                    <span>${catData.label}</span>
+                    <span style="opacity: 0.8; font-size: 9px;">$${items.reduce((sum, [, d]) => sum + d.total, 0).toFixed(2)}</span>
+                </div>
+            `;
+            for (const [name, data] of items) {
+                salesHtml += `
+                    <div class="summary-row" style="font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <div>
+                            <span style="font-weight: 700; color: var(--color-gold); margin-right: 0.25rem;">${data.count}x</span>
+                            <span style="color: var(--color-white);">${name}</span>
+                            <span style="font-size: 10px; color: var(--color-text-muted); margin-left: 0.35rem;">($${data.price.toFixed(2)} c/u)</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-weight: 700; color: var(--color-white); font-family: monospace;">$${data.total.toFixed(2)}</span>
+                            <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(data.total * (window.bcvRate || 1)).toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Build expenses detail HTML
+    let expensesHtml = '';
+    expenses.forEach(exp => {
+        expensesHtml += `
+            <div class="summary-row" style="font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                <span style="color: var(--color-white);">${exp.description}</span>
+                <div style="text-align: right;">
+                    <span style="font-weight: 700; color: #FCA5A5; font-family: monospace;">-$${exp.amount.toFixed(2)}</span>
+                    <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)}</div>
+                </div>
             </div>
         `;
-    }
+    });
+
+    // Total items sold count
+    const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
     modalBody.innerHTML = `
         <div style="margin-bottom: 1.25rem;">
-            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Ventas por Producto</h4>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Ventas por Producto</h4>
+                <span style="font-size: 10px; color: var(--color-gold); font-weight: 700;">${totalItemsSold} unid. vendidas</span>
+            </div>
             ${salesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hubo ventas hoy.</div>'}
         </div>
-        
-        <div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Gastos del Local</h4>
+                <span style="font-size: 10px; color: #FCA5A5; font-weight: 700;">${expenses.length} gastos</span>
+            </div>
+            ${expensesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">Sin gastos registrados.</div>'}
+        </div>
+
+        <div style="border-top: 2px solid rgba(255,255,255,0.1); padding-top: 0.75rem;">
             <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Resultados Financieros</h4>
             <div class="summary-row">
                 <span>Ingreso por Ventas:</span>

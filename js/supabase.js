@@ -563,6 +563,82 @@ async function fetchStatsData() {
     }
 }
 
+/**
+ * Fetch sales and expenses for a specific date range (single day)
+ * @param {string} dateStr Date string in YYYY-MM-DD format
+ * @returns {Object|null} { sales, expenses } for that day
+ */
+async function fetchDayReport(dateStr) {
+    if (!client) return null;
+    try {
+        const dayStart = new Date(dateStr + 'T00:00:00');
+        const dayEnd = new Date(dateStr + 'T23:59:59.999');
+
+        const [salesRes, expensesRes] = await Promise.all([
+            client.from('sales').select('*')
+                .gte('timestamp', dayStart.toISOString())
+                .lte('timestamp', dayEnd.toISOString())
+                .order('timestamp', { ascending: true }),
+            client.from('expenses').select('*')
+                .gte('timestamp', dayStart.toISOString())
+                .lte('timestamp', dayEnd.toISOString())
+                .order('timestamp', { ascending: true })
+        ]);
+
+        if (salesRes.error) throw salesRes.error;
+        if (expensesRes.error) throw expensesRes.error;
+
+        return {
+            sales: (salesRes.data || []).map(s => ({
+                ...s,
+                productId: s.product_id,
+                name: s.product_name || s.name || 'Producto',
+                price: s.price || 0
+            })),
+            expenses: (expensesRes.data || []).map(e => ({
+                ...e,
+                amount: e.amount || 0
+            }))
+        };
+    } catch (e) {
+        console.error("Error fetching day report from Supabase:", e);
+        return null;
+    }
+}
+
+/**
+ * Fetch list of unique days with sales activity in the last N days
+ * @param {number} days Number of days to look back (default 14)
+ * @returns {Array} Array of date strings with activity
+ */
+async function fetchReportDays(days = 14) {
+    if (!client) return [];
+    try {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        startDate.setHours(0, 0, 0, 0);
+
+        const { data, error } = await client.from('sales')
+            .select('timestamp')
+            .gte('timestamp', startDate.toISOString())
+            .order('timestamp', { ascending: false });
+
+        if (error) throw error;
+
+        // Extract unique dates
+        const uniqueDays = new Set();
+        (data || []).forEach(s => {
+            const d = window.parseUTCTimestamp ? window.parseUTCTimestamp(s.timestamp) : new Date(s.timestamp);
+            uniqueDays.add(d.toISOString().split('T')[0]);
+        });
+
+        return Array.from(uniqueDays).sort().reverse();
+    } catch (e) {
+        console.error("Error fetching report days from Supabase:", e);
+        return [];
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -620,5 +696,7 @@ window.SupabaseManager = {
     syncOfflineQueue,
     getDbSupportsTotp: () => dbSupportsTotp,
     getDbSupportsLastClose: () => dbSupportsLastClose,
-    fetchStatsData
+    fetchStatsData,
+    fetchDayReport,
+    fetchReportDays
 };

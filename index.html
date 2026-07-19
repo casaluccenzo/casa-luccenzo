@@ -21,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=76">
+    <link rel="stylesheet" href="css/main.css?v=78">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=76"></script>
-    <script src="js/supabase.js?v=76"></script>
-    <script src="js/recipes.js?v=76"></script>
-    <script src="js/audio.js?v=76"></script>
-    <script src="js/share.js?v=76"></script>
-    <script src="js/ui.js?v=76"></script>
-    <script src="js/app.js?v=76"></script>
+    <script src="js/storage.js?v=78"></script>
+    <script src="js/supabase.js?v=78"></script>
+    <script src="js/recipes.js?v=78"></script>
+    <script src="js/audio.js?v=78"></script>
+    <script src="js/share.js?v=78"></script>
+    <script src="js/ui.js?v=78"></script>
+    <script src="js/app.js?v=78"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -444,6 +444,16 @@
                                 <!-- Dynamic items from js/ui.js -->
                             </div>
                         </div>
+
+                        <!-- Report Preview Button -->
+                        <button id="btn-preview-report" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background: linear-gradient(135deg, #1E3A5F 0%, #0A1929 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-md); font-weight: 800; font-size: 0.8125rem; color: var(--color-gold); gap: 0.5rem; margin-top: 0.75rem; letter-spacing: 0.03em;">
+                            <i class="fa-solid fa-file-invoice"></i> VER REPORTE DEL DÍA
+                        </button>
+
+                        <!-- Report History Button -->
+                        <button id="btn-report-history" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 40px; min-height: 40px; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md); font-weight: 700; font-size: 0.75rem; color: var(--color-text-muted); gap: 0.5rem; margin-top: 0.375rem; letter-spacing: 0.03em;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> HISTORIAL DE REPORTES
+                        </button>
                     </div>
                 </div>
             </section>
@@ -593,6 +603,31 @@
                 </button>
                 <button id="btn-settings-cancel" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: none; background-color: var(--color-gold); color: #000000; font-weight: 900; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
                     Listo / Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HISTORIAL DE REPORTES MODAL ================= -->
+    <div id="report-history-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Historial de Reportes
+                </h3>
+                <button id="btn-report-history-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body" id="report-history-modal-body">
+                <div style="text-align: center; padding: 2rem 0; color: var(--color-text-muted); font-size: 0.8125rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                    Cargando historial...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-report-history-done" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: none; background-color: var(--color-gold); color: #000000; font-weight: 900; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Cerrar
                 </button>
             </div>
         </div>

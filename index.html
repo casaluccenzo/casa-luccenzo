@@ -21,17 +21,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=52">
+    <link rel="stylesheet" href="css/main.css?v=53">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=52"></script>
-    <script src="js/supabase.js?v=52"></script>
-    <script src="js/recipes.js?v=52"></script>
-    <script src="js/audio.js?v=52"></script>
-    <script src="js/share.js?v=52"></script>
-    <script src="js/ui.js?v=52"></script>
-    <script src="js/app.js?v=52"></script>
+    <script src="js/storage.js?v=53"></script>
+    <script src="js/supabase.js?v=53"></script>
+    <script src="js/recipes.js?v=53"></script>
+    <script src="js/audio.js?v=53"></script>
+    <script src="js/share.js?v=53"></script>
+    <script src="js/ui.js?v=53"></script>
+    <script src="js/app.js?v=53"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -274,6 +274,10 @@
                             <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Total Ventas</div>
                             <div id="live-stat-ventas" style="font-size: 1.125rem; font-weight: 900; color: var(--color-success); margin-top: 0.25rem;">$0.00</div>
                         </div>
+                    </div>
+                    <!-- Live category breakdown -->
+                    <div id="live-stat-categories" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr; gap: 0.4rem;">
+                        <!-- Dynamic injections from js/ui.js -->
                     </div>
                 </div>
 

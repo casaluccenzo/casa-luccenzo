@@ -1443,6 +1443,86 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         liveVentasEl.textContent = `$${totalSalesMoney.toFixed(2)}`;
     }
 
+    // Calculate category breakdowns
+    let qtyPastelitos = 0, usdPastelitos = 0;
+    let qtyBebidas = 0, usdBebidas = 0;
+    let qtyTortas = 0, usdTortas = 0;
+    let qtyOtros = 0, usdOtros = 0;
+
+    salesLog.forEach(s => {
+        if (s.productId === 'abono') {
+            usdOtros += s.price || 0;
+            qtyOtros++;
+            return;
+        }
+
+        const product = products.find(p => p.id === s.productId);
+        const category = product ? product.category : '';
+
+        if (category === 'pastelitos') {
+            qtyPastelitos++;
+            usdPastelitos += s.price || 0;
+        } else if (category === 'bebidas') {
+            qtyBebidas++;
+            usdBebidas += s.price || 0;
+        } else if (category === 'tortas') {
+            qtyTortas++;
+            usdTortas += s.price || 0;
+        } else {
+            qtyOtros++;
+            usdOtros += s.price || 0;
+        }
+    });
+
+    const categoriesContainer = document.getElementById('live-stat-categories');
+    if (categoriesContainer) {
+        const rate = window.bcvRate || 1;
+        categoriesContainer.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
+                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
+                    <i class="fa-solid fa-cookie" style="color: #FFB085;"></i> Pastelitos:
+                </span>
+                <span style="font-weight: 800; color: var(--color-white);">
+                    ${qtyPastelitos} piezas &rarr; 
+                    <span style="color: var(--color-gold); font-family: monospace;">$${usdPastelitos.toFixed(2)}</span>
+                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdPastelitos * rate).toFixed(2)})</span>
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
+                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
+                    <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i> Bebidas:
+                </span>
+                <span style="font-weight: 800; color: var(--color-white);">
+                    ${qtyBebidas} unid. &rarr; 
+                    <span style="color: var(--color-gold); font-family: monospace;">$${usdBebidas.toFixed(2)}</span>
+                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdBebidas * rate).toFixed(2)})</span>
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
+                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
+                    <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i> Tortas:
+                </span>
+                <span style="font-weight: 800; color: var(--color-white);">
+                    ${qtyTortas} porc. &rarr; 
+                    <span style="color: var(--color-gold); font-family: monospace;">$${usdTortas.toFixed(2)}</span>
+                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdTortas * rate).toFixed(2)})</span>
+                </span>
+            </div>
+            ${qtyOtros > 0 ? `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--color-text-muted);">
+                <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: var(--color-white);">
+                    <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i> Abonos/Otros:
+                </span>
+                <span style="font-weight: 800; color: var(--color-white);">
+                    ${qtyOtros} op. &rarr; 
+                    <span style="color: var(--color-gold); font-family: monospace;">$${usdOtros.toFixed(2)}</span>
+                    <span style="font-size: 10px; opacity: 0.8; font-weight: 400; margin-left: 0.25rem;">(Bs. ${(usdOtros * rate).toFixed(2)})</span>
+                </span>
+            </div>
+            ` : ''}
+        `;
+    }
+
     // 2. Render 6 Tables Grid
     const tablesContainer = document.getElementById('tables-grid-container');
     if (tablesContainer) {

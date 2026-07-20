@@ -2858,6 +2858,587 @@ function renderHourlyStats(salesLog, mode = 'today') {
     `;
 }
 
+
+/**
+ * Render Critical Stock Warnings inside admin view summary
+ * @param {Array} products 
+ * @param {Function} requestReplenishmentCallback 
+ */
+function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) {
+    const container = document.getElementById('admin-critical-stock-container');
+    if (!container) return;
+
+    const criticalProducts = products.filter(p => p.id !== 'abono' && (p.stock || 0) <= (p.min || 0));
+
+    if (criticalProducts.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    container.classList.remove('hidden');
+
+    let listHtml = '';
+    criticalProducts.forEach(p => {
+        listHtml += `
+            <div class="critical-stock-item">
+                <div>
+                    <strong style="color: var(--color-white);">${p.name}</strong>
+                    <span style="color: #F87171; margin-left: 0.5rem; font-weight: 800; font-family: monospace;">${p.stock} ${p.unit}</span>
+                    <span style="color: var(--color-text-muted); font-size: 10px;"> (Alerta: &le; ${p.min})</span>
+                </div>
+                <button class="btn-replenish-quick" data-id="${p.id}" data-name="${p.name}" data-unit="${p.unit}">
+                    <i class="fa-solid fa-truck-ramp-box"></i> Pedir Reposición
+                </button>
+            </div>
+        `;
+    });
+
+    container.innerHTML = `
+        <div class="critical-stock-card">
+            <div class="critical-stock-title">
+                <i class="fa-solid fa-triangle-exclamation fa-bounce"></i> ¡Productos con Stock Crítico en Vitrina!
+            </div>
+            <div class="critical-stock-list">
+                ${listHtml}
+            </div>
+        </div>
+    `;
+
+    // Bind event listeners to replenishment buttons
+    container.querySelectorAll('.btn-replenish-quick').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            const unit = btn.getAttribute('data-unit');
+            if (requestReplenishmentCallback) {
+                requestReplenishmentCallback(id, name, unit);
+            }
+        });
+    });
+}
+
+/**
+ * Render payment methods & category performance widgets
+ * @param {Array} salesLog 
+ * @param {Array} products 
+ */
+function renderPaymentAndCategoryStats(salesLog = [], products = []) {
+    const paymentContainer = document.getElementById('payment-methods-content');
+    const categoryContainer = document.getElementById('category-performance-content');
+    if (!paymentContainer || !categoryContainer) return;
+
+    // 1. Process payment methods
+    const methods = {
+        'Efectivo $': { label: '💵 Efectivo Divisas ($)', count: 0, amount: 0, class: 'fill-usd' },
+        'Pago Móvil': { label: '📱 Pago Móvil (Bs.)', count: 0, amount: 0, class: 'fill-pm' },
+        'Punto de Venta': { label: '💳 Punto de Venta (Bs.)', count: 0, amount: 0, class: 'fill-card' },
+        'Efectivo Bs.': { label: '💵 Efectivo Bolívares (Bs.)', count: 0, amount: 0, class: 'fill-ves' },
+        'Deuda / Crédito': { label: '🤝 Cuentas por Cobrar', count: 0, amount: 0, class: 'fill-card' }
+    };
+
+    let totalSalesVal = 0;
+    salesLog.forEach(s => {
+        let method = 'Efectivo $';
+        const match = s.name.match(/\(Pagado - (.*?)\)/);
+        if (match) {
+            const parsed = match[1];
+            if (methods[parsed]) method = parsed;
+        } else if (s.name.includes('(Pendiente)')) {
+            method = 'Deuda / Crédito';
+        }
+        
+        if (methods[method]) {
+            methods[method].count++;
+            methods[method].amount += s.price || 0;
+            totalSalesVal += s.price || 0;
+        }
+    });
+
+    let paymentHtml = '';
+    if (totalSalesVal > 0) {
+        Object.entries(methods).forEach(([key, m]) => {
+            const pct = totalSalesVal > 0 ? (m.amount / totalSalesVal) * 100 : 0;
+            paymentHtml += `
+                <div>
+                    <div class="progress-widget-row">
+                        <span class="progress-widget-label">${m.label}</span>
+                        <span class="progress-widget-value">$${m.amount.toFixed(2)} (${pct.toFixed(0)}%)</span>
+                    </div>
+                    <div class="progress-widget-bar-bg">
+                        <div class="progress-widget-bar-fill ${m.class}" style="width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        paymentHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas registradas.</div>`;
+    }
+    paymentContainer.innerHTML = paymentHtml;
+
+    // 2. Process Categories
+    const categories = {
+        'pastelitos': { label: '🥐 Pastelitos & Dulces', count: 0, amount: 0, class: 'fill-category-1' },
+        'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
+        'tortas': { label: '🍰 Tortas de Vitrina', count: 0, amount: 0, class: 'fill-category-1' },
+        'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
+    };
+
+    let totalCatVal = 0;
+    salesLog.forEach(s => {
+        if (s.productId === 'abono') return;
+        const product = products.find(p => p.id === s.productId);
+        let cat = 'otros';
+        if (product && categories[product.category]) {
+            cat = product.category;
+        }
+        categories[cat].count++;
+        categories[cat].amount += s.price || 0;
+        totalCatVal += s.price || 0;
+    });
+
+    let catHtml = '';
+    if (totalCatVal > 0) {
+        Object.entries(categories).forEach(([key, c]) => {
+            const pct = totalCatVal > 0 ? (c.amount / totalCatVal) * 100 : 0;
+            catHtml += `
+                <div>
+                    <div class="progress-widget-row">
+                        <span class="progress-widget-label">${c.label} (${c.count} uds)</span>
+                        <span class="progress-widget-value">$${c.amount.toFixed(2)} (${pct.toFixed(0)}%)</span>
+                    </div>
+                    <div class="progress-widget-bar-bg">
+                        <div class="progress-widget-bar-fill ${c.class}" style="width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        catHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas de productos hoy.</div>`;
+    }
+    categoryContainer.innerHTML = catHtml;
+}
+
+/**
+ * Export daily box close report to PDF
+ * @param {Array} salesLog 
+ * @param {Array} expenses 
+ * @param {Array} products 
+ */
+function exportDayCloseToPDF(salesLog = [], expenses = [], products = []) {
+    const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
+    if (activeRole !== 'admin') return;
+
+    const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    const netCash = totalSales - totalExpenses;
+    const rate = window.bcvRate || 1;
+
+    // Group sales by product
+    const productSales = {};
+    let totalItemsSold = 0;
+    salesLog.forEach(sale => {
+        if (sale.productId === 'abono') return;
+        let cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
+        if (!productSales[cleanName]) {
+            productSales[cleanName] = { count: 0, price: sale.price || 0, total: 0 };
+        }
+        productSales[cleanName].count++;
+        productSales[cleanName].total += sale.price || 0;
+        totalItemsSold++;
+    });
+
+    // Group payment methods
+    const methods = {
+        'Efectivo $': { label: 'Efectivo Divisas ($)', count: 0, amount: 0 },
+        'Pago Móvil': { label: 'Pago Móvil (Bs.)', count: 0, amount: 0 },
+        'Punto de Venta': { label: 'Punto de Venta (Bs.)', count: 0, amount: 0 },
+        'Efectivo Bs.': { label: 'Efectivo Bolívares (Bs.)', count: 0, amount: 0 },
+        'Deuda / Crédito': { label: 'Cuentas por Cobrar (Créditos)', count: 0, amount: 0 }
+    };
+
+    salesLog.forEach(s => {
+        let method = 'Efectivo $';
+        const match = s.name.match(/\(Pagado - (.*?)\)/);
+        if (match) {
+            const parsed = match[1];
+            if (methods[parsed]) method = parsed;
+        } else if (s.name.includes('(Pendiente)')) {
+            method = 'Deuda / Crédito';
+        }
+        
+        if (methods[method]) {
+            methods[method].count++;
+            methods[method].amount += s.price || 0;
+        }
+    });
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Por favor, permite las ventanas emergentes para poder generar el PDF.");
+        return;
+    }
+
+    const css = `
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Playfair+Display:wght@700;900&display=swap');
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: #0f172a;
+            padding: 2.5rem;
+            margin: 0;
+            background-color: #ffffff;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logo-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #0b1329;
+            border: 2px solid #f3c63f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f3c63f;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-text h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            margin: 0;
+            color: #0b1329;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+        .logo-text p {
+            font-size: 0.85rem;
+            margin: 0;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 800;
+        }
+        .report-meta {
+            text-align: right;
+        }
+        .report-meta h2 {
+            font-size: 1.25rem;
+            margin: 0;
+            color: #d97706;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 900;
+        }
+        .report-meta p {
+            font-size: 0.85rem;
+            margin: 0.25rem 0 0;
+            color: #475569;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        .kpi-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .kpi-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+        .kpi-val {
+            font-size: 1.85rem;
+            font-weight: 900;
+            color: #0b1329;
+            margin-top: 0.35rem;
+        }
+        .kpi-subval {
+            font-size: 0.95rem;
+            color: #475569;
+            font-weight: 600;
+            margin-top: 0.2rem;
+        }
+        .section-title {
+            font-size: 1rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            color: #0b1329;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            text-align: left;
+            padding: 0.95rem;
+            border-bottom: 2px solid #cbd5e1;
+            letter-spacing: 0.02em;
+        }
+        td {
+            padding: 0.95rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+        tr:nth-child(even) {
+            background-color: #fcfdfe;
+        }
+        .footer {
+            margin-top: 3.5rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1.25rem;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+        .signature-row {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 4rem;
+            margin-bottom: 2rem;
+        }
+        .signature-box {
+            border-top: 1px solid #475569;
+            width: 200px;
+            text-align: center;
+            padding-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #475569;
+            font-weight: bold;
+        }
+        .btn-print-action {
+            background-color: #0b1329;
+            color: #ffffff;
+            border: 1px solid #f3c63f;
+            padding: 0.6rem 1.75rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+        .btn-print-action:hover {
+            background-color: #172242;
+            color: #f3c63f;
+        }
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    `;
+
+    let productRowsHtml = '';
+    Object.entries(productSales).forEach(([name, data]) => {
+        productRowsHtml += `
+            <tr>
+                <td>${name}</td>
+                <td>${data.count} uds.</td>
+                <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
+                <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    });
+    if (productRowsHtml === '') {
+        productRowsHtml = '<tr><td colspan="4" style="text-align: center; color: #64748b;">No hubo ventas registradas hoy.</td></tr>';
+    }
+
+    let methodRowsHtml = '';
+    Object.entries(methods).forEach(([key, m]) => {
+        if (m.count > 0) {
+            methodRowsHtml += `
+                <tr>
+                    <td>${m.label}</td>
+                    <td>${m.count} trans.</td>
+                    <td style="font-weight: 600;">$${m.amount.toFixed(2)}</td>
+                    <td style="color: #64748b;">Bs. ${(m.amount * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        }
+    });
+    if (methodRowsHtml === '') {
+        methodRowsHtml = '<tr><td colspan="4" style="text-align: center; color: #64748b;">Sin transacciones.</td></tr>';
+    }
+
+    let expenseRowsHtml = '';
+    expenses.forEach(exp => {
+        expenseRowsHtml += `
+            <tr>
+                <td>${exp.description}</td>
+                <td style="color: #ef4444; font-weight: 600;">-$${exp.amount.toFixed(2)}</td>
+                <td style="color: #64748b;">Bs. ${(exp.amount * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    });
+    if (expenseRowsHtml === '') {
+        expenseRowsHtml = '<tr><td colspan="3" style="text-align: center; color: #64748b;">Sin gastos registrados hoy.</td></tr>';
+    }
+
+    const dateLabel = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Reporte de Cierre de Caja - Casa Lucenzo</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo-area">
+                    <div class="logo-circle">CL</div>
+                    <div class="logo-text">
+                        <h1>CASA LUCENZO</h1>
+                        <p>Pastelería & Bebidas</p>
+                    </div>
+                </div>
+                <div class="report-meta">
+                    <h2>Cierre de Jornada Diaria</h2>
+                    <p><strong>Fecha de Cierre:</strong> ${dateLabel}</p>
+                    <p><strong>Tasa BCV del Día:</strong> ${rate.toFixed(2)} Bs.</p>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi-card" style="border-color: #10b981; background-color: rgba(16,185,129,0.01);">
+                    <div class="kpi-label" style="color: #059669;">Total Facturado (Ingresos)</div>
+                    <div class="kpi-val" style="color: #059669;">$${totalSales.toFixed(2)}</div>
+                    <div class="kpi-subval" style="color: #059669;">Bs. ${(totalSales * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div class="kpi-card" style="border-color: #ef4444; background-color: rgba(239,68,68,0.01);">
+                    <div class="kpi-label" style="color: #dc2626;">Total Gastos (Egresos)</div>
+                    <div class="kpi-val" style="color: #dc2626;">-$${totalExpenses.toFixed(2)}</div>
+                    <div class="kpi-subval" style="color: #dc2626;">Bs. ${(totalExpenses * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div class="kpi-card" style="border-color: #f3c63f; background-color: rgba(243,198,63,0.02);">
+                    <div class="kpi-label" style="color: #b45309;">Balance Neto (Caja Estimado)</div>
+                    <div class="kpi-val" style="color: #b45309;">$${netCash.toFixed(2)}</div>
+                    <div class="kpi-subval" style="color: #b45309;">Bs. ${(netCash * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                </div>
+            </div>
+
+            <div class="section-title">
+                <span>💰 Desglose por Métodos de Pago</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Método de Pago</th>
+                        <th>Transacciones</th>
+                        <th>Monto ($ USD)</th>
+                        <th>Monto (Bs. VES)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${methodRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="section-title">
+                <span>🥐 Detalle de Artículos Vendidos</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad Vendida</th>
+                        <th>Subtotal ($ USD)</th>
+                        <th>Subtotal (Bs. VES)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${productRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="section-title">
+                <span>💸 Gastos del Día</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descripción del Gasto</th>
+                        <th>Monto ($ USD)</th>
+                        <th>Monto (Bs. VES)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${expenseRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="signature-row">
+                <div class="signature-box">Firma del Cajero / Local</div>
+                <div class="signature-box">Firma del Administrador</div>
+            </div>
+
+            <div class="footer">
+                <p>Cierre de caja oficial del día - Generado por el Sistema Casa Lucenzo.</p>
+                <p class="no-print" style="margin-top: 1.75rem;">
+                    <button class="btn-print-action" onclick="window.print()">
+                        📥 Imprimir / Guardar PDF
+                    </button>
+                </p>
+            </div>
+            
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 400);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
 /**
  * Export hourly sales stats report to PDF using the print window method
  * @param {Array} salesLog Sales array
@@ -3296,6 +3877,9 @@ window.UIManager = {
     renderActiveDevices,
     renderActivityLogs,
     renderHourlyStats,
-    exportHourlyStatsToPDF
+    exportHourlyStatsToPDF,
+    renderCriticalStockAlerts,
+    renderPaymentAndCategoryStats,
+    exportDayCloseToPDF
 };
 

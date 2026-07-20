@@ -747,6 +747,49 @@ function deliverProduct(id) {
 }
 
 /**
+ * Request replenishment from sales terminal to Kitchen
+ */
+async function handleQuickReplenishment(productId, productName, unit = 'unid.') {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const amountNeeded = Math.max(1, product.max - product.stock);
+    
+    triggerHaptic(15);
+    
+    // Check if we already have a pending/en_camino replenishment for this product
+    const alreadyExists = replenishments.some(r => r.productId === productId && (r.status === 'pendiente' || r.status === 'en_camino'));
+    if (alreadyExists) {
+        window.UIManager.showToast(`⚠️ Ya existe una solicitud de reposición activa para "${productName}".`, "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    
+    const newDispatch = {
+        uuid: crypto.randomUUID ? crypto.randomUUID() : 'rep_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
+        productId: productId,
+        name: productName,
+        amount: amountNeeded,
+        unit: unit,
+        status: 'pendiente',
+        timestamp: new Date().toISOString()
+    };
+    
+    replenishments.push(newDispatch);
+    window.StorageManager.saveReplenishments(replenishments);
+    
+    if (window.SupabaseManager.isConfigured()) {
+        await window.SupabaseManager.upsertReplenishment(newDispatch);
+    }
+    
+    window.UIManager.renderCocina(products, deliverProduct, replenishments);
+    window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
+    window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
+    
+    window.UIManager.showToast(`⚡ Solicitud de reposición de ${amountNeeded} ${unit} enviada a Cocina.`, "fa-solid fa-circle-check");
+    logActivity("Reposición Solicitada", `Solicitado reposición de ${amountNeeded} ${productName} a Cocina`);
+}
+
+/**
  * Update stock manually for a product (direct load from kitchen)
  * @param {string} id Product identifier
  * @param {number} newStock New stock value
@@ -1723,6 +1766,8 @@ async function loadAndRenderAdminStats() {
 
     window.UIManager.renderStats(statsSales, statsExpenses, products);
     window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
+    window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
+    window.UIManager.renderPaymentAndCategoryStats(statsSales, products);
 }
 
 /**
@@ -1789,6 +1834,9 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderCocina(products, deliverProduct, replenishments);
         window.UIManager.updateKitchenBadge(products);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+        if (currentRole === 'admin') {
+            window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
+        }
     } else if (tableName === 'sales') {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
@@ -1833,6 +1881,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             }
             window.UIManager.renderStats(adminStatsSales, expenses, products);
             window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products);
         }
     } else if (tableName === 'expenses') {
         const startOfDay = new Date();
@@ -2781,6 +2830,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
         closeDayCloseModal();
+    });
+    
+    document.getElementById('btn-cierre-dia-pdf').addEventListener('click', () => {
+        triggerHaptic(15);
+        window.UIManager.exportDayCloseToPDF(currentReportData.sales, currentReportData.expenses, products);
     });
 
     // 15b. Bind Report Preview button (opens report modal without closing day)

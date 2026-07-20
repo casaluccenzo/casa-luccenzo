@@ -2277,5 +2277,124 @@ input:checked + .slider:before {
     font-weight: 900;
 }
 
+/* Progress Bars & Widgets for Payment Methods & Category Performance */
+.progress-widget-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+
+.progress-widget-label {
+    color: var(--color-white);
+    font-weight: 700;
+}
+
+.progress-widget-value {
+    font-family: monospace;
+    font-weight: 900;
+    color: var(--color-gold);
+}
+
+.progress-widget-bar-bg {
+    width: 100%;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.progress-widget-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Specific Gradient Colors for Fills */
+.fill-usd {
+    background: linear-gradient(90deg, #10B981, #059669); /* Emerald Green */
+}
+.fill-pm {
+    background: linear-gradient(90deg, #60A5FA, #3B82F6); /* Blue */
+}
+.fill-card {
+    background: linear-gradient(90deg, #A78BFA, #7C3AED); /* Purple */
+}
+.fill-ves {
+    background: linear-gradient(90deg, #F59E0B, #D97706); /* Amber */
+}
+.fill-category-1 {
+    background: linear-gradient(90deg, #F472B6, #EC4899); /* Pink for Cakes/Tortas */
+}
+.fill-category-2 {
+    background: linear-gradient(90deg, #38BDF8, #0EA5E9); /* Light Blue for Drinks */
+}
+
+/* Critical Stock Alert widget */
+.critical-stock-card {
+    background: rgba(239, 68, 68, 0.04);
+    border: 1px dashed rgba(239, 68, 68, 0.25);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    animation: pulseBorder 2s infinite ease-in-out;
+}
+
+@keyframes pulseBorder {
+    0% { border-color: rgba(239, 68, 68, 0.2); }
+    50% { border-color: rgba(239, 68, 68, 0.55); box-shadow: 0 0 8px rgba(239, 68, 68, 0.15); }
+    100% { border-color: rgba(239, 68, 68, 0.2); }
+}
+
+.critical-stock-title {
+    font-size: 11px;
+    font-weight: 900;
+    color: #F87171;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.critical-stock-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.critical-stock-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.4rem 0.625rem;
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    border: 1px solid rgba(239, 68, 68, 0.08);
+}
+
+.btn-replenish-quick {
+    background: rgba(243, 198, 63, 0.12);
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-replenish-quick:hover {
+    background: var(--color-gold);
+    color: #000000;
+}
+
+
 
 

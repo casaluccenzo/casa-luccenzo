@@ -557,6 +557,11 @@
                             </div>
                         </div>
 
+                        <!-- Critical Stock Alerts (Shown dynamically if products are low on stock) -->
+                        <div id="admin-critical-stock-container" class="hidden" style="margin-top: 1rem; width: 100%;">
+                            <!-- Injected by js/ui.js -->
+                        </div>
+
                         <!-- Metrics / Charts grid -->
                         <div class="admin-dashboard-row">
                             <!-- Left Col: Favorite Products -->
@@ -606,6 +611,29 @@
                                     </div>
                                 </h4>
                                 <div id="hourly-chart-content" style="margin-top: 0.5rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Payment Methods & Category Performance -->
+                        <div class="admin-dashboard-row" style="margin-top: 1rem;">
+                            <!-- Column 1: Payment Methods -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-credit-card"></i> Métodos de Pago (Consolidado)
+                                </h4>
+                                <div id="payment-methods-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                            
+                            <!-- Column 2: Category Performance -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
+                                </h4>
+                                <div id="category-performance-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
                                     <!-- Injected by js/ui.js -->
                                 </div>
                             </div>
@@ -932,8 +960,11 @@
             <div class="modal-body" id="day-close-modal-body">
                 <!-- Dynamic summaries injected by js/ui.js -->
             </div>
-            <div class="modal-footer">
-                <button id="btn-cierre-dia-confirm" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-success); border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none;">
+            <div class="modal-footer" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+                <button id="btn-cierre-dia-pdf" class="btn-touch" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-gold); color: #000000; border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none; display: flex; align-items: center; justify-content: center; gap: 0.35rem; cursor: pointer; text-transform: uppercase;">
+                    <i class="fa-solid fa-file-pdf"></i> Exportar Cierre en PDF
+                </button>
+                <button id="btn-cierre-dia-confirm" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-success); border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none; cursor: pointer;">
                     <i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR INFORME POR WHATSAPP
                 </button>
             </div>

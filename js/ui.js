@@ -2939,8 +2939,8 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             gap: 1rem;
         }
         .logo-circle {
-            width: 55px;
-            height: 55px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
             background-color: #0b1329;
             border: 2px solid #f3c63f;
@@ -2949,20 +2949,20 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             justify-content: center;
             color: #f3c63f;
             font-family: 'Playfair Display', serif;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             font-weight: 900;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .logo-text h1 {
             font-family: 'Playfair Display', serif;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             margin: 0;
             color: #0b1329;
             font-weight: 900;
             letter-spacing: -0.02em;
         }
         .logo-text p {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             margin: 0;
             color: #64748b;
             text-transform: uppercase;
@@ -2973,7 +2973,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             text-align: right;
         }
         .report-meta h2 {
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             margin: 0;
             color: #d97706;
             text-transform: uppercase;
@@ -2981,7 +2981,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             font-weight: 900;
         }
         .report-meta p {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             margin: 0.25rem 0 0;
             color: #475569;
         }
@@ -3000,26 +3000,26 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
         .kpi-label {
-            font-size: 0.7rem;
+            font-size: 0.8rem;
             color: #64748b;
             text-transform: uppercase;
             font-weight: 800;
             letter-spacing: 0.05em;
         }
         .kpi-val {
-            font-size: 1.6rem;
+            font-size: 1.85rem;
             font-weight: 900;
             color: #0b1329;
             margin-top: 0.35rem;
         }
         .kpi-subval {
-            font-size: 0.75rem;
+            font-size: 0.95rem;
             color: #475569;
             font-weight: 600;
             margin-top: 0.2rem;
         }
         .section-title {
-            font-size: 0.85rem;
+            font-size: 1rem;
             text-transform: uppercase;
             font-weight: 900;
             color: #0b1329;
@@ -3027,7 +3027,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             margin-bottom: 1rem;
             letter-spacing: 0.08em;
             border-bottom: 2px solid #f1f5f9;
-            padding-bottom: 0.4rem;
+            padding-bottom: 0.5rem;
             display: flex;
             align-items: center;
             gap: 0.35rem;
@@ -3036,7 +3036,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
-            height: 130px;
+            height: 190px;
             padding: 1.5rem;
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -3053,7 +3053,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             gap: 0.35rem;
         }
         .chart-fill {
-            width: 14px;
+            width: 18px;
             background: linear-gradient(180deg, #10b981, #059669);
             border-radius: 4px 4px 0 0;
             min-height: 2px;
@@ -3062,7 +3062,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             background: linear-gradient(180deg, #f3c63f, #d97706) !important;
         }
         .chart-col-val {
-            font-size: 7px;
+            font-size: 9.5px;
             font-weight: 800;
             color: #475569;
         }
@@ -3071,7 +3071,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             font-weight: 900;
         }
         .chart-col-label {
-            font-size: 8px;
+            font-size: 9.5px;
             color: #64748b;
             font-weight: 700;
         }
@@ -3083,17 +3083,17 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
         th {
             background-color: #f8fafc;
             color: #475569;
-            font-size: 0.75rem;
+            font-size: 0.9rem;
             text-transform: uppercase;
             font-weight: 800;
             text-align: left;
-            padding: 0.85rem;
+            padding: 0.95rem;
             border-bottom: 2px solid #cbd5e1;
             letter-spacing: 0.02em;
         }
         td {
-            padding: 0.85rem;
-            font-size: 0.8rem;
+            padding: 0.95rem;
+            font-size: 0.9rem;
             border-bottom: 1px solid #f1f5f9;
             color: #334155;
         }

@@ -19,6 +19,11 @@ let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: 
 // User access role
 let currentRole = null;
 
+// Customizable security PIN codes
+let pinLocal = localStorage.getItem('casa_lucenzo_pin_local') || '1111';
+let pinCocina = localStorage.getItem('casa_lucenzo_pin_cocina') || '2222';
+let pinAdmin = localStorage.getItem('casa_lucenzo_pin_admin') || '9999';
+
 // BCV Exchange Rate state
 let bcvRate = 732.48;
 let useAutoBcv = true;
@@ -320,8 +325,7 @@ async function handleClearCart() {
             try {
                 const editingSales = JSON.parse(editingSalesStr);
                 if (window.SupabaseManager.isConfigured()) {
-                    const deletePromises = editingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
-                    await Promise.all(deletePromises);
+                    await window.SupabaseManager.deleteSales(editingSales.map(sale => sale.uuid));
                 }
             } catch (e) {
                 console.error("Failed to delete old sales on clear cart:", e);
@@ -362,8 +366,7 @@ async function handleCheckoutCart() {
         try {
             const editingSales = JSON.parse(editingSalesStr);
             if (window.SupabaseManager.isConfigured()) {
-                const deletePromises = editingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
-                await Promise.all(deletePromises);
+                await window.SupabaseManager.deleteSales(editingSales.map(sale => sale.uuid));
             }
         } catch (e) {
             console.error("Failed to delete old sales during checkout modification:", e);
@@ -393,6 +396,7 @@ async function handleCheckoutCart() {
 
     salesLog.push(...newSales);
     window.StorageManager.saveSalesLog(salesLog);
+    logActivity("Registro Venta", `Venta de ${newSales.length} ítems por $${newSales.reduce((s,x)=>s+x.price, 0).toFixed(2)}. Cliente: ${clientName || 'Sin Nombre'}`);
 
     // Sync to Supabase
     if (window.SupabaseManager.isConfigured()) {
@@ -458,6 +462,7 @@ function handleUndoSale(timestamp) {
         }
 
         window.UIManager.showToast(`🔄 Cuenta deshecha y productos devueltos a vitrina.`, "fa-solid fa-rotate-left");
+        logActivity("Anulación Venta", `Venta anulada por el usuario (monto total devuelto al stock: $${matchingSales.reduce((s,x)=>s+x.price,0).toFixed(2)})`);
     }
 }
 
@@ -619,16 +624,13 @@ async function markTransactionAsPaid(timestamp, paymentMethod) {
         };
     });
 
-    // 2. Delete old sales in Supabase, and insert updated sales
     if (window.SupabaseManager.isConfigured()) {
         try {
             // Delete old
-            const deletePromises = matchingSales.map(sale => window.SupabaseManager.deleteSale(sale.uuid));
-            await Promise.all(deletePromises);
+            await window.SupabaseManager.deleteSales(matchingSales.map(sale => sale.uuid));
             
             // Insert updated
-            const insertPromises = updatedSales.map(sale => window.SupabaseManager.insertSale(sale));
-            await Promise.all(insertPromises);
+            await window.SupabaseManager.insertSales(updatedSales);
         } catch (e) {
             console.error("Error updating sale status to paid in Supabase", e);
         }
@@ -737,6 +739,7 @@ function deliverProduct(id) {
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
     window.UIManager.showToast(`🚚 "${product.name}" marcado como Enviado al local.`, "fa-solid fa-paper-plane");
+    logActivity("Despacho Cocina", `Cocinado y enviado ${amountNeeded} ${product.name} a vitrina`);
 }
 
 /**
@@ -815,6 +818,7 @@ function confirmReceipt() {
             }
         }
         dispatch.status = 'recibido';
+        logActivity("Recepción Vitrina", `Recibidos ${added} de ${product ? product.name : dispatch.productId} en vitrina`);
         
         if (window.SupabaseManager.isConfigured()) {
             window.SupabaseManager.deleteReplenishment(dispatch.uuid);
@@ -1345,9 +1349,8 @@ async function closeDayAndResetLogs() {
                 await window.SupabaseManager.upsertAppConfig({ lastCloseTime: nowStr });
             } else {
                 console.log("Database does not support last_close_time. Clearing daily sales and expenses from Supabase as fallback...");
-                const salesDeletes = salesLog.map(s => window.SupabaseManager.deleteSale(s.uuid));
-                const expensesDeletes = expenses.map(e => window.SupabaseManager.deleteExpense(e.uuid));
-                await Promise.all([...salesDeletes, ...expensesDeletes]);
+                await window.SupabaseManager.deleteSales(salesLog.map(s => s.uuid));
+                await window.SupabaseManager.deleteExpenses(expenses.map(e => e.uuid));
             }
         }
 
@@ -1478,6 +1481,7 @@ function addNewProduct(e) {
     
     document.getElementById('add-product-form').reset();
     window.UIManager.showToast(`✨ "${name}" agregado con éxito.`, "fa-solid fa-plus");
+    logActivity("Producto Agregado", `Nuevo producto registrado: ${name} (Precio: $${price.toFixed(2)}, Max: ${max})`);
 }
 
 /**
@@ -1490,71 +1494,15 @@ function editProductPrompt(id) {
 
     triggerHaptic(15);
 
-    const newName = prompt("Nombre del producto:", product.name);
-    if (newName === null) return;
-    if (!newName.trim()) {
-        alert("El nombre no puede estar vacío.");
-        return;
-    }
+    document.getElementById('edit-prod-id').value = product.id;
+    document.getElementById('edit-prod-name').value = product.name;
+    document.getElementById('edit-prod-price').value = product.price !== undefined ? product.price : 1.50;
+    document.getElementById('edit-prod-category').value = product.category || 'pastelitos';
+    document.getElementById('edit-prod-stock').value = product.stock !== undefined ? product.stock : 0;
+    document.getElementById('edit-prod-max').value = product.max !== undefined ? product.max : 20;
+    document.getElementById('edit-prod-min').value = product.min !== undefined ? product.min : 6;
 
-    const newPrice = prompt("Precio de venta ($):", product.price !== undefined ? product.price : 1.50);
-    if (newPrice === null) return;
-    const priceVal = parseFloat(newPrice);
-    if (isNaN(priceVal) || priceVal < 0) {
-        alert("Precio inválido.");
-        return;
-    }
-
-    const newMax = prompt("Cantidad máxima en vitrina:", product.max);
-    if (newMax === null) return;
-    const maxVal = parseInt(newMax);
-    if (isNaN(maxVal) || maxVal <= 0) {
-        alert("Cantidad máxima inválida.");
-        return;
-    }
-
-    const newMin = prompt("Alerta mínima (aviso cocina):", product.min);
-    if (newMin === null) return;
-    const minVal = parseInt(newMin);
-    if (isNaN(minVal) || minVal < 0) {
-        alert("Alerta mínima inválida.");
-        return;
-    }
-
-    const newStockVal = prompt("Cantidad actual en vitrina (Stock):", product.stock);
-    if (newStockVal === null) return;
-    const stockVal = parseInt(newStockVal);
-    if (isNaN(stockVal) || stockVal < 0) {
-        alert("Cantidad de stock inválida.");
-        return;
-    }
-
-    const categoriesPrompt = "Escribe la categoría del producto:\n- pastelitos\n- tortas\n- bebidas";
-    const newCategory = prompt(categoriesPrompt, product.category || 'pastelitos');
-    if (newCategory === null) return;
-    const catClean = newCategory.trim().toLowerCase();
-    const validCats = ['pastelitos', 'tortas', 'bebidas'];
-    const catVal = validCats.includes(catClean) ? catClean : 'pastelitos';
-
-    triggerHaptic(15);
-
-    product.name = newName.trim();
-    product.price = priceVal;
-    product.max = maxVal;
-    product.min = minVal;
-    product.category = catVal;
-    product.stock = stockVal;
-    product.initial_stock = stockVal;
-
-    window.StorageManager.saveProducts(products);
-
-    if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.upsertProduct(product);
-    }
-    
-    window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
-    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-    window.UIManager.showToast("✏️ Producto editado correctamente.", "fa-solid fa-pen-to-square");
+    document.getElementById('edit-product-modal').classList.remove('hidden');
 }
 
 /**
@@ -1579,6 +1527,7 @@ function deleteProduct(id) {
         window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.showToast("🗑️ Producto eliminado.", "fa-solid fa-trash");
+        logActivity("Producto Eliminado", `Eliminado del menú: ${product.name}`);
     }
 }
 
@@ -1759,7 +1708,7 @@ async function loadAndRenderAdminStats() {
         }
     }
     
-    window.UIManager.renderStats(statsSales, statsExpenses);
+    window.UIManager.renderStats(statsSales, statsExpenses, products);
 }
 
 /**
@@ -1812,7 +1761,8 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 max: parseInt(newRow.max),
                 unit: newRow.unit,
                 price: parseFloat(newRow.price) || 0,
-                category: newRow.category || 'pastelitos'
+                category: newRow.category || 'pastelitos',
+                initial_stock: (newRow.initial_stock !== null && newRow.initial_stock !== undefined) ? parseInt(newRow.initial_stock) : parseInt(newRow.stock)
             };
             if (idx !== -1) {
                 products[idx] = formatted;
@@ -1997,7 +1947,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         
         // Re-render the active devices list if currently open
         const listDiv = document.getElementById('settings-devices-list');
-        if (listDiv && !document.getElementById('settings-modal').classList.contains('hidden')) {
+        if (listDiv && !document.getElementById('view-admin-dashboard').classList.contains('hidden')) {
             loadAndRenderActiveDevices();
         }
     }
@@ -2068,6 +2018,26 @@ async function performFullFetch(tableName) {
             window.bcvRate = bcvRate;
             window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
             
+            // Sync custom security PINs
+            if (data.pin_local) {
+                pinLocal = data.pin_local;
+                localStorage.setItem('casa_lucenzo_pin_local', pinLocal);
+                const pinLocalInput = document.getElementById('pref-pin-local');
+                if (pinLocalInput) pinLocalInput.value = pinLocal;
+            }
+            if (data.pin_cocina) {
+                pinCocina = data.pin_cocina;
+                localStorage.setItem('casa_lucenzo_pin_cocina', pinCocina);
+                const pinCocinaInput = document.getElementById('pref-pin-cocina');
+                if (pinCocinaInput) pinCocinaInput.value = pinCocina;
+            }
+            if (data.pin_admin) {
+                pinAdmin = data.pin_admin;
+                localStorage.setItem('casa_lucenzo_pin_admin', pinAdmin);
+                const pinAdminInput = document.getElementById('pref-pin-admin');
+                if (pinAdminInput) pinAdminInput.value = pinAdmin;
+            }
+
             // Sync DOM components
             const autoCheckbox = document.getElementById('pref-bcv-auto');
             const bcvRateInput = document.getElementById('pref-bcv-rate');
@@ -2089,6 +2059,33 @@ async function performFullFetch(tableName) {
     }
 }
 
+/**
+ * Helper to log role activity both to Supabase and locally
+ * @param {string} action Action description
+ * @param {string} details Extra info details
+ */
+function logActivity(action, details) {
+    const role = currentRole || 'local';
+    if (window.SupabaseManager.isConfigured()) {
+        window.SupabaseManager.insertActivityLog(role, action, details);
+    } else {
+        // Just save locally
+        try {
+            const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
+            localLogs.push({
+                role: role,
+                action: action,
+                details: details || '',
+                timestamp: new Date().toISOString()
+            });
+            if (localLogs.length > 100) localLogs.shift();
+            localStorage.setItem('casa_lucenzo_local_activity_logs', JSON.stringify(localLogs));
+        } catch(e) {
+            console.error("Local log failed", e);
+        }
+    }
+}
+
 // ================= USER ROLES ACCESS =================
 
 /**
@@ -2097,17 +2094,20 @@ async function performFullFetch(tableName) {
  * @returns {boolean} True if PIN matched a role
  */
 function handlePINInput(pin) {
-    if (pin === '1111') {
+    if (pin === pinLocal) {
         applyUserRole('local');
         window.UIManager.showToast("🔓 Acceso Local Concedido (Venta).", "fa-solid fa-shop");
+        logActivity("Inicio de Sesión", "Ingreso al perfil Local (Ventas)");
         return true;
-    } else if (pin === '2222') {
+    } else if (pin === pinCocina) {
         applyUserRole('cocina');
         window.UIManager.showToast("🔓 Acceso Cocina Concedido (Producción).", "fa-solid fa-fire-burner");
+        logActivity("Inicio de Sesión", "Ingreso al perfil Cocina");
         return true;
-    } else if (pin === '9999') {
+    } else if (pin === pinAdmin) {
         applyUserRole('admin');
         window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
+        logActivity("Inicio de Sesión", "Ingreso al perfil Administrador");
         return true;
     } else {
         triggerHaptic([80, 80]); // Double haptic feedback on error
@@ -2129,8 +2129,10 @@ function applyUserRole(role) {
 
     const navBar = document.getElementById('switch-nav-bar');
     const btnSettings = document.getElementById('btn-settings-toggle');
+    const adminTab = document.getElementById('btn-admin-dashboard');
     
     // Default unlocked structures
+    if (adminTab) adminTab.classList.add('hidden');
     document.getElementById('btn-local').classList.remove('hidden');
     document.getElementById('btn-clientes').classList.remove('hidden');
     document.getElementById('btn-cocina').classList.remove('hidden');
@@ -2155,10 +2157,10 @@ function applyUserRole(role) {
         if (clearSales) clearSales.classList.add('hidden');
         
         // Dynamic numbering for local role
-        const localSpan = document.querySelector('#btn-local span:last-child');
-        const clientesSpan = document.querySelector('#btn-clientes span:last-child');
-        const fiadosSpan = document.querySelector('#btn-fiados span:last-child');
-        const cambioSpan = document.querySelector('#btn-cambio span:last-child');
+        const localSpan = document.querySelector('#btn-local .nav-label');
+        const clientesSpan = document.querySelector('#btn-clientes .nav-label');
+        const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
+        const cambioSpan = document.querySelector('#btn-cambio .nav-label');
         if (localSpan) localSpan.textContent = '1. LOCAL';
         if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
         if (fiadosSpan) fiadosSpan.textContent = '3. FIADOS';
@@ -2178,23 +2180,25 @@ function applyUserRole(role) {
     } else if (role === 'admin') {
         // Full Admin: Everything visible, statistics dashboard loaded
         if (undoSales) undoSales.classList.remove('hidden');
+        if (adminTab) adminTab.classList.remove('hidden');
         
         // Dynamic numbering for admin role
-        const localSpan = document.querySelector('#btn-local span:last-child');
-        const clientesSpan = document.querySelector('#btn-clientes span:last-child');
-        const cocinaSpan = document.querySelector('#btn-cocina span:last-child');
-        const fiadosSpan = document.querySelector('#btn-fiados span:last-child');
-        const cambioSpan = document.querySelector('#btn-cambio span:last-child');
-        if (localSpan) localSpan.textContent = '1. LOCAL';
-        if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
-        if (cocinaSpan) cocinaSpan.textContent = '3. COCINA';
-        if (fiadosSpan) fiadosSpan.textContent = '4. FIADOS';
-        if (cambioSpan) cambioSpan.textContent = '5. CAMBIO';
+        const adminSpan = document.querySelector('#btn-admin-dashboard .nav-label');
+        const localSpan = document.querySelector('#btn-local .nav-label');
+        const clientesSpan = document.querySelector('#btn-clientes .nav-label');
+        const cocinaSpan = document.querySelector('#btn-cocina .nav-label');
+        const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
+        const cambioSpan = document.querySelector('#btn-cambio .nav-label');
+        if (adminSpan) adminSpan.textContent = '1. CONTROL';
+        if (localSpan) localSpan.textContent = '2. VITRINA';
+        if (clientesSpan) clientesSpan.textContent = '3. CLIENTES';
+        if (cocinaSpan) cocinaSpan.textContent = '4. COCINA';
+        if (fiadosSpan) fiadosSpan.textContent = '5. FIADOS';
+        if (cambioSpan) cambioSpan.textContent = '6. CAMBIO';
 
-        window.UIManager.switchView('local');
-        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
-        window.UIManager.renderStats(salesLog, expenses);
+        window.UIManager.switchView('admin-dashboard');
+        loadAndRenderAdminStats();
+        loadAndRenderActiveDevices();
     }
 
     // Refresh active session on Supabase
@@ -2506,6 +2510,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pref-supabase-url').value = preferences.supabaseUrl || 'https://xttpaqokeyywjaajvjyu.supabase.co';
     document.getElementById('pref-supabase-key').value = preferences.supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE';
 
+    const pinLocalInput = document.getElementById('pref-pin-local');
+    const pinCocinaInput = document.getElementById('pref-pin-cocina');
+    const pinAdminInput = document.getElementById('pref-pin-admin');
+    if (pinLocalInput) pinLocalInput.value = pinLocal;
+    if (pinCocinaInput) pinCocinaInput.value = pinCocina;
+    if (pinAdminInput) pinAdminInput.value = pinAdmin;
+
     // 3. Initialize connection status dots
     if (window.SupabaseManager.isConfigured()) {
         if (navigator.onLine) {
@@ -2539,7 +2550,16 @@ document.addEventListener('DOMContentLoaded', () => {
         lockSession();
     }
 
-    // 6. Bind navigation buttons (Vitrina, Clientes, Cocina, Fiados, Cambio)
+    // 6. Bind navigation buttons (Dashboard, Vitrina, Clientes, Cocina, Fiados, Cambio)
+    const btnAdminDash = document.getElementById('btn-admin-dashboard');
+    if (btnAdminDash) {
+        btnAdminDash.addEventListener('click', () => {
+            window.UIManager.switchView('admin-dashboard');
+            loadAndRenderAdminStats();
+            loadAndRenderActiveDevices();
+        });
+    }
+
     document.getElementById('btn-local').addEventListener('click', () => {
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -2662,17 +2682,36 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {
         window.UIManager.toggleSettingsModal(true, products, editProductPrompt, deleteProduct);
         if (currentRole === 'admin') {
+            const tabSummaryBtn = document.getElementById('admin-tab-btn-summary');
+            const panelSummary = document.getElementById('admin-panel-summary');
+            if (tabSummaryBtn && panelSummary) {
+                const tabBtns = document.querySelectorAll('.admin-tab-btn');
+                const panels = document.querySelectorAll('.admin-panel');
+                tabBtns.forEach(b => b.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                tabSummaryBtn.classList.add('active');
+                panelSummary.classList.add('active');
+            }
+            loadAndRenderAdminStats();
             loadAndRenderActiveDevices();
         }
     });
 
-    document.getElementById('btn-settings-close').addEventListener('click', () => {
-        window.UIManager.toggleSettingsModal(false);
-    });
+    const btnSettingsClose = document.getElementById('btn-settings-close');
+    if (btnSettingsClose) {
+        btnSettingsClose.addEventListener('click', () => {
+            window.UIManager.toggleSettingsModal(false);
+        });
+    }
 
-    document.getElementById('btn-settings-cancel').addEventListener('click', () => {
-        window.UIManager.toggleSettingsModal(false);
-    });
+    const btnSettingsCancel = document.getElementById('btn-settings-cancel');
+    if (btnSettingsCancel) {
+        btnSettingsCancel.addEventListener('click', () => {
+            window.UIManager.switchView('local');
+            window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+            window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+        });
+    }
 
     // 8. Bind WhatsApp sharing (Kitchen report)
     document.getElementById('btn-whatsapp-share').addEventListener('click', () => {
@@ -2750,6 +2789,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    initAdminDashboardListeners();
 });
 
 // Expose functions globally for UI callbacks and fallbacks
@@ -2763,4 +2803,183 @@ Object.defineProperty(window, 'currentCart', {
     get: () => currentCart,
     set: (val) => { currentCart = val; }
 });
+
+/**
+ * Initialize listeners for the custom admin widescreen dashboard
+ */
+function initAdminDashboardListeners() {
+    const tabSummaryBtn = document.getElementById('admin-tab-btn-summary');
+    const tabProductsBtn = document.getElementById('admin-tab-btn-products');
+    const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
+    const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
+    const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
+
+    const panelSummary = document.getElementById('admin-panel-summary');
+    const panelProducts = document.getElementById('admin-panel-products');
+    const panelDevices = document.getElementById('admin-panel-devices');
+    const panelLogs = document.getElementById('admin-panel-logs');
+    const panelPreferences = document.getElementById('admin-panel-preferences');
+
+    if (!tabSummaryBtn) return; // Not loaded yet
+
+    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabPreferencesBtn];
+    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelPreferences];
+
+    function activateTab(btn, panel) {
+        triggerHaptic(10);
+        allTabBtns.forEach(b => b.classList.remove('active'));
+        allPanels.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        panel.classList.add('active');
+    }
+
+    tabSummaryBtn.addEventListener('click', () => {
+        activateTab(tabSummaryBtn, panelSummary);
+        loadAndRenderAdminStats();
+    });
+
+    tabProductsBtn.addEventListener('click', () => {
+        activateTab(tabProductsBtn, panelProducts);
+        window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
+    });
+
+    tabDevicesBtn.addEventListener('click', () => {
+        activateTab(tabDevicesBtn, panelDevices);
+        loadAndRenderActiveDevices();
+    });
+
+    tabLogsBtn.addEventListener('click', async () => {
+        activateTab(tabLogsBtn, panelLogs);
+        await refreshActivityLogsView();
+    });
+
+    tabPreferencesBtn.addEventListener('click', () => {
+        activateTab(tabPreferencesBtn, panelPreferences);
+    });
+
+    // Refresh logs button
+    const refreshLogsBtn = document.getElementById('btn-admin-logs-refresh');
+    if (refreshLogsBtn) {
+        refreshLogsBtn.addEventListener('click', async () => {
+            triggerHaptic(15);
+            await refreshActivityLogsView();
+        });
+    }
+
+    // Security PINs form submission
+    const pinesForm = document.getElementById('admin-pines-form');
+    if (pinesForm) {
+        pinesForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            triggerHaptic(20);
+            
+            const newLocal = document.getElementById('pref-pin-local').value.trim();
+            const newCocina = document.getElementById('pref-pin-cocina').value.trim();
+            const newAdmin = document.getElementById('pref-pin-admin').value.trim();
+
+            if (!newLocal || !newCocina || !newAdmin) {
+                window.UIManager.showToast("⚠️ Todos los PINes son obligatorios.", "fa-solid fa-triangle-exclamation");
+                return;
+            }
+
+            pinLocal = newLocal;
+            pinCocina = newCocina;
+            pinAdmin = newAdmin;
+
+            localStorage.setItem('casa_lucenzo_pin_local', pinLocal);
+            localStorage.setItem('casa_lucenzo_pin_cocina', pinCocina);
+            localStorage.setItem('casa_lucenzo_pin_admin', pinAdmin);
+
+            if (window.SupabaseManager.isConfigured()) {
+                window.UIManager.showToast("⏳ Guardando pines en Supabase...", "fa-solid fa-spinner");
+                await window.SupabaseManager.upsertAppConfig({
+                    bcvRate: bcvRate,
+                    useAutoBcv: useAutoBcv,
+                    pinLocal: pinLocal,
+                    pinCocina: pinCocina,
+                    pinAdmin: pinAdmin
+                });
+            }
+
+            window.UIManager.showToast("🔒 Pines actualizados correctamente.", "fa-solid fa-lock");
+            logActivity("Ajuste Seguridad", `Pines actualizados (Local: ${pinLocal}, Cocina: ${pinCocina}, Admin: ${pinAdmin})`);
+        });
+    }
+
+    // Edit Product form submission
+    const editProductForm = document.getElementById('edit-product-form');
+    if (editProductForm) {
+        editProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            triggerHaptic(20);
+            
+            const id = document.getElementById('edit-prod-id').value;
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+
+            const newName = document.getElementById('edit-prod-name').value.trim();
+            const newPrice = parseFloat(document.getElementById('edit-prod-price').value) || 0;
+            const newCategory = document.getElementById('edit-prod-category').value;
+            const stockVal = parseInt(document.getElementById('edit-prod-stock').value) || 0;
+            const maxVal = parseInt(document.getElementById('edit-prod-max').value) || 1;
+            const minVal = parseInt(document.getElementById('edit-prod-min').value) || 0;
+
+            if (!newName) {
+                alert("El nombre no puede estar vacío.");
+                return;
+            }
+
+            product.name = newName;
+            product.price = newPrice;
+            product.category = newCategory;
+            product.stock = stockVal;
+            product.max = maxVal;
+            product.min = minVal;
+            product.initial_stock = stockVal;
+
+            window.StorageManager.saveProducts(products);
+
+            if (window.SupabaseManager.isConfigured()) {
+                window.SupabaseManager.upsertProduct(product);
+            }
+
+            // Close modal
+            document.getElementById('edit-product-modal').classList.add('hidden');
+
+            window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
+            window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+            window.UIManager.showToast("✏️ Producto editado correctamente.", "fa-solid fa-pen-to-square");
+            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}, Cat: ${newCategory})`);
+        });
+    }
+
+    const btnEditProductCancel = document.getElementById('btn-edit-product-cancel');
+    if (btnEditProductCancel) {
+        btnEditProductCancel.addEventListener('click', () => {
+            triggerHaptic(10);
+            document.getElementById('edit-product-modal').classList.add('hidden');
+        });
+    }
+
+    const btnEditProductClose = document.getElementById('btn-edit-product-close');
+    if (btnEditProductClose) {
+        btnEditProductClose.addEventListener('click', () => {
+            triggerHaptic(10);
+            document.getElementById('edit-product-modal').classList.add('hidden');
+        });
+    }
+}
+
+/**
+ * Fetch and render recent audit activity logs in admin logs panel
+ */
+async function refreshActivityLogsView() {
+    if (window.SupabaseManager.isConfigured()) {
+        const logs = await window.SupabaseManager.fetchActivityLogs();
+        window.UIManager.renderActivityLogs(logs);
+    } else {
+        const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
+        window.UIManager.renderActivityLogs([...localLogs].reverse());
+    }
+}
 

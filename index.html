@@ -52,45 +52,46 @@
 
     <!-- Header section -->
     <header>
-        <div class="container-md">
+        <div class="container-md header-grid">
             
-            <!-- Branding bar & Settings toggle -->
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div class="logo-container">
-                    <!-- Round header logo cropped to hide white corners -->
-                    <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold); box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
-                    <div style="display: flex; flex-direction: column;">
-                        <h1 class="brand-title" style="margin: 0; line-height: 1.1; display: flex; align-items: center; gap: 0.375rem;">
-                            CASA LUCENZO
-                            <span id="conn-status" class="conn-status local" title="Modo Local Activo"></span>
-                        </h1>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
-                            <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 12px; color: var(--color-gold); font-weight: 700; opacity: 0.95;">
-                                <span>Tasa Bs:</span>
-                                <input type="number" id="header-bcv-rate-input" step="0.0001" style="width: 5.5rem; height: 24px; background: rgba(243, 198, 63, 0.18); border: 1.5px solid var(--color-gold); border-radius: 6px; color: var(--color-gold); font-weight: 800; text-align: center; font-size: 11px; outline: none; padding: 0 4px; letter-spacing: 0.02em;" title="Toca para cambiar la tasa manualmente">
-                            </div>
-                            <div id="header-cash-badge" style="display: flex; align-items: center; gap: 0.35rem; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 6px; padding: 2px 8px; color: var(--color-success); font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Caja Estimada (Hoy)">
-                                <i class="fa-solid fa-cash-register" style="font-size: 10px;"></i>
-                                <span id="header-cash-val">$0.00</span>
-                            </div>
+            <div class="logo-container">
+                <!-- Round header logo cropped to hide white corners -->
+                <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold); box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
+                <div style="display: flex; flex-direction: column;">
+                    <h1 class="brand-title" style="margin: 0; line-height: 1.1; display: flex; align-items: center; gap: 0.375rem;">
+                        CASA LUCENZO
+                        <span id="conn-status" class="conn-status local" title="Modo Local Activo"></span>
+                    </h1>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 12px; color: var(--color-gold); font-weight: 700; opacity: 0.95;">
+                            <span>Tasa Bs:</span>
+                            <input type="number" id="header-bcv-rate-input" step="0.0001" style="width: 5.5rem; height: 24px; background: rgba(243, 198, 63, 0.18); border: 1.5px solid var(--color-gold); border-radius: 6px; color: var(--color-gold); font-weight: 800; text-align: center; font-size: 11px; outline: none; padding: 0 4px; letter-spacing: 0.02em;" title="Toca para cambiar la tasa manualmente">
+                        </div>
+                        <div id="header-cash-badge" style="display: flex; align-items: center; gap: 0.35rem; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 6px; padding: 2px 8px; color: var(--color-success); font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Caja Estimada (Hoy)">
+                            <i class="fa-solid fa-cash-register" style="font-size: 10px;"></i>
+                            <span id="header-cash-val">$0.00</span>
                         </div>
                     </div>
                 </div>
-                
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <!-- Lock button to lock screen and change user role -->
-                    <button id="btn-lock-user" class="btn-lock" title="Bloquear Pantalla / Cambiar Rol">
-                        <i class="fa-solid fa-lock"></i>
-                    </button>
-                    <!-- Gear button to open Settings Modal -->
-                    <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
-                        <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
-                    </button>
-                </div>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Lock button to lock screen and change user role -->
+                <button id="btn-lock-user" class="btn-lock" title="Bloquear Pantalla / Cambiar Rol">
+                    <i class="fa-solid fa-lock"></i>
+                </button>
+                <!-- Gear button to open Settings Modal -->
+                <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
+                    <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
+                </button>
             </div>
 
             <!-- View switch controller (Vitrina vs Cocina vs Fiados) -->
             <div class="switch-nav" id="switch-nav-bar" role="tablist">
+                <button id="btn-admin-dashboard" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-admin-dashboard">
+                    <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="nav-label">CONTROL</span>
+                </button>
                 <button id="btn-local" class="active" role="tab" aria-selected="true" aria-controls="view-local">
                     <span class="nav-icon"><i class="fa-solid fa-shop"></i></span>
                     <span class="nav-label">1. LOCAL</span>
@@ -466,153 +467,410 @@
             </footer>
             
         </div>
-    </main>
-
-    <!-- ================= ADMIN CONFIGURATION MODAL ================= -->
-    <div id="settings-modal" class="modal-overlay hidden">
-        <div class="modal-content">
+        
+        <!-- ================= VIEW: ADMIN DASHBOARD (CONTROL) ================= -->
+        <section id="view-admin-dashboard" class="view-section hidden">
+            <div class="admin-dashboard-container">
             
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fa-solid fa-cubes"></i> Gestionar Productos
-                </h3>
-                <button id="btn-settings-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
-                    &times;
+            <!-- Sidebar Navigation -->
+            <div class="admin-sidebar">
+                <div class="admin-sidebar-logo">
+                    <div style="width: 2.25rem; height: 2.25rem; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold);"></div>
+                    <div style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0; font-family: var(--font-serif); font-size: 11px; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.2;">Luccenzo</h4>
+                        <span style="font-size: 8px; color: var(--color-text-muted); font-weight: 700; text-transform: uppercase;">Administración</span>
+                    </div>
+                </div>
+                
+                <div class="admin-sidebar-menu">
+                    <button id="admin-tab-btn-summary" class="admin-tab-btn active">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>📊 Resumen</span>
+                    </button>
+                    <button id="admin-tab-btn-products" class="admin-tab-btn">
+                        <i class="fa-solid fa-box"></i>
+                        <span>📦 Productos</span>
+                    </button>
+                    <button id="admin-tab-btn-devices" class="admin-tab-btn">
+                        <i class="fa-solid fa-network-wired"></i>
+                        <span>🔌 Dispositivos</span>
+                    </button>
+                    <button id="admin-tab-btn-logs" class="admin-tab-btn">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>📋 Bitácora</span>
+                    </button>
+                    <button id="admin-tab-btn-preferences" class="admin-tab-btn">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>⚙️ Ajustes</span>
+                    </button>
+                </div>
+                
+                <button id="btn-settings-cancel" class="admin-tab-btn close-btn">
+                    <i class="fa-solid fa-door-open"></i>
+                    <span>Listo / Salir</span>
                 </button>
             </div>
-            
-            <!-- Scrollable Modal Body -->
-            <div class="modal-body">
-                
-                <!-- Preferences switches -->
-                <div class="settings-group" style="margin-bottom: 1.25rem; padding: 0.625rem 0.75rem;">
-                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">Preferencias de la App</h4>
-                    
-                    <div class="switch-setting-row">
-                        <span style="font-size: 0.8125rem; font-weight: 600;">Efectos de Sonido (Bajos Stocks)</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="pref-sound" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    
-                    <div class="switch-setting-row">
-                        <span style="font-size: 0.8125rem; font-weight: 600;">Vibración Háptica (Confirmaciones)</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="pref-vibrate" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
 
-                    <!-- Supabase configuration section -->
-                    <div style="margin-top: 0.75rem; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 0.75rem;">
-                        <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Sincronización Supabase (En Vivo)</h5>
-                        <div class="form-field">
-                            <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
-                            <input type="text" id="pref-supabase-url" placeholder="https://xxxx.supabase.co" class="form-input" style="height: 32px; font-size: 0.75rem;">
-                        </div>
-                        <div class="form-field" style="margin-top: 0.5rem;">
-                            <label class="form-label" style="font-size: 9px;">SUPABASE ANON KEY</label>
-                            <input type="password" id="pref-supabase-key" placeholder="Clave pública anon" class="form-input" style="height: 32px; font-size: 0.75rem;">
+            <!-- Content Area -->
+            <div class="admin-content-area">
+                
+                <!-- PANEL 1: SUMMARY / DASHBOARD -->
+                <div id="admin-panel-summary" class="admin-panel active">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Resumen de Operaciones
+                        </h3>
+                        <div style="font-size: 10px; color: var(--color-text-muted); font-weight: 700;" id="admin-summary-time-display">
+                            Cargando estado en vivo...
                         </div>
                     </div>
-                    
-                    <!-- Tasa BCV configuration section -->
-                    <div style="margin-top: 0.75rem; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 0.75rem;">
-                        <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Tasa de Cambio Oficial (BCV)</h5>
-                        <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
-                            <span style="font-size: 0.8125rem; font-weight: 600;">Actualizar tasa automática</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="pref-bcv-auto" checked>
-                                <span class="slider"></span>
-                            </label>
+                    <div class="admin-panel-body">
+                        <!-- KPI Cards Grid -->
+                        <div class="admin-kpi-grid">
+                            <div class="admin-kpi-card caja">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-cash-register"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Caja (Estimado)</span>
+                                    <span id="admin-kpi-caja" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card ventas">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Ventas Hoy</span>
+                                    <span id="admin-kpi-ventas" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card gastos">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-wallet"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Gastos Hoy</span>
+                                    <span id="admin-kpi-gastos" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card dispositivos">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Dispositivos</span>
+                                    <span id="admin-kpi-devices" class="admin-kpi-value">0</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-field">
-                            <label class="form-label" style="font-size: 9px;">TASA DEL DÍA (Bs.)</label>
-                            <input type="number" id="pref-bcv-rate" step="0.0001" placeholder="Ej: 732.4787" class="form-input" style="height: 32px; font-size: 0.75rem;">
+
+                        <!-- Metrics / Charts grid -->
+                        <div class="admin-dashboard-row">
+                            <!-- Left Col: Favorite Products -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-star"></i> Productos Más Consumidos
+                                </h4>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                    <div>
+                                        <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos del Día (Hoy)</div>
+                                        <div id="admin-favorites-daily" class="admin-favorites-grid">
+                                            <!-- Injected by js/ui.js -->
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 0.25rem;">
+                                        <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos de la Semana (Últimos 7 días)</div>
+                                        <div id="admin-favorites-weekly" class="admin-favorites-grid">
+                                            <!-- Injected by js/ui.js -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Weekly Chart -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-chart-simple"></i> Reporte de Ventas Semanales
+                                </h4>
+                                <div id="stats-chart-content" class="chart-container" style="margin-top: 0.5rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-
-
-                <!-- Foldable Weekly Statistics -->
-                <details class="settings-group" style="margin-bottom: 1.25rem;">
-                    <summary><i class="fa-solid fa-chart-simple" style="margin-right: 0.25rem;"></i> Reporte de Ventas Semanales</summary>
-                    <div id="stats-chart-content" class="chart-container">
-                        <!-- Dynamic bar charts injected by js/ui.js -->
+                <!-- PANEL 2: PRODUCTS MANAGER -->
+                <div id="admin-panel-products" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Gestión de Catálogo y Menú
+                        </h3>
                     </div>
-                </details>
+                    <div class="admin-panel-body">
+                        <!-- Split: Form left, List right -->
+                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.3fr;">
+                            <!-- Add Product Form -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                    <i class="fa-solid fa-plus-circle"></i> Nuevo Producto
+                                </h4>
+                                <form id="add-product-form" style="margin-top: 0.5rem;">
+                                    <div class="form-field">
+                                        <label class="form-label">Nombre del Producto</label>
+                                        <input type="text" id="new-name" required placeholder="Ej: Jamón con Queso" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label">Precio ($)</label>
+                                        <input type="number" id="new-price" step="0.01" required value="1.50" min="0" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label">Categoría</label>
+                                        <select id="new-category" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                            <option value="pastelitos">Pastelitos</option>
+                                            <option value="tortas">Tortas</option>
+                                            <option value="bebidas">Bebidas</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-grid-3" style="margin-top: 0.5rem;">
+                                        <div>
+                                            <label class="form-label">Máx (Vitrina)</label>
+                                            <input type="number" id="new-max" required min="1" value="25" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Alerta Mín.</label>
+                                            <input type="number" id="new-min" required min="0" value="8" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Unidad</label>
+                                            <select id="new-unit" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                                <option value="unid.">Unidades</option>
+                                                <option value="botellas">Botellas</option>
+                                                <option value="porciones">Porciones</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-form-submit" style="margin-top: 1rem; min-height: 36px;">Guardar Producto</button>
+                                </form>
+                            </div>
 
-                <!-- Foldable Connected Devices -->
-                <details class="settings-group" style="margin-bottom: 1.25rem;">
-                    <summary><i class="fa-solid fa-network-wired" style="margin-right: 0.25rem;"></i> Dispositivos Conectados</summary>
-                    <div id="settings-devices-list" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <!-- Dynamic list of connected devices injected by js/ui.js -->
+                            <!-- Current Products List -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; max-height: 430px;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-list"></i> Productos en Menú</span>
+                                </h4>
+                                <div id="settings-products-list" style="overflow-y: auto; flex: 1; padding-right: 0.25rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </details>
+                </div>
 
-                <!-- Foldable Add New Product Form -->
-                <details class="settings-group">
-                    <summary><i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Agregar Nuevo Pastelito</summary>
-                    <form id="add-product-form" style="margin-top: 0.75rem;">
+                <!-- PANEL 3: ACTIVE DEVICES -->
+                <div id="admin-panel-devices" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Control de Dispositivos Conectados
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div class="admin-dashboard-card">
+                            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                <i class="fa-solid fa-network-wired"></i> Navegadores en vivo
+                            </h4>
+                            <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                                Usa el escudo verde para autorizar de forma permanente un dispositivo de confianza, o la puerta roja para sacarlo de línea al instante.
+                            </p>
+                            <div id="settings-devices-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Injected by js/ui.js -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 4: AUDIT LOG / ACTIVITY LOG -->
+                <div id="admin-panel-logs" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Bitácora de Actividades (Auditoría)
+                        </h3>
+                        <button class="btn-action-small" id="btn-admin-logs-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
+                            <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+                        </button>
+                    </div>
+                    <div class="admin-panel-body" style="padding-top: 0.75rem;">
+                        <div class="admin-dashboard-card" style="padding: 0.75rem; max-height: 440px; display: flex; flex-direction: column;">
+                            <div style="overflow-y: auto; flex: 1;">
+                                <table class="audit-log-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Perfil</th>
+                                            <th style="width: 50%;">Acción Realizada</th>
+                                            <th style="width: 20%;">Detalles</th>
+                                            <th style="width: 15%; text-align: right;">Hora</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-logs-tbody">
+                                        <!-- Injected by js/ui.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5: SYSTEM PREFERENCES & PIN MANAGEMENT -->
+                <div id="admin-panel-preferences" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Ajustes del Sistema y Seguridad
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div class="admin-dashboard-row">
+                            <!-- Left Col: App Preferences & Tasa -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                    <i class="fa-solid fa-sliders"></i> Preferencias de la App
+                                </h4>
+                                <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Efectos de Sonido (Stocks)</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-sound" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="switch-setting-row" style="margin-bottom: 0.75rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Vibración Háptica</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-vibrate" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">Tasa de Cambio Oficial (BCV)</h5>
+                                <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Actualizar tasa automática</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-bcv-auto" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="form-field" style="margin-top: 0.25rem;">
+                                    <label class="form-label" style="font-size: 9px;">TASA DEL DÍA (Bs.)</label>
+                                    <input type="number" id="pref-bcv-rate" step="0.0001" placeholder="Ej: 732.4787" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                </div>
+
+                                <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
+                                    <button id="btn-factory-reset" style="width: 100%; min-height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;">
+                                        Reiniciar de Fábrica
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Security PIN & Supabase Configuration -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- PIN Code configuration -->
+                                <div>
+                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                        <i class="fa-solid fa-key"></i> Pines de Acceso de Seguridad
+                                    </h4>
+                                    <form id="admin-pines-form" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                                            <div>
+                                                <label class="form-label" style="font-size: 9px;">LOCAL (VENTA)</label>
+                                                <input type="text" id="pref-pin-local" required maxlength="8" placeholder="1111" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
+                                            </div>
+                                            <div>
+                                                <label class="form-label" style="font-size: 9px;">COCINA</label>
+                                                <input type="text" id="pref-pin-cocina" required maxlength="8" placeholder="2222" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
+                                            </div>
+                                            <div>
+                                                <label class="form-label" style="font-size: 9px;">ADMIN</label>
+                                                <input type="text" id="pref-pin-admin" required maxlength="8" placeholder="9999" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn-form-submit" style="margin-top: 0.5rem; min-height: 32px; font-size: 10px; background-color: var(--color-success); color: white;">Guardar Nuevos Pines</button>
+                                    </form>
+                                </div>
+
+                                <!-- Supabase config -->
+                                <div>
+                                    <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">Sincronización Supabase (En Vivo)</h5>
+                                    <div class="form-field">
+                                        <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
+                                        <input type="text" id="pref-supabase-url" placeholder="https://xxxx.supabase.co" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label" style="font-size: 9px;">SUPABASE ANON KEY</label>
+                                        <input type="password" id="pref-supabase-key" placeholder="Clave pública anon" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+    
+    </main>
+
+    <!-- ================= EDIT PRODUCT MODAL ================= -->
+    <div id="edit-product-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar Producto
+                </h3>
+                <button id="btn-edit-product-close" type="button" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            <form id="edit-product-form">
+                <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1.25rem;">
+                    <input type="hidden" id="edit-prod-id">
+                    
+                    <div class="form-field">
+                        <label class="form-label" style="font-size: 10px;">NOMBRE DEL PRODUCTO</label>
+                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 36px; font-size: 0.8125rem;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                         <div class="form-field">
-                            <label class="form-label">Nombre del Pastelito / Producto</label>
-                            <input type="text" id="new-name" required placeholder="Ej: Jamón con Queso" class="form-input">
+                            <label class="form-label" style="font-size: 10px;">PRECIO ($)</label>
+                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 36px; font-size: 0.8125rem;">
                         </div>
                         <div class="form-field">
-                            <label class="form-label">Precio ($)</label>
-                            <input type="number" id="new-price" step="0.01" required value="1.50" min="0" class="form-input">
-                        </div>
-                        <div class="form-field">
-                            <label class="form-label">Categoría</label>
-                            <select id="new-category" class="form-select">
+                            <label class="form-label" style="font-size: 10px;">CATEGORÍA</label>
+                            <select id="edit-prod-category" class="form-input" style="height: 36px; font-size: 0.8125rem; background-color: var(--color-bg-dark); color: white;">
                                 <option value="pastelitos">Pastelitos</option>
                                 <option value="tortas">Tortas</option>
                                 <option value="bebidas">Bebidas</option>
                             </select>
                         </div>
-                        <div class="form-grid-3">
-                            <div>
-                                <label class="form-label">Máx (Vitrina)</label>
-                                <input type="number" id="new-max" required min="1" value="25" class="form-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Alerta Mín.</label>
-                                <input type="number" id="new-min" required min="0" value="8" class="form-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Unidad</label>
-                                <select id="new-unit" class="form-select">
-                                    <option value="unid.">Unidades</option>
-                                    <option value="botellas">Botellas</option>
-                                    <option value="porciones">Porciones</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn-form-submit">Guardar Producto</button>
-                    </form>
-                </details>
+                    </div>
 
-                <!-- Current products list manager -->
-                <div style="margin-top: 1.25rem;">
-                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Lista de Productos Actuales</h4>
-                    <div id="settings-products-list">
-                        <!-- Dynamic items from js/ui.js -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 8px;">CANT. ACTUAL (STOCK)</label>
+                            <input type="number" id="edit-prod-stock" required min="0" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 8px;">MÁXIMO VITRINA</label>
+                            <input type="number" id="edit-prod-max" required min="1" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 8px;">ALERTA MÍNIMA</label>
+                            <input type="number" id="edit-prod-min" required min="0" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Modal Footer buttons -->
-            <div class="modal-footer">
-                <button id="btn-factory-reset" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.75rem;">
-                    Reiniciar de Fábrica
-                </button>
-                <button id="btn-settings-cancel" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: none; background-color: var(--color-gold); color: #000000; font-weight: 900; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Listo / Cerrar
-                </button>
-            </div>
+                <div class="modal-footer" style="padding: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                    <button type="button" id="btn-edit-product-cancel" class="btn-touch" style="background-color: rgba(255,255,255,0.1); color: white; min-height: 36px; font-size: 11px;">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-touch" style="background-color: var(--color-success); color: white; min-height: 36px; font-size: 11px;">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

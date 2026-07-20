@@ -18,17 +18,25 @@ window.parseUTCTimestamp = parseUTCTimestamp;
  * @param {string} view 'local' or 'cocina' or 'fiados'
  */
 function switchView(view) {
+    const btnAdminDashboard = document.getElementById('btn-admin-dashboard');
     const btnLocal = document.getElementById('btn-local');
     const btnClientes = document.getElementById('btn-clientes');
     const btnCocina = document.getElementById('btn-cocina');
     const btnFiados = document.getElementById('btn-fiados');
     const btnCambio = document.getElementById('btn-cambio');
     
+    const viewAdminDashboard = document.getElementById('view-admin-dashboard');
     const viewLocal = document.getElementById('view-local');
     const viewClientes = document.getElementById('view-clientes');
     const viewCocina = document.getElementById('view-cocina');
     const viewFiados = document.getElementById('view-fiados');
     const viewCambio = document.getElementById('view-cambio');
+
+    if (btnAdminDashboard) {
+        btnAdminDashboard.classList.remove('active');
+        btnAdminDashboard.classList.add('inactive');
+        btnAdminDashboard.setAttribute('aria-selected', 'false');
+    }
 
     btnLocal.classList.remove('active');
     btnLocal.classList.add('inactive');
@@ -54,13 +62,21 @@ function switchView(view) {
         btnCambio.setAttribute('aria-selected', 'false');
     }
 
+    if (viewAdminDashboard) viewAdminDashboard.classList.add('hidden');
     viewLocal.classList.add('hidden');
     if (viewClientes) viewClientes.classList.add('hidden');
     viewCocina.classList.add('hidden');
     viewFiados.classList.add('hidden');
     if (viewCambio) viewCambio.classList.add('hidden');
 
-    if (view === 'local') {
+    if (view === 'admin-dashboard') {
+        if (btnAdminDashboard) {
+            btnAdminDashboard.classList.add('active');
+            btnAdminDashboard.classList.remove('inactive');
+            btnAdminDashboard.setAttribute('aria-selected', 'true');
+        }
+        if (viewAdminDashboard) viewAdminDashboard.classList.remove('hidden');
+    } else if (view === 'local') {
         btnLocal.classList.add('active');
         btnLocal.classList.remove('inactive');
         btnLocal.setAttribute('aria-selected', 'true');
@@ -1075,16 +1091,34 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
  * @param {Function} deleteProduct Callback for deleting a product
  */
 function toggleSettingsModal(show, products, editProduct, deleteProduct) {
-    const modal = document.getElementById('settings-modal');
-    if (!modal) return;
-
     if (show) {
-        modal.classList.remove('hidden');
+        switchView('admin-dashboard');
+        // Switch to settings sub-tab
+        const tabPrefBtn = document.getElementById('admin-tab-btn-preferences');
+        const panelPref = document.getElementById('admin-panel-preferences');
+        if (tabPrefBtn && panelPref) {
+            const tabBtns = document.querySelectorAll('.admin-tab-btn');
+            const panels = document.querySelectorAll('.admin-panel');
+            tabBtns.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            tabPrefBtn.classList.add('active');
+            panelPref.classList.add('active');
+        }
         if (products) {
             renderSettingsProducts(products, editProduct, deleteProduct);
         }
     } else {
-        modal.classList.add('hidden');
+        // If they close, switch to dashboard summary
+        const tabSummaryBtn = document.getElementById('admin-tab-btn-summary');
+        const panelSummary = document.getElementById('admin-panel-summary');
+        if (tabSummaryBtn && panelSummary) {
+            const tabBtns = document.querySelectorAll('.admin-tab-btn');
+            const panels = document.querySelectorAll('.admin-panel');
+            tabBtns.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            tabSummaryBtn.classList.add('active');
+            panelSummary.classList.add('active');
+        }
     }
 }
 
@@ -1228,7 +1262,13 @@ function renderIngredientsPantry(ingredients, onAddStock) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses list
  */
-function renderStats(salesLog, expenses = []) {
+/**
+ * Render historical sales charts and metrics inside admin stats panel
+ * @param {Array} salesLog Sales history
+ * @param {Array} expenses Expenses history
+ * @param {Array} products Products list for favorites resolving
+ */
+function renderStats(salesLog, expenses = [], products = []) {
     const container = document.getElementById('stats-chart-content');
     if (!container) return;
 
@@ -1272,36 +1312,6 @@ function renderStats(salesLog, expenses = []) {
         `;
     });
 
-    // 2. Best-selling flavors
-    const productCounts = {};
-    salesLog.forEach(sale => {
-        if (sale.productId !== 'abono') {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
-            productCounts[cleanName] = (productCounts[cleanName] || 0) + 1;
-        }
-    });
-
-
-    const topProducts = Object.entries(productCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
-
-    let topHtml = '';
-    if (topProducts.length > 0) {
-        topHtml = `
-            <div style="margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.75rem;">
-                <h5 style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos de la Semana</h5>
-                ${topProducts.map(([name, count], index) => `
-                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
-                        <span>${index+1}. ${name}</span>
-                        <span style="font-weight: 700; color: var(--color-gold);">${count} vendid.</span>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    // 3. Combined net profit
     const totalIncome = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = totalIncome - totalExpenses;
@@ -1312,20 +1322,174 @@ function renderStats(salesLog, expenses = []) {
         </div>
         
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
-            <span>Total Ventas:</span>
+            <span>Total Ventas (Semana):</span>
             <span style="color: var(--color-success);">+$${totalIncome.toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-top: 0.25rem;">
-            <span>Gastos:</span>
+            <span>Gastos (Semana):</span>
             <span style="color: var(--color-danger);">-$${totalExpenses.toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; color: var(--color-gold); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.25rem;">
-            <span>Ganancia Neta:</span>
+            <span>Ganancia Neta (Semana):</span>
             <span>$${netProfit.toFixed(2)}</span>
         </div>
-        
-        ${topHtml}
     `;
+
+    // 2. Render KPIs for TODAY (Hoy)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const todaySales = salesLog.filter(s => {
+        const d = parseUTCTimestamp(s.timestamp);
+        return d >= today;
+    });
+    const todaySalesTotal = todaySales.reduce((sum, s) => sum + (s.price || 0), 0);
+
+    const todayExpenses = expenses.filter(e => {
+        const d = parseUTCTimestamp(e.timestamp);
+        return d >= today;
+    });
+    const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const todayCaja = todaySalesTotal - todayExpensesTotal;
+
+    const cajaKpiEl = document.getElementById('admin-kpi-caja');
+    const ventasKpiEl = document.getElementById('admin-kpi-ventas');
+    const gastosKpiEl = document.getElementById('admin-kpi-gastos');
+
+    if (cajaKpiEl) cajaKpiEl.textContent = `$${todayCaja.toFixed(2)}`;
+    if (ventasKpiEl) ventasKpiEl.textContent = `$${todaySalesTotal.toFixed(2)}`;
+    if (gastosKpiEl) gastosKpiEl.textContent = `$${todayExpensesTotal.toFixed(2)}`;
+
+    // Update active summary time display
+    const timeDisplayEl = document.getElementById('admin-summary-time-display');
+    if (timeDisplayEl) {
+        timeDisplayEl.innerHTML = `<i class="fa-solid fa-clock"></i> Actualizado: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    // 3. Render Favorites (Daily & Weekly)
+    // Daily Favorites
+    const dailyCounts = {};
+    todaySales.forEach(sale => {
+        if (sale.productId !== 'abono') {
+            dailyCounts[sale.productId] = (dailyCounts[sale.productId] || 0) + 1;
+        }
+    });
+
+    const topDaily = Object.entries(dailyCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    const dailyContainer = document.getElementById('admin-favorites-daily');
+    if (dailyContainer) {
+        if (topDaily.length === 0) {
+            dailyContainer.innerHTML = `<div style="font-size: 10px; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hay ventas hoy aún.</div>`;
+        } else {
+            const maxDailyCount = topDaily[0][1];
+            dailyContainer.innerHTML = topDaily.map(([pId, count], index) => {
+                const prod = products.find(p => p.id === pId);
+                const prodName = prod ? prod.name : pId;
+                const pct = (count / maxDailyCount) * 100;
+                return `
+                    <div class="admin-favorite-item">
+                        <div class="admin-favorite-header">
+                            <span class="admin-favorite-name">${index + 1}. ${prodName}</span>
+                            <span class="admin-favorite-qty">${count} unid.</span>
+                        </div>
+                        <div class="admin-favorite-bar-bg">
+                            <div class="admin-favorite-bar-fill" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // Weekly Favorites
+    const weeklyCounts = {};
+    salesLog.forEach(sale => {
+        if (sale.productId !== 'abono') {
+            weeklyCounts[sale.productId] = (weeklyCounts[sale.productId] || 0) + 1;
+        }
+    });
+
+    const topWeekly = Object.entries(weeklyCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    const weeklyContainer = document.getElementById('admin-favorites-weekly');
+    if (weeklyContainer) {
+        if (topWeekly.length === 0) {
+            weeklyContainer.innerHTML = `<div style="font-size: 10px; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">Sin ventas esta semana.</div>`;
+        } else {
+            const maxWeeklyCount = topWeekly[0][1];
+            weeklyContainer.innerHTML = topWeekly.map(([pId, count], index) => {
+                const prod = products.find(p => p.id === pId);
+                const prodName = prod ? prod.name : pId;
+                const pct = (count / maxWeeklyCount) * 100;
+                return `
+                    <div class="admin-favorite-item">
+                        <div class="admin-favorite-header">
+                            <span class="admin-favorite-name">${index + 1}. ${prodName}</span>
+                            <span class="admin-favorite-qty">${count} unid.</span>
+                        </div>
+                        <div class="admin-favorite-bar-bg">
+                            <div class="admin-favorite-bar-fill weekly" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+/**
+ * Render recent audit activity logs in the admin panel
+ * @param {Array} logs Activity logs list
+ */
+function renderActivityLogs(logs) {
+    const tbody = document.getElementById('admin-logs-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (!logs || logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 1.5rem 0;">
+                    No hay registros de actividad en la bitácora.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    logs.forEach(log => {
+        const tr = document.createElement('tr');
+        
+        let badgeClass = 'role-badge ';
+        let badgeLabel = 'Venta';
+        if (log.role === 'cocina') {
+            badgeClass += 'cocina';
+            badgeLabel = 'Cocina';
+        } else if (log.role === 'admin') {
+            badgeClass += 'admin';
+            badgeLabel = 'Admin';
+        } else {
+            badgeClass += 'local';
+        }
+
+        const date = new Date(log.timestamp);
+        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
+        tr.innerHTML = `
+            <td><span class="${badgeClass}">${badgeLabel}</span></td>
+            <td style="font-weight: 700; color: var(--color-white);">${log.action}</td>
+            <td style="color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${log.details || ''}">${log.details || ''}</td>
+            <td style="text-align: right; color: var(--color-text-muted); font-size: 10px;">${timeStr}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 /**
@@ -2597,6 +2761,7 @@ window.UIManager = {
     showPaymentMethodModal,
     showUpdateOverlay,
     updateOverlayStatusSuccess,
-    renderActiveDevices
+    renderActiveDevices,
+    renderActivityLogs
 };
 

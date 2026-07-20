@@ -71,7 +71,7 @@ function enqueueOfflineOp(table, action, data = null, key = null, keyValue = nul
 }
 
 /**
- * Process the local offline queue and push pending items to Supabase
+ * Process the local offline queue and push pending items to Supabase in optimized batches
  */
 async function syncOfflineQueue() {
     if (!client || !navigator.onLine) return;
@@ -79,36 +79,112 @@ async function syncOfflineQueue() {
     const queue = JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]');
     if (queue.length === 0) return;
 
-    console.log(`Syncing ${queue.length} offline operations to Supabase...`);
-    const remaining = [];
+    console.log(`Syncing ${queue.length} offline operations to Supabase in optimized batches...`);
+    
+    // Group operations by action and table to process them in batches
+    const upsertsByTable = {};
+    const deletesByTableAndKey = {};
+    const nonBatchable = [];
 
-    for (const op of queue) {
-        try {
-            let error = null;
-            if (op.action === 'upsert' || op.action === 'insert') {
-                const res = await client.from(op.table).upsert(op.data);
-                error = res.error;
-            } else if (op.action === 'delete') {
-                const res = await client.from(op.table).delete().eq(op.key, op.keyValue);
-                error = res.error;
-            } else if (op.action === 'update_stock') {
-                const res = await client.from(op.table).update(op.data).eq(op.key, op.keyValue);
-                error = res.error;
+    queue.forEach(op => {
+        if (op.action === 'insert' || op.action === 'upsert') {
+            if (!upsertsByTable[op.table]) {
+                upsertsByTable[op.table] = [];
             }
-            
+            if (Array.isArray(op.data)) {
+                upsertsByTable[op.table].push(...op.data);
+            } else {
+                upsertsByTable[op.table].push(op.data);
+            }
+        } else if (op.action === 'delete') {
+            if (!deletesByTableAndKey[op.table]) {
+                deletesByTableAndKey[op.table] = {};
+            }
+            if (!deletesByTableAndKey[op.table][op.key]) {
+                deletesByTableAndKey[op.table][op.key] = [];
+            }
+            deletesByTableAndKey[op.table][op.key].push(op.keyValue);
+        } else {
+            nonBatchable.push(op);
+        }
+    });
+
+    const failedOps = [];
+
+    // 1. Process Upsert Batches
+    for (const [table, records] of Object.entries(upsertsByTable)) {
+        if (records.length === 0) continue;
+        try {
+            // Deduplicate records by unique identifier to prevent conflict key violations in the same batch
+            const uniqueRecords = [];
+            const seenIds = new Set();
+            for (let i = records.length - 1; i >= 0; i--) {
+                const rec = records[i];
+                const keyVal = rec.uuid || rec.id || JSON.stringify(rec);
+                if (!seenIds.has(keyVal)) {
+                    seenIds.add(keyVal);
+                    uniqueRecords.push(rec);
+                }
+            }
+            uniqueRecords.reverse();
+
+            const { error } = await client.from(table).upsert(uniqueRecords);
             if (error) {
-                console.warn(`Error syncing offline action for ${op.table}:`, error.message);
-                remaining.push(op); // Retry later
+                console.error(`Batch upsert error for table ${table}:`, error.message);
+                records.forEach(r => failedOps.push({ table, action: 'upsert', data: r }));
+            } else {
+                console.log(`Synced batch of ${uniqueRecords.length} upserts for table: ${table}`);
             }
         } catch (e) {
-            console.error(`Network error syncing offline action for ${op.table}:`, e);
-            remaining.push(op); // Retry later
+            console.error(`Batch upsert network error for table ${table}:`, e);
+            records.forEach(r => failedOps.push({ table, action: 'upsert', data: r }));
         }
     }
 
-    localStorage.setItem('casa_lucenzo_offline_queue', JSON.stringify(remaining));
-    if (remaining.length === 0) {
+    // 2. Process Delete Batches (using .in() selection)
+    for (const [table, keysObj] of Object.entries(deletesByTableAndKey)) {
+        for (const [key, values] of Object.entries(keysObj)) {
+            if (values.length === 0) continue;
+            try {
+                const uniqueValues = [...new Set(values)];
+                const { error } = await client.from(table).delete().in(key, uniqueValues);
+                if (error) {
+                    console.error(`Batch delete error for table ${table} on ${key}:`, error.message);
+                    values.forEach(val => failedOps.push({ table, action: 'delete', key, keyValue: val }));
+                } else {
+                    console.log(`Synced batch of ${uniqueValues.length} deletes for table: ${table}`);
+                }
+            } catch (e) {
+                console.error(`Batch delete network error for table ${table}:`, e);
+                values.forEach(val => failedOps.push({ table, action: 'delete', key, keyValue: val }));
+            }
+        }
+    }
+
+    // 3. Process remaining non-batchable operations
+    for (const op of nonBatchable) {
+        try {
+            let error = null;
+            if (op.action === 'update_stock') {
+                const res = await client.from(op.table).update(op.data).eq(op.key, op.keyValue);
+                error = res.error;
+            }
+            if (error) {
+                console.error(`Error syncing non-batchable operation for ${op.table}:`, error.message);
+                failedOps.push(op);
+            }
+        } catch (e) {
+            console.error(`Network error for non-batchable operation on ${op.table}:`, e);
+            failedOps.push(op);
+        }
+    }
+
+    // Write failed items back to queue
+    localStorage.setItem('casa_lucenzo_offline_queue', JSON.stringify(failedOps));
+    if (failedOps.length === 0) {
         console.log("All offline operations synced successfully to Supabase.");
+    } else {
+        console.log(`Offline sync finished. ${failedOps.length} operations remain in queue.`);
     }
 }
 
@@ -349,6 +425,22 @@ async function deleteSale(uuid) {
     }
 }
 
+async function deleteSales(uuids) {
+    if (!client) return;
+    if (!Array.isArray(uuids) || uuids.length === 0) return;
+    try {
+        if (!navigator.onLine) {
+            uuids.forEach(uuid => enqueueOfflineOp('sales', 'delete', null, 'uuid', uuid));
+            return;
+        }
+        const { error } = await client.from('sales').delete().in('uuid', uuids);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase deleteSales batch failed. Enqueuing offline...", e);
+        uuids.forEach(uuid => enqueueOfflineOp('sales', 'delete', null, 'uuid', uuid));
+    }
+}
+
 async function insertExpense(expense) {
     if (!client) return;
     try {
@@ -384,6 +476,22 @@ async function deleteExpense(uuid) {
     } catch (e) {
         console.error("Supabase deleteExpense failed. Enqueuing offline...", e);
         enqueueOfflineOp('expenses', 'delete', null, 'uuid', uuid);
+    }
+}
+
+async function deleteExpenses(uuids) {
+    if (!client) return;
+    if (!Array.isArray(uuids) || uuids.length === 0) return;
+    try {
+        if (!navigator.onLine) {
+            uuids.forEach(uuid => enqueueOfflineOp('expenses', 'delete', null, 'uuid', uuid));
+            return;
+        }
+        const { error } = await client.from('expenses').delete().in('uuid', uuids);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase deleteExpenses batch failed. Enqueuing offline...", e);
+        uuids.forEach(uuid => enqueueOfflineOp('expenses', 'delete', null, 'uuid', uuid));
     }
 }
 
@@ -518,6 +626,10 @@ async function upsertAppConfig(config) {
             use_auto_bcv: !!config.useAutoBcv,
             updated_at: new Date().toISOString()
         };
+        
+        if (config.pinLocal !== undefined) payload.pin_local = config.pinLocal;
+        if (config.pinCocina !== undefined) payload.pin_cocina = config.pinCocina;
+        if (config.pinAdmin !== undefined) payload.pin_admin = config.pinAdmin;
         
         if (dbSupportsLastClose) {
             if (config.lastCloseTime !== undefined) {
@@ -732,6 +844,80 @@ async function trustSession(deviceId, isTrusted) {
     }
 }
 
+// ================= AUDIT & ACTIVITY LOGS =================
+
+/**
+ * Inserts a new activity log record
+ * @param {string} role Profile role ('local', 'cocina', 'admin')
+ * @param {string} action Action description
+ * @param {string} details JSON or details string
+ */
+async function insertActivityLog(role, action, details) {
+    // Also save locally for offline fallback
+    try {
+        const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
+        localLogs.push({
+            role: role || 'unknown',
+            action: action || '',
+            details: details || '',
+            timestamp: new Date().toISOString()
+        });
+        // Limit to 100 logs locally
+        if (localLogs.length > 100) localLogs.shift();
+        localStorage.setItem('casa_lucenzo_local_activity_logs', JSON.stringify(localLogs));
+    } catch(e) {
+        console.error("Local log write failed", e);
+    }
+
+    if (!client) return;
+    const payload = {
+        role: role || 'unknown',
+        action: action || '',
+        details: details || '',
+        timestamp: new Date().toISOString()
+    };
+    try {
+        if (!navigator.onLine) {
+            enqueueOfflineOp('activity_logs', 'insert', payload);
+            return;
+        }
+        const { error } = await client.from('activity_logs').insert(payload);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Error inserting activity log to Supabase:", e);
+        // Fallback to offline queue
+        enqueueOfflineOp('activity_logs', 'insert', payload);
+    }
+}
+
+/**
+ * Fetches recent activity logs
+ * @returns {Array} List of logs
+ */
+async function fetchActivityLogs() {
+    if (!client) {
+        try {
+            const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
+            return [...localLogs].reverse();
+        } catch(e) {
+            return [];
+        }
+    }
+    try {
+        const { data, error } = await client.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+        if (error) throw error;
+        return data || [];
+    } catch (e) {
+        console.error("Error fetching activity logs from Supabase:", e);
+        try {
+            const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
+            return [...localLogs].reverse();
+        } catch(err) {
+            return [];
+        }
+    }
+}
+
 // ================= REALTIME CHANNELS LISTENERS =================
 
 /**
@@ -754,6 +940,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, (p) => onDbChange('ingredients', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, (p) => onDbChange('app_config', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'active_sessions' }, (p) => onDbChange('active_sessions', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, (p) => onDbChange('activity_logs', p))
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");
@@ -777,8 +964,10 @@ window.SupabaseManager = {
     insertSale,
     insertSales,
     deleteSale,
+    deleteSales,
     insertExpense,
     deleteExpense,
+    deleteExpenses,
     upsertDebt,
     deleteDebt,
     upsertReplenishment,
@@ -797,5 +986,7 @@ window.SupabaseManager = {
     registerSession,
     deleteSession,
     blockSession,
-    trustSession
+    trustSession,
+    insertActivityLog,
+    fetchActivityLogs
 };

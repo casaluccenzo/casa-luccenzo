@@ -1,5 +1,5 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v102';
+const CACHE_NAME = 'casa-lucenzo-v103';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -50,6 +50,7 @@ self.addEventListener('activate', event => {
 // Fetch Event - Stale-While-Revalidate caching strategy
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('supabase.co')) return;
 
   event.respondWith(
     caches.match(event.request)

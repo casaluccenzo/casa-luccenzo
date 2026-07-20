@@ -2115,7 +2115,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         // 1b. Render Inventory Reconciliation (Match)
         const matchSection = document.getElementById('inventory-match-section');
         if (matchSection) {
-            const auditedProducts = [];
+            const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
+            if (activeRole !== 'admin') {
+                matchSection.classList.add('hidden');
+                matchSection.innerHTML = '';
+            } else {
+                const auditedProducts = [];
             products.forEach(p => {
                 if (p.id === 'abono') return;
                 const initial = (p.initial_stock !== undefined && p.initial_stock !== null) ? p.initial_stock : (p.max || 0);
@@ -2219,6 +2224,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             }
         }
     }
+}
 
     // 2. Render 6 Tables Grid
     const tablesContainer = document.getElementById('tables-grid-container');

@@ -2753,6 +2753,111 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
     });
 }
 
+/**
+ * Render hourly sales distribution histogram
+ * @param {Array} salesLog Sales array
+ * @param {string} mode 'today' or 'weekly'
+ */
+function renderHourlyStats(salesLog, mode = 'today') {
+    const container = document.getElementById('hourly-chart-content');
+    if (!container) return;
+
+    // Active business operational hours (7 AM to 9 PM)
+    const targetHours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+
+    // Filter salesLog based on active mode
+    let filteredSales = [];
+    if (mode === 'today') {
+        const startOfToday = new Date();
+        startOfToday.setHours(0,0,0,0);
+        filteredSales = salesLog.filter(s => {
+            const d = parseUTCTimestamp(s.timestamp);
+            return d >= startOfToday;
+        });
+    } else {
+        filteredSales = salesLog; // salesLog represents the weekly sales
+    }
+
+    // Group sales into hourly buckets
+    const hourlyData = {};
+    targetHours.forEach(h => {
+        hourlyData[h] = { count: 0, revenue: 0 };
+    });
+
+    filteredSales.forEach(s => {
+        const d = parseUTCTimestamp(s.timestamp);
+        const hr = d.getHours();
+        if (hr >= 7 && hr <= 21) {
+            hourlyData[hr].count++;
+            hourlyData[hr].revenue += s.price || 0;
+        }
+    });
+
+    // Find the peak hour (highest revenue)
+    let peakHour = -1;
+    let maxRevenue = 0;
+    targetHours.forEach(h => {
+        if (hourlyData[h].revenue > maxRevenue) {
+            maxRevenue = hourlyData[h].revenue;
+            peakHour = h;
+        }
+    });
+
+    const scaleMax = Math.max(...targetHours.map(h => hourlyData[h].revenue), 1.0);
+
+    let colsHtml = '';
+    targetHours.forEach(h => {
+        const data = hourlyData[h];
+        const isPeak = h === peakHour && data.revenue > 0;
+        const pct = (data.revenue / scaleMax) * 100;
+        
+        // Format AM/PM labels
+        const labelStr = h >= 12 ? (h === 12 ? '12 PM' : `${h - 12} PM`) : `${h} AM`;
+        const peakClass = isPeak ? ' peak-hour' : '';
+
+        colsHtml += `
+            <div class="hourly-column${peakClass}">
+                <div class="hourly-val">$${data.revenue.toFixed(1)}</div>
+                <div class="hourly-bar-track">
+                    <div class="hourly-bar-fill" style="height: ${pct}%"></div>
+                </div>
+                <div class="hourly-label" style="font-size: 8px;">${labelStr}</div>
+            </div>
+        `;
+    });
+
+    let summaryText = '';
+    if (peakHour !== -1 && hourlyData[peakHour].revenue > 0) {
+        const peakLabel = peakHour >= 12 ? (peakHour === 12 ? '12:00 PM' : `${peakHour - 12}:00 PM`) : `${peakHour}:00 AM`;
+        const totalVolume = hourlyData[peakHour].count;
+        summaryText = `
+            <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 0.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.35rem; justify-content: space-between; flex-wrap: wrap;">
+                <div>
+                    <span style="color: var(--color-gold);"><i class="fa-solid fa-crown"></i> Hora Pico:</span> 
+                    <span style="color: var(--color-white); font-weight: 800;">${peakLabel}</span> con <strong style="color: var(--color-success); font-weight: 800;">$${hourlyData[peakHour].revenue.toFixed(2)}</strong> (${totalVolume} ventas)
+                </div>
+                <div style="font-size: 9px; color: var(--color-text-muted); font-style: italic;">
+                    Mostrando ventas por hora (${mode === 'today' ? 'Hoy' : 'Semana'})
+                </div>
+            </div>
+        `;
+    } else {
+        summaryText = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--color-text-muted); margin-bottom: 0.5rem;">
+                <span>No hay ventas registradas en el período seleccionado.</span>
+                <span style="font-size: 9px; font-style: italic;">Mostrando ventas por hora (${mode === 'today' ? 'Hoy' : 'Semana'})</span>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        ${summaryText}
+        <div class="hourly-chart-wrapper">
+            ${colsHtml}
+        </div>
+    `;
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -2782,6 +2887,7 @@ window.UIManager = {
     showUpdateOverlay,
     updateOverlayStatusSuccess,
     renderActiveDevices,
-    renderActivityLogs
+    renderActivityLogs,
+    renderHourlyStats
 };
 

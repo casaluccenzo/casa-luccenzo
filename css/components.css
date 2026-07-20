@@ -2192,4 +2192,90 @@ input:checked + .slider:before {
     }
 }
 
+/* Hourly Sales Histogram styles */
+.hourly-chart-wrapper {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.4rem;
+    height: 160px;
+    padding: 1.25rem 0.5rem 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.hourly-chart-wrapper::-webkit-scrollbar {
+    height: 4px;
+}
+
+.hourly-chart-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+}
+
+.hourly-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 38px;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.hourly-val {
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--color-white);
+    text-align: center;
+    opacity: 0.9;
+}
+
+.hourly-bar-track {
+    width: 10px;
+    height: 90px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.hourly-bar-fill {
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(180deg, #34D399, #059669);
+    border-radius: 10px;
+    transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hourly-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+/* Peak Hour Highlight styling */
+.hourly-column.peak-hour .hourly-bar-fill {
+    background: linear-gradient(180deg, var(--color-gold), #D97706) !important;
+    box-shadow: 0 0 12px rgba(243, 198, 63, 0.5);
+}
+
+.hourly-column.peak-hour .hourly-label {
+    color: var(--color-gold) !important;
+    font-weight: 900;
+}
+
+.hourly-column.peak-hour .hourly-val {
+    color: var(--color-gold) !important;
+    font-weight: 900;
+}
+
+
 

@@ -31,6 +31,10 @@ let useAutoBcv = true;
 // Current report data displayed in the day close modal
 let currentReportData = { sales: [], expenses: [] };
 
+// Global cache for admin statistics and hourly chart mode
+let hourlyActiveMode = 'today';
+let adminStatsSales = [];
+
 // Unique device identifier for active session management
 let myDeviceId = localStorage.getItem('casa_lucenzo_device_id');
 if (!myDeviceId) {
@@ -1714,7 +1718,11 @@ async function loadAndRenderAdminStats() {
     const devKpi = document.getElementById('admin-kpi-devices');
     if (devKpi) devKpi.textContent = devCount;
 
+    // Cache statsSales globally for toggle rendering
+    adminStatsSales = statsSales;
+
     window.UIManager.renderStats(statsSales, statsExpenses, products);
+    window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
 }
 
 /**
@@ -1811,7 +1819,20 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
+            if (eventType === 'INSERT') {
+                const statFormatted = {
+                    productId: newRow.product_id,
+                    price: parseFloat(newRow.price) || 0,
+                    timestamp: newRow.timestamp
+                };
+                if (!adminStatsSales.some(s => s.timestamp === statFormatted.timestamp && s.productId === statFormatted.productId)) {
+                    adminStatsSales.push(statFormatted);
+                }
+            } else if (eventType === 'DELETE') {
+                adminStatsSales = adminStatsSales.filter(s => s.timestamp !== oldRow.timestamp);
+            }
+            window.UIManager.renderStats(adminStatsSales, expenses, products);
+            window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
         }
     } else if (tableName === 'expenses') {
         const startOfDay = new Date();
@@ -2980,6 +3001,27 @@ function initAdminDashboardListeners() {
         btnEditProductClose.addEventListener('click', () => {
             triggerHaptic(10);
             document.getElementById('edit-product-modal').classList.add('hidden');
+        });
+    }
+
+    // Hourly stats toggle button listeners
+    const btnHourlyToday = document.getElementById('btn-hourly-today');
+    const btnHourlyWeekly = document.getElementById('btn-hourly-weekly');
+    if (btnHourlyToday && btnHourlyWeekly) {
+        btnHourlyToday.addEventListener('click', () => {
+            triggerHaptic(10);
+            hourlyActiveMode = 'today';
+            btnHourlyToday.classList.add('active');
+            btnHourlyWeekly.classList.remove('active');
+            window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
+        });
+
+        btnHourlyWeekly.addEventListener('click', () => {
+            triggerHaptic(10);
+            hourlyActiveMode = 'weekly';
+            btnHourlyWeekly.classList.add('active');
+            btnHourlyToday.classList.remove('active');
+            window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
         });
     }
 }

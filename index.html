@@ -591,6 +591,22 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Row 2: Hourly Sales Distribution -->
+                        <div class="admin-dashboard-row" style="margin-top: 1rem; grid-template-columns: 1fr;">
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-clock"></i> Distribución de Ventas por Hora</span>
+                                    <div style="display: flex; gap: 0.35rem;" id="hourly-toggle-container">
+                                        <button id="btn-hourly-today" class="btn-action-small active" style="padding: 2px 8px; font-size: 9px;">Hoy</button>
+                                        <button id="btn-hourly-weekly" class="btn-action-small" style="padding: 2px 8px; font-size: 9px;">Semana</button>
+                                    </div>
+                                </h4>
+                                <div id="hourly-chart-content" style="margin-top: 0.5rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

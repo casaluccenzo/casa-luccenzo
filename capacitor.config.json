@@ -1,0 +1,6 @@
+{
+  "appId": "com.casaluccenzo.app",
+  "appName": "Casa Luccenzo",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

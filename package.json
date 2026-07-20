@@ -1,0 +1,19 @@
+{
+  "name": "casa-luccenzo",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de inventario y caja para Casa Luccenzo.",
+  "main": "index.html",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2"
+  }
+}

@@ -19,3 +19,7 @@ Desktop.ini
 # Supabase configuration (to avoid exposing private keys if they are changed, though anon key is public)
 # It is best practice to keep local configuration files untracked if they differ by environment.
 js/supabaseConfig.js
+
+# Dependencies and build folders
+node_modules/
+www/

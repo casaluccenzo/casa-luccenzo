@@ -2870,6 +2870,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.SupabaseManager.isConfigured()) {
             window.UIManager.updateConnectionStatus('online');
             window.SupabaseManager.syncOfflineQueue();
+            window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
+            loadAllDataFromSupabase();
         }
     });
     window.addEventListener('offline', () => {

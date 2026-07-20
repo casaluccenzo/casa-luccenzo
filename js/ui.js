@@ -2679,6 +2679,10 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
         const roleName = sess.role === 'admin' ? 'Administrador' : sess.role === 'cocina' ? 'Cocina' : 'Ventas (Local)';
         const dateObj = new Date(sess.last_active_at);
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isOnline = (Date.now() - dateObj.getTime()) < 120000;
+        const statusDot = isOnline 
+            ? '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--color-success); box-shadow: 0 0 6px var(--color-success); margin-left: 0.25rem;" title="En línea"></span>'
+            : '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--color-text-muted); margin-left: 0.25rem;" title="Desconectado"></span>';
 
         html += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.625rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-sm);">
@@ -2689,7 +2693,7 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
                     <div style="min-width: 0; flex: 1;">
                         <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-white); display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem;">
                             <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;">${sess.device_name}</span>
-                            ${meBadge} ${trustBadge}
+                            ${statusDot} ${meBadge} ${trustBadge}
                         </div>
                         <div style="font-size: 9px; color: var(--color-text-muted);">
                             Rol: <strong>${roleName}</strong> | Activo: ${timeStr}

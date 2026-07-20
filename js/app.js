@@ -1695,6 +1695,7 @@ async function loadAndRenderAdminStats() {
     
     let statsSales = salesLog;
     let statsExpenses = expenses;
+    let devCount = 1;
     
     if (window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
@@ -1703,11 +1704,16 @@ async function loadAndRenderAdminStats() {
                 statsSales = data.sales;
                 statsExpenses = data.expenses;
             }
+            const sessions = await window.SupabaseManager.fetchActiveSessions();
+            devCount = sessions ? sessions.length : 0;
         } catch(e) {
             console.error("Failed to load historical stats from Supabase", e);
         }
     }
     
+    const devKpi = document.getElementById('admin-kpi-devices');
+    if (devKpi) devKpi.textContent = devCount;
+
     window.UIManager.renderStats(statsSales, statsExpenses, products);
 }
 
@@ -1949,6 +1955,14 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         const listDiv = document.getElementById('settings-devices-list');
         if (listDiv && !document.getElementById('view-admin-dashboard').classList.contains('hidden')) {
             loadAndRenderActiveDevices();
+        }
+
+        // Also update the active devices KPI card in real-time
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            window.SupabaseManager.fetchActiveSessions().then(sessions => {
+                const devKpi = document.getElementById('admin-kpi-devices');
+                if (devKpi) devKpi.textContent = sessions ? sessions.length : 0;
+            }).catch(err => console.error("Error fetching sessions in realtime update:", err));
         }
     }
 }

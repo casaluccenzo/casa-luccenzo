@@ -1954,18 +1954,18 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             const auditedProducts = [];
             products.forEach(p => {
                 if (p.id === 'abono') return;
-                const max = p.max || 0;
-                if (max === 0) return; // Ignore products that have no loaded capacity today
+                const initial = (p.initial_stock !== undefined && p.initial_stock !== null) ? p.initial_stock : (p.max || 0);
+                if (initial === 0) return; // Ignore products that have no loaded capacity today
                 
                 const stock = p.stock || 0;
-                const expectedSales = Math.max(0, max - stock);
+                const expectedSales = Math.max(0, initial - stock);
                 const loggedSales = salesLog.filter(s => s.productId === p.id).length;
                 const discrepancy = expectedSales - loggedSales;
                 
                 if (discrepancy !== 0) {
                     auditedProducts.push({
                         product: p,
-                        max: max,
+                        max: initial,
                         stock: stock,
                         expected: expectedSales,
                         logged: loggedSales,

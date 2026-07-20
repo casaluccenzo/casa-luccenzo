@@ -144,11 +144,13 @@ function adjustStock(id, amount, event) {
 
         triggerHaptic(15);
 
+        const diff = newStock - originalStock;
         product.stock = newStock;
+        product.initial_stock = (product.initial_stock !== undefined && product.initial_stock !== null) ? (product.initial_stock + diff) : newStock;
         window.StorageManager.saveProducts(products);
 
         if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.updateProductStock(product.id, product.stock);
+            window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
         }
 
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -807,8 +809,9 @@ function confirmReceipt() {
             const added = dispatch.amount || 0;
             product.stock = product.stock + added;
             product.max = product.max + added;
+            product.initial_stock = (product.initial_stock !== undefined && product.initial_stock !== null) ? (product.initial_stock + added) : product.stock;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
             }
         }
         dispatch.status = 'recibido';
@@ -835,8 +838,9 @@ function resetToMax() {
     products.forEach(p => {
         if (p.category !== 'bebidas') {
             p.stock = p.max;
+            p.initial_stock = p.max;
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(p.id, p.max);
+                window.SupabaseManager.updateProductStock(p.id, p.max, p.max, p.max);
             }
         }
     });
@@ -1355,12 +1359,18 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Reset showcase products' stock, keeping max capacity completely untouched
+        // 4. Reset showcase products' stock, keeping max capacity completely untouched and updating initial_stock
         products.forEach(p => {
             if (p.category !== 'bebidas') {
                 p.stock = 0;
+                p.initial_stock = 0;
                 if (window.SupabaseManager.isConfigured()) {
-                    window.SupabaseManager.updateProductStock(p.id, 0, p.max);
+                    window.SupabaseManager.updateProductStock(p.id, 0, p.max, 0);
+                }
+            } else {
+                p.initial_stock = p.stock || 0;
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.updateProductStock(p.id, p.stock, p.max, p.initial_stock);
                 }
             }
         });
@@ -1455,7 +1465,7 @@ function addNewProduct(e) {
         return;
     }
 
-    const newProd = { id, name, stock: max, min, max, unit, price, category };
+    const newProd = { id, name, stock: max, min, max, unit, price, category, initial_stock: max };
     products.push(newProd);
     window.StorageManager.saveProducts(products);
 
@@ -1534,6 +1544,7 @@ function editProductPrompt(id) {
     product.min = minVal;
     product.category = catVal;
     product.stock = stockVal;
+    product.initial_stock = stockVal;
 
     window.StorageManager.saveProducts(products);
 

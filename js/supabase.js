@@ -119,7 +119,10 @@ async function fetchProducts() {
     try {
         const { data, error } = await client.from('products').select('*').order('name');
         if (error) throw error;
-        return data;
+        return data.map(p => ({
+            ...p,
+            initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined) ? p.initial_stock : p.stock
+        }));
     } catch (e) {
         console.error("Error fetching products from Supabase:", e);
         return null;
@@ -222,6 +225,7 @@ async function upsertProduct(product) {
             unit: product.unit,
             price: product.price,
             category: product.category,
+            initial_stock: product.initial_stock !== undefined ? product.initial_stock : product.stock,
             updated_at: new Date().toISOString()
         };
         
@@ -238,7 +242,7 @@ async function upsertProduct(product) {
     }
 }
 
-async function updateProductStock(id, stock, max) {
+async function updateProductStock(id, stock, max, initialStock) {
     if (!client) return;
     const payload = {
         stock: stock,
@@ -246,6 +250,9 @@ async function updateProductStock(id, stock, max) {
     };
     if (max !== undefined) {
         payload.max = max;
+    }
+    if (initialStock !== undefined) {
+        payload.initial_stock = initialStock;
     }
     try {
         if (!navigator.onLine) {

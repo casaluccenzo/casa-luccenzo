@@ -1215,46 +1215,10 @@ function updateConnectionStatus(status) {
  * @param {Function} onAddStock Callback when clicked "Comprar" to add stock
  */
 function renderIngredientsPantry(ingredients, onAddStock) {
-    const container = document.getElementById('kitchen-orders-container');
-    if (!container) return;
-
-    let pantry = document.getElementById('kitchen-pantry-card');
-    if (!pantry) {
-        pantry = document.createElement('div');
-        pantry.id = 'kitchen-pantry-card';
-        pantry.className = 'ingredient-list-card';
-        container.appendChild(pantry);
+    const pantry = document.getElementById('kitchen-pantry-card');
+    if (pantry) {
+        pantry.remove();
     }
-
-    pantry.innerHTML = `
-        <h4 class="recipe-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-warehouse"></i> Inventario en Alacena:</h4>
-        <div style="display: flex; flex-direction: column;">
-            ${ingredients.map(ing => {
-                const isLow = ing.stock <= (ing.id === 'harina' ? 5.0 : 2.0);
-                const stockClass = isLow ? 'ingredient-stock-val low' : 'ingredient-stock-val';
-                return `
-                    <div class="ingredient-row">
-                        <div class="ingredient-info">
-                            <span class="ingredient-name">${ing.name}</span>
-                            <span class="ingredient-stock">
-                                Quedan: <span class="${stockClass}">${parseFloat(ing.stock).toFixed(1)} ${ing.unit}</span>
-                            </span>
-                        </div>
-                        <button class="btn-add-stock" data-id="${ing.id}">
-                            <i class="fa-solid fa-plus"></i> Comprar
-                        </button>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-
-    pantry.querySelectorAll('.btn-add-stock').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            onAddStock(id);
-        });
-    });
 }
 
 /**

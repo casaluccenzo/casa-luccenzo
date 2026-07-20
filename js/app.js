@@ -2995,6 +2995,17 @@ function initAdminDashboardListeners() {
         });
     }
 
+    const editProdStockInput = document.getElementById('edit-prod-stock');
+    if (editProdStockInput) {
+        editProdStockInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            const maxInput = document.getElementById('edit-prod-max');
+            if (maxInput) {
+                maxInput.value = val;
+            }
+        });
+    }
+
     // Edit Product form submission
     const editProductForm = document.getElementById('edit-product-form');
     if (editProductForm) {

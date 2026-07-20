@@ -2829,6 +2829,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, bcvRate, products);
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
+        
+        // Actually perform the day close database and state reset
+        await closeDayAndResetLogs();
+        
         closeDayCloseModal();
     });
     

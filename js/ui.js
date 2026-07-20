@@ -1885,6 +1885,16 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
     const totalRealMoney = expectedSalesValue + abonosValue;
     const totalRealVES = totalRealMoney * rate;
+    const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
+    const liveTotalRealCard = document.getElementById('live-stat-total-real-card');
+    if (liveTotalRealCard) {
+        if (activeRole === 'admin') {
+            liveTotalRealCard.style.display = 'block';
+        } else {
+            liveTotalRealCard.style.display = 'none';
+        }
+    }
+
     const liveTotalRealEl = document.getElementById('live-stat-total-real');
     if (liveTotalRealEl) {
         liveTotalRealEl.innerHTML = `

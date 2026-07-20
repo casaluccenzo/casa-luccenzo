@@ -3023,6 +3023,14 @@ function initAdminDashboardListeners() {
             btnHourlyToday.classList.remove('active');
             window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
         });
+
+        const btnHourlyPdf = document.getElementById('btn-hourly-pdf');
+        if (btnHourlyPdf) {
+            btnHourlyPdf.addEventListener('click', () => {
+                triggerHaptic(15);
+                window.UIManager.exportHourlyStatsToPDF(adminStatsSales, hourlyActiveMode);
+            });
+        }
     }
 }
 

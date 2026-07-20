@@ -2858,6 +2858,413 @@ function renderHourlyStats(salesLog, mode = 'today') {
     `;
 }
 
+/**
+ * Export hourly sales stats report to PDF using the print window method
+ * @param {Array} salesLog Sales array
+ * @param {string} mode 'today' or 'weekly'
+ */
+function exportHourlyStatsToPDF(salesLog, mode = 'today') {
+    const targetHours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+
+    // Filter salesLog based on active mode
+    let filteredSales = [];
+    if (mode === 'today') {
+        const startOfToday = new Date();
+        startOfToday.setHours(0,0,0,0);
+        filteredSales = salesLog.filter(s => {
+            const d = parseUTCTimestamp(s.timestamp);
+            return d >= startOfToday;
+        });
+    } else {
+        filteredSales = salesLog;
+    }
+
+    const hourlyData = {};
+    let totalSalesVal = 0;
+    let totalSalesQty = 0;
+    targetHours.forEach(h => {
+        hourlyData[h] = { count: 0, revenue: 0 };
+    });
+
+    filteredSales.forEach(s => {
+        const d = parseUTCTimestamp(s.timestamp);
+        const hr = d.getHours();
+        if (hr >= 7 && hr <= 21) {
+            hourlyData[hr].count++;
+            hourlyData[hr].revenue += s.price || 0;
+            totalSalesVal += s.price || 0;
+            totalSalesQty++;
+        }
+    });
+
+    let peakHour = -1;
+    let maxRevenue = 0;
+    targetHours.forEach(h => {
+        if (hourlyData[h].revenue > maxRevenue) {
+            maxRevenue = hourlyData[h].revenue;
+            peakHour = h;
+        }
+    });
+
+    const scaleMax = Math.max(...targetHours.map(h => hourlyData[h].revenue), 1.0);
+    const rate = window.bcvRate || 1;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Por favor, permite las ventanas emergentes para poder descargar el PDF.");
+        return;
+    }
+
+    const css = `
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Playfair+Display:wght@700;900&display=swap');
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: #0f172a;
+            padding: 2.5rem;
+            margin: 0;
+            background-color: #ffffff;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logo-circle {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background-color: #0b1329;
+            border: 2px solid #f3c63f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f3c63f;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-text h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            margin: 0;
+            color: #0b1329;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+        .logo-text p {
+            font-size: 0.75rem;
+            margin: 0;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 800;
+        }
+        .report-meta {
+            text-align: right;
+        }
+        .report-meta h2 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: #d97706;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 900;
+        }
+        .report-meta p {
+            font-size: 0.75rem;
+            margin: 0.25rem 0 0;
+            color: #475569;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        .kpi-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .kpi-label {
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+        .kpi-val {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #0b1329;
+            margin-top: 0.35rem;
+        }
+        .kpi-subval {
+            font-size: 0.75rem;
+            color: #475569;
+            font-weight: 600;
+            margin-top: 0.2rem;
+        }
+        .section-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            color: #0b1329;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .chart-container-print {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 130px;
+            padding: 1.5rem;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .chart-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            height: 100%;
+            justify-content: flex-end;
+            gap: 0.35rem;
+        }
+        .chart-fill {
+            width: 14px;
+            background: linear-gradient(180deg, #10b981, #059669);
+            border-radius: 4px 4px 0 0;
+            min-height: 2px;
+        }
+        .chart-col.peak .chart-fill {
+            background: linear-gradient(180deg, #f3c63f, #d97706) !important;
+        }
+        .chart-col-val {
+            font-size: 7px;
+            font-weight: 800;
+            color: #475569;
+        }
+        .chart-col.peak .chart-col-val {
+            color: #b45309;
+            font-weight: 900;
+        }
+        .chart-col-label {
+            font-size: 8px;
+            color: #64748b;
+            font-weight: 700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            text-align: left;
+            padding: 0.85rem;
+            border-bottom: 2px solid #cbd5e1;
+            letter-spacing: 0.02em;
+        }
+        td {
+            padding: 0.85rem;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+        tr:nth-child(even) {
+            background-color: #fcfdfe;
+        }
+        .footer {
+            margin-top: 3.5rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1.25rem;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+        .btn-print-action {
+            background-color: #0b1329;
+            color: #ffffff;
+            border: 1px solid #f3c63f;
+            padding: 0.6rem 1.75rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+        .btn-print-action:hover {
+            background-color: #172242;
+            color: #f3c63f;
+        }
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    `;
+
+    let chartColsHtml = '';
+    targetHours.forEach(h => {
+        const data = hourlyData[h];
+        const isPeak = h === peakHour && data.revenue > 0;
+        const pct = (data.revenue / scaleMax) * 100;
+        const labelStr = h >= 12 ? (h === 12 ? '12 PM' : `${h - 12} PM`) : `${h} AM`;
+        chartColsHtml += `
+            <div class="chart-col ${isPeak ? 'peak' : ''}">
+                <div class="chart-col-val">$${data.revenue.toFixed(1)}</div>
+                <div class="chart-fill" style="height: ${pct}%;"></div>
+                <div class="chart-col-label">${labelStr}</div>
+            </div>
+        `;
+    });
+
+    let tableRowsHtml = '';
+    targetHours.forEach(h => {
+        const data = hourlyData[h];
+        const isPeak = h === peakHour && data.revenue > 0;
+        const labelStr = h >= 12 ? (h === 12 ? '12:00 PM' : `${h - 12}:00 PM`) : `${h}:00 AM`;
+        const revenueVES = data.revenue * rate;
+        
+        tableRowsHtml += `
+            <tr style="${isPeak ? 'background-color: rgba(243,198,63,0.05); font-weight: 700;' : ''}">
+                <td style="${isPeak ? 'color: #b45309;' : ''}">${labelStr} ${isPeak ? '👑 (Hora Pico)' : ''}</td>
+                <td>${data.count}</td>
+                <td style="font-weight: 600;">$${data.revenue.toFixed(2)}</td>
+                <td style="color: #64748b;">Bs. ${revenueVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    });
+
+    const dateLabel = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const periodLabel = mode === 'today' ? 'Diario (Hoy)' : 'Semanal (Últimos 7 Días)';
+    const peakHourLabel = peakHour !== -1 && hourlyData[peakHour].revenue > 0 
+        ? `${peakHour >= 12 ? (peakHour === 12 ? '12:00 PM' : `${peakHour - 12}:00 PM`) : `${peakHour}:00 AM`}` 
+        : 'N/D';
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Reporte de Ventas por Hora - Casa Lucenzo</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo-area">
+                    <div class="logo-circle">CL</div>
+                    <div class="logo-text">
+                        <h1>CASA LUCENZO</h1>
+                        <p>Pastelería & Bebidas</p>
+                    </div>
+                </div>
+                <div class="report-meta">
+                    <h2>Reporte Horario de Ventas</h2>
+                    <p><strong>Período:</strong> ${periodLabel}</p>
+                    <p><strong>Fecha de Emisión:</strong> ${dateLabel}</p>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-label">Ingresos Totales</div>
+                    <div class="kpi-val">$${totalSalesVal.toFixed(2)}</div>
+                    <div class="kpi-subval">Bs. ${(totalSalesVal * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Artículos Vendidos</div>
+                    <div class="kpi-val">${totalSalesQty} unids.</div>
+                    <div class="kpi-subval">Tasa Oficial: ${rate.toFixed(2)} Bs.</div>
+                </div>
+                <div class="kpi-card" style="border-color: #f3c63f; background-color: rgba(243,198,63,0.02);">
+                    <div class="kpi-label" style="color: #b45309;">Hora Pico de Mayor Venta</div>
+                    <div class="kpi-val" style="color: #b45309;">${peakHourLabel}</div>
+                    <div class="kpi-subval" style="color: #b45309; font-weight: 700;">
+                        ${peakHour !== -1 && hourlyData[peakHour].revenue > 0 ? `$${hourlyData[peakHour].revenue.toFixed(2)} (${hourlyData[peakHour].count} ventas)` : 'Sin Movimiento'}
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">
+                <span>📊 Gráfica de Distribución de Ingresos ($ USD)</span>
+            </div>
+            <div class="chart-container-print">
+                ${chartColsHtml}
+            </div>
+
+            <div class="section-title">
+                <span>📋 Tabla de Registro y Frecuencia Horaria</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rango Horario</th>
+                        <th>Ventas (Transacciones)</th>
+                        <th>Total Facturado ($ USD)</th>
+                        <th>Total Facturado (Bs. VES)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <p>Reporte de analítica automatizado - Sistema de Gestión Casa Lucenzo.</p>
+                <p class="no-print" style="margin-top: 1.75rem;">
+                    <button class="btn-print-action" onclick="window.print()">
+                        📥 Imprimir / Guardar PDF
+                    </button>
+                </p>
+            </div>
+            
+            <script>
+                // Auto trigger print dialog on printWindow load
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 400);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
 // Expose to window namespace
 window.UIManager = {
     switchView,
@@ -2888,6 +3295,7 @@ window.UIManager = {
     updateOverlayStatusSuccess,
     renderActiveDevices,
     renderActivityLogs,
-    renderHourlyStats
+    renderHourlyStats,
+    exportHourlyStatsToPDF
 };
 

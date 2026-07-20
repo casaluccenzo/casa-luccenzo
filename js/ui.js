@@ -3269,6 +3269,10 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = []) {
             .no-print {
                 display: none !important;
             }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
     `;
 
@@ -3713,6 +3717,10 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             }
             .no-print {
                 display: none !important;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
     `;

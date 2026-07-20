@@ -121,7 +121,7 @@ async function fetchProducts() {
         if (error) throw error;
         return data.map(p => ({
             ...p,
-            initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined) ? p.initial_stock : p.stock
+            initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined && p.initial_stock > 0) ? p.initial_stock : p.stock
         }));
     } catch (e) {
         console.error("Error fetching products from Supabase:", e);

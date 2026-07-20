@@ -1707,12 +1707,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         `;
     }
 
-    // Total Real Sold (based on physical difference in vitrina: max - stock)
+    // Total Real Sold (based on physical difference in vitrina: initial_stock - stock)
     const expectedSalesValue = products.reduce((sum, p) => {
         if (p.id === 'abono') return sum;
-        const max = p.max || 0;
+        const initial = (p.initial_stock !== undefined && p.initial_stock !== null) ? p.initial_stock : (p.max || 0);
         const stock = p.stock || 0;
-        const expectedQty = Math.max(0, max - stock);
+        const expectedQty = Math.max(0, initial - stock);
         return sum + (expectedQty * (p.price || 0));
     }, 0);
 

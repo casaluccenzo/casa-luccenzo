@@ -285,19 +285,20 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                 </p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.35rem;">
-                <button data-id="${product.id}" data-action="decrease" class="btn-touch btn-danger" title="Vender 1">-</button>
-                <input type="number" data-id="${product.id}" class="cart-qty-input" min="0" value="${cartQtyDisplay}" placeholder="0" inputmode="numeric" pattern="[0-9]*">
-                <button data-id="${product.id}" data-action="increase" class="btn-touch btn-success" title="Sumar 1">+</button>
+                <input type="tel" data-id="${product.id}" class="cart-qty-input" min="0" value="${cartQtyDisplay}" placeholder="0" inputmode="numeric" pattern="[0-9]*">
+                ${cartQty > 0 
+                    ? `<button data-id="${product.id}" data-action="increase" class="btn-touch btn-success disabled" disabled title="Ya en cuenta">✓</button>`
+                    : `<button data-id="${product.id}" data-action="increase" class="btn-touch btn-success" title="Agregar a la cuenta">+</button>`
+                }
             </div>
         `;
 
-        card.querySelector('[data-action="decrease"]').addEventListener('click', (e) => {
-            adjustStock(product.id, -1, e);
-        });
-
-        card.querySelector('[data-action="increase"]').addEventListener('click', (e) => {
-            adjustStock(product.id, 1, e);
-        });
+        const btnIncrease = card.querySelector('[data-action="increase"]');
+        if (btnIncrease && cartQty === 0) {
+            btnIncrease.addEventListener('click', (e) => {
+                adjustStock(product.id, -1, e);
+            });
+        }
 
         const qtyInput = card.querySelector('.cart-qty-input');
         if (qtyInput) {
@@ -455,7 +456,7 @@ function renderCocina(products, deliverProduct, replenishments = []) {
                         <!-- Minus button -->
                         <button class="btn-qty-minus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">-</button>
                         <!-- Input -->
-                        <input type="number" class="input-stock-val" id="input-stock-${p.id}" data-id="${p.id}" value="${p.stock}" min="0" max="999" style="width: 38px; height: 28px; text-align: center; font-size: 0.8rem; font-weight: 800; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: var(--color-white); outline: none; -moz-appearance: textfield; padding: 0;">
+                        <input type="tel" class="input-stock-val" id="input-stock-${p.id}" data-id="${p.id}" value="${p.stock}" min="0" max="999" inputmode="numeric" pattern="[0-9]*" style="width: 38px; height: 28px; text-align: center; font-size: 0.8rem; font-weight: 800; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: var(--color-white); outline: none; -moz-appearance: textfield; padding: 0;">
                         <!-- Plus button -->
                         <button class="btn-qty-plus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">+</button>
                         

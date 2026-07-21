@@ -37,8 +37,11 @@ jobs:
       - name: Build Web Assets
         run: node scripts/build.js
 
+      - name: Capacitor Doctor
+        run: npx cap doctor
+
       - name: Sync Capacitor
-        run: npx cap sync
+        run: npx cap sync --verbose
 
       - name: Compile Android APK (Debug)
         run: |

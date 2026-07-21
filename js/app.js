@@ -462,7 +462,7 @@ function handleUndoSale(timestamp) {
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
 
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
+            window.UIManager.renderStats(salesLog, expenses, products);
         }
 
         window.UIManager.showToast(`🔄 Cuenta deshecha y productos devueltos a vitrina.`, "fa-solid fa-rotate-left");
@@ -674,7 +674,7 @@ function clearAllSales() {
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
+            window.UIManager.renderStats(salesLog, expenses, products);
         }
 
         window.UIManager.showToast("🧹 Historial de ventas y caja reiniciados.", "fa-solid fa-trash-can");
@@ -1115,58 +1115,7 @@ function addIngredientStock(id) {
  */
 function shareDayClose() {
     triggerHaptic(15);
-    const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    const netCash = totalSales - totalExpenses;
-    
-    const salesCount = {};
-    salesLog.forEach(sale => {
-        let cleanName = sale.name;
-        if (sale.productId !== 'abono') {
-            cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
-        }
-        if (!salesCount[cleanName]) {
-            salesCount[cleanName] = { count: 0, unitPrice: sale.price || 0, total: 0 };
-        }
-        salesCount[cleanName].count++;
-        salesCount[cleanName].total += sale.price || 0;
-    });
-
-    const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
-    
-    let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
-    message += `📅 Fecha: ${new Date().toLocaleDateString()}\n`;
-    message += `💱 Tasa BCV: ${bcvRate.toFixed(2)} Bs.\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `🛒 *VENTAS DEL DÍA* (${totalItemsSold} unidades)\n\n`;
-    for (const [name, data] of Object.entries(salesCount)) {
-        message += `  ${data.count}x ${name}\n`;
-        message += `     $${data.unitPrice.toFixed(2)} c/u → *$${data.total.toFixed(2)}* (Bs. ${(data.total * bcvRate).toFixed(2)})\n`;
-    }
-    if (Object.keys(salesCount).length === 0) {
-        message += `  Sin ventas registradas.\n`;
-    }
-    
-    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `🏪 *GASTOS DEL LOCAL* (${expenses.length})\n\n`;
-    expenses.forEach(exp => {
-        message += `  • ${exp.description}: -$${exp.amount.toFixed(2)} (Bs. ${(exp.amount * bcvRate).toFixed(2)})\n`;
-    });
-    if (expenses.length === 0) {
-        message += `  Sin gastos registrados.\n`;
-    }
-    
-    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `📊 *RESUMEN FINANCIERO*\n\n`;
-    message += `  💰 Ventas:  +$${totalSales.toFixed(2)} (Bs. ${(totalSales * bcvRate).toFixed(2)})\n`;
-    message += `  💸 Gastos:  -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * bcvRate).toFixed(2)})\n`;
-    message += `  ─────────────────\n`;
-    message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;
-    message += `     _(Bs. ${(netCash * bcvRate).toFixed(2)})_\n`;
-    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `📢 _Cierre generado automáticamente._\n`;
-    message += `_¡Feliz noche!_ 🌟`;
-
+    const message = generateWhatsAppReport(salesLog, expenses, new Date().toLocaleDateString(), bcvRate, products);
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
 }
@@ -1194,28 +1143,47 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
     const totalExpenses = reportExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
 
-    const categories = {
-        'pastelitos': { label: '🥐 Pastelitos', sales: {} },
-        'bebidas': { label: '🥤 Bebidas', sales: {} },
-        'tortas': { label: '🍰 Tortas', sales: {} },
-        'otros': { label: '📦 Otros / Varios', sales: {} }
-    };
+    const categoryMap = {};
 
     reportSales.forEach(sale => {
         let cleanName = sale.name;
         if (sale.productId !== 'abono') {
             cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
         }
-        
-        let categoryKey = 'otros';
+
+        let catKey = 'otros';
+        let catLabel = '📦 Otros / Varios';
+        let sortOrder = 99;
+
         if (sale.productId !== 'abono') {
             const product = productsList.find(p => p.id === sale.productId);
-            if (product && categories[product.category]) {
-                categoryKey = product.category;
+            const rawCat = product ? product.category : 'otros';
+
+            if (rawCat === 'pastelitos') {
+                const unitPrice = sale.price || (product ? product.price : 0);
+                catKey = `pastelitos_${unitPrice.toFixed(2)}`;
+                catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;
+                sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'bebidas') {
+                catKey = 'bebidas';
+                catLabel = '🥤 Bebidas';
+                sortOrder = 50;
+            } else if (rawCat === 'tortas') {
+                catKey = 'tortas';
+                catLabel = '🍰 Tortas';
+                sortOrder = 60;
+            } else {
+                catKey = 'otros';
+                catLabel = '📦 Otros / Varios';
+                sortOrder = 90;
             }
         }
 
-        const catGroup = categories[categoryKey].sales;
+        if (!categoryMap[catKey]) {
+            categoryMap[catKey] = { label: catLabel, sortOrder: sortOrder, sales: {} };
+        }
+
+        const catGroup = categoryMap[catKey].sales;
         if (!catGroup[cleanName]) {
             catGroup[cleanName] = { count: 0, unitPrice: sale.price || 0, total: 0 };
         }
@@ -1231,7 +1199,9 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
     message += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `🛒 *VENTAS DEL DÍA* (${totalItemsSold} unidades)\n\n`;
 
-    for (const [key, catData] of Object.entries(categories)) {
+    const sortedCategories = Object.values(categoryMap).sort((a, b) => a.sortOrder - b.sortOrder);
+
+    for (const catData of sortedCategories) {
         const items = Object.entries(catData.sales);
         if (items.length > 0) {
             message += `*${catData.label.toUpperCase()}*\n`;
@@ -1263,7 +1233,7 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
     message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;
     message += `     _(Bs. ${(netCash * rate).toFixed(2)})_\n`;
     message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `📢 _Reporte generado desde historial._\n`;
+    message += `📢 _Cierre generado automáticamente._\n`;
     message += `_¡Casa Lucenzo!_ 🌟`;
 
     return message;
@@ -1911,7 +1881,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderExpenses(expenses, deleteExpense);
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses);
+            window.UIManager.renderStats(salesLog, expenses, products);
         }
     } else if (tableName === 'debts') {
         if (eventType === 'DELETE') {
@@ -2869,20 +2839,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // 17. Bind lock icon buttons
     document.getElementById('btn-lock-user').addEventListener('click', lockSession);
 
-    // 18. Bind online/offline indicator dot changes
-    window.addEventListener('online', () => {
-        if (window.SupabaseManager.isConfigured()) {
+    // 18. Bind online/offline, visibility & focus auto-reconnect listeners
+    const autoSyncAndReconnect = () => {
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
             window.UIManager.updateConnectionStatus('online');
             window.SupabaseManager.syncOfflineQueue();
             window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
             loadAllDataFromSupabase();
         }
-    });
+    };
+
+    window.addEventListener('online', autoSyncAndReconnect);
     window.addEventListener('offline', () => {
         if (window.SupabaseManager.isConfigured()) {
             window.UIManager.updateConnectionStatus('offline');
         }
     });
+
+    // Auto-refresh data when user switches back to tab or turns screen on
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            console.log("Tab/screen reactivated. Triggering instant background sync...");
+            autoSyncAndReconnect();
+        }
+    });
+    window.addEventListener('focus', () => {
+        if (document.visibilityState === 'visible') {
+            autoSyncAndReconnect();
+        }
+    });
+
+    // Periodic silent background heartbeat (every 45s) to guarantee zero missing updates
+    setInterval(() => {
+        if (document.visibilityState === 'visible' && window.SupabaseManager.isConfigured() && navigator.onLine) {
+            loadAllDataFromSupabase();
+        }
+    }, 45000);
 
     initAdminDashboardListeners();
 });

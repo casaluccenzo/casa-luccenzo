@@ -918,17 +918,24 @@ async function fetchActivityLogs() {
     }
 }
 
-// ================= REALTIME CHANNELS LISTENERS =================
+let reconnectTimer = null;
 
 /**
- * Subscribes to real-time events on all Supabase tables
+ * Subscribes to real-time events on all Supabase tables with auto-reconnection
  * @param {Function} onDbChange Callback when any table updates
  */
 function subscribeToChanges(onDbChange) {
     if (!client) return;
     
     if (activeSubscription) {
-        activeSubscription.unsubscribe();
+        try {
+            activeSubscription.unsubscribe();
+        } catch(e) {}
+    }
+
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
     }
 
     activeSubscription = client.channel('casa-lucenzo-realtime-sync')
@@ -942,8 +949,22 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'active_sessions' }, (p) => onDbChange('active_sessions', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, (p) => onDbChange('activity_logs', p))
         .subscribe((status) => {
+            console.log(`Realtime channel status: ${status}`);
             if (status === 'SUBSCRIBED') {
                 console.log("Subscribed to all PostgreSQL change channels successfully.");
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn(`Realtime channel interrupted (${status}). Scheduling auto-reconnect...`);
+                if (!reconnectTimer) {
+                    reconnectTimer = setTimeout(() => {
+                        reconnectTimer = null;
+                        if (navigator.onLine && client) {
+                            subscribeToChanges(onDbChange);
+                            if (typeof onDbChange === 'function') {
+                                onDbChange('all', null);
+                            }
+                        }
+                    }, 3000);
+                }
             }
         });
 }

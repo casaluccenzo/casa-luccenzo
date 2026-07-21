@@ -926,12 +926,7 @@ function renderDayCloseModal(salesLog, expenses, products = []) {
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
 
-    const categories = {
-        'pastelitos': { label: '🥐 Pastelitos', sales: {} },
-        'bebidas': { label: '🥤 Bebidas', sales: {} },
-        'tortas': { label: '🍰 Tortas', sales: {} },
-        'otros': { label: '📦 Otros / Varios', sales: {} }
-    };
+    const categoryMap = {};
 
     salesLog.forEach(sale => {
         let cleanName = sale.name;
@@ -939,15 +934,39 @@ function renderDayCloseModal(salesLog, expenses, products = []) {
             cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
         }
 
-        let categoryKey = 'otros';
+        let catKey = 'otros';
+        let catLabel = '📦 Otros / Varios';
+        let sortOrder = 99;
+
         if (sale.productId !== 'abono') {
             const product = products.find(p => p.id === sale.productId);
-            if (product && categories[product.category]) {
-                categoryKey = product.category;
+            const rawCat = product ? product.category : 'otros';
+
+            if (rawCat === 'pastelitos') {
+                const unitPrice = sale.price || (product ? product.price : 0);
+                catKey = `pastelitos_${unitPrice.toFixed(2)}`;
+                catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;
+                sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'bebidas') {
+                catKey = 'bebidas';
+                catLabel = '🥤 Bebidas';
+                sortOrder = 50;
+            } else if (rawCat === 'tortas') {
+                catKey = 'tortas';
+                catLabel = '🍰 Tortas';
+                sortOrder = 60;
+            } else {
+                catKey = 'otros';
+                catLabel = '📦 Otros / Varios';
+                sortOrder = 90;
             }
         }
 
-        const catGroup = categories[categoryKey].sales;
+        if (!categoryMap[catKey]) {
+            categoryMap[catKey] = { label: catLabel, sortOrder: sortOrder, sales: {} };
+        }
+
+        const catGroup = categoryMap[catKey].sales;
         if (!catGroup[cleanName]) {
             catGroup[cleanName] = { count: 0, price: sale.price || 0, total: 0 };
         }
@@ -956,7 +975,9 @@ function renderDayCloseModal(salesLog, expenses, products = []) {
     });
 
     let salesHtml = '';
-    for (const [key, catData] of Object.entries(categories)) {
+    const sortedCategories = Object.values(categoryMap).sort((a, b) => a.sortOrder - b.sortOrder);
+
+    for (const catData of sortedCategories) {
         const items = Object.entries(catData.sales);
         if (items.length > 0) {
             salesHtml += `
@@ -1868,217 +1889,158 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         `;
     }
 
-    // Calculate category breakdowns
-    let qtyPastelitos = 0, usdPastelitos = 0;
-    let qtyBebidas = 0, usdBebidas = 0;
-    let qtyTortas = 0, usdTortas = 0;
-    let qtyOtros = 0, usdOtros = 0;
+    // Group categories dynamically with price-tier splitting for pastelitos
+    const activeProducts = (products && products.length > 0) ? products : (window.products || window.StorageManager.loadProducts() || []);
+    const categoryStatsMap = {};
 
     salesLog.forEach(s => {
+        let catKey = 'otros';
+        let catLabel = 'Otros / Varios';
+        let icon = 'fa-box';
+        let color = '#D4A373';
+        let unitLabel = 'op.';
+        let sortOrder = 99;
+
         if (s.productId === 'abono') {
-            usdOtros += s.price || 0;
-            qtyOtros++;
-            return;
-        }
-
-        const product = products.find(p => p.id === s.productId);
-        const category = product ? product.category : '';
-
-        if (category === 'pastelitos') {
-            qtyPastelitos++;
-            usdPastelitos += s.price || 0;
-        } else if (category === 'bebidas') {
-            qtyBebidas++;
-            usdBebidas += s.price || 0;
-        } else if (category === 'tortas') {
-            qtyTortas++;
-            usdTortas += s.price || 0;
+            catKey = 'otros';
+            catLabel = 'Abonos / Créditos';
+            icon = 'fa-money-bill-wave';
+            color = '#D4A373';
+            unitLabel = 'op.';
+            sortOrder = 99;
         } else {
-            qtyOtros++;
-            usdOtros += s.price || 0;
-        }
-    });
-
-    // Group sales by flavor/product for dropdown details
-    const categoryFlavorSales = {
-        'pastelitos': {},
-        'bebidas': {},
-        'tortas': {},
-        'otros': {}
-    };
-
-    salesLog.forEach(s => {
-        if (s.productId === 'abono') {
-            if (!categoryFlavorSales['otros']['abono']) {
-                categoryFlavorSales['otros']['abono'] = { name: 'Abonos a Cuenta', qty: 0, usd: 0 };
+            const product = activeProducts.find(p => p.id === s.productId);
+            let rawCat = product ? product.category : '';
+            
+            if (!rawCat || rawCat === 'otros') {
+                const nameLower = (s.name || '').toLowerCase();
+                if (nameLower.includes('malta') || nameLower.includes('refresco') || nameLower.includes('agua') || nameLower.includes('jugo')) {
+                    rawCat = 'bebidas';
+                } else if (nameLower.includes('torta')) {
+                    rawCat = 'tortas';
+                } else {
+                    rawCat = 'pastelitos';
+                }
             }
-            categoryFlavorSales['otros']['abono'].qty++;
-            categoryFlavorSales['otros']['abono'].usd += s.price || 0;
-            return;
+
+            if (rawCat === 'pastelitos') {
+                const unitPrice = s.price || (product ? product.price : 0);
+                catKey = `pastelitos_${unitPrice.toFixed(2)}`;
+                catLabel = `Pastelitos ($${unitPrice.toFixed(2)})`;
+                icon = 'fa-cookie';
+                color = '#FFB085';
+                unitLabel = 'piezas';
+                sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'bebidas') {
+                catKey = 'bebidas';
+                catLabel = 'Bebidas';
+                icon = 'fa-bottle-water';
+                color = '#8BE8CB';
+                unitLabel = 'unid.';
+                sortOrder = 50;
+            } else if (rawCat === 'tortas') {
+                catKey = 'tortas';
+                catLabel = 'Tortas';
+                icon = 'fa-cake-slice';
+                color = '#FFAAA6';
+                unitLabel = 'porc.';
+                sortOrder = 60;
+            } else {
+                catKey = 'otros';
+                catLabel = 'Otros / Varios';
+                icon = 'fa-box';
+                color = '#D4A373';
+                unitLabel = 'op.';
+                sortOrder = 90;
+            }
         }
 
-        const product = products.find(p => p.id === s.productId);
-        if (product) {
-            const cat = product.category || 'otros';
-            if (!categoryFlavorSales[cat]) categoryFlavorSales[cat] = {};
-            if (!categoryFlavorSales[cat][product.id]) {
-                categoryFlavorSales[cat][product.id] = {
-                    name: product.name,
-                    qty: 0,
-                    usd: 0
-                };
-            }
-            categoryFlavorSales[cat][product.id].qty++;
-            categoryFlavorSales[cat][product.id].usd += s.price || 0;
+        if (!categoryStatsMap[catKey]) {
+            categoryStatsMap[catKey] = {
+                id: catKey,
+                label: catLabel,
+                icon: icon,
+                color: color,
+                unitLabel: unitLabel,
+                sortOrder: sortOrder,
+                qty: 0,
+                usd: 0,
+                flavors: {}
+            };
         }
+
+        const group = categoryStatsMap[catKey];
+        group.qty++;
+        group.usd += s.price || 0;
+
+        const flavorId = s.productId === 'abono' ? 'abono' : (s.productId || s.name);
+        let flavorName = s.name;
+        if (s.productId !== 'abono') {
+            flavorName = s.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
+        }
+
+        if (!group.flavors[flavorId]) {
+            group.flavors[flavorId] = { name: flavorName, qty: 0, usd: 0 };
+        }
+        group.flavors[flavorId].qty++;
+        group.flavors[flavorId].usd += s.price || 0;
     });
 
     const categoriesContainer = document.getElementById('live-stat-categories');
     if (categoriesContainer) {
         const rate = window.bcvRate || 1;
-        
         const formatUSD = (val) => '$' + (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        categoriesContainer.innerHTML = `
-            <!-- Pastelitos Wrapper -->
-            <div class="category-stat-wrapper">
-                <div class="category-stat-row" id="pastelitos-stat-row" style="cursor: pointer; user-select: none;">
-                    <div class="category-label">
-                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
-                        <i class="fa-solid fa-cookie" style="color: #FFB085;"></i>
-                        <span>Pastelitos</span>
+        const sortedStats = Object.values(categoryStatsMap).sort((a, b) => a.sortOrder - b.sortOrder);
+
+        let html = '';
+        sortedStats.forEach(cat => {
+            const flavorsList = Object.values(cat.flavors).sort((a, b) => b.qty - a.qty);
+            const badgeClass = cat.id.startsWith('pastelitos') ? 'pastelitos' : cat.id;
+
+            html += `
+                <div class="category-stat-wrapper">
+                    <div class="category-stat-row" id="${cat.id}-stat-row" style="cursor: pointer; user-select: none;">
+                        <div class="category-label">
+                            <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
+                            <i class="fa-solid ${cat.icon}" style="color: ${cat.color};"></i>
+                            <span>${cat.label}</span>
+                        </div>
+                        <div class="category-values">
+                            <span class="category-qty-badge ${badgeClass}">${cat.qty} ${cat.unitLabel}</span>
+                            <span class="category-price-usd">${formatUSD(cat.usd)}</span>
+                            <span class="category-price-ves">(${formatVES(cat.usd * rate)})</span>
+                        </div>
                     </div>
-                    <div class="category-values">
-                        <span class="category-qty-badge pastelitos">${qtyPastelitos} piezas</span>
-                        <span class="category-price-usd">${formatUSD(usdPastelitos)}</span>
-                        <span class="category-price-ves">(${formatVES(usdPastelitos * rate)})</span>
-                    </div>
-                </div>
-                <div class="category-stat-dropdown" id="pastelitos-stat-dropdown">
-                    ${Object.values(categoryFlavorSales['pastelitos']).length > 0 
-                        ? Object.values(categoryFlavorSales['pastelitos'])
-                            .sort((a,b) => b.qty - a.qty)
-                            .map(f => `
+                    <div class="category-stat-dropdown" id="${cat.id}-stat-dropdown">
+                        ${flavorsList.length > 0
+                            ? flavorsList.map(f => `
                                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
                                     <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
                                     <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
-                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} piezas</span>
+                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} ${cat.unitLabel}</span>
                                         <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
                                     </div>
                                 </div>
                             `).join('')
-                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
-                             No hay ventas de pastelitos registradas hoy.
-                           </div>`
-                    }
+                            : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">No hay ventas registradas.</div>`
+                        }
+                    </div>
                 </div>
-            </div>
+            `;
+        });
 
-            <!-- Bebidas Wrapper -->
-            <div class="category-stat-wrapper">
-                <div class="category-stat-row" id="bebidas-stat-row" style="cursor: pointer; user-select: none;">
-                    <div class="category-label">
-                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
-                        <i class="fa-solid fa-bottle-water" style="color: #8BE8CB;"></i>
-                        <span>Bebidas</span>
-                    </div>
-                    <div class="category-values">
-                        <span class="category-qty-badge bebidas">${qtyBebidas} unid.</span>
-                        <span class="category-price-usd">${formatUSD(usdBebidas)}</span>
-                        <span class="category-price-ves">(${formatVES(usdBebidas * rate)})</span>
-                    </div>
-                </div>
-                <div class="category-stat-dropdown" id="bebidas-stat-dropdown">
-                    ${Object.values(categoryFlavorSales['bebidas']).length > 0 
-                        ? Object.values(categoryFlavorSales['bebidas'])
-                            .sort((a,b) => b.qty - a.qty)
-                            .map(f => `
-                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
-                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
-                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} unid.</span>
-                                        <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
-                                    </div>
-                                </div>
-                            `).join('')
-                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
-                             No hay ventas de bebidas registradas hoy.
-                           </div>`
-                    }
-                </div>
-            </div>
+        if (sortedStats.length === 0) {
+            html = `<div style="text-align: center; color: var(--color-text-muted); font-size: 0.8125rem; padding: 1rem 0;">No hay ventas registradas hoy.</div>`;
+        }
 
-            <!-- Tortas Wrapper -->
-            <div class="category-stat-wrapper">
-                <div class="category-stat-row" id="tortas-stat-row" style="cursor: pointer; user-select: none;">
-                    <div class="category-label">
-                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
-                        <i class="fa-solid fa-cake-slice" style="color: #FFAAA6;"></i>
-                        <span>Tortas</span>
-                    </div>
-                    <div class="category-values">
-                        <span class="category-qty-badge tortas">${qtyTortas} porc.</span>
-                        <span class="category-price-usd">${formatUSD(usdTortas)}</span>
-                        <span class="category-price-ves">(${formatVES(usdTortas * rate)})</span>
-                    </div>
-                </div>
-                <div class="category-stat-dropdown" id="tortas-stat-dropdown">
-                    ${Object.values(categoryFlavorSales['tortas']).length > 0 
-                        ? Object.values(categoryFlavorSales['tortas'])
-                            .sort((a,b) => b.qty - a.qty)
-                            .map(f => `
-                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
-                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
-                                        <span style="color: var(--color-gold); font-weight: 800;">${f.qty} porc.</span>
-                                        <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
-                                    </div>
-                                </div>
-                            `).join('')
-                        : `<div style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0.5rem 0;">
-                             No hay ventas de tortas registradas hoy.
-                           </div>`
-                    }
-                </div>
-            </div>
+        categoriesContainer.innerHTML = html;
 
-            <!-- Otros Wrapper -->
-            ${qtyOtros > 0 ? `
-            <div class="category-stat-wrapper">
-                <div class="category-stat-row" id="otros-stat-row" style="cursor: pointer; user-select: none;">
-                    <div class="category-label">
-                        <i class="fa-solid fa-chevron-down" style="color: var(--color-text-muted);"></i>
-                        <i class="fa-solid fa-money-bill-wave" style="color: #D4A373;"></i>
-                        <span>Abonos/Otros</span>
-                    </div>
-                    <div class="category-values">
-                        <span class="category-qty-badge otros">${qtyOtros} op.</span>
-                        <span class="category-price-usd">${formatUSD(usdOtros)}</span>
-                        <span class="category-price-ves">(${formatVES(usdOtros * rate)})</span>
-                    </div>
-                </div>
-                <div class="category-stat-dropdown" id="otros-stat-dropdown">
-                    ${Object.values(categoryFlavorSales['otros'])
-                        .map(f => `
-                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                                <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
-                                <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
-                                    <span style="color: var(--color-gold); font-weight: 800;">${f.qty} op.</span>
-                                    <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
-                                </div>
-                            </div>
-                        `).join('')
-                    }
-                </div>
-            </div>
-            ` : ''}
-        `;
-
-        // Bind toggle click handlers
-        ['pastelitos', 'bebidas', 'tortas', 'otros'].forEach(cat => {
-            const row = document.getElementById(`${cat}-stat-row`);
-            const dropdown = document.getElementById(`${cat}-stat-dropdown`);
+        // Bind toggle click handlers for each dynamic category card
+        sortedStats.forEach(cat => {
+            const row = document.getElementById(`${cat.id}-stat-row`);
+            const dropdown = document.getElementById(`${cat.id}-stat-dropdown`);
             if (row && dropdown) {
                 row.addEventListener('click', () => {
                     row.classList.toggle('open');

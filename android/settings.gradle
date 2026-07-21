@@ -2,7 +2,11 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
 }
 include ':app'
-include ':capacitor-cordova-android-plugins'
-project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
+
+def cordovaPluginDir = new File(settingsDir, './capacitor-cordova-android-plugins/')
+if (cordovaPluginDir.exists()) {
+    include ':capacitor-cordova-android-plugins'
+    project(':capacitor-cordova-android-plugins').projectDir = cordovaPluginDir
+}
 
 apply from: 'capacitor.settings.gradle'

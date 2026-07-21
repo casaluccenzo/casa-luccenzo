@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch: # Permite compilar manualmente desde la interfaz de GitHub
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -43,7 +46,13 @@ jobs:
         run: node scripts/build.js
 
       - name: Sync Capacitor
-        run: npx cap sync
+        run: |
+          npx cap sync --verbose > sync-output.txt 2>&1 || true
+          cat sync-output.txt
+          # Check if build artifact or logs were created and if it succeeded
+          if ! grep -q "Sync finished" sync-output.txt; then
+            exit 1
+          fi
 
       - name: Compile Android APK (Debug)
         run: |
@@ -56,3 +65,12 @@ jobs:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Commit and Push Logs
+        if: always()
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add -f sync-output.txt || true
+          git commit -m "debug: cap sync logs [skip ci]" || true
+          git push || true

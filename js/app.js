@@ -2202,9 +2202,10 @@ function updateLockoutUI() {
 /**
  * Validates PIN input codes and applies corresponding role UI layout
  * @param {string} pin 4 to 8-digit code
+ * @param {boolean} isFinalSubmit Whether this is a full submission (Enter key or max length)
  * @returns {boolean} True if PIN matched a role
  */
-function handlePINInput(pin) {
+function handlePINInput(pin, isFinalSubmit = false) {
     const now = Date.now();
     if (now < lockoutUntil) {
         const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
@@ -2233,21 +2234,24 @@ function handlePINInput(pin) {
         logActivity("Inicio de Sesión", "Ingreso al perfil Administrador");
         return true;
     } else {
-        failedPinAttempts++;
-        triggerHaptic([80, 80]); // Double haptic feedback on error
-        
-        if (failedPinAttempts >= 3) {
-            lockoutUntil = Date.now() + 60000; // 60s lockout penalty
-            failedPinAttempts = 0;
-            window.UIManager.showToast("⛔ 3 intentos fallidos. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
-            logActivity("Seguridad Alerta", "Bloqueo de 60s activado por 3 intentos fallidos de PIN");
+        // Only count as a failed attempt if this is a final submission or reached 8 digits
+        if (isFinalSubmit || pin.length >= 8) {
+            failedPinAttempts++;
+            triggerHaptic([80, 80]); // Double haptic feedback on error
             
-            updateLockoutUI();
-            if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
-            lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
-        } else {
-            const remaining = 3 - failedPinAttempts;
-            window.UIManager.showToast(`❌ PIN incorrecto (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
+            if (failedPinAttempts >= 3) {
+                lockoutUntil = Date.now() + 60000; // 60s lockout penalty
+                failedPinAttempts = 0;
+                window.UIManager.showToast("⛔ 3 intentos fallidos. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
+                logActivity("Seguridad Alerta", "Bloqueo de 60s activado por 3 intentos fallidos de PIN");
+                
+                updateLockoutUI();
+                if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
+                lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
+            } else {
+                const remaining = 3 - failedPinAttempts;
+                window.UIManager.showToast(`❌ PIN incorrecto (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
+            }
         }
         return false;
     }

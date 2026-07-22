@@ -1035,13 +1035,16 @@ function initPinKeypad(onPINValid) {
         const val = newInput.value.trim();
         
         if (val.length >= 4) {
-            // Attempt instant match if PIN length is 4-8
-            const isValid = onPINValid(val);
+            // Attempt instant match on typing
+            const isValid = onPINValid(val, false);
             if (isValid) {
                 newInput.value = '';
             } else if (val.length >= 8) {
-                // Maximum 8 digits reached without match
-                newInput.value = '';
+                // Maximum 8 digits reached without match - trigger final submission failure
+                const isFinalValid = onPINValid(val, true);
+                if (!isFinalValid) {
+                    newInput.value = '';
+                }
             }
         }
     });
@@ -1050,7 +1053,7 @@ function initPinKeypad(onPINValid) {
         if (e.key === 'Enter') {
             const val = newInput.value.trim();
             if (val.length >= 4) {
-                const isValid = onPINValid(val);
+                const isValid = onPINValid(val, true);
                 if (!isValid) {
                     newInput.value = '';
                 }

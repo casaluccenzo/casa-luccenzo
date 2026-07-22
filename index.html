@@ -23,17 +23,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=117">
+    <link rel="stylesheet" href="css/main.css?v=118">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=117"></script>
-    <script src="js/supabase.js?v=117"></script>
-    <script src="js/recipes.js?v=117"></script>
-    <script src="js/audio.js?v=117"></script>
-    <script src="js/share.js?v=117"></script>
-    <script src="js/ui.js?v=117"></script>
-    <script src="js/app.js?v=117"></script>
+    <script src="js/storage.js?v=118"></script>
+    <script src="js/supabase.js?v=118"></script>
+    <script src="js/recipes.js?v=118"></script>
+    <script src="js/audio.js?v=118"></script>
+    <script src="js/share.js?v=118"></script>
+    <script src="js/ui.js?v=118"></script>
+    <script src="js/app.js?v=118"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -501,6 +501,10 @@
                         <i class="fa-solid fa-list-check"></i>
                         <span>📋 Bitácora</span>
                     </button>
+                    <button id="admin-tab-btn-costs" class="admin-tab-btn">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>🧮 Costos y Ganancias</span>
+                    </button>
                     <button id="admin-tab-btn-preferences" class="admin-tab-btn">
                         <i class="fa-solid fa-sliders"></i>
                         <span>⚙️ Ajustes</span>
@@ -763,7 +767,88 @@
                     </div>
                 </div>
 
-                <!-- PANEL 5: SYSTEM PREFERENCES & PIN MANAGEMENT -->
+                <!-- PANEL 5: COST & PROFIT CALCULATOR -->
+                <div id="admin-panel-costs" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-calculator"></i> Calculadora de Costos y Ganancias Neta (Sólidos y Líquidos)
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body" style="padding-top: 0.75rem;">
+                        <!-- Two Column Layout: Left Column = Raw Ingredients Purchase Costs (Solid & Liquid), Right Column = Product Recipe Cost & Net Profit Analysis -->
+                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.25fr; gap: 1rem;">
+                            
+                            <!-- Left Column: Raw Insumos Costs (Solid & Liquid) -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-boxes-stacked"></i> Materia Prima e Insumos</span>
+                                </h4>
+                                
+                                <!-- Add Insumo Form -->
+                                <form id="form-add-cost-insumo" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <div style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase;">+ Registrar Compra de Insumo</div>
+                                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.5rem;">
+                                        <input type="text" id="cost-insumo-name" placeholder="Ej: Aceite, Harina, Queso" required class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        <select id="cost-insumo-type" class="form-input" style="height: 32px; font-size: 0.75rem; background: var(--color-bg-dark); color: white;">
+                                            <option value="solid">Sólido (kg)</option>
+                                            <option value="liquid">Líquido (L)</option>
+                                            <option value="unit">Unidad (unid.)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                        <div>
+                                            <label class="form-label" style="font-size: 8px;">CANTIDAD COMPRADA</label>
+                                            <input type="number" id="cost-insumo-qty" step="0.01" min="0.01" required placeholder="Ej: 20 (kg o L)" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label" style="font-size: 8px;">COSTO COMPRA ($)</label>
+                                            <input type="number" id="cost-insumo-price" step="0.01" min="0.01" required placeholder="Ej: 22.00" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-form-submit" style="min-height: 32px; font-size: 10px; background: var(--color-success); color: white; margin-top: 0.25rem;">
+                                        Guardar Insumo
+                                    </button>
+                                </form>
+
+                                <!-- List of Insumos with Unit Costs -->
+                                <div style="overflow-y: auto; max-height: 280px;">
+                                    <div id="cost-insumos-list-container">
+                                        <!-- Injected dynamically by js/ui.js -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Product Recipe Cost & Net Profit Calculator -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-chart-pie"></i> Análisis de Costo y Ganancia Neta</span>
+                                </h4>
+
+                                <!-- Product Selector & Selling Price Input -->
+                                <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
+                                    <div>
+                                        <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">SELECCIONAR PRODUCTO</label>
+                                        <select id="cost-calc-product-select" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 700; background: var(--color-bg-dark); color: white;">
+                                            <!-- Injected dynamically -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">PRECIO DE VENTA ($)</label>
+                                        <input type="number" id="cost-calc-sell-price" step="0.01" min="0" class="form-input" style="height: 36px; font-size: 0.95rem; font-weight: 900; color: #10B981; text-align: center;">
+                                    </div>
+                                </div>
+
+                                <!-- Financial Results Card (Net Profit, Cost, Margin %, Tray Profit) -->
+                                <div id="cost-financial-results-container">
+                                    <!-- Injected dynamically by js/ui.js -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 6: SYSTEM PREFERENCES & PIN MANAGEMENT -->
                 <div id="admin-panel-preferences" class="admin-panel">
                     <div class="admin-panel-header">
                         <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">

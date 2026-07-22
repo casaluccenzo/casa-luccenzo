@@ -217,10 +217,43 @@ function saveLastCloseTime(time) {
     localStorage.setItem(LAST_CLOSE_KEY, time || '');
 }
 
+const COST_INSUMOS_KEY = 'casa_lucenzo_cost_insumos';
+
+const DEFAULT_COST_INSUMOS = [
+    { id: 'harina', name: 'Harina de Trigo', type: 'solid', qty: 25, price: 22.00, unit: 'kg' },
+    { id: 'margarina', name: 'Margarina / Grasa', type: 'solid', qty: 10, price: 18.00, unit: 'kg' },
+    { id: 'carne_mechada', name: 'Carne Mechada Guisada', type: 'solid', qty: 15, price: 75.00, unit: 'kg' },
+    { id: 'pollo', name: 'Pollo Guisado desmechado', type: 'solid', qty: 15, price: 50.00, unit: 'kg' },
+    { id: 'queso', name: 'Queso Blanco Rayado', type: 'solid', qty: 10, price: 45.00, unit: 'kg' },
+    { id: 'aceite', name: 'Aceite de Fritura (Líquido)', type: 'liquid', qty: 10, price: 20.00, unit: 'L' },
+    { id: 'tocineta', name: 'Tocineta picada', type: 'solid', qty: 5, price: 30.00, unit: 'kg' }
+];
+
+function loadCostInsumos() {
+    const saved = localStorage.getItem(COST_INSUMOS_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            return JSON.parse(JSON.stringify(DEFAULT_COST_INSUMOS));
+        }
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_COST_INSUMOS));
+}
+
+function saveCostInsumos(insumos) {
+    try {
+        localStorage.setItem(COST_INSUMOS_KEY, JSON.stringify(insumos));
+    } catch (e) {
+        console.error("Failed to save cost insumos", e);
+    }
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
     DEFAULT_INGREDIENTS,
+    DEFAULT_COST_INSUMOS,
     loadProducts,
     saveProducts,
     resetToDefaults,
@@ -238,6 +271,8 @@ window.StorageManager = {
     clearReplenishments,
     loadIngredients,
     saveIngredients,
+    loadCostInsumos,
+    saveCostInsumos,
     loadPreferences,
     savePreferences,
     loadBcvPreferences,

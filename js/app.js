@@ -10,6 +10,7 @@ let ingredients = [];
 let activeCategory = 'todos';
 let searchQuery = '';
 let currentCart = [];
+let costInsumos = [];
 
 let lastCloseTime = null;
 
@@ -2584,6 +2585,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Load preferences and inputs configuration
     preferences = window.StorageManager.loadPreferences();
+    costInsumos = window.StorageManager.loadCostInsumos();
     
     // Load active cart if stored
     const savedCart = localStorage.getItem('casa_lucenzo_current_cart');
@@ -3017,6 +3019,14 @@ Object.defineProperty(window, 'currentCart', {
     set: (val) => { currentCart = val; }
 });
 
+function handleDeleteCostInsumo(id) {
+    triggerHaptic(15);
+    costInsumos = costInsumos.filter(i => i.id !== id);
+    window.StorageManager.saveCostInsumos(costInsumos);
+    window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
+    window.UIManager.showToast("🗑️ Insumo eliminado de la calculadora.", "fa-solid fa-trash");
+}
+
 /**
  * Initialize listeners for the custom admin widescreen dashboard
  */
@@ -3025,18 +3035,20 @@ function initAdminDashboardListeners() {
     const tabProductsBtn = document.getElementById('admin-tab-btn-products');
     const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
+    const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
     const panelSummary = document.getElementById('admin-panel-summary');
     const panelProducts = document.getElementById('admin-panel-products');
     const panelDevices = document.getElementById('admin-panel-devices');
     const panelLogs = document.getElementById('admin-panel-logs');
+    const panelCosts = document.getElementById('admin-panel-costs');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabPreferencesBtn];
-    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelPreferences];
+    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelCosts, panelPreferences].filter(Boolean);
 
     function activateTab(btn, panel) {
         triggerHaptic(10);
@@ -3066,9 +3078,65 @@ function initAdminDashboardListeners() {
         await refreshActivityLogsView();
     });
 
+    if (tabCostsBtn && panelCosts) {
+        tabCostsBtn.addEventListener('click', () => {
+            activateTab(tabCostsBtn, panelCosts);
+            window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
+        });
+    }
+
     tabPreferencesBtn.addEventListener('click', () => {
         activateTab(tabPreferencesBtn, panelPreferences);
     });
+
+    // Form to Add New Cost Insumo
+    const formAddInsumo = document.getElementById('form-add-cost-insumo');
+    if (formAddInsumo) {
+        formAddInsumo.addEventListener('submit', (e) => {
+            e.preventDefault();
+            triggerHaptic(15);
+            const name = document.getElementById('cost-insumo-name').value.trim();
+            const type = document.getElementById('cost-insumo-type').value;
+            const qty = parseFloat(document.getElementById('cost-insumo-qty').value) || 1;
+            const price = parseFloat(document.getElementById('cost-insumo-price').value) || 0;
+
+            if (!name || qty <= 0 || price <= 0) return;
+
+            let unitLabel = 'kg';
+            if (type === 'liquid') unitLabel = 'L';
+            if (type === 'unit') unitLabel = 'unid.';
+
+            const newInsumo = {
+                id: 'ins_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
+                name,
+                type,
+                qty,
+                price,
+                unit: unitLabel
+            };
+
+            costInsumos.push(newInsumo);
+            window.StorageManager.saveCostInsumos(costInsumos);
+            formAddInsumo.reset();
+
+            window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
+            window.UIManager.showToast(`📦 Insumo "${name}" registrado correctamente.`, "fa-solid fa-circle-check");
+            logActivity("Calculadora Costos", `Nuevo insumo registrado: ${name} ($${price.toFixed(2)} / ${qty}${unitLabel})`);
+        });
+    }
+
+    const costProdSelect = document.getElementById('cost-calc-product-select');
+    const costSellPriceInput = document.getElementById('cost-calc-sell-price');
+    if (costProdSelect) {
+        costProdSelect.addEventListener('change', () => {
+            window.UIManager.renderCostFinancialResults(products, costInsumos);
+        });
+    }
+    if (costSellPriceInput) {
+        costSellPriceInput.addEventListener('input', () => {
+            window.UIManager.renderCostFinancialResults(products, costInsumos);
+        });
+    }
 
     // Refresh logs button
     const refreshLogsBtn = document.getElementById('btn-admin-logs-refresh');

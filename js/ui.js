@@ -1032,15 +1032,29 @@ function initPinKeypad(onPINValid) {
     input.parentNode.replaceChild(newInput, input);
 
     newInput.addEventListener('input', (e) => {
-        const val = newInput.value;
+        const val = newInput.value.trim();
         
-        if (val.length === 4) {
-            setTimeout(() => {
+        if (val.length >= 4) {
+            // Attempt instant match if PIN length is 4-8
+            const isValid = onPINValid(val);
+            if (isValid) {
+                newInput.value = '';
+            } else if (val.length >= 8) {
+                // Maximum 8 digits reached without match
+                newInput.value = '';
+            }
+        }
+    });
+
+    newInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const val = newInput.value.trim();
+            if (val.length >= 4) {
                 const isValid = onPINValid(val);
                 if (!isValid) {
                     newInput.value = '';
                 }
-            }, 100);
+            }
         }
     });
 

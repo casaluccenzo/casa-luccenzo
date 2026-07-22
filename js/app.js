@@ -2148,30 +2148,106 @@ function logActivity(action, details) {
 
 // ================= USER ROLES ACCESS =================
 
+let failedPinAttempts = 0;
+let lockoutUntil = 0;
+let lockoutCountdownInterval = null;
+let adminInactivityTimer = null;
+const ADMIN_INACTIVITY_MS = 3 * 60 * 1000; // 3 minutes for Admin auto-lock
+
+/**
+ * Resets or clears the inactivity auto-lock timer for Admin role
+ */
+function resetInactivityTimer() {
+    if (adminInactivityTimer) clearTimeout(adminInactivityTimer);
+    
+    if (currentRole === 'admin') {
+        adminInactivityTimer = setTimeout(() => {
+            if (currentRole === 'admin') {
+                window.UIManager.showToast("🔒 Sesión de Administrador cerrada por inactividad (3 min).", "fa-solid fa-lock");
+                logActivity("Cierre Inactividad", "Sesión de Administrador cerrada tras 3 minutos sin interacción");
+                lockSession();
+            }
+        }, ADMIN_INACTIVITY_MS);
+    }
+}
+
+// Bind global activity listeners once
+['touchstart', 'mousedown', 'mousemove', 'keydown', 'scroll', 'click'].forEach(evt => {
+    window.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+/**
+ * Updates the UI lockout banner during penalty block
+ */
+function updateLockoutUI() {
+    const banner = document.getElementById('pin-lockout-banner');
+    if (!banner) return;
+
+    const now = Date.now();
+    if (now < lockoutUntil) {
+        const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
+        banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Acceso bloqueado por ${remainingSec}s por múltiples intentos fallidos.`;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        if (lockoutCountdownInterval) {
+            clearInterval(lockoutCountdownInterval);
+            lockoutCountdownInterval = null;
+        }
+    }
+}
+
 /**
  * Validates PIN input codes and applies corresponding role UI layout
- * @param {string} pin 4-digit code
+ * @param {string} pin 4 to 8-digit code
  * @returns {boolean} True if PIN matched a role
  */
 function handlePINInput(pin) {
+    const now = Date.now();
+    if (now < lockoutUntil) {
+        const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
+        triggerHaptic([80, 80]);
+        window.UIManager.showToast(`⛔ Sistema bloqueado por seguridad. Espera ${remainingSec}s.`, "fa-solid fa-ban");
+        updateLockoutUI();
+        return false;
+    }
+
     if (pin === pinLocal) {
+        failedPinAttempts = 0;
         applyUserRole('local');
         window.UIManager.showToast("🔓 Acceso Local Concedido (Venta).", "fa-solid fa-shop");
         logActivity("Inicio de Sesión", "Ingreso al perfil Local (Ventas)");
         return true;
     } else if (pin === pinCocina) {
+        failedPinAttempts = 0;
         applyUserRole('cocina');
         window.UIManager.showToast("🔓 Acceso Cocina Concedido (Producción).", "fa-solid fa-fire-burner");
         logActivity("Inicio de Sesión", "Ingreso al perfil Cocina");
         return true;
     } else if (pin === pinAdmin) {
+        failedPinAttempts = 0;
         applyUserRole('admin');
         window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
         logActivity("Inicio de Sesión", "Ingreso al perfil Administrador");
         return true;
     } else {
+        failedPinAttempts++;
         triggerHaptic([80, 80]); // Double haptic feedback on error
-        window.UIManager.showToast("❌ PIN incorrecto. Intenta de nuevo.", "fa-solid fa-circle-xmark");
+        
+        if (failedPinAttempts >= 3) {
+            lockoutUntil = Date.now() + 60000; // 60s lockout penalty
+            failedPinAttempts = 0;
+            window.UIManager.showToast("⛔ 3 intentos fallidos. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
+            logActivity("Seguridad Alerta", "Bloqueo de 60s activado por 3 intentos fallidos de PIN");
+            
+            updateLockoutUI();
+            if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
+            lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
+        } else {
+            const remaining = 3 - failedPinAttempts;
+            window.UIManager.showToast(`❌ PIN incorrecto (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
+        }
         return false;
     }
 }
@@ -2183,6 +2259,7 @@ function handlePINInput(pin) {
 function applyUserRole(role) {
     currentRole = role;
     sessionStorage.setItem('casa_lucenzo_active_role', role);
+    resetInactivityTimer();
 
     const pinOverlay = document.getElementById('pin-overlay');
     if (pinOverlay) pinOverlay.style.display = 'none';

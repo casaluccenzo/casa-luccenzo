@@ -23,17 +23,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=113">
+    <link rel="stylesheet" href="css/main.css?v=114">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=113"></script>
-    <script src="js/supabase.js?v=113"></script>
-    <script src="js/recipes.js?v=113"></script>
-    <script src="js/audio.js?v=113"></script>
-    <script src="js/share.js?v=113"></script>
-    <script src="js/ui.js?v=113"></script>
-    <script src="js/app.js?v=113"></script>
+    <script src="js/storage.js?v=114"></script>
+    <script src="js/supabase.js?v=114"></script>
+    <script src="js/recipes.js?v=114"></script>
+    <script src="js/audio.js?v=114"></script>
+    <script src="js/share.js?v=114"></script>
+    <script src="js/ui.js?v=114"></script>
+    <script src="js/app.js?v=114"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -986,10 +986,13 @@
                 </div>
                 
                 <div class="pin-input-wrapper">
-                    <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" autofocus>
+                    <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="8" placeholder="••••••••" autocomplete="off" autofocus style="letter-spacing: 0.3em; text-align: center;">
                 </div>
                 
-                <p style="font-size: 10px; color: var(--color-text-muted); text-align: center;">Toca la caja para ingresar los 4 números con el teclado.</p>
+                <p style="font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: 0.35rem;">Ingresa tu PIN de seguridad de 4 a 8 dígitos.</p>
+                <div id="pin-lockout-banner" class="hidden" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #FCA5A5; font-size: 11px; font-weight: 800; text-align: center;">
+                    <!-- Injected dynamically by js/app.js -->
+                </div>
             </div>
 
 

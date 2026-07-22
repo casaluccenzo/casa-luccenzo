@@ -302,20 +302,16 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
 
         const qtyInput = card.querySelector('.cart-qty-input');
         if (qtyInput) {
-            qtyInput.addEventListener('change', (e) => {
-                let val = parseInt(e.target.value);
-                if (isNaN(val) || val < 0) val = 0;
-                if (window.handleCartQtyChange) {
-                    window.handleCartQtyChange(product.id, val);
-                }
-            });
-            qtyInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.target.blur();
-                }
-            });
-            qtyInput.addEventListener('focus', (e) => {
-                e.target.select();
+            qtyInput.setAttribute('readonly', 'readonly');
+            qtyInput.style.cursor = 'pointer';
+            qtyInput.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.target.blur();
+                openQuantitySelectorModal(product, cartQty, (val) => {
+                    if (window.handleCartQtyChange) {
+                        window.handleCartQtyChange(product.id, val);
+                    }
+                });
             });
         }
 
@@ -3801,12 +3797,92 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
 }
 
 // Expose to window namespace
+/**
+ * Opens a quick numeric quantity selector modal for Vitrina
+ * @param {Object} product Selected product details
+ * @param {number} currentQty Current quantity in active cart
+ * @param {Function} onConfirm Callback when quantity is selected (newQty)
+ */
+function openQuantitySelectorModal(product, currentQty = 0, onConfirm) {
+    const modal = document.getElementById('qty-selector-modal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('qty-modal-prod-name');
+    const infoEl = document.getElementById('qty-modal-prod-info');
+    const inputEl = document.getElementById('qty-modal-input');
+    const gridEl = document.getElementById('qty-modal-quick-grid');
+    const btnClose = document.getElementById('qty-modal-close');
+    const btnCancel = document.getElementById('qty-modal-cancel');
+    const btnConfirm = document.getElementById('qty-modal-confirm');
+    const btnMinus = document.getElementById('qty-modal-minus');
+    const btnPlus = document.getElementById('qty-modal-plus');
+
+    if (titleEl) titleEl.textContent = product.name;
+    if (infoEl) infoEl.textContent = `$${(product.price || 0).toFixed(2)} • (Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)}) • Vitrina: ${product.stock || 0} ${product.unit || 'unid.'}`;
+
+    let selectedQty = currentQty > 0 ? currentQty : 1;
+    if (inputEl) inputEl.value = selectedQty;
+
+    // Fast selector numbers grid
+    const quickNumbers = [1, 2, 3, 4, 5, 6, 8, 10];
+    if (gridEl) {
+        gridEl.innerHTML = '';
+        quickNumbers.forEach(num => {
+            const btn = document.createElement('button');
+            const isSelected = num === selectedQty;
+            btn.style.cssText = `height: 42px; border-radius: 8px; border: 1.5px solid ${isSelected ? 'var(--color-gold)' : 'rgba(255,255,255,0.12)'}; background: ${isSelected ? 'rgba(243,198,63,0.2)' : 'rgba(255,255,255,0.04)'}; color: ${isSelected ? 'var(--color-gold)' : 'var(--color-white)'}; font-size: 1.1rem; font-weight: 900; cursor: pointer; transition: all 0.15s; font-family: monospace;`;
+            btn.textContent = num;
+
+            btn.addEventListener('click', () => {
+                selectedQty = num;
+                if (inputEl) inputEl.value = selectedQty;
+                if (onConfirm) onConfirm(selectedQty);
+                closeModal();
+            });
+
+            gridEl.appendChild(btn);
+        });
+    }
+
+    const updateValue = (newVal) => {
+        selectedQty = Math.max(0, parseInt(newVal) || 0);
+        if (inputEl) inputEl.value = selectedQty;
+    };
+
+    if (btnMinus) {
+        btnMinus.onclick = () => updateValue(selectedQty - 1);
+    }
+    if (btnPlus) {
+        btnPlus.onclick = () => updateValue(selectedQty + 1);
+    }
+    if (inputEl) {
+        inputEl.oninput = (e) => updateValue(e.target.value);
+    }
+
+    const closeModal = () => {
+        modal.classList.add('hidden');
+    };
+
+    if (btnClose) btnClose.onclick = closeModal;
+    if (btnCancel) btnCancel.onclick = closeModal;
+
+    if (btnConfirm) {
+        btnConfirm.onclick = () => {
+            if (onConfirm) onConfirm(selectedQty);
+            closeModal();
+        };
+    }
+
+    modal.classList.remove('hidden');
+}
+
 window.UIManager = {
     switchView,
     renderSearchBar,
     renderCategoryFilterBar,
     renderPendingDispatches,
     renderLocal,
+    openQuantitySelectorModal,
     spawnFloatingIndicator,
     updateKitchenBadge,
     renderCocina,

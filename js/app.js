@@ -22,7 +22,8 @@ let currentRole = null;
 // Customizable security PIN codes
 let pinLocal = localStorage.getItem('casa_lucenzo_pin_local') || '1111';
 let pinCocina = localStorage.getItem('casa_lucenzo_pin_cocina') || '2222';
-let pinAdmin = localStorage.getItem('casa_lucenzo_pin_admin') || '9999';
+let pinAdmin = '070821';
+localStorage.setItem('casa_lucenzo_pin_admin', '070821');
 
 // BCV Exchange Rate state
 let bcvRate = 732.48;

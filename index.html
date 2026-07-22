@@ -23,17 +23,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=108">
+    <link rel="stylesheet" href="css/main.css?v=109">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=108"></script>
-    <script src="js/supabase.js?v=108"></script>
-    <script src="js/recipes.js?v=108"></script>
-    <script src="js/audio.js?v=108"></script>
-    <script src="js/share.js?v=108"></script>
-    <script src="js/ui.js?v=108"></script>
-    <script src="js/app.js?v=108"></script>
+    <script src="js/storage.js?v=109"></script>
+    <script src="js/supabase.js?v=109"></script>
+    <script src="js/recipes.js?v=109"></script>
+    <script src="js/audio.js?v=109"></script>
+    <script src="js/share.js?v=109"></script>
+    <script src="js/ui.js?v=109"></script>
+    <script src="js/app.js?v=109"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -110,8 +110,8 @@
                     <span class="nav-label">3. COCINA</span>
                 </button>
                 <button id="btn-fiados" class="inactive" role="tab" aria-selected="false" aria-controls="view-fiados">
-                    <span class="nav-icon"><i class="fa-solid fa-book"></i></span>
-                    <span class="nav-label">4. FIADOS</span>
+                    <span class="nav-icon"><i class="fa-solid fa-handshake-angle"></i></span>
+                    <span class="nav-label">4. CRÉDITOS</span>
                 </button>
                 <button id="btn-cambio" class="inactive" role="tab" aria-selected="false" aria-controls="view-cambio">
                     <span class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
@@ -314,32 +314,32 @@
                 </div>
             </section>
 
-            <!-- ================= VIEW 3: DEBTS virtual ledger (FIADOS) ================= -->
+            <!-- ================= VIEW 3: DEBTS virtual ledger (CRÉDITOS) ================= -->
             <section id="view-fiados" class="view-section hidden">
                 <div>
-                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Cuaderno de Fiados</h2>
+                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Gestión de Créditos</h2>
                     <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
-                        Anota las cuentas pendientes de clientes del barrio.
+                        Registro de cuentas por cobrar y créditos otorgados a clientes.
                     </p>
                 </div>
 
                 <!-- Foldable form to add customer debts -->
                 <details class="settings-group">
-                    <summary><i class="fa-solid fa-user-plus" style="margin-right: 0.25rem;"></i> Anotar Nueva Deuda / Fiar</summary>
+                    <summary><i class="fa-solid fa-user-plus" style="margin-right: 0.25rem;"></i> Anotar Nuevo Crédito</summary>
                     <form id="add-debt-form" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem;">
                         <div class="form-field">
                             <label class="form-label">Nombre del Cliente</label>
                             <input type="text" id="debt-client-name" required placeholder="Ej: Juan Pérez" class="form-input">
                         </div>
                         <div class="form-field">
-                            <label class="form-label">Monto a Fiar ($)</label>
+                            <label class="form-label">Monto del Crédito ($)</label>
                             <input type="number" id="debt-amount" step="0.01" required placeholder="Ej: 3.00" class="form-input">
                         </div>
                         <div class="form-field">
-                            <label class="form-label">Nota / Detalle (Opcional)</label>
-                            <input type="text" id="debt-desc" placeholder="Ej: 2 mechadas" class="form-input">
+                            <label class="form-label">Productos / Detalle de Ítems (Ej: 2 Mechadas, 1 Malta)</label>
+                            <input type="text" id="debt-desc" placeholder="Ej: 2 Mechadas, 1 Malta" class="form-input">
                         </div>
-                        <button type="submit" class="btn-form-submit" style="margin-top: 0.25rem;">Registrar Deuda</button>
+                        <button type="submit" class="btn-form-submit" style="margin-top: 0.25rem;">Registrar Crédito</button>
                     </form>
                 </details>
 

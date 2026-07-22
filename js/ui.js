@@ -388,10 +388,6 @@ function renderCocina(products, deliverProduct, replenishments = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
 
-    if (!window.currentKitchenTab) {
-        window.currentKitchenTab = 'stock';
-    }
-
     const alertBanner = document.getElementById('kitchen-alert-banner');
     if (alertBanner) {
         const hasCritical = products.some(p => p.stock <= p.min);
@@ -405,274 +401,103 @@ function renderCocina(products, deliverProduct, replenishments = []) {
     const neededItems = products.filter(p => p.stock < p.max);
     const pendingDispatches = replenishments.filter(r => r.status === 'en_camino');
 
-    // Generate HTML for Stock tab (Cargar Stock)
-    let stockHtml = `
-        <p class="kitchen-notice" style="margin-bottom: 1rem;">
-            🥖 Carga el stock disponible en la vitrina para iniciar la jornada.
-        </p>
-        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-    `;
-
-    const categories = {
-        'pastelitos': { name: 'Pastelitos', icon: 'fa-cookie', color: '#FFB085' },
-        'bebidas': { name: 'Bebidas (Refrescos)', icon: 'fa-bottle-water', color: '#8BE8CB' },
-        'tortas': { name: 'Tortas', icon: 'fa-cake-slice', color: '#FFAAA6' },
-        'otros': { name: 'Otros', icon: 'fa-boxes-stacked', color: '#D4A373' }
-    };
-
-    const groupedProducts = {};
-    products.forEach(p => {
-        const cat = p.category || 'otros';
-        if (!groupedProducts[cat]) groupedProducts[cat] = [];
-        groupedProducts[cat].push(p);
-    });
-
-    Object.entries(categories).forEach(([catKey, catMeta]) => {
-        const items = groupedProducts[catKey] || [];
-        if (items.length === 0) return;
-
-        stockHtml += `
-            <div class="card-pantry" style="padding: 1rem; border-color: rgba(255, 255, 255, 0.05); background: rgba(10, 15, 30, 0.4);">
-                <h4 style="font-size: 11px; font-weight: 900; color: ${catMeta.color}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
-                    <i class="fa-solid ${catMeta.icon}"></i> ${catMeta.name}
-                </h4>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-        `;
-
-        items.forEach(p => {
-            stockHtml += `
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</div>
-                        <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.15rem;">
-                            Stock: <strong style="color: ${p.stock <= p.min ? 'var(--color-danger)' : 'var(--color-success)'};">${p.stock}</strong> / Max: ${p.max} ${p.unit || 'unid.'}
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.35rem;">
-                        <!-- Set to Max shortcut button -->
-                        <button class="btn-set-max" data-id="${p.id}" data-max="${p.max}" style="height: 28px; padding: 0 0.5rem; font-size: 9px; font-weight: 800; border-radius: 4px; border: 1px solid rgba(212,175,55,0.3); background: rgba(212,175,55,0.05); color: var(--color-gold); cursor: pointer; transition: all 0.2s;" title="Fijar al Máximo">
-                            Max (${p.max})
-                        </button>
-                        <!-- Minus button -->
-                        <button class="btn-qty-minus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">-</button>
-                        <!-- Input -->
-                        <input type="tel" class="input-stock-val" id="input-stock-${p.id}" data-id="${p.id}" value="${p.stock}" min="0" max="999" inputmode="numeric" pattern="[0-9]*" style="width: 38px; height: 28px; text-align: center; font-size: 0.8rem; font-weight: 800; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: var(--color-white); outline: none; -moz-appearance: textfield; padding: 0;">
-                        <!-- Plus button -->
-                        <button class="btn-qty-plus" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--color-white); cursor: pointer;">+</button>
-                        
-                        <!-- Add stock shortcut button -->
-                        <button class="btn-add-stock-prompt" data-id="${p.id}" data-name="${p.name}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: #3b82f6; color: #ffffff; cursor: pointer; transition: all 0.2s;" title="Sumar Nuevas Piezas">
-                            <i class="fa-solid fa-plus-minus"></i>
-                        </button>
-                        
-                        <!-- Save button -->
-                        <button class="btn-save-stock" data-id="${p.id}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: none; background-color: var(--color-success); color: #000000; cursor: pointer; transition: all 0.2s;" title="Fijar Stock Total">
-                            <i class="fa-solid fa-check"></i>
-                        </button>
+    if (neededItems.length === 0) {
+        let dispatchesHtml = '';
+        if (pendingDispatches.length > 0) {
+            dispatchesHtml = `
+                <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
+                    <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
+                    <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
+                        ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
                     </div>
                 </div>
             `;
-        });
+        }
 
-        stockHtml += `
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 class="empty-state-title">¡Todo Completo!</h3>
+                <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
+            </div>
+            ${dispatchesHtml}
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <p class="kitchen-notice" style="margin-bottom: 1rem;">
+            📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;" id="kitchen-list"></div>
+    `;
+
+    const list = document.getElementById('kitchen-list');
+
+    neededItems.forEach(item => {
+        const amountNeeded = item.max - item.stock;
+        const isDispatched = pendingDispatches.some(d => d.productId === item.id);
+
+        const card = document.createElement('div');
+        card.className = "kitchen-card";
+        card.style.cssText = "display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem; padding: 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-sm);";
+
+        card.innerHTML = `
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <h3 class="product-name" style="font-size: 1.05rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
+                    <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(248, 113, 113, 0.12); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.2);">
+                        Quedan: ${item.stock} ${item.unit}
+                    </span>
+                </div>
+                <div style="display: flex; align-items: baseline; justify-content: space-between; background: rgba(0, 0, 0, 0.25); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px dashed rgba(212, 175, 55, 0.25); margin-top: 0.5rem;">
+                    <span style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 700;">FALTA COCINAR:</span>
+                    <span style="font-size: 1.25rem; font-weight: 900; color: var(--color-gold); font-family: monospace;">
+                        ${amountNeeded} <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-white);">${item.unit}</span>
+                    </span>
                 </div>
             </div>
+            <div>
+                ${isDispatched 
+                    ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.6rem; border-radius: var(--radius-md); background: rgba(52, 211, 153, 0.05);">
+                         <i class="fa-solid fa-truck-fast"></i> ¡Enviado al local!
+                       </div>`
+                    : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 38px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.8125rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s, filter 0.15s;">
+                         <i class="fa-solid fa-truck-ramp-box"></i>
+                         ¡YA LO COCINÉ Y LO ENVIÉ!
+                       </button>`
+                }
+            </div>
         `;
+
+        if (!isDispatched) {
+            card.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
+                deliverProduct(item.id);
+            });
+        }
+
+        list.appendChild(card);
     });
 
-    stockHtml += `</div>`;
-
-    // Render Container structure with sub-tabs
-    container.innerHTML = `
-        <div class="sub-switch-nav" id="kitchen-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
-            <button class="${window.currentKitchenTab === 'stock' ? 'active' : 'inactive'}" id="btn-kitchen-stock" role="tab" style="flex: 1; height: 32px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; transition: all 0.2s;">
-                <i class="fa-solid fa-boxes-stacked"></i> Cargar Stock
-            </button>
-            <button class="${window.currentKitchenTab === 'todo' ? 'active' : 'inactive'}" id="btn-kitchen-todo" role="tab" style="flex: 1; height: 32px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; transition: all 0.2s;">
-                <i class="fa-solid fa-fire-burner"></i> Por Cocinar / Reponer
-            </button>
-        </div>
-
-        <div id="kitchen-tab-content"></div>
-    `;
-
-    // Bind sub-navigation button events
-    const btnStock = document.getElementById('btn-kitchen-stock');
-    const btnTodo = document.getElementById('btn-kitchen-todo');
-    const contentDiv = document.getElementById('kitchen-tab-content');
-
-    if (btnStock && btnTodo && contentDiv) {
-        btnStock.addEventListener('click', () => {
-            window.currentKitchenTab = 'stock';
-            renderCocina(products, deliverProduct, replenishments);
-        });
-
-        btnTodo.addEventListener('click', () => {
-            window.currentKitchenTab = 'todo';
-            renderCocina(products, deliverProduct, replenishments);
-        });
-
-        if (window.currentKitchenTab === 'stock') {
-            contentDiv.innerHTML = stockHtml;
-
-            // Bind stock control buttons
-            contentDiv.querySelectorAll('.btn-qty-minus').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const input = document.getElementById(`input-stock-${id}`);
-                    if (input) {
-                        const val = Math.max(0, parseInt(input.value) - 1);
-                        input.value = val;
-                    }
-                });
-            });
-
-            contentDiv.querySelectorAll('.btn-qty-plus').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const input = document.getElementById(`input-stock-${id}`);
-                    if (input) {
-                        const val = parseInt(input.value) + 1;
-                        input.value = val;
-                    }
-                });
-            });
-
-            contentDiv.querySelectorAll('.btn-set-max').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const maxVal = btn.getAttribute('data-max');
-                    const input = document.getElementById(`input-stock-${id}`);
-                    if (input) {
-                        input.value = maxVal;
-                    }
-                });
-            });
-
-            contentDiv.querySelectorAll('.btn-add-stock-prompt').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const name = btn.getAttribute('data-name');
-                    const amountStr = prompt(`¿Cuántas piezas de "${name}" llegaron para sumar a la vitrina?`);
-                    if (amountStr === null) return;
-                    const amount = parseInt(amountStr);
-                    if (isNaN(amount) || amount <= 0) {
-                        alert("Por favor ingresa un número válido mayor a 0.");
-                        return;
-                    }
-                    if (window.addProductStockDirect) {
-                        window.addProductStockDirect(id, amount);
-                    }
-                });
-            });
-
-            contentDiv.querySelectorAll('.btn-save-stock').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const input = document.getElementById(`input-stock-${id}`);
-                    if (input && window.updateProductStockDirect) {
-                        window.updateProductStockDirect(id, parseInt(input.value) || 0);
-                    }
-                });
-            });
-        } else {
-            // Render traditional todo list
-            if (neededItems.length === 0) {
-                let dispatchesHtml = '';
-                if (pendingDispatches.length > 0) {
-                    dispatchesHtml = `
-                        <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
-                            <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
-                            <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
-                                ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
-                            </div>
+    if (window.RecipeCalculator) {
+        const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
+        if (ingredients.length > 0) {
+            const recipeSection = document.createElement('div');
+            recipeSection.className = 'recipe-container';
+            recipeSection.innerHTML = `
+                <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
+                <div class="recipe-grid">
+                    ${ingredients.map(ing => `
+                        <div class="recipe-item">
+                            <span class="recipe-item-name">${ing.name}</span>
+                            <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
                         </div>
-                    `;
-                }
-
-                contentDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">
-                            <i class="fa-solid fa-circle-check"></i>
-                        </div>
-                        <h3 class="empty-state-title">¡Todo Completo!</h3>
-                        <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
-                    </div>
-                    ${dispatchesHtml}
-                `;
-                return;
-            }
-
-            contentDiv.innerHTML = `
-                <p class="kitchen-notice">
-                    📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
-                </p>
-                <div style="display: flex; flex-direction: column; gap: 1rem;" id="kitchen-list"></div>
+                    `).join('')}
+                </div>
             `;
-
-            const list = document.getElementById('kitchen-list');
-
-            neededItems.forEach(item => {
-                const amountNeeded = item.max - item.stock;
-                const isDispatched = pendingDispatches.some(d => d.productId === item.id);
-
-                const row = document.createElement('div');
-                row.className = "kitchen-card";
-                
-                row.innerHTML = `
-                    <div class="kitchen-card-header">
-                        <div>
-                            <h3 class="product-name" style="font-size: 1.125rem;">${item.name}</h3>
-                            <p class="stock-value critical" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                Solo quedan ${item.stock} en la vitrina.
-                            </p>
-                        </div>
-                        <div class="kitchen-amount-needed">
-                            <span class="kitchen-amount-label">Falta Cocinar:</span>
-                            <span class="kitchen-amount-val">
-                                ${amountNeeded} <span class="kitchen-amount-unit">${item.unit}</span>
-                            </span>
-                        </div>
-                    </div>
-                    ${isDispatched 
-                        ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.5rem; border-radius: var(--radius-md);">
-                             <i class="fa-solid fa-truck-fast"></i> ¡Enviado! Esperando confirmación de la tienda.
-                           </div>`
-                        : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local">
-                             <i class="fa-solid fa-truck-ramp-box"></i>
-                             ¡YA LO COCINÉ Y LO ENVIÉ!
-                           </button>`
-                    }
-                `;
-
-                if (!isDispatched) {
-                    row.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
-                        deliverProduct(item.id);
-                    });
-                }
-
-                list.appendChild(row);
-            });
-
-            if (window.RecipeCalculator) {
-                const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
-                if (ingredients.length > 0) {
-                    const recipeSection = document.createElement('div');
-                    recipeSection.className = 'recipe-container';
-                    recipeSection.innerHTML = `
-                        <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
-                        <div class="recipe-grid">
-                            ${ingredients.map(ing => `
-                                <div class="recipe-item">
-                                    <span class="recipe-item-name">${ing.name}</span>
-                                    <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                    contentDiv.appendChild(recipeSection);
-                }
-            }
+            container.appendChild(recipeSection);
         }
     }
 }
@@ -868,7 +693,8 @@ function renderDebts(debts, onRecordPayment) {
     if (debts.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 3rem 0;">
-                No hay deudas anotadas en el cuaderno virtual.
+                <i class="fa-solid fa-handshake-slash" style="font-size: 2rem; color: var(--color-text-muted); display: block; margin-bottom: 0.5rem;"></i>
+                No hay créditos pendientes registrados en el sistema.
             </div>
         `;
         return;
@@ -878,28 +704,50 @@ function renderDebts(debts, onRecordPayment) {
         const isDebtor = debt.amount > 0;
         const card = document.createElement('div');
         card.className = `client-card${isDebtor ? ' debtor' : ''}`;
+        card.style.cssText = "display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 0.75rem;";
         
-        let dateStr = '';
+        let dateDisplay = 'Reciente';
+        let timeDisplay = '';
         try {
-            dateStr = parseUTCTimestamp(debt.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+            const d = parseUTCTimestamp(debt.timestamp);
+            dateDisplay = d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+            timeDisplay = d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
         } catch(e) {
-            dateStr = 'Reciente';
+            dateDisplay = 'Reciente';
         }
 
+        const itemsDetail = debt.description ? debt.description : 'Sin productos especificados';
+
         card.innerHTML = `
-            <div class="client-info">
-                <span class="client-name">${debt.clientName}</span>
-                <span class="client-debt-desc">
-                    Última act: ${dateStr} ${debt.description ? `&bull; ${debt.description}` : ''}
-                </span>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                <div>
+                    <span class="client-name" style="font-size: 1.05rem; font-weight: 800; color: var(--color-white);">${debt.clientName}</span>
+                    <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-regular fa-clock" style="color: var(--color-gold);"></i>
+                        <span>${dateDisplay} ${timeDisplay ? `&bull; ${timeDisplay}` : ''}</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span class="client-balance" style="font-size: 1.25rem; font-weight: 900; color: ${isDebtor ? '#F87171' : 'var(--color-success)'}; font-family: monospace;">
+                        ${isDebtor ? `$${debt.amount.toFixed(2)}` : '$0.00'}
+                    </span>
+                    ${isDebtor ? `<div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(debt.amount * (window.bcvRate || 1)).toFixed(2)}</div>` : ''}
+                </div>
             </div>
-            <div class="client-balance-group">
-                <span class="client-balance">${isDebtor ? `$${debt.amount.toFixed(2)}` : '$0.00'}</span>
-                ${isDebtor ? `<span style="font-size: 0.675rem; opacity: 0.8; font-weight: normal; margin-top: 0.125rem; margin-bottom: 0.25rem;">(Bs. ${(debt.amount * (window.bcvRate || 1)).toFixed(2)})</span>` : ''}
-                ${isDebtor 
-                    ? `<button class="btn-pay">Abonar / Pagar</button>` 
-                    : '<span style="color: var(--color-success); font-size: 11px; font-weight: 700; margin-top: 0.25rem;">Al Día</span>'
-                }
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                <div style="font-size: 0.78rem; color: #E2E8F0; flex: 1; min-width: 0;">
+                    <i class="fa-solid fa-cookie-bite" style="color: var(--color-gold); margin-right: 0.3rem;"></i>
+                    <strong style="color: var(--color-gold);">Productos:</strong> ${itemsDetail}
+                </div>
+                <div>
+                    ${isDebtor 
+                        ? `<button class="btn-pay" style="height: 32px; padding: 0 0.85rem; font-size: 0.75rem; font-weight: 800; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);">
+                             <i class="fa-solid fa-handshake"></i> Abonar / Pagar
+                           </button>` 
+                        : '<span style="color: var(--color-success); font-size: 11px; font-weight: 800; background: rgba(52,211,153,0.1); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(52,211,153,0.2);">Al Día</span>'
+                    }
+                </div>
             </div>
         `;
 
@@ -2815,55 +2663,8 @@ function renderHourlyStats(salesLog, mode = 'today') {
 function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) {
     const container = document.getElementById('admin-critical-stock-container');
     if (!container) return;
-
-    const criticalProducts = products.filter(p => p.id !== 'abono' && (p.stock || 0) <= (p.min || 0));
-
-    if (criticalProducts.length === 0) {
-        container.classList.add('hidden');
-        container.innerHTML = '';
-        return;
-    }
-
-    container.classList.remove('hidden');
-
-    let listHtml = '';
-    criticalProducts.forEach(p => {
-        listHtml += `
-            <div class="critical-stock-item">
-                <div>
-                    <strong style="color: var(--color-white);">${p.name}</strong>
-                    <span style="color: #F87171; margin-left: 0.5rem; font-weight: 800; font-family: monospace;">${p.stock} ${p.unit}</span>
-                    <span style="color: var(--color-text-muted); font-size: 10px;"> (Alerta: &le; ${p.min})</span>
-                </div>
-                <button class="btn-replenish-quick" data-id="${p.id}" data-name="${p.name}" data-unit="${p.unit}">
-                    <i class="fa-solid fa-truck-ramp-box"></i> Pedir Reposición
-                </button>
-            </div>
-        `;
-    });
-
-    container.innerHTML = `
-        <div class="critical-stock-card">
-            <div class="critical-stock-title">
-                <i class="fa-solid fa-triangle-exclamation fa-bounce"></i> ¡Productos con Stock Crítico en Vitrina!
-            </div>
-            <div class="critical-stock-list">
-                ${listHtml}
-            </div>
-        </div>
-    `;
-
-    // Bind event listeners to replenishment buttons
-    container.querySelectorAll('.btn-replenish-quick').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            const name = btn.getAttribute('data-name');
-            const unit = btn.getAttribute('data-unit');
-            if (requestReplenishmentCallback) {
-                requestReplenishmentCallback(id, name, unit);
-            }
-        });
-    });
+    container.classList.add('hidden');
+    container.innerHTML = '';
 }
 
 /**

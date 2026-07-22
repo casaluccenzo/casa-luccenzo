@@ -23,17 +23,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=118">
+    <link rel="stylesheet" href="css/main.css?v=119">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=118"></script>
-    <script src="js/supabase.js?v=118"></script>
-    <script src="js/recipes.js?v=118"></script>
-    <script src="js/audio.js?v=118"></script>
-    <script src="js/share.js?v=118"></script>
-    <script src="js/ui.js?v=118"></script>
-    <script src="js/app.js?v=118"></script>
+    <script src="js/storage.js?v=119"></script>
+    <script src="js/supabase.js?v=119"></script>
+    <script src="js/recipes.js?v=119"></script>
+    <script src="js/audio.js?v=119"></script>
+    <script src="js/share.js?v=119"></script>
+    <script src="js/ui.js?v=119"></script>
+    <script src="js/app.js?v=119"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -626,8 +626,14 @@
                         <div class="admin-dashboard-row" style="margin-top: 1rem;">
                             <!-- Column 1: Payment Methods -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-credit-card"></i> Métodos de Pago (Consolidado)
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
+                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                        <i class="fa-solid fa-credit-card"></i> Métodos de Pago
+                                    </span>
+                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                        <button id="btn-stats-payment-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
+                                        <button id="btn-stats-payment-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    </div>
                                 </h4>
                                 <div id="payment-methods-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
                                     <!-- Injected by js/ui.js -->
@@ -636,8 +642,14 @@
                             
                             <!-- Column 2: Category Performance -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
+                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                        <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
+                                    </span>
+                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                        <button id="btn-stats-cat-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
+                                        <button id="btn-stats-cat-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    </div>
                                 </h4>
                                 <div id="category-performance-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
                                     <!-- Injected by js/ui.js -->

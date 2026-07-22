@@ -11,6 +11,8 @@ let activeCategory = 'todos';
 let searchQuery = '';
 let currentCart = [];
 let costInsumos = [];
+let paymentStatsFilter = 'day';
+let categoryStatsFilter = 'day';
 
 let lastCloseTime = null;
 
@@ -1758,7 +1760,7 @@ async function loadAndRenderAdminStats() {
     window.UIManager.renderStats(statsSales, statsExpenses, products);
     window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
     window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
-    window.UIManager.renderPaymentAndCategoryStats(statsSales, products);
+    window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
 }
 
 /**
@@ -1872,7 +1874,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             }
             window.UIManager.renderStats(adminStatsSales, expenses, products);
             window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
-            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products);
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
         }
     } else if (tableName === 'expenses') {
         const startOfDay = new Date();
@@ -3135,6 +3137,38 @@ function initAdminDashboardListeners() {
     if (costSellPriceInput) {
         costSellPriceInput.addEventListener('input', () => {
             window.UIManager.renderCostFinancialResults(products, costInsumos);
+        });
+    }
+
+    // Bind Payment Methods Day/Week toggle buttons
+    const btnPayDay = document.getElementById('btn-stats-payment-day');
+    const btnPayWeek = document.getElementById('btn-stats-payment-week');
+    if (btnPayDay && btnPayWeek) {
+        btnPayDay.addEventListener('click', () => {
+            triggerHaptic(10);
+            paymentStatsFilter = 'day';
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
+        });
+        btnPayWeek.addEventListener('click', () => {
+            triggerHaptic(10);
+            paymentStatsFilter = 'week';
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
+        });
+    }
+
+    // Bind Category Performance Day/Week toggle buttons
+    const btnCatDay = document.getElementById('btn-stats-cat-day');
+    const btnCatWeek = document.getElementById('btn-stats-cat-week');
+    if (btnCatDay && btnCatWeek) {
+        btnCatDay.addEventListener('click', () => {
+            triggerHaptic(10);
+            categoryStatsFilter = 'day';
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
+        });
+        btnCatWeek.addEventListener('click', () => {
+            triggerHaptic(10);
+            categoryStatsFilter = 'week';
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
         });
     }
 

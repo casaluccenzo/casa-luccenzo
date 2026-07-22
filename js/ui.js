@@ -2693,10 +2693,63 @@ function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) 
  * @param {Array} salesLog 
  * @param {Array} products 
  */
-function renderPaymentAndCategoryStats(salesLog = [], products = []) {
+/**
+ * Render Payment Methods and Category Sales stats with independent Day / Week time filters
+ * @param {Array} salesLog Sales array
+ * @param {Array} products Products array
+ * @param {string} paymentFilter 'day' or 'week'
+ * @param {string} categoryFilter 'day' or 'week'
+ */
+function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilter = 'day', categoryFilter = 'day') {
     const paymentContainer = document.getElementById('payment-methods-content');
     const categoryContainer = document.getElementById('category-performance-content');
     if (!paymentContainer || !categoryContainer) return;
+
+    // Update toggle button styles
+    const updateToggleBtnUI = (dayBtnId, weekBtnId, activeFilter) => {
+        const dayBtn = document.getElementById(dayBtnId);
+        const weekBtn = document.getElementById(weekBtnId);
+        if (dayBtn && weekBtn) {
+            if (activeFilter === 'week') {
+                dayBtn.style.background = 'transparent';
+                dayBtn.style.color = 'var(--color-text-muted)';
+                weekBtn.style.background = 'var(--color-gold)';
+                weekBtn.style.color = '#0A1426';
+            } else {
+                dayBtn.style.background = 'var(--color-gold)';
+                dayBtn.style.color = '#0A1426';
+                weekBtn.style.background = 'transparent';
+                weekBtn.style.color = 'var(--color-text-muted)';
+            }
+        }
+    };
+
+    updateToggleBtnUI('btn-stats-payment-day', 'btn-stats-payment-week', paymentFilter);
+    updateToggleBtnUI('btn-stats-cat-day', 'btn-stats-cat-week', categoryFilter);
+
+    // Calculate dates for filtering
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Start of week (Monday at 00:00:00)
+    const dayOfWeek = now.getDay();
+    const diffToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    const startOfWeek = new Date(startOfDay);
+    startOfWeek.setDate(startOfDay.getDate() - diffToMonday);
+
+    // Filter salesLog for Payment Methods
+    const paymentSales = salesLog.filter(s => {
+        if (!s.timestamp) return true;
+        const d = window.parseUTCTimestamp ? window.parseUTCTimestamp(s.timestamp) : new Date(s.timestamp);
+        return paymentFilter === 'week' ? (d >= startOfWeek) : (d >= startOfDay);
+    });
+
+    // Filter salesLog for Category Sales
+    const categorySales = salesLog.filter(s => {
+        if (!s.timestamp) return true;
+        const d = window.parseUTCTimestamp ? window.parseUTCTimestamp(s.timestamp) : new Date(s.timestamp);
+        return categoryFilter === 'week' ? (d >= startOfWeek) : (d >= startOfDay);
+    });
 
     // 1. Process payment methods
     const methods = {
@@ -2708,13 +2761,13 @@ function renderPaymentAndCategoryStats(salesLog = [], products = []) {
     };
 
     let totalSalesVal = 0;
-    salesLog.forEach(s => {
+    paymentSales.forEach(s => {
         let method = 'Efectivo $';
-        const match = s.name.match(/\(Pagado - (.*?)\)/);
+        const match = s.name ? s.name.match(/\(Pagado - (.*?)\)/) : null;
         if (match) {
             const parsed = match[1];
             if (methods[parsed]) method = parsed;
-        } else if (s.name.includes('(Pendiente)')) {
+        } else if (s.name && s.name.includes('(Pendiente)')) {
             method = 'Deuda / Crédito';
         }
         
@@ -2742,7 +2795,8 @@ function renderPaymentAndCategoryStats(salesLog = [], products = []) {
             `;
         });
     } else {
-        paymentHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas registradas.</div>`;
+        const noSalesPeriodText = paymentFilter === 'week' ? 'esta semana' : 'hoy';
+        paymentHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas registradas ${noSalesPeriodText}.</div>`;
     }
     paymentContainer.innerHTML = paymentHtml;
 
@@ -2755,7 +2809,7 @@ function renderPaymentAndCategoryStats(salesLog = [], products = []) {
     };
 
     let totalCatVal = 0;
-    salesLog.forEach(s => {
+    categorySales.forEach(s => {
         if (s.productId === 'abono') return;
         const product = products.find(p => p.id === s.productId);
         let cat = 'otros';
@@ -2784,7 +2838,8 @@ function renderPaymentAndCategoryStats(salesLog = [], products = []) {
             `;
         });
     } else {
-        catHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas de productos hoy.</div>`;
+        const noCatPeriodText = categoryFilter === 'week' ? 'esta semana' : 'hoy';
+        catHtml = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas de productos ${noCatPeriodText}.</div>`;
     }
     categoryContainer.innerHTML = catHtml;
 }

@@ -20,9 +20,28 @@ function isConfigured() {
 }
 
 /**
+ * Check if running in isolated test environment (Sandbox)
+ */
+function isTestEnvironment() {
+    try {
+        return window.location.port === '8080' || 
+               window.location.search.includes('test=true') || 
+               window.location.hash.includes('test');
+    } catch(e) {
+        return false;
+    }
+}
+
+/**
  * Initialize the Supabase client using stored credentials or defaults
  */
 function init() {
+    if (isTestEnvironment()) {
+        console.warn("🧪 MODO PRUEBAS (SANDBOX): Supabase deshabilitado en entorno de pruebas local para aislar producción.");
+        client = null;
+        return false;
+    }
+
     if (!isConfigured()) {
         client = null;
         return false;
@@ -64,6 +83,10 @@ function init() {
  * @param {string} keyValue Primary key value (only for delete)
  */
 function enqueueOfflineOp(table, action, data = null, key = null, keyValue = null) {
+    if (isTestEnvironment()) {
+        console.log(`🧪 Test environment: bypassing offline queue for ${table}`);
+        return;
+    }
     const queue = JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]');
     queue.push({ table, action, data, key, keyValue, timestamp: Date.now() });
     localStorage.setItem('casa_lucenzo_offline_queue', JSON.stringify(queue));
@@ -972,6 +995,7 @@ function subscribeToChanges(onDbChange) {
 // Expose to window namespace
 window.SupabaseManager = {
     isConfigured,
+    isTestEnvironment,
     init,
     fetchProducts,
     fetchSales,

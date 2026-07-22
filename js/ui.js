@@ -1066,6 +1066,14 @@ function updateConnectionStatus(status) {
     const dot = document.getElementById('conn-status');
     if (!dot) return;
 
+    if (window.SupabaseManager && window.SupabaseManager.isTestEnvironment && window.SupabaseManager.isTestEnvironment()) {
+        dot.className = 'conn-status offline';
+        dot.style.cssText = "display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%); color: #ffffff; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 900; letter-spacing: 0.05em; border: 1px solid rgba(255,255,255,0.3); height: 16px; font-family: var(--font-sans);";
+        dot.innerHTML = `<i class="fa-solid fa-flask" style="margin-right: 3px; font-size: 8px;"></i> MODO PRUEBAS`;
+        dot.setAttribute('title', 'Entorno de Pruebas Aislado (No afecta la base de datos oficial)');
+        return;
+    }
+
     dot.className = `conn-status ${status}`;
     
     let title = 'Sincronizado con base de datos (En vivo)';

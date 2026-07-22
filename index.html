@@ -23,17 +23,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=116">
+    <link rel="stylesheet" href="css/main.css?v=117">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=116"></script>
-    <script src="js/supabase.js?v=116"></script>
-    <script src="js/recipes.js?v=116"></script>
-    <script src="js/audio.js?v=116"></script>
-    <script src="js/share.js?v=116"></script>
-    <script src="js/ui.js?v=116"></script>
-    <script src="js/app.js?v=116"></script>
+    <script src="js/storage.js?v=117"></script>
+    <script src="js/supabase.js?v=117"></script>
+    <script src="js/recipes.js?v=117"></script>
+    <script src="js/audio.js?v=117"></script>
+    <script src="js/share.js?v=117"></script>
+    <script src="js/ui.js?v=117"></script>
+    <script src="js/app.js?v=117"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -861,34 +861,47 @@
     
     </main>
 
-    <!-- ================= EDIT PRODUCT MODAL ================= -->
     <div id="edit-product-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div class="modal-content" style="max-width: 440px; border: 1.5px solid var(--color-gold); background: linear-gradient(145deg, #0A1426 0%, #020C1B 100%); border-radius: var(--radius-xl); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);">
+            <!-- Header -->
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1.25rem 1.5rem;">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
                     <i class="fa-solid fa-pen-to-square"></i> Editar Producto
                 </h3>
-                <button id="btn-edit-product-close" type="button" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                <button id="btn-edit-product-close" type="button" style="width: 2.2rem; height: 2.2rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.12); background: rgba(255, 255, 255, 0.06); color: var(--color-white); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: all 0.2s;">
                     &times;
                 </button>
             </div>
+
             <form id="edit-product-form">
-                <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1.25rem;">
+                <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 1.5rem;">
                     <input type="hidden" id="edit-prod-id">
                     
+                    <!-- Product Name -->
                     <div class="form-field">
-                        <label class="form-label" style="font-size: 10px;">NOMBRE DEL PRODUCTO</label>
-                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 36px; font-size: 0.8125rem;">
+                        <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                            <i class="fa-solid fa-tag" style="color: var(--color-gold);"></i> NOMBRE DEL PRODUCTO
+                        </label>
+                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 40px; font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); color: var(--color-white); padding: 0 0.75rem;">
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <!-- Price ($) & Realtime (Bs.) Conversion + Category -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
                         <div class="form-field">
-                            <label class="form-label" style="font-size: 10px;">PRECIO ($)</label>
-                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 36px; font-size: 0.8125rem;">
+                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="fa-solid fa-dollar-sign" style="color: #10B981;"></i> PRECIO ($)
+                            </label>
+                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                            <div id="edit-prod-price-bs" style="font-size: 11px; font-weight: 700; color: #10B981; margin-top: 0.35rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.25rem;">
+                                <i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. 0.00
+                            </div>
                         </div>
+                        
                         <div class="form-field">
-                            <label class="form-label" style="font-size: 10px;">CATEGORÍA</label>
-                            <select id="edit-prod-category" class="form-input" style="height: 36px; font-size: 0.8125rem; background-color: var(--color-bg-dark); color: white;">
+                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="fa-solid fa-layer-group" style="color: var(--color-gold);"></i> CATEGORÍA
+                            </label>
+                            <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
                                 <option value="pastelitos">Pastelitos</option>
                                 <option value="tortas">Tortas</option>
                                 <option value="bebidas">Bebidas</option>
@@ -896,27 +909,62 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                        <div class="form-field">
-                            <label class="form-label" style="font-size: 8px;">CANT. ACTUAL (STOCK)</label>
-                            <input type="number" id="edit-prod-stock" required min="0" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+                    <!-- Color-Coded Metrics: Stock (Green), Max (Gold), Alert Min (Amber) with Stepper (-) and (+) buttons -->
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.25rem;">
+                        <!-- Stock Field (Green accent) -->
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: #10B981; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-boxes-stacked"></i> CANT. ACTUAL (STOCK)
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Vitrina disponible</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-stock-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-stock" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #10B981; background: rgba(0,0,0,0.5); border: 1.5px solid #10B981; border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-stock-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
                         </div>
-                        <div class="form-field">
-                            <label class="form-label" style="font-size: 8px;">MÁXIMO VITRINA</label>
-                            <input type="number" id="edit-prod-max" required min="1" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+
+                        <!-- Max Vitrina Field (Gold accent) -->
+                        <div style="background: rgba(243, 198, 63, 0.08); border: 1.5px solid rgba(243, 198, 63, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-chart-line"></i> MÁXIMO VITRINA
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Meta / Acumulado diario</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-max-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(243, 198, 63, 0.4); background: rgba(243, 198, 63, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-max" required min="1" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: var(--color-gold); background: rgba(0,0,0,0.5); border: 1.5px solid var(--color-gold); border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-max-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(243, 198, 63, 0.4); background: rgba(243, 198, 63, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
                         </div>
-                        <div class="form-field">
-                            <label class="form-label" style="font-size: 8px;">ALERTA MÍNIMA</label>
-                            <input type="number" id="edit-prod-min" required min="0" class="form-input" style="height: 36px; font-size: 0.8125rem; text-align: center;">
+
+                        <!-- Min Alert Field (Amber accent) -->
+                        <div style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: #F59E0B; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-bell"></i> ALERTA MÍNIMA
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Aviso de reposición a cocina</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-min-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-min" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #F59E0B; background: rgba(0,0,0,0.5); border: 1.5px solid #F59E0B; border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-min-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="padding: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.06);">
-                    <button type="button" id="btn-edit-product-cancel" class="btn-touch" style="background-color: rgba(255,255,255,0.1); color: white; min-height: 36px; font-size: 11px;">
+
+                <!-- Footer Buttons -->
+                <div class="modal-footer" style="padding: 1.25rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <button type="button" id="btn-edit-product-cancel" class="btn-touch" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; min-height: 42px; padding: 0 1.25rem; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 700; cursor: pointer;">
                         Cancelar
                     </button>
-                    <button type="submit" class="btn-touch" style="background-color: var(--color-success); color: white; min-height: 36px; font-size: 11px;">
-                        Guardar Cambios
+                    <button type="submit" class="btn-touch" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; min-height: 42px; padding: 0 1.5rem; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 900; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
                     </button>
                 </div>
             </form>

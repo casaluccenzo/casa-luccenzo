@@ -1526,7 +1526,20 @@ function editProductPrompt(id) {
     document.getElementById('edit-prod-max').value = product.max !== undefined ? product.max : 20;
     document.getElementById('edit-prod-min').value = product.min !== undefined ? product.min : 6;
 
+    updateEditPriceBsPreview();
+
     document.getElementById('edit-product-modal').classList.remove('hidden');
+}
+
+function updateEditPriceBsPreview() {
+    const priceEl = document.getElementById('edit-prod-price');
+    const bsEl = document.getElementById('edit-prod-price-bs');
+    if (priceEl && bsEl) {
+        const price = parseFloat(priceEl.value) || 0;
+        const rate = window.bcvRate || bcvRate || 1;
+        const bsVal = price * rate;
+        bsEl.innerHTML = `<i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. ${bsVal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
 }
 
 /**
@@ -3106,16 +3119,34 @@ function initAdminDashboardListeners() {
         });
     }
 
-    const editProdStockInput = document.getElementById('edit-prod-stock');
-    if (editProdStockInput) {
-        editProdStockInput.addEventListener('input', (e) => {
-            const val = e.target.value;
-            const maxInput = document.getElementById('edit-prod-max');
-            if (maxInput) {
-                maxInput.value = val;
-            }
-        });
+    // Live price calculation in Bs.
+    const editPriceInput = document.getElementById('edit-prod-price');
+    if (editPriceInput) {
+        editPriceInput.addEventListener('input', updateEditPriceBsPreview);
     }
+
+    // Steppers (-) and (+) for Stock, Max Vitrina, and Alerta Mínima
+    const bindEditStepper = (btnMinusId, btnPlusId, inputId, minVal = 0) => {
+        const btnMinus = document.getElementById(btnMinusId);
+        const btnPlus = document.getElementById(btnPlusId);
+        const inputEl = document.getElementById(inputId);
+        if (btnMinus && btnPlus && inputEl) {
+            btnMinus.addEventListener('click', () => {
+                triggerHaptic(10);
+                const current = parseInt(inputEl.value) || 0;
+                inputEl.value = Math.max(minVal, current - 1);
+            });
+            btnPlus.addEventListener('click', () => {
+                triggerHaptic(10);
+                const current = parseInt(inputEl.value) || 0;
+                inputEl.value = current + 1;
+            });
+        }
+    };
+
+    bindEditStepper('btn-edit-stock-minus', 'btn-edit-stock-plus', 'edit-prod-stock', 0);
+    bindEditStepper('btn-edit-max-minus', 'btn-edit-max-plus', 'edit-prod-max', 1);
+    bindEditStepper('btn-edit-min-minus', 'btn-edit-min-plus', 'edit-prod-min', 0);
 
     // Edit Product form submission
     const editProductForm = document.getElementById('edit-product-form');

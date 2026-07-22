@@ -799,8 +799,14 @@ async function updateProductStockDirect(id, newStock) {
     if (!product) return;
 
     triggerHaptic(15);
-    product.stock = Math.max(0, newStock);
-    product.max = Math.max(0, newStock); // Update maximum capacity to match loaded quantity
+    const oldStock = product.stock || 0;
+    const targetStock = Math.max(0, newStock);
+    const addedDiff = targetStock > oldStock ? (targetStock - oldStock) : 0;
+
+    product.stock = targetStock;
+    if (addedDiff > 0) {
+        product.max = (product.max || 0) + addedDiff;
+    }
     window.StorageManager.saveProducts(products);
 
     if (window.SupabaseManager.isConfigured()) {
@@ -3052,13 +3058,21 @@ function initAdminDashboardListeners() {
                 return;
             }
 
+            const oldStock = product.stock || 0;
+            const oldMax = product.max || 0;
+            const stockDiff = stockVal > oldStock ? (stockVal - oldStock) : 0;
+
             product.name = newName;
             product.price = newPrice;
             product.category = newCategory;
             product.stock = stockVal;
-            product.max = maxVal;
             product.min = minVal;
-            product.initial_stock = stockVal;
+
+            if (maxVal !== oldMax && maxVal > 0) {
+                product.max = maxVal;
+            } else if (stockDiff > 0) {
+                product.max = oldMax + stockDiff;
+            }
 
             window.StorageManager.saveProducts(products);
 

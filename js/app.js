@@ -2204,6 +2204,20 @@ function applyUserRole(role) {
     if (clearSales) clearSales.classList.remove('hidden');
     if (dayCloseSec) dayCloseSec.classList.remove('hidden');
 
+    // Lock BCV Rate input for non-admin roles
+    const bcvRateInput = document.getElementById('header-bcv-rate-input');
+    if (bcvRateInput) {
+        if (role === 'admin') {
+            bcvRateInput.removeAttribute('readonly');
+            bcvRateInput.style.cursor = 'text';
+            bcvRateInput.title = 'Toca para cambiar la tasa manualmente (Modo Administrador)';
+        } else {
+            bcvRateInput.setAttribute('readonly', 'readonly');
+            bcvRateInput.style.cursor = 'not-allowed';
+            bcvRateInput.title = 'Tasa BCV del día (Solo modificable por Administrador)';
+        }
+    }
+
     if (role === 'local') {
         // Local seller: only Local + Clientes + Fiados + Cambio
         document.getElementById('btn-cocina').classList.add('hidden');
@@ -2217,7 +2231,7 @@ function applyUserRole(role) {
         const cambioSpan = document.querySelector('#btn-cambio .nav-label');
         if (localSpan) localSpan.textContent = '1. LOCAL';
         if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
-        if (fiadosSpan) fiadosSpan.textContent = '3. FIADOS';
+        if (fiadosSpan) fiadosSpan.textContent = '3. CRÉDITOS';
         if (cambioSpan) cambioSpan.textContent = '4. CAMBIO';
 
         window.UIManager.switchView('local');
@@ -2247,7 +2261,7 @@ function applyUserRole(role) {
         if (localSpan) localSpan.textContent = '2. VITRINA';
         if (clientesSpan) clientesSpan.textContent = '3. CLIENTES';
         if (cocinaSpan) cocinaSpan.textContent = '4. COCINA';
-        if (fiadosSpan) fiadosSpan.textContent = '5. FIADOS';
+        if (fiadosSpan) fiadosSpan.textContent = '5. CRÉDITOS';
         if (cambioSpan) cambioSpan.textContent = '6. CAMBIO';
 
         window.UIManager.switchView('admin-dashboard');
@@ -2838,6 +2852,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 17. Bind lock icon buttons
     document.getElementById('btn-lock-user').addEventListener('click', lockSession);
+
+    // 17b. Bind logo click to reload page
+    const logoContainer = document.querySelector('.logo-container');
+    if (logoContainer) {
+        logoContainer.style.cursor = 'pointer';
+        logoContainer.title = 'Toca el logo para recargar la aplicación';
+        logoContainer.addEventListener('click', () => {
+            triggerHaptic(15);
+            window.location.reload();
+        });
+    }
 
     // 18. Bind online/offline, visibility & focus auto-reconnect listeners
     const autoSyncAndReconnect = () => {

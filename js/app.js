@@ -3007,6 +3007,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 45000);
 
     initAdminDashboardListeners();
+    initAgentListeners();
 });
 
 // Expose functions globally for UI callbacks and fallbacks
@@ -3038,6 +3039,7 @@ function initAdminDashboardListeners() {
     const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
     const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
+    const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
     const panelSummary = document.getElementById('admin-panel-summary');
@@ -3045,12 +3047,13 @@ function initAdminDashboardListeners() {
     const panelDevices = document.getElementById('admin-panel-devices');
     const panelLogs = document.getElementById('admin-panel-logs');
     const panelCosts = document.getElementById('admin-panel-costs');
+    const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelCosts, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
 
     function activateTab(btn, panel) {
         triggerHaptic(10);
@@ -3084,6 +3087,12 @@ function initAdminDashboardListeners() {
         tabCostsBtn.addEventListener('click', () => {
             activateTab(tabCostsBtn, panelCosts);
             window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
+        });
+    }
+
+    if (tabAgentBtn && panelAgent) {
+        tabAgentBtn.addEventListener('click', () => {
+            activateTab(tabAgentBtn, panelAgent);
         });
     }
 
@@ -3363,4 +3372,157 @@ async function refreshActivityLogsView() {
         window.UIManager.renderActivityLogs([...localLogs].reverse());
     }
 }
+
+/**
+ * Initialize event handlers and chat behavior for the AI Agent
+ */
+function initAgentListeners() {
+    const chatForm = document.getElementById('agent-chat-form');
+    const chatInput = document.getElementById('agent-chat-input');
+    const chatMessages = document.getElementById('agent-chat-messages');
+    const prefGeminiKey = document.getElementById('pref-gemini-key');
+
+    if (prefGeminiKey && window.AgentManager) {
+        prefGeminiKey.value = window.AgentManager.getGeminiApiKey();
+        prefGeminiKey.addEventListener('change', () => {
+            window.AgentManager.setGeminiApiKey(prefGeminiKey.value);
+            window.UIManager.showToast("🔑 API Key de Gemini guardada correctamente.", "fa-solid fa-key");
+        });
+    }
+
+    if (!chatForm || !chatInput || !chatMessages) return;
+
+    const handleSendPrompt = async (promptText) => {
+        const text = promptText.trim();
+        if (!text) return;
+
+        triggerHaptic(10);
+        appendAgentMessage('user', text);
+        chatInput.value = '';
+
+        const typingEl = appendAgentTyping();
+
+        const context = {
+            products: products,
+            salesLog: salesLog,
+            expenses: expenses,
+            bcvRate: bcvRate,
+            actions: {
+                addExpense: (desc, amount) => {
+                    const newExpense = {
+                        id: 'exp_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
+                        description: desc,
+                        amount: amount,
+                        date: new Date().toISOString()
+                    };
+                    expenses.push(newExpense);
+                    window.StorageManager.saveExpenses(expenses);
+                    if (window.SupabaseManager.isConfigured()) {
+                        window.SupabaseManager.insertExpense(newExpense);
+                    }
+                    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                    logActivity("Gasto por IA", `Agregado gasto: ${desc} ($${amount})`);
+                },
+                updateProductPrice: (prodId, newPrice) => {
+                    const prod = products.find(p => p.id === prodId);
+                    if (prod) {
+                        prod.price = newPrice;
+                        window.StorageManager.saveProducts(products);
+                        if (window.SupabaseManager.isConfigured()) {
+                            window.SupabaseManager.upsertProduct(prod);
+                        }
+                        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                        logActivity("Precio por IA", `Actualizado precio de ${prod.name} a $${newPrice}`);
+                    }
+                },
+                resetToMax: () => {
+                    resetToMax();
+                },
+                addNewProduct: (prodData) => {
+                    const newProd = {
+                        id: 'prod_' + Math.random().toString(36).substring(2),
+                        name: prodData.name,
+                        price: prodData.price,
+                        stock: prodData.stock || 15,
+                        min: prodData.min || 5,
+                        max: prodData.max || 15,
+                        unit: prodData.unit || 'unid.',
+                        category: prodData.category || 'pastelitos'
+                    };
+                    products.push(newProd);
+                    window.StorageManager.saveProducts(products);
+                    if (window.SupabaseManager.isConfigured()) {
+                        window.SupabaseManager.upsertProduct(newProd);
+                    }
+                    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                    logActivity("Producto por IA", `Creado producto: ${prodData.name} ($${prodData.price})`);
+                }
+            }
+        };
+
+        try {
+            const response = await window.AgentManager.processQuery(text, context);
+            typingEl.remove();
+            appendAgentMessage('agent', response.text);
+        } catch (e) {
+            console.error("Error processing agent query:", e);
+            typingEl.remove();
+            appendAgentMessage('agent', "❌ Lo siento, ocurrió un error al procesar tu solicitud.");
+        }
+    };
+
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleSendPrompt(chatInput.value);
+    });
+
+    document.querySelectorAll('.agent-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const prompt = chip.getAttribute('data-prompt');
+            if (prompt) {
+                handleSendPrompt(prompt);
+            }
+        });
+    });
+}
+
+function appendAgentMessage(sender, text) {
+    const chatMessages = document.getElementById('agent-chat-messages');
+    if (!chatMessages) return;
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `agent-msg ${sender}`;
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'agent-msg-bubble';
+    
+    let formatted = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+
+    bubbleDiv.innerHTML = formatted;
+    msgDiv.appendChild(bubbleDiv);
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function appendAgentTyping() {
+    const chatMessages = document.getElementById('agent-chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'agent-msg agent';
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'agent-msg-bubble';
+    bubbleDiv.innerHTML = `<em>🤖 Pensando...</em>`;
+    msgDiv.appendChild(bubbleDiv);
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return msgDiv;
+}
+
 

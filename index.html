@@ -27,13 +27,14 @@
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=119"></script>
-    <script src="js/supabase.js?v=119"></script>
-    <script src="js/recipes.js?v=119"></script>
-    <script src="js/audio.js?v=119"></script>
-    <script src="js/share.js?v=119"></script>
-    <script src="js/ui.js?v=119"></script>
-    <script src="js/app.js?v=119"></script>
+    <script src="js/storage.js?v=120"></script>
+    <script src="js/supabase.js?v=120"></script>
+    <script src="js/recipes.js?v=120"></script>
+    <script src="js/audio.js?v=120"></script>
+    <script src="js/share.js?v=120"></script>
+    <script src="js/agent.js?v=120"></script>
+    <script src="js/ui.js?v=120"></script>
+    <script src="js/app.js?v=120"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -505,6 +506,10 @@
                         <i class="fa-solid fa-calculator"></i>
                         <span>🧮 Costos y Ganancias</span>
                     </button>
+                    <button id="admin-tab-btn-agent" class="admin-tab-btn">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>🤖 Agente IA</span>
+                    </button>
                     <button id="admin-tab-btn-preferences" class="admin-tab-btn">
                         <i class="fa-solid fa-sliders"></i>
                         <span>⚙️ Ajustes</span>
@@ -860,6 +865,41 @@
                     </div>
                 </div>
 
+                <!-- PANEL 5.5: AGENTE VIRTUAL IA -->
+                <div id="admin-panel-agent" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-robot"></i> Agente Lucenzo IA
+                            <span style="font-size: 9px; padding: 2px 6px; border-radius: 10px; background: rgba(243, 198, 63, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); font-weight: 700; text-transform: uppercase;">Beta</span>
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body" style="padding: 0.75rem 0.5rem 0.5rem 0.5rem;">
+                        <div class="agent-chat-container">
+                            <div id="agent-chat-messages" class="agent-chat-messages">
+                                <div class="agent-msg agent">
+                                    <div class="agent-msg-bubble">
+👋 <strong>¡Hola! Soy tu Agente Lucenzo IA.</strong><br>
+Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar precios de productos.<br><br>
+<em>Prueba con una sugerencia rápida o escribe tu consulta abajo:</em>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="agent-quick-chips">
+                                <button class="agent-chip" data-prompt="Resumen de ventas de hoy">📊 Resumen de Hoy</button>
+                                <button class="agent-chip" data-prompt="¿Qué productos tienen poco stock?">⚠️ Poco Stock</button>
+                                <button class="agent-chip" data-prompt="¿Cuál es el producto más vendido?">🏆 Top Ventas</button>
+                                <button class="agent-chip" data-prompt="Reabastece la vitrina a stock máximo">📦 Rellenar Vitrina</button>
+                            </div>
+                            <form id="agent-chat-form" class="agent-chat-form">
+                                <input type="text" id="agent-chat-input" placeholder="Escribe un comando o pregunta a tu agente..." autocomplete="off" class="agent-input">
+                                <button type="submit" class="agent-send-btn">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- PANEL 6: SYSTEM PREFERENCES & PIN MANAGEMENT -->
                 <div id="admin-panel-preferences" class="admin-panel">
                     <div class="admin-panel-header">
@@ -900,6 +940,15 @@
                                 <div class="form-field" style="margin-top: 0.25rem;">
                                     <label class="form-label" style="font-size: 9px;">TASA DEL DÍA (Bs.)</label>
                                     <input type="number" id="pref-bcv-rate" step="0.0001" placeholder="Ej: 732.4787" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                </div>
+
+                                <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.75rem; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">
+                                    <i class="fa-solid fa-brain"></i> Inteligencia Artificial (Gemini API)
+                                </h5>
+                                <div class="form-field" style="margin-top: 0.25rem;">
+                                    <label class="form-label" style="font-size: 9px;">API KEY DE GOOGLE GEMINI (OPCIONAL)</label>
+                                    <input type="password" id="pref-gemini-key" placeholder="AIzaSy..." class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    <span style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
                                 </div>
 
                                 <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">

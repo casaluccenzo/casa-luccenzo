@@ -1419,7 +1419,9 @@ async function closeDayAndResetLogs() {
                 }
             }
         });
-        window.StorageManager.saveProducts(products);
+        // 4.5. Ensure BCV automatic exchange connector is active and refreshed for the next day
+        useAutoBcv = true;
+        await fetchBcvRate(true);
 
         // 5. Re-render UI
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -2534,32 +2536,41 @@ function updateBcvHeaderDisplay() {
 /**
  * Fetch the official BCV rate from DolarVZLA API (which updates correctly with next business day value date)
  */
-async function fetchBcvRate() {
-    if (!useAutoBcv) return;
+async function fetchBcvRate(force = false) {
+    if (!useAutoBcv && !force) return;
     try {
         console.log("Fetching official BCV exchange rate...");
         const response = await fetch('https://rates.dolarvzla.com/bcv/current.json');
         if (response.ok) {
             const data = await response.json();
             if (data && data.current && data.current.usd) {
-                bcvRate = parseFloat(data.current.usd);
-                window.bcvRate = bcvRate;
-                saveAndSyncBcvConfig();
-                console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
-                
-                const bcvRateInput = document.getElementById('pref-bcv-rate');
-                if (bcvRateInput) {
-                    bcvRateInput.value = bcvRate;
+                const newRate = parseFloat(data.current.usd);
+                if (newRate > 0) {
+                    bcvRate = newRate;
+                    window.bcvRate = bcvRate;
+                    useAutoBcv = true;
+                    saveAndSyncBcvConfig();
+                    console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
+                    
+                    const bcvRateInput = document.getElementById('pref-bcv-rate');
+                    const autoCheckbox = document.getElementById('pref-bcv-auto');
+                    if (bcvRateInput) {
+                        bcvRateInput.value = bcvRate;
+                        bcvRateInput.disabled = true;
+                    }
+                    if (autoCheckbox) {
+                        autoCheckbox.checked = true;
+                    }
+                    
+                    updateBcvHeaderDisplay();
+                    
+                    // Re-render UI
+                    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                    window.UIManager.renderCashRegister(salesLog, expenses);
+                    window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+                    window.UIManager.renderDebts(debts, settleDebtPayment);
+                    window.UIManager.renderQuickConversionTable();
                 }
-                
-                updateBcvHeaderDisplay();
-                
-                // Re-render UI
-                window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-                window.UIManager.renderCashRegister(salesLog, expenses);
-                window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
-                window.UIManager.renderDebts(debts, settleDebtPayment);
-                window.UIManager.renderQuickConversionTable();
             }
         }
     } catch (e) {

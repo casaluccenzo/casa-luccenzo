@@ -1695,45 +1695,9 @@ async function loadAllDataFromSupabase() {
         salesLog = supSales || [];
     }
 
-    // Auto-recover missing sale for client "chica" if not present in today's sales log
-    const hasChicaSale = salesLog.some(s => s.name && s.name.toLowerCase().includes('[chica]'));
-    if (!hasChicaSale) {
-        console.log("Auto-recovering missing sale for client 'chica'...");
-        const timestamp = new Date().toISOString();
-        const quesoProd = products.find(p => p.id === 'queso') || { id: 'queso', name: 'Queso', price: 1.70 };
-        const mechadaProd = products.find(p => p.id === 'mechada') || { id: 'mechada', name: 'Carne Mechada', price: 1.70 };
-        const maltaProd = products.find(p => p.id === 'malta') || { id: 'malta', name: 'Malta Retornable', price: 1.00 };
-
-        const chicaSales = [
-            {
-                uuid: 'chica_queso_' + Date.now(),
-                productId: quesoProd.id,
-                name: `${quesoProd.name} [chica]`,
-                price: quesoProd.price || 1.70,
-                timestamp: timestamp
-            },
-            {
-                uuid: 'chica_mechada_' + Date.now(),
-                productId: mechadaProd.id,
-                name: `${mechadaProd.name} [chica]`,
-                price: mechadaProd.price || 1.70,
-                timestamp: timestamp
-            },
-            {
-                uuid: 'chica_malta_' + Date.now(),
-                productId: maltaProd.id,
-                name: `${maltaProd.name} [chica]`,
-                price: maltaProd.price || 1.00,
-                timestamp: timestamp
-            }
-        ];
-
-        salesLog.push(...chicaSales);
-        window.StorageManager.saveSalesLog(salesLog);
-        if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.insertSales(chicaSales);
-        }
-    }
+    // Clean any temporary auto-injected test sales from salesLog
+    salesLog = salesLog.filter(s => !s.uuid || !s.uuid.startsWith('chica_'));
+    window.StorageManager.saveSalesLog(salesLog);
 
     // Save and load expenses
     if (supExpenses) {

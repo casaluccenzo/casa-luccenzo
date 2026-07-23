@@ -1733,23 +1733,6 @@ async function loadAllDataFromSupabase() {
         ingredients = window.StorageManager.loadIngredients();
     }
 
-    // Auto-heal showcase products stock if stock was accidentally reset to 0 but showcase capacity exists
-    const showcaseProducts = products.filter(p => p.category !== 'bebidas');
-    const totalShowcaseStock = showcaseProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
-    if (showcaseProducts.length > 0 && totalShowcaseStock === 0) {
-        console.log("Healing showcase stock from salesLog...");
-        showcaseProducts.forEach(p => {
-            const soldToday = salesLog.filter(s => s.productId === p.id).length;
-            const maxCap = (p.max && p.max > 0) ? p.max : 10;
-            p.initial_stock = (p.initial_stock && p.initial_stock > 0) ? p.initial_stock : maxCap;
-            p.stock = Math.max(0, p.initial_stock - soldToday);
-            if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(p.id, p.stock, p.max, p.initial_stock);
-            }
-        });
-        window.StorageManager.saveProducts(products);
-    }
-
     renderAllViews();
 }
 

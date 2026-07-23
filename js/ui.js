@@ -1919,9 +1919,10 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                             ? flavorsList.map(f => `
                                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
                                     <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
-                                    <div style="display: flex; gap: 0.75rem; align-items: center; font-family: monospace;">
+                                    <div style="display: flex; gap: 0.5rem; align-items: center; font-family: monospace;">
                                         <span style="color: var(--color-gold); font-weight: 800;">${f.qty} ${cat.unitLabel}</span>
                                         <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
+                                        <span style="color: var(--color-text-muted); font-size: 0.7rem;">(${formatVES(f.usd * rate)})</span>
                                     </div>
                                 </div>
                             `).join('')

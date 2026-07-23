@@ -762,9 +762,13 @@ function renderDebts(debts, onRecordPayment) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses
  */
-function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel = '') {
+function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel = '', customRate = null) {
     const modalBody = document.getElementById('day-close-modal-body');
     if (!modalBody) return;
+
+    const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) 
+        ? parseFloat(customRate) 
+        : (window.bcvRate || 1);
 
     const reportDateText = customDateLabel || new Date().toLocaleDateString();
 
@@ -842,7 +846,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                         </div>
                         <div style="text-align: right;">
                             <span style="font-weight: 700; color: var(--color-white); font-family: monospace;">$${data.total.toFixed(2)}</span>
-                            <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(data.total * (window.bcvRate || 1)).toFixed(2)}</div>
+                            <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(data.total * rate).toFixed(2)}</div>
                         </div>
                     </div>
                 `;
@@ -858,7 +862,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 <span style="color: var(--color-white);">${exp.description}</span>
                 <div style="text-align: right;">
                     <span style="font-weight: 700; color: #FCA5A5; font-family: monospace;">-$${exp.amount.toFixed(2)}</span>
-                    <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)}</div>
+                    <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(exp.amount * rate).toFixed(2)}</div>
                 </div>
             </div>
         `;
@@ -868,9 +872,16 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
     modalBody.innerHTML = `
-        <div style="background: rgba(243, 198, 63, 0.08); border: 1px solid rgba(243, 198, 63, 0.25); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
-            <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> Fecha del Cierre:</span>
-            <span style="color: var(--color-gold); font-weight: 900; font-family: monospace;">${reportDateText}</span>
+        <div style="background: rgba(243, 198, 63, 0.08); border: 1px solid rgba(243, 198, 63, 0.25); border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> Fecha del Cierre:</span>
+                <span style="color: var(--color-gold); font-weight: 900; font-family: monospace; margin-left: 0.25rem;">${reportDateText}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
+                <span style="color: var(--color-text-muted); font-weight: 700;">💱 Tasa BCV:</span>
+                <input type="number" id="modal-report-bcv-input" step="0.01" value="${rate.toFixed(2)}" class="form-input" style="width: 85px; height: 26px; font-size: 0.75rem; padding: 0 0.4rem; text-align: center; font-weight: 800; color: var(--color-gold); background: rgba(0,0,0,0.4); border: 1px solid var(--color-gold);">
+                <span style="color: var(--color-text-muted); font-size: 0.7rem;">Bs.</span>
+            </div>
         </div>
 
         <div style="margin-bottom: 1.25rem;">
@@ -893,18 +904,32 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Resultados Financieros</h4>
             <div class="summary-row">
                 <span>Ingreso por Ventas:</span>
-                <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * (window.bcvRate || 1)).toFixed(2)})</span></span>
+                <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * rate).toFixed(2)})</span></span>
             </div>
             <div class="summary-row">
                 <span>Total Gastos:</span>
-                <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalExpenses * (window.bcvRate || 1)).toFixed(2)})</span></span>
+                <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalExpenses * rate).toFixed(2)})</span></span>
             </div>
             <div class="summary-row total">
                 <span>Total en Caja:</span>
-                <span>$${netCash.toFixed(2)} <span style="font-size: 0.825rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(netCash * (window.bcvRate || 1)).toFixed(2)})</span></span>
+                <span>$${netCash.toFixed(2)} <span style="font-size: 0.825rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(netCash * rate).toFixed(2)})</span></span>
             </div>
         </div>
     `;
+
+    // Bind real-time BCV rate input inside modal
+    const rateInput = document.getElementById('modal-report-bcv-input');
+    if (rateInput) {
+        rateInput.addEventListener('change', (e) => {
+            const newRate = parseFloat(e.target.value);
+            if (!isNaN(newRate) && newRate > 0) {
+                if (window.currentReportData) {
+                    window.currentReportData.rate = newRate;
+                }
+                renderDayCloseModal(salesLog, expenses, products, customDateLabel, newRate);
+            }
+        });
+    }
 }
 
 /**
@@ -2857,14 +2882,14 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
  * @param {Array} expenses 
  * @param {Array} products 
  */
-function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], customDateLabel = null) {
+function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], customDateLabel = null, customRate = null) {
     const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
     if (activeRole !== 'admin') return;
 
     const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
-    const rate = window.bcvRate || 1;
+    const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) ? parseFloat(customRate) : (window.bcvRate || 1);
 
     // Group sales by category and product
     const categorySales = {

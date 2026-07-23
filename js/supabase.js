@@ -231,18 +231,21 @@ async function fetchProducts() {
 async function fetchSales() {
     if (!client) return null;
     try {
-        let filterTime = supabaseLastCloseTime;
-        if (!filterTime) {
-            const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
-            if (localSaved) {
-                filterTime = localSaved;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayIso = todayStart.toISOString();
+
+        let filterTime = todayIso;
+        if (supabaseLastCloseTime) {
+            const lastCloseDate = new Date(supabaseLastCloseTime);
+            if (lastCloseDate < todayStart) {
+                filterTime = supabaseLastCloseTime;
             } else {
-                const todayStr = new Date();
-                todayStr.setHours(0, 0, 0, 0);
-                filterTime = todayStr.toISOString();
+                filterTime = todayIso;
             }
         }
-        const { data, error } = await client.from('sales').select('*').gt('timestamp', filterTime);
+
+        const { data, error } = await client.from('sales').select('*').gte('timestamp', filterTime);
         if (error) throw error;
         return data.map(s => ({ ...s, productId: s.product_id }));
     } catch (e) {
@@ -254,18 +257,21 @@ async function fetchSales() {
 async function fetchExpenses() {
     if (!client) return null;
     try {
-        let filterTime = supabaseLastCloseTime;
-        if (!filterTime) {
-            const localSaved = window.StorageManager ? window.StorageManager.loadLastCloseTime() : null;
-            if (localSaved) {
-                filterTime = localSaved;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayIso = todayStart.toISOString();
+
+        let filterTime = todayIso;
+        if (supabaseLastCloseTime) {
+            const lastCloseDate = new Date(supabaseLastCloseTime);
+            if (lastCloseDate < todayStart) {
+                filterTime = supabaseLastCloseTime;
             } else {
-                const todayStr = new Date();
-                todayStr.setHours(0, 0, 0, 0);
-                filterTime = todayStr.toISOString();
+                filterTime = todayIso;
             }
         }
-        const { data, error } = await client.from('expenses').select('*').gt('timestamp', filterTime);
+
+        const { data, error } = await client.from('expenses').select('*').gte('timestamp', filterTime);
         if (error) throw error;
         return data;
     } catch (e) {

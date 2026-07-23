@@ -151,6 +151,10 @@ async function syncOfflineQueue() {
             }
             uniqueRecords.reverse();
 
+            if (table === 'sales') {
+                uniqueRecords.forEach(r => delete r.bcv_rate);
+            }
+
             const { error } = await client.from(table).upsert(uniqueRecords);
             if (error) {
                 console.error(`Batch upsert error for table ${table}:`, error.message);
@@ -208,6 +212,62 @@ async function syncOfflineQueue() {
         console.log("All offline operations synced successfully to Supabase.");
     } else {
         console.log(`Offline sync finished. ${failedOps.length} operations remain in queue.`);
+    }
+}
+
+async function insertSale(sale) {
+    if (!client) return;
+    const basePayload = {
+        uuid: sale.uuid,
+        product_id: sale.productId,
+        name: sale.name,
+        price: sale.price,
+        timestamp: sale.timestamp
+    };
+
+    try {
+        if (!navigator.onLine) {
+            enqueueOfflineOp('sales', 'insert', basePayload);
+            return;
+        }
+
+        const { error } = await client.from('sales').insert(basePayload);
+        if (error) {
+            console.error("Supabase insertSale failed:", error.message);
+            enqueueOfflineOp('sales', 'insert', basePayload);
+        }
+    } catch (e) {
+        console.error("Supabase insertSale failed. Enqueuing offline...", e);
+        enqueueOfflineOp('sales', 'insert', basePayload);
+    }
+}
+
+async function insertSales(sales) {
+    if (!client) return;
+    if (!Array.isArray(sales) || sales.length === 0) return;
+    
+    const basePayloads = sales.map(sale => ({
+        uuid: sale.uuid,
+        product_id: sale.productId,
+        name: sale.name,
+        price: sale.price,
+        timestamp: sale.timestamp
+    }));
+
+    try {
+        if (!navigator.onLine) {
+            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
+            return;
+        }
+
+        const { error } = await client.from('sales').insert(basePayloads);
+        if (error) {
+            console.error("Supabase insertSales batch failed:", error.message);
+            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
+        }
+    } catch (e) {
+        console.error("Supabase insertSales batch failed. Enqueuing offline...", e);
+        basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
     }
 }
 

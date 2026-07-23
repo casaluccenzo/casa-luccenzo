@@ -1678,12 +1678,21 @@ async function loadAllDataFromSupabase() {
         products = window.StorageManager.loadProducts();
     }
     
-    // Save and load sales
-    if (supSales) {
-        salesLog = supSales;
+    // Save and load sales (merge local sales if any were saved offline or during schema mismatch)
+    const localSales = window.StorageManager.loadSalesLog() || [];
+    if (supSales && supSales.length > 0) {
+        const supUuids = new Set(supSales.map(s => s.uuid));
+        const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid));
+        salesLog = [...supSales, ...missingLocal];
+        if (missingLocal.length > 0) {
+            console.log(`Restored ${missingLocal.length} local sales to Supabase.`);
+            window.SupabaseManager.insertSales(missingLocal);
+        }
         window.StorageManager.saveSalesLog(salesLog);
+    } else if (localSales.length > 0) {
+        salesLog = localSales;
     } else {
-        salesLog = window.StorageManager.loadSalesLog();
+        salesLog = supSales || [];
     }
 
     // Save and load expenses

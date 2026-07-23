@@ -762,9 +762,11 @@ function renderDebts(debts, onRecordPayment) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses
  */
-function renderDayCloseModal(salesLog, expenses, products = []) {
+function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel = '') {
     const modalBody = document.getElementById('day-close-modal-body');
     if (!modalBody) return;
+
+    const reportDateText = customDateLabel || new Date().toLocaleDateString();
 
     const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
@@ -866,6 +868,11 @@ function renderDayCloseModal(salesLog, expenses, products = []) {
     const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
     modalBody.innerHTML = `
+        <div style="background: rgba(243, 198, 63, 0.08); border: 1px solid rgba(243, 198, 63, 0.25); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
+            <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> Fecha del Cierre:</span>
+            <span style="color: var(--color-gold); font-weight: 900; font-family: monospace;">${reportDateText}</span>
+        </div>
+
         <div style="margin-bottom: 1.25rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Ventas por Producto</h4>
@@ -2850,7 +2857,7 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
  * @param {Array} expenses 
  * @param {Array} products 
  */
-function exportDayCloseToPDF(salesLog = [], expenses = [], products = []) {
+function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], customDateLabel = null) {
     const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
     if (activeRole !== 'admin') return;
 
@@ -3194,7 +3201,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = []) {
         expenseRowsHtml = '<tr><td colspan="3" style="text-align: center; color: #64748b;">Sin gastos registrados hoy.</td></tr>';
     }
 
-    const dateLabel = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateLabel = customDateLabel || new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     printWindow.document.write(`
         <!DOCTYPE html>

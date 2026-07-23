@@ -1135,8 +1135,9 @@ function shareDayClose() {
  */
 function openDayCloseModal() {
     triggerHaptic(15);
-    currentReportData = { sales: salesLog, expenses: expenses };
-    window.UIManager.renderDayCloseModal(salesLog, expenses, products);
+    const todayLabel = new Date().toLocaleDateString();
+    currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, isHistory: false };
+    window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel);
     document.getElementById('day-close-modal').classList.remove('hidden');
 }
 
@@ -1318,19 +1319,30 @@ async function openReportHistoryModal() {
         `;
     });
 
+    function formatReportDateStr(dateStr) {
+        if (!dateStr) return new Date().toLocaleDateString();
+        if (dateStr.includes('/')) return dateStr;
+        const parts = dateStr.split('T')[0].split('-');
+        if (parts.length === 3) {
+            return `${parseInt(parts[2])}/${parseInt(parts[1])}/${parts[0]}`;
+        }
+        return dateStr;
+    }
+
     body.innerHTML = html;
 
     // Bind view buttons
     body.querySelectorAll('.btn-report-view').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const dateStr = e.currentTarget.dataset.date;
+            const formattedDate = formatReportDateStr(dateStr);
             triggerHaptic(15);
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
-                currentReportData = { sales: report.sales, expenses: report.expenses };
+                currentReportData = { sales: report.sales, expenses: report.expenses, dateLabel: formattedDate, isHistory: true };
                 modal.classList.add('hidden');
-                window.UIManager.renderDayCloseModal(report.sales, report.expenses, products);
+                window.UIManager.renderDayCloseModal(report.sales, report.expenses, products, formattedDate);
                 document.getElementById('day-close-modal').classList.remove('hidden');
             } else {
                 window.UIManager.showToast("❌ No se pudo cargar el reporte.", "fa-solid fa-circle-xmark");
@@ -1343,12 +1355,12 @@ async function openReportHistoryModal() {
     body.querySelectorAll('.btn-report-whatsapp').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const dateStr = e.currentTarget.dataset.date;
-            const dateLabel = e.currentTarget.dataset.label;
+            const formattedDate = formatReportDateStr(dateStr);
             triggerHaptic(15);
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
-                const message = generateWhatsAppReport(report.sales, report.expenses, dateLabel, bcvRate, products);
+                const message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, bcvRate, products);
                 const encodedMessage = encodeURIComponent(message);
                 window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
             } else {
@@ -2914,27 +2926,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
         // Send WhatsApp using whatever data is currently displayed in the modal
-        const dateLabel = new Date().toLocaleDateString();
+        const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
         const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, bcvRate, products);
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
         
-        // Actually perform the day close database and state reset
-        await closeDayAndResetLogs();
+        // Actually perform the day close database and state reset (ONLY if active day close, NOT historical inspection)
+        if (!currentReportData.isHistory) {
+            await closeDayAndResetLogs();
+        }
         
         closeDayCloseModal();
     });
     
     document.getElementById('btn-cierre-dia-pdf').addEventListener('click', () => {
         triggerHaptic(15);
-        window.UIManager.exportDayCloseToPDF(currentReportData.sales, currentReportData.expenses, products);
+        const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
+        window.UIManager.exportDayCloseToPDF(currentReportData.sales, currentReportData.expenses, products, dateLabel);
     });
 
     // 15b. Bind Report Preview button (opens report modal without closing day)
     document.getElementById('btn-preview-report').addEventListener('click', () => {
         triggerHaptic(15);
-        currentReportData = { sales: salesLog, expenses: expenses };
-        window.UIManager.renderDayCloseModal(salesLog, expenses, products);
+        const todayLabel = new Date().toLocaleDateString();
+        currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, isHistory: false };
+        window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel);
         document.getElementById('day-close-modal').classList.remove('hidden');
     });
 

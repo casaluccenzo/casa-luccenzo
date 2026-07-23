@@ -1136,8 +1136,9 @@ function shareDayClose() {
 function openDayCloseModal() {
     triggerHaptic(15);
     const todayLabel = new Date().toLocaleDateString();
-    currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, isHistory: false };
-    window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel);
+    const currentRate = window.bcvRate || bcvRate;
+    currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, rate: currentRate, isHistory: false };
+    window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel, currentRate);
     document.getElementById('day-close-modal').classList.remove('hidden');
 }
 
@@ -1340,9 +1341,10 @@ async function openReportHistoryModal() {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
-                currentReportData = { sales: report.sales, expenses: report.expenses, dateLabel: formattedDate, isHistory: true };
+                const reportRate = report.bcvRate || report.sales?.find(s => s.bcvRate)?.bcvRate || window.bcvRate || bcvRate;
+                currentReportData = { sales: report.sales, expenses: report.expenses, dateLabel: formattedDate, rate: reportRate, isHistory: true };
                 modal.classList.add('hidden');
-                window.UIManager.renderDayCloseModal(report.sales, report.expenses, products, formattedDate);
+                window.UIManager.renderDayCloseModal(report.sales, report.expenses, products, formattedDate, reportRate);
                 document.getElementById('day-close-modal').classList.remove('hidden');
             } else {
                 window.UIManager.showToast("❌ No se pudo cargar el reporte.", "fa-solid fa-circle-xmark");
@@ -1360,7 +1362,8 @@ async function openReportHistoryModal() {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
-                const message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, bcvRate, products);
+                const reportRate = report.bcvRate || report.sales?.find(s => s.bcvRate)?.bcvRate || window.bcvRate || bcvRate;
+                const message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, reportRate, products);
                 const encodedMessage = encodeURIComponent(message);
                 window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
             } else {
@@ -2927,7 +2930,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
         // Send WhatsApp using whatever data is currently displayed in the modal
         const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
-        const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, bcvRate, products);
+        const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
+        const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
         
@@ -2942,15 +2946,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-pdf').addEventListener('click', () => {
         triggerHaptic(15);
         const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
-        window.UIManager.exportDayCloseToPDF(currentReportData.sales, currentReportData.expenses, products, dateLabel);
+        const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
+        window.UIManager.exportDayCloseToPDF(currentReportData.sales, currentReportData.expenses, products, dateLabel, reportRate);
     });
 
     // 15b. Bind Report Preview button (opens report modal without closing day)
     document.getElementById('btn-preview-report').addEventListener('click', () => {
         triggerHaptic(15);
         const todayLabel = new Date().toLocaleDateString();
-        currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, isHistory: false };
-        window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel);
+        const currentRate = window.bcvRate || bcvRate;
+        currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, rate: currentRate, isHistory: false };
+        window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel, currentRate);
         document.getElementById('day-close-modal').classList.remove('hidden');
     });
 

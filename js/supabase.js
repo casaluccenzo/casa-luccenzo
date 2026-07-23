@@ -390,7 +390,8 @@ async function insertSale(sale) {
             product_id: sale.productId,
             name: sale.name,
             price: sale.price,
-            timestamp: sale.timestamp
+            timestamp: sale.timestamp,
+            bcv_rate: sale.bcvRate || window.bcvRate || null
         };
 
         if (!navigator.onLine) {
@@ -415,7 +416,8 @@ async function insertSales(sales) {
         product_id: sale.productId,
         name: sale.name,
         price: sale.price,
-        timestamp: sale.timestamp
+        timestamp: sale.timestamp,
+        bcv_rate: sale.bcvRate || window.bcvRate || null
     }));
 
     try {
@@ -730,12 +732,25 @@ async function fetchDayReport(dateStr) {
         if (salesRes.error) throw salesRes.error;
         if (expensesRes.error) throw expensesRes.error;
 
+        const rawSales = salesRes.data || [];
+        let dayBcvRate = null;
+        for (const s of rawSales) {
+            const r = parseFloat(s.bcv_rate || s.bcvRate);
+            if (r && !isNaN(r) && r > 0) {
+                dayBcvRate = r;
+                break;
+            }
+        }
+
         return {
-            sales: (salesRes.data || []).map(s => ({
+            dateStr: dateStr,
+            bcvRate: dayBcvRate,
+            sales: rawSales.map(s => ({
                 ...s,
                 productId: s.product_id,
                 name: s.product_name || s.name || 'Producto',
-                price: s.price || 0
+                price: s.price || 0,
+                bcvRate: parseFloat(s.bcv_rate || s.bcvRate) || null
             })),
             expenses: (expensesRes.data || []).map(e => ({
                 ...e,

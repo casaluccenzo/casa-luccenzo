@@ -2424,7 +2424,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 0.4rem 0.6rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.75rem;">
             <span style="color: var(--color-text-muted); font-weight: 600;">Desglose IVA (16%):</span>
             <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
-                <input type="checkbox" id="toggle-pos-pay-iva" style="cursor: pointer;" checked>
+                <input type="checkbox" id="toggle-pos-pay-iva" style="cursor: pointer;">
                 <span style="font-weight: 700; color: var(--color-gold);">Mostrar IVA</span>
             </label>
         </div>
@@ -2516,7 +2516,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
                     <span>SUBTTL:</span>
                     <span>${formatVES(totalVES)}</span>
                 </div>
-                <div id="pos-pay-iva-rows" style="display: block;">
+                <div id="pos-pay-iva-rows" style="display: none;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
                         <span>BI G16,00%:</span>
                         <span>${formatVES(biVES)}</span>

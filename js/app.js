@@ -46,6 +46,96 @@ if (!myDeviceId) {
     localStorage.setItem('casa_lucenzo_device_id', myDeviceId);
 }
 
+// ================= SELF-HEALING SENTINEL & OFFLINE QUEUE ENGINE =================
+const OFFLINE_QUEUE_KEY = 'casa_lucenzo_offline_queue';
+
+function getOfflineQueue() {
+    try {
+        const saved = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch(e) {
+        return [];
+    }
+}
+
+function addToOfflineQueue(actionType, payload) {
+    try {
+        const queue = getOfflineQueue();
+        queue.push({ id: Date.now() + '_' + Math.random().toString(36).substring(2,6), actionType, payload, createdAt: new Date().toISOString() });
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    } catch(e) {
+        console.error("Self-Healing Queue: Failed to save offline item", e);
+    }
+}
+
+async function processOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+    if (!window.SupabaseManager.isConfigured()) return;
+
+    console.log(`Self-Healing: Processing ${queue.length} offline queued items...`);
+    const remaining = [];
+    for (const item of queue) {
+        try {
+            if (item.actionType === 'insertSales') {
+                await window.SupabaseManager.insertSales(item.payload);
+            } else if (item.actionType === 'deleteSales') {
+                await window.SupabaseManager.deleteSales(item.payload);
+            } else if (item.actionType === 'updateStock') {
+                await window.SupabaseManager.updateProductStock(item.payload.id, item.payload.stock);
+            }
+        } catch(e) {
+            console.warn("Self-Healing Queue item retry deferred:", item, e);
+            remaining.push(item);
+        }
+    }
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+}
+
+function sanitizeDataIntegrity(log) {
+    if (!Array.isArray(log)) return [];
+    const seenUuids = new Set();
+    return log.filter(s => {
+        if (!s || typeof s !== 'object') return false;
+        if (!s.name || typeof s.name !== 'string') return false;
+        if (typeof s.price !== 'number' || isNaN(s.price) || s.price < 0) return false;
+        if (s.uuid) {
+            if (seenUuids.has(s.uuid)) return false;
+            seenUuids.add(s.uuid);
+        }
+        return true;
+    });
+}
+
+function initSelfHealingSentinel() {
+    // Intercept unhandled errors & promise rejections to prevent crashing UI
+    window.addEventListener('error', (event) => {
+        console.warn('Self-Healing Sentinel caught error:', event.message, event.filename, event.lineno);
+        if (event && event.preventDefault) event.preventDefault();
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        console.warn('Self-Healing Sentinel caught promise rejection:', event.reason);
+        if (event && event.preventDefault) event.preventDefault();
+    });
+
+    // Online heartbeat listener to flush offline queue as soon as internet returns
+    window.addEventListener('online', () => {
+        console.log("Network online detected. Triggering Self-Healing Queue sync...");
+        processOfflineQueue();
+    });
+
+    // Periodic background check every 20 seconds
+    setInterval(() => {
+        if (navigator.onLine) {
+            processOfflineQueue();
+        }
+    }, 20000);
+}
+
+// Call Self-Healing Sentinel initialization immediately
+initSelfHealingSentinel();
+
 // ================= HANDLERS & LOGIC =================
 
 /**
@@ -272,7 +362,11 @@ function handleAddToCart(productId) {
     window.StorageManager.saveProducts(products);
 
     if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.updateProductStock(product.id, product.stock);
+        try {
+            window.SupabaseManager.updateProductStock(product.id, product.stock);
+        } catch(e) {
+            addToOfflineQueue('updateStock', { id: product.id, stock: product.stock });
+        }
     }
 
     window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
@@ -295,7 +389,11 @@ function handleRemoveFromCart(productId) {
         product.stock = product.stock >= product.max ? product.stock + 1 : Math.min(product.max, product.stock + 1);
         window.StorageManager.saveProducts(products);
         if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.updateProductStock(product.id, product.stock);
+            try {
+                window.SupabaseManager.updateProductStock(product.id, product.stock);
+            } catch(e) {
+                addToOfflineQueue('updateStock', { id: product.id, stock: product.stock });
+            }
         }
     }
 
@@ -411,12 +509,13 @@ async function handleCheckoutCart() {
     window.StorageManager.saveSalesLog(salesLog);
     logActivity("Registro Venta", `Venta de ${newSales.length} ítems por $${newSales.reduce((s,x)=>s+x.price, 0).toFixed(2)}. Cliente: ${clientName || 'Sin Nombre'}`);
 
-    // Sync to Supabase
+    // Sync to Supabase with Self-Healing Queue fallback
     if (window.SupabaseManager.isConfigured()) {
         try {
             await window.SupabaseManager.insertSales(newSales);
         } catch (e) {
-            console.error("Error syncing cart checkout sales to Supabase", e);
+            console.warn("Error syncing cart checkout sales to Supabase, queuing for offline auto-healing", e);
+            addToOfflineQueue('insertSales', newSales);
         }
     }
 
@@ -667,7 +766,9 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
             await window.SupabaseManager.deleteSales(matchingSales.map(sale => sale.uuid));
             await window.SupabaseManager.insertSales(updatedSales);
         } catch (e) {
-            console.error("Error updating sale status to paid in Supabase", e);
+            console.warn("Error updating sale status to paid in Supabase, queuing for offline auto-healing", e);
+            addToOfflineQueue('deleteSales', matchingSales.map(sale => sale.uuid));
+            addToOfflineQueue('insertSales', updatedSales);
         }
     }
 
@@ -1745,8 +1846,8 @@ async function loadAllDataFromSupabase() {
         salesLog = [];
     }
 
-    // Clean any temporary auto-injected test sales from salesLog
-    salesLog = salesLog.filter(s => !s.uuid || !s.uuid.startsWith('chica_'));
+    // Clean any temporary auto-injected test sales from salesLog and sanitize integrity
+    salesLog = sanitizeDataIntegrity(salesLog.filter(s => !s.uuid || !s.uuid.startsWith('chica_')));
     window.StorageManager.saveSalesLog(salesLog);
 
     // Save and load expenses

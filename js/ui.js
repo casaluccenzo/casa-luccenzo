@@ -2353,6 +2353,16 @@ function cleanProductName(name = '') {
         .trim();
 }
 
+function getItemTotalUSD(item) {
+    if (!item) return 0;
+    if (typeof item.totalPrice === 'number' && item.totalPrice > 0) {
+        return item.totalPrice;
+    }
+    const qty = item.quantity || 1;
+    const price = item.price || 0;
+    return price * qty;
+}
+
 /**
  * Shows the POS Receipt Closing Modal when the user clicks the green button "Registrar Pago" / "Pagar" on an active account card
  */
@@ -2375,7 +2385,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
     overlay.style.overflowY = 'auto';
 
     const rate = window.bcvRate || 1;
-    const totalUSD = items.reduce((sum, it) => sum + (it.price || it.totalPrice || 0), 0);
+    const totalUSD = items.reduce((sum, it) => sum + getItemTotalUSD(it), 0);
     const totalVES = totalUSD * rate;
 
     // SENIAT 16% IVA breakdown (Inclusive Tax Model)
@@ -2635,7 +2645,7 @@ function showPosReceiptModal({
     overlay.style.overflowY = 'auto';
 
     const rate = window.bcvRate || 1;
-    const totalUSD = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+    const totalUSD = cart.reduce((sum, item) => sum + getItemTotalUSD(item), 0);
     const totalVES = totalUSD * rate;
 
     // SENIAT 16% IVA breakdown (Inclusive Tax Model)
@@ -2750,16 +2760,18 @@ function showPosReceiptModal({
                 </div>
                 ${cart.map(item => {
                     const displayName = cleanProductName(item.name);
-                    const itemTotalUSD = item.price * (item.quantity || 1);
+                    const qty = item.quantity || 1;
+                    const itemTotalUSD = getItemTotalUSD(item);
+                    const unitPrice = qty > 0 ? (itemTotalUSD / qty) : 0;
                     const itemTotalVES = itemTotalUSD * rate;
                     return `
                         <div style="margin-bottom: 0.35rem;">
                             <div style="display: flex; justify-content: space-between; font-weight: 800;">
-                                <span>${item.quantity || 1}x ${displayName}</span>
+                                <span>${qty}x ${displayName}</span>
                                 <span>$${itemTotalUSD.toFixed(2)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; margin-top: 0.05rem;">
-                                <span>@ $${item.price.toFixed(2)} (${formatVES(item.price * rate)})</span>
+                                <span>@ $${unitPrice.toFixed(2)} (${formatVES(unitPrice * rate)})</span>
                                 <span>${formatVES(itemTotalVES)}</span>
                             </div>
                         </div>

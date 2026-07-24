@@ -2354,6 +2354,239 @@ function cleanProductName(name = '') {
 }
 
 /**
+ * Shows the POS Receipt Closing Modal when the user clicks the green button "Registrar Pago" / "Pagar" on an active account card
+ */
+function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = new Date().toISOString(), onSelect = null) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    overlay.style.backdropFilter = 'blur(8px)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '3000';
+    overlay.style.padding = '1rem';
+    overlay.style.boxSizing = 'border-box';
+    overlay.style.overflowY = 'auto';
+
+    const rate = window.bcvRate || 1;
+    const totalUSD = items.reduce((sum, it) => sum + (it.price || it.totalPrice || 0), 0);
+    const totalVES = totalUSD * rate;
+
+    // SENIAT 16% IVA breakdown (Inclusive Tax Model)
+    const biVES = totalVES / 1.16;
+    const iva16VES = totalVES - biVES;
+
+    let timeStr = 'Ahora';
+    let dateStr = new Date().toLocaleDateString('es-VE');
+    try {
+        const d = parseUTCTimestamp(timestamp);
+        timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        dateStr = d.toLocaleDateString('es-VE');
+    } catch(e) {}
+
+    const facNo = (timestamp.replace(/\D/g, '') + '0000').substring(0, 16);
+
+    const modalBody = document.createElement('div');
+    modalBody.style.width = '100%';
+    modalBody.style.maxWidth = '360px';
+    modalBody.style.maxHeight = '90vh';
+    modalBody.style.overflowY = 'auto';
+    modalBody.style.backgroundColor = '#111827';
+    modalBody.style.border = '1px solid rgba(212,175,55,0.4)';
+    modalBody.style.borderRadius = '14px';
+    modalBody.style.boxShadow = '0 20px 50px rgba(0,0,0,0.8)';
+    modalBody.style.color = '#FFFFFF';
+    modalBody.style.padding = '1.25rem';
+    modalBody.style.boxSizing = 'border-box';
+
+    const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const safeClientName = clientName || 'Cliente';
+    const safeClientRif = clientRif || 'V-13063396';
+
+    modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+            <h3 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; margin: 0; text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-receipt"></i> Comprobante POS
+            </h3>
+            <button class="btn-close-pos-modal" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Printable Receipt Paper -->
+        <div id="pos-paper-container" style="background-color: #FFFFFF; color: #000000; font-family: 'Courier New', Courier, monospace; padding: 1.25rem 0.75rem; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 0.75rem; line-height: 1.35;">
+            
+            <!-- SENIAT Header -->
+            <div style="text-align: center; font-weight: bold; margin-bottom: 0.4rem;">
+                <div style="font-size: 1rem; letter-spacing: 0.05em;">SENIAT</div>
+                <div style="font-size: 0.75rem;">RIF J-508183134</div>
+                <div style="font-size: 0.75rem; margin-top: 0.15rem;">EMPRENDIMIENTO KAIRA BLANCO</div>
+                <div style="font-size: 0.85rem; margin-top: 0.2rem; font-weight: 900;">CASA LUCENZO</div>
+                <div style="font-size: 0.62rem; font-weight: normal; margin-top: 0.25rem; color: #333; line-height: 1.2;">
+                    AV WINSTON CHURCHILL ENTRE 3ERA Y 4TA CARRERA SUR LOCAL NRO S/N SECTOR PUEBLO NUEVO SUR EL TIGRE ANZOATEGUI ZONA POSTAL 6050
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.35rem 0;"></div>
+
+            <!-- Client & Order Info (Editable Inputs) -->
+            <div style="font-size: 0.72rem; margin-bottom: 0.35rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                    <span>RIF/C.I.:</span>
+                    <input type="text" id="pos-client-rif" value="${safeClientRif}" style="font-family: inherit; font-size: 0.72rem; font-weight: bold; text-align: right; border: 1px solid #999; border-radius: 4px; padding: 2px 4px; width: 120px; background: #FFF;">
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                    <span>RAZON SOCIAL:</span>
+                    <input type="text" id="pos-client-name" value="${safeClientName}" style="font-family: inherit; font-size: 0.72rem; font-weight: bold; text-align: right; border: 1px solid #999; border-radius: 4px; padding: 2px 4px; width: 120px; background: #FFF;">
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>DIR.:</span>
+                    <span>EL TIGRE, ANZOATEGUI</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>CAJA:</span>
+                    <span>01 -Oper.: CAJA PRINCIPAL</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>PRODUCTOS: ${items.length}</span>
+                    <span>TOT. REF: $${totalUSD.toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.35rem 0;"></div>
+
+            <!-- Factura Bar & Date -->
+            <div style="text-align: center; margin: 0.4rem 0 0.3rem 0;">
+                <div style="font-size: 0.85rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;">FACTURA</div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-top: 0.15rem;">
+                    <span>FACTURA: ${facNo}</span>
+                    <span>HORA: ${timeStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                    <span>FECHA: ${dateStr}</span>
+                </div>
+            </div>
+
+            <!-- Product Rows Table -->
+            <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 0.4rem 0; margin-bottom: 0.4rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 0.2rem; margin-bottom: 0.3rem;">
+                    <span>Cant x Producto</span>
+                    <span>Total</span>
+                </div>
+                ${items.map(item => {
+                    const displayName = cleanProductName(item.name);
+                    const qty = item.quantity || 1;
+                    const unitPrice = item.price || (item.totalPrice ? item.totalPrice / qty : 0);
+                    const itemTotalUSD = item.totalPrice || (unitPrice * qty);
+                    const itemTotalVES = itemTotalUSD * rate;
+                    return `
+                        <div style="margin-bottom: 0.35rem;">
+                            <div style="display: flex; justify-content: space-between; font-weight: 800;">
+                                <span>${qty}x ${displayName}</span>
+                                <span>$${itemTotalUSD.toFixed(2)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; margin-top: 0.05rem;">
+                                <span>@ $${unitPrice.toFixed(2)} (${formatVES(unitPrice * rate)})</span>
+                                <span>${formatVES(itemTotalVES)}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- Totals Section -->
+            <div style="font-size: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.15rem;">
+                    <span>SUBTTL:</span>
+                    <span>${formatVES(biVES)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem;">
+                    <span>BI G16,00%:</span>
+                    <span>${formatVES(biVES)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
+                    <span>IVA G16,00% (16%):</span>
+                    <span>${formatVES(iva16VES)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
+                    <span>TOTAL VES:</span>
+                    <span>${formatVES(totalVES)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.88rem; margin-bottom: 0.2rem;">
+                    <span>TOTAL USD:</span>
+                    <span>$${totalUSD.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #444; margin-bottom: 0.3rem;">
+                    <span>Tasa BCV:</span>
+                    <span>${formatVES(rate)}</span>
+                </div>
+                <div style="margin-top: 0.4rem; border-top: 1px dashed #000; padding-top: 0.3rem;">
+                    <div style="font-size: 0.7rem; font-weight: bold; margin-bottom: 0.2rem;">MÉTODO DE PAGO:</div>
+                    <select id="pos-pay-method-select" style="width: 100%; font-family: inherit; font-size: 0.75rem; font-weight: bold; padding: 4px; border: 1px solid #000; border-radius: 4px; background: #FFF;">
+                        <option value="Punto de Venta">💳 Punto de Venta (Tarjeta)</option>
+                        <option value="Pago Móvil">📱 Pago Móvil</option>
+                        <option value="Efectivo Bs.">💵 Efectivo Bolívares</option>
+                        <option value="Efectivo $">💵 Efectivo Divisas ($)</option>
+                        <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                        <option value="Biopago">👆 Biopago</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.4rem 0 0.3rem 0;"></div>
+
+            <!-- Footer Message -->
+            <div style="text-align: center; font-size: 0.72rem; font-weight: bold; margin-top: 0.3rem;">
+                ¡Gracias por su preferencia! 🥖✨
+                <div style="font-size: 0.6rem; font-weight: normal; margin-top: 0.2rem; color: #555;">MH Z7C${Math.floor(10000000 + Math.random() * 90000000)}</div>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+            <button class="btn-confirm-pos-pay" style="height: 44px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.88rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-success); color: var(--color-bg-navy); width: 100%;">
+                <i class="fa-solid fa-cart-shopping"></i> REGISTRAR PAGO
+            </button>
+            <button class="btn-print-pos-ticket" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); width: 100%;">
+                <i class="fa-solid fa-print"></i> IMPRIMIR TICKET (80MM/58MM)
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modalBody);
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.25s ease-out';
+        setTimeout(() => {
+            overlay.remove();
+        }, 250);
+    };
+
+    modalBody.querySelector('.btn-close-pos-modal').addEventListener('click', closeModal);
+
+    modalBody.querySelector('.btn-print-pos-ticket').addEventListener('click', () => {
+        window.print();
+    });
+
+    modalBody.querySelector('.btn-confirm-pos-pay').addEventListener('click', () => {
+        const selectedMethod = modalBody.querySelector('#pos-pay-method-select').value;
+        const updatedName = modalBody.querySelector('#pos-client-name').value.trim() || 'Cliente';
+        const updatedRif = modalBody.querySelector('#pos-client-rif').value.trim() || 'V-13063396';
+        closeModal();
+        if (onSelect) onSelect(selectedMethod, updatedName, updatedRif);
+    });
+}
+
+/**
  * Shows a POS Thermal Receipt preview modal for a client order
  */
 function showPosReceiptModal({

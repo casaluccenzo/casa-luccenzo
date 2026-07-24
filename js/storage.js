@@ -268,6 +268,30 @@ function saveCostInsumos(insumos) {
     }
 }
 
+const DELETED_SALES_KEY = 'casa_lucenzo_deleted_sales_uuids';
+
+function loadDeletedSalesUuids() {
+    try {
+        const saved = localStorage.getItem(DELETED_SALES_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addDeletedSalesUuids(uuids) {
+    if (!uuids) return;
+    const list = Array.isArray(uuids) ? uuids : [uuids];
+    if (list.length === 0) return;
+    try {
+        const current = loadDeletedSalesUuids();
+        const set = new Set([...current, ...list]);
+        localStorage.setItem(DELETED_SALES_KEY, JSON.stringify(Array.from(set)));
+    } catch (e) {
+        console.error("Failed to save deleted sales uuids", e);
+    }
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
@@ -279,6 +303,8 @@ window.StorageManager = {
     loadSalesLog,
     saveSalesLog,
     clearSalesLog,
+    loadDeletedSalesUuids,
+    addDeletedSalesUuids,
     loadExpenses,
     saveExpenses,
     clearExpenses,

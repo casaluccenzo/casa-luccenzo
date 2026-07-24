@@ -2251,25 +2251,39 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             </div>
             
             <!-- Action Buttons Row -->
-            <div style="display: flex; gap: 0.5rem; width: 100%; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.5rem; justify-content: flex-end;">
-                <button class="btn-action-small btn-share-client" title="Compartir Ticket" style="flex: 1; height: 36px; justify-content: center; font-size: 0.75rem;">
-                    <i class="fa-brands fa-whatsapp"></i> Compartir
+            <div style="display: flex; gap: 0.4rem; width: 100%; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
+                <button class="btn-action-small btn-pos-ticket-client" title="Ver / Imprimir Factura POS SENIAT" style="flex: 1.5; height: 36px; justify-content: center; font-size: 0.75rem; background-color: rgba(212,175,55,0.18); color: var(--color-gold); border: 1px solid rgba(212,175,55,0.4); font-weight: 800;">
+                    <i class="fa-solid fa-receipt"></i> Factura POS
+                </button>
+                <button class="btn-action-small btn-share-client" title="Compartir Ticket" style="height: 36px; width: 38px; justify-content: center; font-size: 0.75rem;">
+                    <i class="fa-brands fa-whatsapp"></i>
                 </button>
                 ${!group.isPaid ? `
-                    <button class="btn-action-small btn-modify-client" style="flex: 2; height: 36px; justify-content: center; background-color: var(--color-gold); color: var(--color-bg-navy); font-size: 0.75rem;" title="Agregar más cosas">
+                    <button class="btn-action-small btn-modify-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-gold); color: var(--color-bg-navy); font-size: 0.75rem;" title="Agregar más cosas">
                         <i class="fa-solid fa-pen-to-square"></i> Modificar
                     </button>
-                    <button class="btn-action-small btn-pay-client" style="flex: 2; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem;" title="Marcar como pagada y liberar mesa">
+                    <button class="btn-action-small btn-pay-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem;" title="Marcar como pagada y liberar mesa">
                         <i class="fa-solid fa-circle-check"></i> Pagar
                     </button>
                 ` : ''}
-                <button class="btn-action-small btn-undo-client" style="height: 36px; justify-content: center; width: 40px; background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
+                <button class="btn-action-small btn-undo-client" style="height: 36px; justify-content: center; width: 38px; background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
                     <i class="fa-solid fa-rotate-left"></i>
                 </button>
             </div>
         `;
 
         // Bind event listeners
+        card.querySelector('.btn-pos-ticket-client').addEventListener('click', () => {
+            showPosReceiptModal({
+                cart: group.items,
+                clientName: group.clientName,
+                clientRif: group.clientRif || 'V-13063396',
+                timestamp: group.timestamp,
+                isAlreadyPaid: group.isPaid,
+                payMethod: group.paymentMethod
+            });
+        });
+
         card.querySelector('.btn-share-client').addEventListener('click', () => {
             let msg = `*CASA LUCCENZO* 🥖\n`;
             msg += `*Ticket de Consumo* 🧾\n`;
@@ -2428,6 +2442,254 @@ function showPaymentMethodModal(clientName, totalAmount, onSelect) {
             closeModal();
             if (onSelect) onSelect(method);
         });
+    });
+}
+
+function cleanProductName(name = '') {
+    return name
+        .replace(/\s*\[.*?\]/g, '')
+        .replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '')
+        .trim();
+}
+
+/**
+ * Shows a POS Thermal Receipt preview modal for a client order
+ */
+function showPosReceiptModal({
+    cart = [],
+    clientName = 'Cliente',
+    clientRif = 'V-13063396',
+    timestamp = new Date().toISOString(),
+    facNo = '',
+    isAlreadyPaid = false,
+    payMethod = ''
+}) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    overlay.style.backdropFilter = 'blur(8px)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '3000';
+    overlay.style.padding = '1rem';
+    overlay.style.boxSizing = 'border-box';
+    overlay.style.overflowY = 'auto';
+
+    const rate = window.bcvRate || 1;
+    const totalUSD = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+    const totalVES = totalUSD * rate;
+
+    // SENIAT 16% IVA breakdown (Inclusive Tax Model)
+    const biVES = totalVES / 1.16;
+    const iva16VES = totalVES - biVES;
+
+    let timeStr = 'Ahora';
+    let dateStr = new Date().toLocaleDateString('es-VE');
+    try {
+        const d = parseUTCTimestamp(timestamp);
+        timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        dateStr = d.toLocaleDateString('es-VE');
+    } catch(e) {}
+
+    if (!facNo) {
+        facNo = (timestamp.replace(/\D/g, '') + '0000').substring(0, 16);
+    }
+
+    const modalBody = document.createElement('div');
+    modalBody.style.width = '100%';
+    modalBody.style.maxWidth = '360px';
+    modalBody.style.maxHeight = '90vh';
+    modalBody.style.overflowY = 'auto';
+    modalBody.style.backgroundColor = '#111827';
+    modalBody.style.border = '1px solid rgba(212,175,55,0.4)';
+    modalBody.style.borderRadius = '14px';
+    modalBody.style.boxShadow = '0 20px 50px rgba(0,0,0,0.8)';
+    modalBody.style.color = '#FFFFFF';
+    modalBody.style.padding = '1.25rem';
+    modalBody.style.boxSizing = 'border-box';
+
+    const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+            <h3 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; margin: 0; text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-receipt"></i> Comprobante POS
+            </h3>
+            <button class="btn-close-pos-modal" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Optional Tax Breakdown Toggle Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 0.4rem 0.6rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.75rem;">
+            <span style="color: var(--color-text-muted); font-weight: 600;">Desglose IVA (16%):</span>
+            <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="checkbox" id="toggle-pos-iva" style="cursor: pointer;">
+                <span style="font-weight: 700; color: var(--color-gold);">Mostrar IVA</span>
+            </label>
+        </div>
+
+        <!-- Printable Receipt Paper -->
+        <div id="pos-paper-container" style="background-color: #FFFFFF; color: #000000; font-family: 'Courier New', Courier, monospace; padding: 1.25rem 0.75rem; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 0.75rem; line-height: 1.35;">
+            
+            <!-- SENIAT Header -->
+            <div style="text-align: center; font-weight: bold; margin-bottom: 0.4rem;">
+                <div style="font-size: 1rem; letter-spacing: 0.05em;">SENIAT</div>
+                <div style="font-size: 0.75rem;">RIF J-508183134</div>
+                <div style="font-size: 0.75rem; margin-top: 0.15rem;">EMPRENDIMIENTO KAIRA BLANCO</div>
+                <div style="font-size: 0.85rem; margin-top: 0.2rem; font-weight: 900;">CASA LUCENZO</div>
+                <div style="font-size: 0.62rem; font-weight: normal; margin-top: 0.25rem; color: #333; line-height: 1.2;">
+                    AV WINSTON CHURCHILL ENTRE 3ERA Y 4TA CARRERA SUR LOCAL NRO S/N SECTOR PUEBLO NUEVO SUR EL TIGRE ANZOATEGUI ZONA POSTAL 6050
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.35rem 0;"></div>
+
+            <!-- Client & Order Info -->
+            <div style="font-size: 0.72rem; margin-bottom: 0.35rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>RIF/C.I.:</span>
+                    <span style="font-weight: bold;">${clientRif}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>RAZON SOCIAL:</span>
+                    <span style="font-weight: bold;">${clientName}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>DIR.:</span>
+                    <span>EL TIGRE, ANZOATEGUI</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>CAJA:</span>
+                    <span>01 -Oper.: CAJA PRINCIPAL</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
+                    <span>PRODUCTOS: ${cart.length}</span>
+                    <span>TOT. REF: $${totalUSD.toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.35rem 0;"></div>
+
+            <!-- Factura Bar & Date -->
+            <div style="text-align: center; margin: 0.4rem 0 0.3rem 0;">
+                <div style="font-size: 0.85rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;">FACTURA</div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-top: 0.15rem;">
+                    <span>FACTURA: ${facNo}</span>
+                    <span>HORA: ${timeStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                    <span>FECHA: ${dateStr}</span>
+                </div>
+            </div>
+
+            <!-- Product Rows Table -->
+            <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 0.4rem 0; margin-bottom: 0.4rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 0.2rem; margin-bottom: 0.3rem;">
+                    <span>Cant x Producto</span>
+                    <span>Total</span>
+                </div>
+                ${cart.map(item => {
+                    const displayName = cleanProductName(item.name);
+                    const itemTotalUSD = item.price * (item.quantity || 1);
+                    const itemTotalVES = itemTotalUSD * rate;
+                    return `
+                        <div style="margin-bottom: 0.35rem;">
+                            <div style="display: flex; justify-content: space-between; font-weight: 800;">
+                                <span>${item.quantity || 1}x ${displayName}</span>
+                                <span>$${itemTotalUSD.toFixed(2)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; margin-top: 0.05rem;">
+                                <span>@ $${item.price.toFixed(2)} (${formatVES(item.price * rate)})</span>
+                                <span>${formatVES(itemTotalVES)}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- Totals Section -->
+            <div style="font-size: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.15rem;">
+                    <span>SUBTOTAL:</span>
+                    <span>${formatVES(totalVES)}</span>
+                </div>
+                <div id="pos-iva-rows" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
+                        <span>BI G16,00%:</span>
+                        <span>${formatVES(biVES)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
+                        <span>IVA G16,00% (16%):</span>
+                        <span>${formatVES(iva16VES)}</span>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
+                    <span>TOTAL VES:</span>
+                    <span>${formatVES(totalVES)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.88rem; margin-bottom: 0.2rem;">
+                    <span>TOTAL USD:</span>
+                    <span>$${totalUSD.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #444; margin-bottom: 0.3rem;">
+                    <span>Tasa BCV:</span>
+                    <span>${formatVES(rate)}</span>
+                </div>
+                ${isAlreadyPaid ? `
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: bold; color: #000; border-top: 1px dashed #000; padding-top: 0.2rem; margin-top: 0.2rem;">
+                        <span>PAGO (${payMethod || 'Efectivo'}):</span>
+                        <span>${formatVES(totalVES)}</span>
+                    </div>
+                ` : ''}
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 0.4rem 0 0.3rem 0;"></div>
+
+            <!-- Footer Message -->
+            <div style="text-align: center; font-size: 0.72rem; font-weight: bold; margin-top: 0.3rem;">
+                ¡Gracias por su preferencia! 🥖✨
+                <div style="font-size: 0.6rem; font-weight: normal; margin-top: 0.2rem; color: #555;">MH Z7C${Math.floor(10000000 + Math.random() * 90000000)}</div>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+            <button class="btn-print-pos-ticket" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); width: 100%;">
+                <i class="fa-solid fa-print"></i> IMPRIMIR TICKET (80MM/58MM)
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modalBody);
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.25s ease-out';
+        setTimeout(() => {
+            overlay.remove();
+        }, 250);
+    };
+
+    modalBody.querySelector('.btn-close-pos-modal').addEventListener('click', closeModal);
+
+    const ivaCheckbox = modalBody.querySelector('#toggle-pos-iva');
+    const ivaRows = modalBody.querySelector('#pos-iva-rows');
+    if (ivaCheckbox && ivaRows) {
+        ivaCheckbox.addEventListener('change', (e) => {
+            ivaRows.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
+
+    modalBody.querySelector('.btn-print-pos-ticket').addEventListener('click', () => {
+        window.print();
     });
 }
 
@@ -4269,6 +4531,7 @@ window.UIManager = {
     renderActiveCart,
     renderClientesView,
     showPaymentMethodModal,
+    showPosReceiptModal,
     showUpdateOverlay,
     updateOverlayStatusSuccess,
     renderActiveDevices,

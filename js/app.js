@@ -442,6 +442,12 @@ function handleUndoSale(timestamp) {
     triggerHaptic(15);
 
     if (confirm(`¿Estás seguro de deshacer esta cuenta completa y devolver los productos al stock?`)) {
+        // Immediately record deleted UUIDs locally so sync never resurrects them
+        const uuidsToDelete = matchingSales.map(s => s.uuid).filter(Boolean);
+        if (uuidsToDelete.length > 0) {
+            window.StorageManager.addDeletedSalesUuids(uuidsToDelete);
+        }
+
         matchingSales.forEach(sale => {
             const product = products.find(p => p.id === sale.productId);
             if (product) {
@@ -450,26 +456,20 @@ function handleUndoSale(timestamp) {
                     window.SupabaseManager.updateProductStock(product.id, product.stock);
                 }
             }
-            if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.deleteSale(sale.uuid);
-            }
         });
+
+        if (window.SupabaseManager.isConfigured() && uuidsToDelete.length > 0) {
+            window.SupabaseManager.deleteSales(uuidsToDelete);
+        }
 
         // Filter out these sales from memory
         salesLog = salesLog.filter(s => s.timestamp !== timestamp);
         window.StorageManager.saveSalesLog(salesLog);
         window.StorageManager.saveProducts(products);
 
-        // Refresh UI
-        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-        window.UIManager.renderCashRegister(salesLog, expenses);
-        window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
-
-        if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses, products);
-        }
-
-        window.UIManager.showToast(`🔄 Cuenta deshecha y productos devueltos a vitrina.`, "fa-solid fa-rotate-left");
+        // Refresh all views
+        renderAllViews();
+        window.UIManager.showToast("↩️ Cuenta deshecha y productos devueltos al stock.", "fa-solid fa-rotate-left");
         logActivity("Anulación Venta", `Venta anulada por el usuario (monto total devuelto al stock: $${matchingSales.reduce((s,x)=>s+x.price,0).toFixed(2)})`);
     }
 }
@@ -1681,21 +1681,16 @@ async function loadAllDataFromSupabase() {
     }
     
     // Save and load sales (merge local sales if any were saved offline or during schema mismatch)
-    const isTestSale = (s) => {
-        if (!s || !s.timestamp) return false;
-        return s.timestamp.includes('2026-07-24T12:15:') || s.timestamp.includes('2026-07-24T12:37:');
-    };
-
-    const localSales = (window.StorageManager.loadSalesLog() || []).filter(s => !isTestSale(s));
-    window.StorageManager.saveSalesLog(localSales);
+    const deletedUuidsSet = new Set(window.StorageManager.loadDeletedSalesUuids() || []);
+    const localSales = (window.StorageManager.loadSalesLog() || []).filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
 
     if (supSales && supSales.length > 0) {
-        const cleanSupSales = supSales.filter(s => !isTestSale(s));
+        const cleanSupSales = supSales.filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
         const supUuids = new Set(cleanSupSales.map(s => s.uuid));
         const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid));
         salesLog = [...cleanSupSales, ...missingLocal];
         if (missingLocal.length > 0) {
-            console.log(`Restored ${missingLocal.length} local sales to Supabase.`);
+            console.log(`Restored ${missingLocal.length} un-synced local sales to Supabase.`);
             window.SupabaseManager.insertSales(missingLocal);
         }
         window.StorageManager.saveSalesLog(salesLog);

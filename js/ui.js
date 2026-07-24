@@ -2306,8 +2306,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
         // Split into containers
         if (group.isPaid) {
-            pagadosContainer.appendChild(card);
-            paidCount++;
+            // Only show in Historial de Cierres if the account was closed/paid TODAY
+            const isTodayPaid = parseUTCTimestamp(group.timestamp) >= startOfToday;
+            if (isTodayPaid) {
+                pagadosContainer.appendChild(card);
+                paidCount++;
+            }
         } else {
             activosContainer.appendChild(card);
             activeCount++;

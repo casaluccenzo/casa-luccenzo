@@ -2420,6 +2420,15 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
             </button>
         </div>
 
+        <!-- Optional Tax Breakdown Toggle Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 0.4rem 0.6rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.75rem;">
+            <span style="color: var(--color-text-muted); font-weight: 600;">Desglose IVA (16%):</span>
+            <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="checkbox" id="toggle-pos-pay-iva" style="cursor: pointer;" checked>
+                <span style="font-weight: 700; color: var(--color-gold);">Mostrar IVA</span>
+            </label>
+        </div>
+
         <!-- Printable Receipt Paper -->
         <div id="pos-paper-container" style="background-color: #FFFFFF; color: #000000; font-family: 'Courier New', Courier, monospace; padding: 1.25rem 0.75rem; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 0.75rem; line-height: 1.35;">
             
@@ -2505,15 +2514,17 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
             <div style="font-size: 0.75rem;">
                 <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.15rem;">
                     <span>SUBTTL:</span>
-                    <span>${formatVES(biVES)}</span>
+                    <span>${formatVES(totalVES)}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem;">
-                    <span>BI G16,00%:</span>
-                    <span>${formatVES(biVES)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
-                    <span>IVA G16,00% (16%):</span>
-                    <span>${formatVES(iva16VES)}</span>
+                <div id="pos-pay-iva-rows" style="display: block;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
+                        <span>BI G16,00%:</span>
+                        <span>${formatVES(biVES)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
+                        <span>IVA G16,00% (16%):</span>
+                        <span>${formatVES(iva16VES)}</span>
+                    </div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
                     <span>TOTAL VES:</span>
@@ -2572,6 +2583,14 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
     };
 
     modalBody.querySelector('.btn-close-pos-modal').addEventListener('click', closeModal);
+
+    const ivaPayCheckbox = modalBody.querySelector('#toggle-pos-pay-iva');
+    const ivaPayRows = modalBody.querySelector('#pos-pay-iva-rows');
+    if (ivaPayCheckbox && ivaPayRows) {
+        ivaPayCheckbox.addEventListener('change', (e) => {
+            ivaPayRows.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
 
     modalBody.querySelector('.btn-print-pos-ticket').addEventListener('click', () => {
         window.print();

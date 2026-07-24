@@ -1701,7 +1701,7 @@ async function loadAllDataFromSupabase() {
     }
 
     // Clean any temporary auto-injected test sales from salesLog
-    salesLog = salesLog.filter(s => (!s.uuid || !s.uuid.startsWith('chica_')) && !isTestSale(s));
+    salesLog = salesLog.filter(s => !s.uuid || !s.uuid.startsWith('chica_'));
     window.StorageManager.saveSalesLog(salesLog);
 
     // Save and load expenses

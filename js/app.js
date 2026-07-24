@@ -1681,11 +1681,19 @@ async function loadAllDataFromSupabase() {
     }
     
     // Save and load sales (merge local sales if any were saved offline or during schema mismatch)
-    const localSales = window.StorageManager.loadSalesLog() || [];
+    const isTestSale = (s) => {
+        if (!s || !s.timestamp) return false;
+        return s.timestamp.includes('2026-07-24T12:15:') || s.timestamp.includes('2026-07-24T12:37:');
+    };
+
+    const localSales = (window.StorageManager.loadSalesLog() || []).filter(s => !isTestSale(s));
+    window.StorageManager.saveSalesLog(localSales);
+
     if (supSales && supSales.length > 0) {
-        const supUuids = new Set(supSales.map(s => s.uuid));
+        const cleanSupSales = supSales.filter(s => !isTestSale(s));
+        const supUuids = new Set(cleanSupSales.map(s => s.uuid));
         const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid));
-        salesLog = [...supSales, ...missingLocal];
+        salesLog = [...cleanSupSales, ...missingLocal];
         if (missingLocal.length > 0) {
             console.log(`Restored ${missingLocal.length} local sales to Supabase.`);
             window.SupabaseManager.insertSales(missingLocal);
@@ -1694,11 +1702,11 @@ async function loadAllDataFromSupabase() {
     } else if (localSales.length > 0) {
         salesLog = localSales;
     } else {
-        salesLog = supSales || [];
+        salesLog = [];
     }
 
     // Clean any temporary auto-injected test sales from salesLog
-    salesLog = salesLog.filter(s => !s.uuid || !s.uuid.startsWith('chica_'));
+    salesLog = salesLog.filter(s => (!s.uuid || !s.uuid.startsWith('chica_')) && !isTestSale(s));
     window.StorageManager.saveSalesLog(salesLog);
 
     // Save and load expenses

@@ -1700,13 +1700,30 @@ async function loadAllDataFromSupabase() {
         window.SupabaseManager.fetchIngredients()
     ]);
 
-    // Save and load products
+    // Save and load products (auto-merge missing default products like dulces)
     if (supProducts && supProducts.length > 0) {
         products = supProducts;
-        window.StorageManager.saveProducts(products);
     } else {
         products = window.StorageManager.loadProducts();
     }
+
+    let missingDefaultProds = [];
+    window.StorageManager.DEFAULT_PRODUCTS.forEach(defProd => {
+        if (!products.some(p => p.id === defProd.id)) {
+            products.push({ ...defProd });
+            missingDefaultProds.push(defProd);
+        }
+    });
+
+    if (missingDefaultProds.length > 0) {
+        console.log(`Auto-added ${missingDefaultProds.length} missing default products to stock.`);
+        if (window.SupabaseManager.isConfigured()) {
+            missingDefaultProds.forEach(p => {
+                window.SupabaseManager.updateProductStock(p.id, p.stock);
+            });
+        }
+    }
+    window.StorageManager.saveProducts(products);
     
     // Save and load sales (merge local sales if any were saved offline or during schema mismatch)
     const deletedUuidsSet = new Set(window.StorageManager.loadDeletedSalesUuids() || []);

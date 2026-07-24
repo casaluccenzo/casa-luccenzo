@@ -144,7 +144,8 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange) {
         { id: 'todos', name: 'Todo' },
         { id: 'pastelitos', name: 'Pastelitos' },
         { id: 'tortas', name: 'Tortas' },
-        { id: 'bebidas', name: 'Bebidas' }
+        { id: 'bebidas', name: 'Bebidas' },
+        { id: 'dulces', name: 'Dulces' }
     ];
 
     container.innerHTML = '';
@@ -1740,16 +1741,30 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         liveVitrinaEl.textContent = `${totalInVitrina} / ${totalMaxVitrina}`;
     }
 
-    // Total sold: count of all checked out sales (except debt payments 'abono')
-    const totalPiecesSold = salesLog.filter(s => s.productId !== 'abono').length;
+    // Filter salesLog for TODAY ONLY (current day starting at 00:00:00)
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+    const todaySalesLog = salesLog.filter(s => {
+        if (!s.timestamp) return false;
+        try {
+            const d = parseUTCTimestamp(s.timestamp);
+            return d >= startOfToday;
+        } catch (e) {
+            return false;
+        }
+    });
+
+    // Total sold today: count of all checked out sales today (except debt payments 'abono')
+    const totalPiecesSold = todaySalesLog.filter(s => s.productId !== 'abono').length;
     if (liveVendidosEl) {
         liveVendidosEl.textContent = totalPiecesSold;
     }
 
     const rate = window.bcvRate || 1;
 
-    // Total sales money
-    const totalSalesMoney = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
+    // Total sales money today
+    const totalSalesMoney = todaySalesLog.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalSalesVES = totalSalesMoney * rate;
     if (liveVentasEl) {
         liveVentasEl.innerHTML = `
@@ -1767,8 +1782,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         return sum + (expectedQty * (p.price || 0));
     }, 0);
 
-    // Add any manual abonos/other non-inventory transactions recorded in salesLog
-    const abonosValue = salesLog.filter(s => s.productId === 'abono').reduce((sum, s) => sum + (s.price || 0), 0);
+    // Add any manual abonos/other non-inventory transactions recorded today
+    const abonosValue = todaySalesLog.filter(s => s.productId === 'abono').reduce((sum, s) => sum + (s.price || 0), 0);
 
     const totalRealMoney = expectedSalesValue + abonosValue;
     const totalRealVES = totalRealMoney * rate;
@@ -1790,11 +1805,11 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         `;
     }
 
-    // Group categories dynamically with price-tier splitting for pastelitos
+    // Group categories dynamically for TODAY's sales
     const activeProducts = (products && products.length > 0) ? products : (window.products || window.StorageManager.loadProducts() || []);
     const categoryStatsMap = {};
 
-    salesLog.forEach(s => {
+    todaySalesLog.forEach(s => {
         let catKey = 'otros';
         let catLabel = 'Otros / Varios';
         let icon = 'fa-box';

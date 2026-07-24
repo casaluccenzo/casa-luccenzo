@@ -10,7 +10,14 @@ const DEFAULT_PRODUCTS = [
     { id: 'ricota', name: 'Ricota con Tocineta', stock: 8, min: 3, max: 8, unit: 'unid.', price: 1.80, category: 'pastelitos' },
     { id: 'tocineta', name: 'Tocineta con Queso', stock: 12, min: 4, max: 12, unit: 'unid.', price: 1.80, category: 'pastelitos' },
     { id: 'tortas', name: 'Tortas de la Casa', stock: 5, min: 1, max: 5, unit: 'unid.', price: 12.00, category: 'tortas' },
-    { id: 'malta', name: 'Malta Retornable', stock: 24, min: 6, max: 24, unit: 'botellas', price: 1.00, category: 'bebidas' }
+    { id: 'malta', name: 'Malta Retornable', stock: 24, min: 6, max: 24, unit: 'botellas', price: 1.00, category: 'bebidas' },
+    { id: 'samba_fresa', name: 'Samba de fresa', stock: 20, min: 5, max: 20, unit: 'unid.', price: 1.06, category: 'dulces' },
+    { id: 'cocosette_maxi', name: 'Cocosette Maxi', stock: 18, min: 4, max: 18, unit: 'unid.', price: 0.90, category: 'dulces' },
+    { id: 'susy_maxi', name: 'Susy Maxi', stock: 18, min: 4, max: 18, unit: 'unid.', price: 0.90, category: 'dulces' },
+    { id: 'savoy_leche', name: 'Chocolate de Leche SAVOY 30 gr', stock: 12, min: 3, max: 12, unit: 'unid.', price: 1.44, category: 'dulces' },
+    { id: 'savoy_cricri', name: 'Chocolate CRICRI SAVOY 30 gr', stock: 12, min: 3, max: 12, unit: 'unid.', price: 1.44, category: 'dulces' },
+    { id: 'savoy_rikiti', name: 'Chocolate MANI RIKITI SAVOY 30 gr', stock: 12, min: 3, max: 12, unit: 'unid.', price: 1.44, category: 'dulces' },
+    { id: 'pirulin_16g', name: 'Pirulin 16 gr', stock: 25, min: 5, max: 25, unit: 'unid.', price: 0.65, category: 'dulces' }
 ];
 
 const DEFAULT_INGREDIENTS = [
@@ -45,6 +52,18 @@ function loadProducts() {
                 console.log("Old stock limits detected. Migrating to new stock limits...");
                 saveProducts(DEFAULT_PRODUCTS);
                 return JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+            }
+
+            // Auto-merge missing default products (e.g. dulces)
+            let updated = false;
+            DEFAULT_PRODUCTS.forEach(defProd => {
+                if (!parsed.some(p => p.id === defProd.id)) {
+                    parsed.push({ ...defProd });
+                    updated = true;
+                }
+            });
+            if (updated) {
+                saveProducts(parsed);
             }
 
             return parsed.map(p => ({

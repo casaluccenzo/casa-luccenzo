@@ -2169,12 +2169,21 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             productName = sale.name;
             clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
         }
+
+        let clientRif = 'V-13063396';
+        let rawClientStr = clientName;
+        if (clientName.includes(' - ')) {
+            const parts = clientName.split(/\s+-\s+/);
+            rawClientStr = parts[0].trim();
+            clientRif = parts[1].trim();
+        }
         
         const key = sale.timestamp;
         if (!groups[key]) {
             groups[key] = {
                 timestamp: sale.timestamp,
-                clientName: clientName,
+                clientName: rawClientStr,
+                clientRif: clientRif,
                 isPaid: isPaid,
                 paymentMethod: paymentMethod,
                 items: [],
@@ -2233,9 +2242,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             : `<span class="client-status-badge active">Consumiendo</span>`;
 
         card.innerHTML = `
-            <!-- Top Row: Name and Status Badge -->
+            <!-- Header: Name, Status -->
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <span style="font-weight: 800; color: var(--color-gold); font-size: 0.95rem;">${group.clientName}</span>
+                <h4 style="font-size: 13px; font-weight: 800; color: var(--color-gold); margin: 0; display: flex; align-items: center; gap: 0.3rem;">
+                    <i class="fa-solid fa-user-tag" style="font-size: 11px; opacity: 0.8;"></i> ${group.clientName}
+                    <span style="font-size: 10px; color: var(--color-text-muted); font-weight: bold;">(${group.clientRif || 'V-13063396'})</span>
+                </h4>
                 ${statusBadge}
             </div>
             
@@ -2262,8 +2274,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                     <button class="btn-action-small btn-modify-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-gold); color: var(--color-bg-navy); font-size: 0.75rem;" title="Agregar más cosas">
                         <i class="fa-solid fa-pen-to-square"></i> Modificar
                     </button>
-                    <button class="btn-action-small btn-pay-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem;" title="Marcar como pagada y liberar mesa">
-                        <i class="fa-solid fa-circle-check"></i> Pagar
+                    <button class="btn-action-small btn-pay-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem; font-weight: 800;" title="Marcar como pagada y registrar cobro">
+                        <i class="fa-solid fa-circle-check"></i> Registrar Pago
                     </button>
                 ` : ''}
                 <button class="btn-action-small btn-undo-client" style="height: 36px; justify-content: center; width: 38px; background-color: var(--color-danger); color: var(--color-white);" title="Deshacer y devolver stock">
@@ -2274,22 +2286,15 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
         // Bind event listeners
         card.querySelector('.btn-pos-ticket-client').addEventListener('click', () => {
-            showPosReceiptModal({
-                cart: group.items,
-                clientName: group.clientName,
-                clientRif: group.clientRif || 'V-13063396',
-                timestamp: group.timestamp,
-                isAlreadyPaid: group.isPaid,
-                payMethod: group.paymentMethod
+            showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
+                if (onPay) onPay(group.timestamp, method, name, rif);
             });
         });
 
         card.querySelector('.btn-share-client').addEventListener('click', () => {
             let msg = `*CASA LUCCENZO* 🥖\n`;
             msg += `*Ticket de Consumo* 🧾\n`;
-            msg += `--------------------------------------\n`;
-            msg += `👤 *Cliente/Mesa:* ${group.clientName}\n`;
-            msg += `📅 *Fecha/Hora:* ${parseUTCTimestamp(group.timestamp).toLocaleString()}\n`;
+            msg += `👤 *Cliente:* ${group.clientName} (${group.clientRif || 'V-13063396'})\n`;
             msg += `--------------------------------------\n`;
             group.items.forEach(it => {
                 msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;
@@ -2310,7 +2315,9 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 if (onEdit) onEdit(group.timestamp);
             });
             card.querySelector('.btn-pay-client').addEventListener('click', () => {
-                if (onPay) onPay(group.timestamp);
+                showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
+                    if (onPay) onPay(group.timestamp, method, name, rif);
+                });
             });
         }
 
@@ -2320,7 +2327,6 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
         // Split into containers
         if (group.isPaid) {
-            // Only show in Historial de Cierres if the account was closed/paid TODAY
             const isTodayPaid = parseUTCTimestamp(group.timestamp) >= startOfToday;
             if (isTodayPaid) {
                 pagadosContainer.appendChild(card);
@@ -2332,117 +2338,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         }
     });
 
-    // Handle empty messages for sub-sections
     if (activeCount === 0) {
-        activosContainer.innerHTML = `
-            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem 0;">
-                No hay cuentas activas (todos los clientes han pagado).
-            </div>
-        `;
+        activosContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); padding: 0.5rem; text-align: center;">No hay cuentas activas abiertas consumiendo.</div>';
     }
     if (paidCount === 0) {
-        pagadosContainer.innerHTML = `
-            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem 0;">
-                No se han registrado cierres de cuenta hoy.
-            </div>
-        `;
+        pagadosContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); padding: 0.5rem; text-align: center;">No hay historial de cuentas pagadas hoy.</div>';
     }
-}
-
-/**
- * Shows a modal to select the payment method for closing a sale
- * @param {string} clientName Client/Table name
- * @param {number} totalAmount Total sales amount
- * @param {Function} onSelect Callback when a payment method is selected (string)
- */
-function showPaymentMethodModal(clientName, totalAmount, onSelect) {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-backdrop';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = 'rgba(0,0,0,0.75)';
-    overlay.style.backdropFilter = 'blur(6px)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '2000';
-    overlay.style.padding = '1rem';
-    overlay.style.boxSizing = 'border-box';
-
-    const rate = window.bcvRate || 1;
-    const totalVes = totalAmount * rate;
-
-    const formatUSD = (val) => '$' + (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const modalBody = document.createElement('div');
-    modalBody.className = 'card-pantry';
-    modalBody.style.width = '100%';
-    modalBody.style.maxWidth = '360px';
-    modalBody.style.padding = '1.5rem';
-    modalBody.style.borderRadius = '12px';
-    modalBody.style.boxSizing = 'border-box';
-    modalBody.style.border = '1px solid var(--color-gold)';
-    modalBody.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.15)';
-    modalBody.style.animation = 'scaleIn 0.2s ease-out';
-
-    modalBody.innerHTML = `
-        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.15rem; margin-bottom: 0.25rem; text-align: center; text-transform: uppercase; letter-spacing: 0.03em;">
-            <i class="fa-solid fa-cash-register"></i> Registrar Pago
-        </h3>
-        <p style="font-size: 11px; color: var(--color-text-muted); text-align: center; margin-bottom: 1rem;">
-            Selecciona el método de pago para la cuenta de <strong>${clientName}</strong>
-        </p>
-
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 8px; margin-bottom: 1.25rem; text-align: center;">
-            <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Total a Cobrar</div>
-            <div style="font-size: 1.6rem; font-weight: 900; color: var(--color-success); margin-top: 0.25rem; font-family: monospace;">${formatUSD(totalAmount)}</div>
-            <div style="font-size: 0.85rem; color: var(--color-gold); margin-top: 0.15rem; font-weight: 700; font-family: monospace;">${formatVES(totalVes)}</div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
-            <button class="btn-paymethod" data-method="Pago Móvil" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
-                <i class="fa-solid fa-mobile-screen-button" style="color: #8BE8CB; font-size: 1.1rem; width: 1.25rem;"></i> Pago Móvil
-            </button>
-            <button class="btn-paymethod" data-method="Punto de Venta" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
-                <i class="fa-solid fa-credit-card" style="color: #FFB085; font-size: 1.1rem; width: 1.25rem;"></i> Punto de Venta
-            </button>
-            <button class="btn-paymethod" data-method="Efectivo Bs." style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
-                <i class="fa-solid fa-money-bill-1-wave" style="color: #FFAAA6; font-size: 1.1rem; width: 1.25rem;"></i> Efectivo Bolívares
-            </button>
-            <button class="btn-paymethod" data-method="Efectivo $" style="height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; font-size: 0.825rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white); padding: 0 1rem;">
-                <i class="fa-solid fa-dollar-sign" style="color: var(--color-gold); font-size: 1.1rem; width: 1.25rem; text-align: center;"></i> Efectivo Divisas
-            </button>
-        </div>
-
-        <button class="btn-cancel-paymethod" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: all 0.2s; background-color: transparent; color: var(--color-text-muted); width: 100%;">
-            Cancelar
-        </button>
-    `;
-
-    overlay.appendChild(modalBody);
-    document.body.appendChild(overlay);
-
-    const closeModal = () => {
-        overlay.style.opacity = '0';
-        overlay.style.transition = 'opacity 0.25s ease-out';
-        setTimeout(() => {
-            overlay.remove();
-        }, 250);
-    };
-
-    modalBody.querySelector('.btn-cancel-paymethod').addEventListener('click', closeModal);
-
-    modalBody.querySelectorAll('.btn-paymethod').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const method = btn.getAttribute('data-method');
-            closeModal();
-            if (onSelect) onSelect(method);
-        });
-    });
 }
 
 function cleanProductName(name = '') {

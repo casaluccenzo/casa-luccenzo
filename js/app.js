@@ -361,10 +361,15 @@ async function handleCheckoutCart() {
 
     triggerHaptic(15);
     const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
-    const clientNameInput = prompt("Ingresa el nombre del cliente / mesa (Opcional):", defaultName);
+    const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
-    const clientName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
+    const clientRifInput = prompt("Ingresa Cédula / RIF del cliente (Opcional):", "V-13063396");
+    if (clientRifInput === null) return; // Cancelled
+
+    const rawName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
+    const rawRif = (clientRifInput && clientRifInput.trim()) ? clientRifInput.trim() : "V-13063396";
+    const clientName = `${rawName} - ${rawRif}`;
     
     const editingTimestamp = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
     const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
@@ -595,37 +600,62 @@ async function handleEditSale(timestamp) {
  * Marks a sales transaction as paid, updating Supabase and memory (changing suffix to include (Pagado))
  * @param {string} timestamp Sales log entry transaction timestamp
  */
-async function markTransactionAsPaid(timestamp, paymentMethod) {
+async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = null, updatedRif = null) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
 
+    let clientName = "Cliente";
+    let clientRif = "V-13063396";
+    const firstSale = matchingSales[0];
+    const bracketMatch = firstSale.name.match(/\[(.*?)\]/);
+    if (bracketMatch) {
+        const rawTag = bracketMatch[1].trim();
+        if (rawTag.includes(' - ')) {
+            const parts = rawTag.split(/\s+-\s+/);
+            clientName = parts[0].trim();
+            clientRif = parts[1].trim();
+        } else {
+            clientName = rawTag;
+        }
+    }
+
+    const finalName = updatedName !== null ? updatedName.trim() : clientName;
+    const finalRif = updatedRif !== null ? updatedRif.trim() : clientRif;
+
     // Ask for payment method if not provided yet
     if (!paymentMethod) {
-        const totalAmount = matchingSales.reduce((sum, s) => sum + (s.price || 0), 0);
-        let clientName = "Cliente";
-        const firstSale = matchingSales[0];
-        const bracketMatch = firstSale.name.match(/\[(.*?)\]/);
-        if (bracketMatch) {
-            clientName = bracketMatch[1];
-        }
+        const itemMap = {};
+        matchingSales.forEach(s => {
+            let baseName = s.name.replace(/\s*\[.*?\]/g, '').replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '').trim();
+            if (!itemMap[baseName]) {
+                itemMap[baseName] = { name: baseName, quantity: 0, totalPrice: 0, price: s.price };
+            }
+            itemMap[baseName].quantity += 1;
+            itemMap[baseName].totalPrice += s.price;
+        });
+        const items = Object.values(itemMap);
 
         if (window.UIManager && window.UIManager.showPaymentMethodModal) {
-            window.UIManager.showPaymentMethodModal(clientName, totalAmount, (method) => {
-                markTransactionAsPaid(timestamp, method);
+            window.UIManager.showPaymentMethodModal(finalName, finalRif, items, timestamp, (method, name, rif) => {
+                markTransactionAsPaid(timestamp, method, name, rif);
             });
         } else {
-            // Fallback if modal is not loaded
-            markTransactionAsPaid(timestamp, "Efectivo");
+            markTransactionAsPaid(timestamp, "Efectivo", finalName, finalRif);
         }
         return;
     }
 
     triggerHaptic(15);
 
-    // 1. Map to updated sales with selected payment method
+    const clientTag = `${finalName} - ${finalRif}`;
+
+    // Map to updated sales with selected payment method
     const updatedSales = matchingSales.map(sale => {
-        let newName = sale.name.replace(/\s*\(Pagado(?: - .*?)?\)$/, '');
-        newName = `${newName} (Pagado - ${paymentMethod})`;
+        let baseProductName = sale.name
+            .replace(/\s*\[.*?\]/g, '')
+            .replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '')
+            .trim();
+        let newName = `${baseProductName} [${clientTag}] (Pagado - ${paymentMethod})`;
         return {
             ...sale,
             name: newName
@@ -634,10 +664,7 @@ async function markTransactionAsPaid(timestamp, paymentMethod) {
 
     if (window.SupabaseManager.isConfigured()) {
         try {
-            // Delete old
             await window.SupabaseManager.deleteSales(matchingSales.map(sale => sale.uuid));
-            
-            // Insert updated
             await window.SupabaseManager.insertSales(updatedSales);
         } catch (e) {
             console.error("Error updating sale status to paid in Supabase", e);
@@ -647,18 +674,19 @@ async function markTransactionAsPaid(timestamp, paymentMethod) {
     // Update local salesLog
     salesLog = salesLog.map(s => {
         if (s.timestamp === timestamp) {
-            let newName = s.name.replace(/\s*\(Pagado(?: - .*?)?\)$/, '');
-            newName = `${newName} (Pagado - ${paymentMethod})`;
+            let baseProductName = s.name
+                .replace(/\s*\[.*?\]/g, '')
+                .replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '')
+                .trim();
+            let newName = `${baseProductName} [${clientTag}] (Pagado - ${paymentMethod})`;
             return { ...s, name: newName };
         }
         return s;
     });
 
     window.StorageManager.saveSalesLog(salesLog);
-
-    // Render
     renderAllViews();
-    window.UIManager.showToast(`💵 Cuenta pagada con ${paymentMethod}.`, "fa-solid fa-circle-check");
+    window.UIManager.showToast(`💵 Cuenta de "${finalName}" cobrada con éxito.`, "fa-solid fa-circle-check");
 }
 
 /**

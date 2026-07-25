@@ -237,7 +237,12 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
     // Apply category filter
     let filteredProducts = activeCategory === 'todos' 
         ? products 
-        : products.filter(p => p.category === activeCategory);
+        : products.filter(p => {
+            const cat = (window.StorageManager && window.StorageManager.getProductCategory) 
+                ? window.StorageManager.getProductCategory(p) 
+                : (p.category || 'pastelitos');
+            return cat === activeCategory;
+        });
 
     // Apply search filter
     if (searchQuery.trim() !== '') {
@@ -506,17 +511,66 @@ function renderCocina(products, deliverProduct, replenishments = []) {
  */
 function renderCashRegister(salesLog, expenses = []) {
     const valueEl = document.getElementById('cash-value');
-    if (!valueEl) return;
+    const headerCashValEl = document.getElementById('header-cash-val');
+    if (!valueEl && !headerCashValEl) return;
 
-    const totalSales = salesLog.reduce((sum, sale) => sum + (sale.price || 0), 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    // Filter sales and expenses to ONLY include today's records (or since last close)
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    let filterTime = startOfToday;
+
+    if (window.StorageManager) {
+        const lastCloseStr = window.StorageManager.loadLastCloseTime();
+        if (lastCloseStr) {
+            const lcDate = parseUTCTimestamp(lastCloseStr);
+            if (lcDate > startOfToday) {
+                filterTime = lcDate;
+            }
+        }
+    }
+
+    const isSalePaid = (sale) => {
+        if (!sale || !sale.name) return true;
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
+        if (match) {
+            return !!match[3];
+        }
+        if (/\[.*?\]/.test(sale.name) && !/\(Pagado/i.test(sale.name)) {
+            return false;
+        }
+        return true;
+    };
+
+    const todaySales = salesLog.filter(s => {
+        if (!s || !s.timestamp) return false;
+        try {
+            const d = parseUTCTimestamp(s.timestamp);
+            return d >= filterTime && isSalePaid(s);
+        } catch (e) {
+            return false;
+        }
+    });
+
+    const todayExpenses = expenses.filter(e => {
+        if (!e || !e.timestamp) return false;
+        try {
+            const d = parseUTCTimestamp(e.timestamp);
+            return d >= filterTime;
+        } catch (err) {
+            return false;
+        }
+    });
+
+    const totalSales = todaySales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+    const totalExpenses = todayExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
 
     const vesCash = netCash * (window.bcvRate || 1);
-    valueEl.innerHTML = `$${netCash.toFixed(2)} <span style="font-size: 0.875rem; font-weight: normal; opacity: 0.8; margin-left: 0.5rem;">(Bs. ${vesCash.toFixed(2)})</span>`;
+    if (valueEl) {
+        valueEl.innerHTML = `$${netCash.toFixed(2)} <span style="font-size: 0.875rem; font-weight: normal; opacity: 0.8; margin-left: 0.5rem;">(Bs. ${vesCash.toFixed(2)})</span>`;
+    }
 
     // Update header cash register badge
-    const headerCashValEl = document.getElementById('header-cash-val');
     if (headerCashValEl) {
         headerCashValEl.textContent = `$${netCash.toFixed(2)}`;
     }
@@ -533,7 +587,31 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
 
     listContainer.innerHTML = '';
 
-    if (salesLog.length === 0) {
+    // Filter salesLog for today (since 00:00:00 or since last close time, whichever is more recent)
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    let filterTime = startOfToday;
+
+    if (window.StorageManager) {
+        const lastCloseStr = window.StorageManager.loadLastCloseTime();
+        if (lastCloseStr) {
+            const lcDate = parseUTCTimestamp(lastCloseStr);
+            if (lcDate > startOfToday) {
+                filterTime = lcDate;
+            }
+        }
+    }
+
+    const todaySalesLog = salesLog.filter(s => {
+        if (!s || !s.timestamp) return true;
+        try {
+            return parseUTCTimestamp(s.timestamp) >= filterTime;
+        } catch (e) {
+            return true;
+        }
+    });
+
+    if (todaySalesLog.length === 0) {
         listContainer.innerHTML = `
             <div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1.25rem 0;">
                 No hay ventas registradas hoy.
@@ -542,9 +620,9 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
         return;
     }
 
-    // Group salesLog by timestamp
+    // Group todaySalesLog by timestamp
     const groups = {};
-    salesLog.forEach(sale => {
+    todaySalesLog.forEach(sale => {
         let productName = sale.name;
         let clientName = '';
         const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
@@ -2170,7 +2248,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
         }
 
-        let clientRif = 'V-13063396';
+        let clientRif = '';
         let rawClientStr = clientName;
         if (clientName.includes(' - ')) {
             const parts = clientName.split(/\s+-\s+/);
@@ -2246,7 +2324,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <h4 style="font-size: 13px; font-weight: 800; color: var(--color-gold); margin: 0; display: flex; align-items: center; gap: 0.3rem;">
                     <i class="fa-solid fa-user-tag" style="font-size: 11px; opacity: 0.8;"></i> ${group.clientName}
-                    <span style="font-size: 10px; color: var(--color-text-muted); font-weight: bold;">(${group.clientRif || 'V-13063396'})</span>
+                    ${group.clientRif ? `<span style="font-size: 10px; color: var(--color-text-muted); font-weight: bold;">(${group.clientRif})</span>` : ''}
                 </h4>
                 ${statusBadge}
             </div>
@@ -2294,7 +2372,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         card.querySelector('.btn-share-client').addEventListener('click', () => {
             let msg = `*CASA LUCCENZO* 🥖\n`;
             msg += `*Ticket de Consumo* 🧾\n`;
-            msg += `👤 *Cliente:* ${group.clientName} (${group.clientRif || 'V-13063396'})\n`;
+            msg += group.clientRif ? `👤 *Cliente:* ${group.clientName} (${group.clientRif})\n` : `👤 *Cliente:* ${group.clientName}\n`;
             msg += `--------------------------------------\n`;
             group.items.forEach(it => {
                 msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;
@@ -2418,7 +2496,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
     const formatVES = (val) => 'Bs. ' + (val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const safeClientName = clientName || 'Cliente';
-    const safeClientRif = clientRif || 'V-13063396';
+    const safeClientRif = clientRif || '';
 
     modalBody.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
@@ -2609,7 +2687,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
     modalBody.querySelector('.btn-confirm-pos-pay').addEventListener('click', () => {
         const selectedMethod = modalBody.querySelector('#pos-pay-method-select').value;
         const updatedName = modalBody.querySelector('#pos-client-name').value.trim() || 'Cliente';
-        const updatedRif = modalBody.querySelector('#pos-client-rif').value.trim() || 'V-13063396';
+        const updatedRif = modalBody.querySelector('#pos-client-rif').value.trim() || '';
         closeModal();
         if (onSelect) onSelect(selectedMethod, updatedName, updatedRif);
     });
@@ -2621,7 +2699,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
 function showPosReceiptModal({
     cart = [],
     clientName = 'Cliente',
-    clientRif = 'V-13063396',
+    clientRif = '',
     timestamp = new Date().toISOString(),
     facNo = '',
     isAlreadyPaid = false,

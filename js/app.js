@@ -462,12 +462,12 @@ async function handleCheckoutCart() {
     const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
-    const clientRifInput = prompt("Ingresa Cédula / RIF del cliente (Opcional):", "V-13063396");
+    const clientRifInput = prompt("Ingresa Cédula / RIF del cliente (Opcional):", "");
     if (clientRifInput === null) return; // Cancelled
 
     const rawName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
-    const rawRif = (clientRifInput && clientRifInput.trim()) ? clientRifInput.trim() : "V-13063396";
-    const clientName = `${rawName} - ${rawRif}`;
+    const rawRif = (clientRifInput && clientRifInput.trim()) ? clientRifInput.trim() : "";
+    const clientName = rawRif ? `${rawName} - ${rawRif}` : rawName;
     
     const editingTimestamp = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
     const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
@@ -497,7 +497,7 @@ async function handleCheckoutCart() {
             const saleItem = {
                 uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                 productId: cartItem.productId,
-                name: `${cartItem.name} [${clientName}]`, // Store client name in brackets
+                name: `${cartItem.name} [${clientName}] (Pagado - Efectivo)`, // Store client name and paid status
                 price: cartItem.price || 0,
                 timestamp: timestamp
             };
@@ -526,7 +526,8 @@ async function handleCheckoutCart() {
     window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
     window.UIManager.renderCashRegister(salesLog, expenses);
-    window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+    window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+    window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
 
     if (currentRole === 'admin') {
         window.UIManager.renderStats(salesLog, expenses);
@@ -704,7 +705,7 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
     if (matchingSales.length === 0) return;
 
     let clientName = "Cliente";
-    let clientRif = "V-13063396";
+    let clientRif = "";
     const firstSale = matchingSales[0];
     const bracketMatch = firstSale.name.match(/\[(.*?)\]/);
     if (bracketMatch) {
@@ -1803,7 +1804,10 @@ async function loadAllDataFromSupabase() {
 
     // Save and load products (auto-merge missing default products like dulces)
     if (supProducts && supProducts.length > 0) {
-        products = supProducts;
+        products = supProducts.map(p => ({
+            ...p,
+            category: window.StorageManager ? window.StorageManager.getProductCategory(p) : (p.category || 'pastelitos')
+        }));
     } else {
         products = window.StorageManager.loadProducts();
     }
@@ -1828,7 +1832,20 @@ async function loadAllDataFromSupabase() {
     
     // Save and load sales (merge local sales if any were saved offline or during schema mismatch)
     const deletedUuidsSet = new Set(window.StorageManager.loadDeletedSalesUuids() || []);
-    const localSales = (window.StorageManager.loadSalesLog() || []).filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
+    const lastCloseDate = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : null;
+
+    const rawLocalSales = (window.StorageManager.loadSalesLog() || []).filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
+    const localSales = rawLocalSales.filter(s => {
+        if (!s || !s.timestamp) return false;
+        if (lastCloseDate) {
+            try {
+                return window.parseUTCTimestamp(s.timestamp) >= lastCloseDate;
+            } catch (e) {
+                return false;
+            }
+        }
+        return true;
+    });
 
     if (supSales && supSales.length > 0) {
         const cleanSupSales = supSales.filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
@@ -2151,10 +2168,19 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         if (newRow) {
             // Check if last_close_time changed
             if (newRow.last_close_time && newRow.last_close_time !== lastCloseTime) {
-                console.log("Detecting Day Close event from another device. Reloading data...");
+                console.log("Detecting Day Close event from another device. Clearing local sales and reloading data across all devices...");
                 lastCloseTime = newRow.last_close_time;
                 window.StorageManager.saveLastCloseTime(lastCloseTime);
-                loadAllDataFromSupabase();
+                
+                salesLog = [];
+                expenses = [];
+                window.StorageManager.clearSalesLog();
+                window.StorageManager.clearExpenses();
+
+                await loadAllDataFromSupabase();
+                renderAllViews();
+
+                window.UIManager.showToast("🔔 Cierre de caja realizado por Administrador. Caja en $0.00.", "fa-solid fa-bell");
                 return;
             }
 

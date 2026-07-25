@@ -293,17 +293,8 @@ async function fetchSales() {
     try {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const todayIso = todayStart.toISOString();
 
-        let filterTime = todayIso;
-        if (supabaseLastCloseTime) {
-            const lastCloseDate = new Date(supabaseLastCloseTime);
-            if (lastCloseDate < todayStart) {
-                filterTime = supabaseLastCloseTime;
-            } else {
-                filterTime = todayIso;
-            }
-        }
+        const filterTime = supabaseLastCloseTime ? supabaseLastCloseTime : todayStart.toISOString();
 
         const { data, error } = await client.from('sales').select('*').gte('timestamp', filterTime);
         if (error) throw error;
@@ -319,17 +310,8 @@ async function fetchExpenses() {
     try {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const todayIso = todayStart.toISOString();
 
-        let filterTime = todayIso;
-        if (supabaseLastCloseTime) {
-            const lastCloseDate = new Date(supabaseLastCloseTime);
-            if (lastCloseDate < todayStart) {
-                filterTime = supabaseLastCloseTime;
-            } else {
-                filterTime = todayIso;
-            }
-        }
+        const filterTime = supabaseLastCloseTime ? supabaseLastCloseTime : todayStart.toISOString();
 
         const { data, error } = await client.from('expenses').select('*').gte('timestamp', filterTime);
         if (error) throw error;

@@ -36,6 +36,32 @@ const REPLENISHMENTS_KEY = 'casa_lucenzo_replenishments';
 const PREFERENCES_KEY = 'casa_lucenzo_preferences';
 const INGREDIENTS_KEY = 'casa_lucenzo_ingredients';
 
+function getProductCategory(p) {
+    if (!p) return 'pastelitos';
+    if (p.category && p.category !== 'pastelitos' && p.category.trim() !== '') {
+        return p.category;
+    }
+    const idLower = (p.id || '').toLowerCase();
+    const nameLower = (p.name || '').toLowerCase();
+
+    const sweetKeywords = ['samba', 'cocosette', 'susy', 'savoy', 'pirulin', 'chocolate', 'cricri', 'rikiti', 'dulce', 'galleta', 'caramelo', 'nucita'];
+    if (sweetKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
+        return 'dulces';
+    }
+
+    const beverageKeywords = ['malta', 'refresco', 'jugo', 'agua', 'bebida', 'pepsi', 'coca', 'chinotto', 'hit', '7up', 'nestea'];
+    if (beverageKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
+        return 'bebidas';
+    }
+
+    const cakeKeywords = ['torta', 'cake', 'pie', 'quesillo', 'marquesa'];
+    if (cakeKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
+        return 'tortas';
+    }
+
+    return p.category || 'pastelitos';
+}
+
 /**
  * Loads products from localStorage, or returns default products if empty.
  */
@@ -69,7 +95,7 @@ function loadProducts() {
             return parsed.map(p => ({
                 ...p,
                 price: p.price !== undefined ? parseFloat(p.price) : 1.50,
-                category: p.category || 'pastelitos'
+                category: getProductCategory(p)
             }));
         } catch (e) {
             console.error("Error reading from local storage, loading defaults", e);
@@ -299,6 +325,7 @@ window.StorageManager = {
     DEFAULT_COST_INSUMOS,
     loadProducts,
     saveProducts,
+    getProductCategory,
     resetToDefaults,
     loadSalesLog,
     saveSalesLog,

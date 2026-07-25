@@ -77,8 +77,8 @@ async function processOfflineQueue() {
     const remaining = [];
     for (const item of queue) {
         try {
-            if (item.actionType === 'insertSales') {
-                await window.SupabaseManager.insertSales(item.payload);
+            if (item.actionType === 'insertSales' || item.actionType === 'upsertSales') {
+                await window.SupabaseManager.upsertSales(item.payload);
             } else if (item.actionType === 'deleteSales') {
                 await window.SupabaseManager.deleteSales(item.payload);
             } else if (item.actionType === 'updateStock') {
@@ -747,7 +747,7 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
 
     triggerHaptic(15);
 
-    const clientTag = `${finalName} - ${finalRif}`;
+    const clientTag = (finalRif && finalRif.trim()) ? `${finalName} - ${finalRif.trim()}` : finalName;
 
     // Map to updated sales with selected payment method
     const updatedSales = matchingSales.map(sale => {
@@ -764,12 +764,10 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
 
     if (window.SupabaseManager.isConfigured()) {
         try {
-            await window.SupabaseManager.deleteSales(matchingSales.map(sale => sale.uuid));
-            await window.SupabaseManager.insertSales(updatedSales);
+            await window.SupabaseManager.upsertSales(updatedSales);
         } catch (e) {
             console.warn("Error updating sale status to paid in Supabase, queuing for offline auto-healing", e);
-            addToOfflineQueue('deleteSales', matchingSales.map(sale => sale.uuid));
-            addToOfflineQueue('insertSales', updatedSales);
+            addToOfflineQueue('upsertSales', updatedSales);
         }
     }
 
@@ -2035,7 +2033,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             salesLog = salesLog.filter(s => s.uuid !== oldRow.uuid);
         } else {
             const saleDate = window.parseUTCTimestamp(newRow.timestamp);
-            if (saleDate > filterTime) {
+            if (saleDate >= filterTime) {
                 const idx = salesLog.findIndex(s => s.uuid === newRow.uuid);
                 const formatted = {
                     uuid: newRow.uuid,

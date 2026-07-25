@@ -271,6 +271,35 @@ async function insertSales(sales) {
     }
 }
 
+async function upsertSales(sales) {
+    if (!client) return;
+    if (!Array.isArray(sales) || sales.length === 0) return;
+    
+    const basePayloads = sales.map(sale => ({
+        uuid: sale.uuid,
+        product_id: sale.productId,
+        name: sale.name,
+        price: sale.price,
+        timestamp: sale.timestamp
+    }));
+
+    try {
+        if (!navigator.onLine) {
+            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'upsert', payload));
+            return;
+        }
+
+        const { error } = await client.from('sales').upsert(basePayloads);
+        if (error) {
+            console.error("Supabase upsertSales batch failed:", error.message);
+            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'upsert', payload));
+        }
+    } catch (e) {
+        console.error("Supabase upsertSales batch failed. Enqueuing offline...", e);
+        basePayloads.forEach(payload => enqueueOfflineOp('sales', 'upsert', payload));
+    }
+}
+
 // ================= DATA FETCHERS =================
 
 async function fetchProducts() {
@@ -1071,6 +1100,7 @@ window.SupabaseManager = {
     deleteProduct,
     insertSale,
     insertSales,
+    upsertSales,
     deleteSale,
     deleteSales,
     insertExpense,

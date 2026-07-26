@@ -1980,6 +1980,7 @@ function renderAllViews() {
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
     window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+    window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
 
     window.UIManager.renderExpenses(expenses, deleteExpense);
     window.UIManager.renderDebts(debts, settleDebtPayment);

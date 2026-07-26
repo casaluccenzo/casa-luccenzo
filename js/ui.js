@@ -536,21 +536,11 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
             const soldCount = salesCountByProduct[item.id] || 0;
             const amountNeeded = Math.max(0, item.max - item.stock);
             const isDispatched = pendingDispatches.some(d => d.productId === item.id);
+            const initialQty = amountNeeded > 0 ? amountNeeded : 5;
 
             const card = document.createElement('div');
             card.className = "kitchen-card";
             card.style.cssText = "display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-sm);";
-
-            card.innerHTML = `
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
-                        <h3 class="product-name" style="font-size: 1rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
-                        <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.15)' : 'rgba(52, 211, 153, 0.12)'}; color: ${item.stock <= item.min ? '#F87171' : '#34D399'}; border: 1px solid ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.3)' : 'rgba(52, 211, 153, 0.3)'};">
-                            En Vitrina: ${item.stock} ${item.unit}
-                        </span>
-                    </div>
-
-            const initialQty = amountNeeded > 0 ? amountNeeded : 5;
 
             card.innerHTML = `
                 <div>

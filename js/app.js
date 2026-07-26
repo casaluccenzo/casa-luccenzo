@@ -1934,9 +1934,16 @@ async function loadAndRenderAdminStats() {
     if (window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
             const data = await window.SupabaseManager.fetchStatsData();
-            if (data) {
-                statsSales = data.sales;
-                statsExpenses = data.expenses;
+            if (data && Array.isArray(data.sales)) {
+                // Merge Supabase stats data with local salesLog to ensure 100% of sales are captured
+                const supUuids = new Set(data.sales.map(s => s.uuid));
+                const localUnsynced = salesLog.filter(s => s.uuid && !supUuids.has(s.uuid));
+                statsSales = [...data.sales, ...localUnsynced];
+                if (data.expenses && data.expenses.length > 0) {
+                    const supExpUuids = new Set(data.expenses.map(e => e.uuid));
+                    const localExpUnsynced = expenses.filter(e => e.uuid && !supExpUuids.has(e.uuid));
+                    statsExpenses = [...data.expenses, ...localExpUnsynced];
+                }
             }
             const sessions = await window.SupabaseManager.fetchActiveSessions();
             devCount = sessions ? sessions.length : 0;
@@ -2054,17 +2061,22 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
         if (currentRole === 'admin') {
-            if (eventType === 'INSERT') {
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const statFormatted = {
+                    uuid: newRow.uuid,
                     productId: newRow.product_id,
+                    name: newRow.name,
                     price: parseFloat(newRow.price) || 0,
                     timestamp: newRow.timestamp
                 };
-                if (!adminStatsSales.some(s => s.timestamp === statFormatted.timestamp && s.productId === statFormatted.productId)) {
+                const idx = adminStatsSales.findIndex(s => (s.uuid && s.uuid === statFormatted.uuid) || (s.timestamp === statFormatted.timestamp && s.productId === statFormatted.productId));
+                if (idx !== -1) {
+                    adminStatsSales[idx] = statFormatted;
+                } else {
                     adminStatsSales.push(statFormatted);
                 }
             } else if (eventType === 'DELETE') {
-                adminStatsSales = adminStatsSales.filter(s => s.timestamp !== oldRow.timestamp);
+                adminStatsSales = adminStatsSales.filter(s => s.uuid !== oldRow.uuid && s.timestamp !== oldRow.timestamp);
             }
             window.UIManager.renderStats(adminStatsSales, expenses, products);
             window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);

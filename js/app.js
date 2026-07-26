@@ -871,7 +871,7 @@ function deliverProduct(id) {
         window.SupabaseManager.upsertReplenishment(newDispatch);
     }
 
-    window.UIManager.renderCocina(products, deliverProduct, replenishments);
+    window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
     window.UIManager.showToast(`🚚 "${product.name}" marcado como Enviado al local.`, "fa-solid fa-paper-plane");
@@ -913,7 +913,7 @@ async function handleQuickReplenishment(productId, productName, unit = 'unid.') 
         await window.SupabaseManager.upsertReplenishment(newDispatch);
     }
     
-    window.UIManager.renderCocina(products, deliverProduct, replenishments);
+    window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
     window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
     
@@ -1016,7 +1016,7 @@ function confirmReceipt() {
 
     // Refresh views
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-    window.UIManager.renderCocina(products, deliverProduct, replenishments);
+    window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
     window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina al 100%.", "fa-solid fa-circle-check");
@@ -2025,7 +2025,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         }
         window.StorageManager.saveProducts(products);
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
         window.UIManager.updateKitchenBadge(products);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
         if (currentRole === 'admin') {
@@ -2154,7 +2154,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         }
         window.StorageManager.saveReplenishments(replenishments);
         window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
-        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     } else if (tableName === 'ingredients') {
         if (eventType === 'DELETE') {
             ingredients = ingredients.filter(i => i.id !== oldRow.id);
@@ -2255,7 +2255,7 @@ async function performFullFetch(tableName) {
             products = data;
             window.StorageManager.saveProducts(products);
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-            window.UIManager.renderCocina(products, deliverProduct, replenishments);
+            window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
             window.UIManager.updateKitchenBadge(products);
         }
     } else if (tableName === 'sales') {
@@ -2293,7 +2293,7 @@ async function performFullFetch(tableName) {
             replenishments = data;
             window.StorageManager.saveReplenishments(replenishments);
             window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
-            window.UIManager.renderCocina(products, deliverProduct, replenishments);
+            window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
         }
     } else if (tableName === 'ingredients') {
         const data = await window.SupabaseManager.fetchIngredients();
@@ -2562,7 +2562,7 @@ function applyUserRole(role) {
         btnSettings.classList.add('hidden');
         
         window.UIManager.switchView('cocina');
-        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     } else if (role === 'admin') {
         // Full Admin: Everything visible, statistics dashboard loaded
@@ -2983,7 +2983,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');
-        window.UIManager.renderCocina(products, deliverProduct, replenishments);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
     });
 

@@ -386,7 +386,7 @@ function updateKitchenBadge(products) {
  * @param {Function} deliverProduct Callback when product is filled (id)
  * @param {Array} replenishments Dispatches list to show pending
  */
-function renderCocina(products, deliverProduct, replenishments = []) {
+function renderCocina(products, deliverProduct, replenishments = [], salesLog = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
 
@@ -400,101 +400,215 @@ function renderCocina(products, deliverProduct, replenishments = []) {
         }
     }
 
-    const neededItems = products.filter(p => p.stock < p.max);
+    // 1. Calculate sales per product for TODAY
+    const startOfToday = new Date();
+    startOfToday.setHours(0,0,0,0);
+
+    const todaySales = salesLog.filter(s => {
+        if (!s.timestamp) return true;
+        const d = parseUTCTimestamp(s.timestamp);
+        return d >= startOfToday;
+    });
+
+    const salesCountByProduct = {};
+    todaySales.forEach(s => {
+        const pId = s.productId;
+        if (pId && pId !== 'abono') {
+            salesCountByProduct[pId] = (salesCountByProduct[pId] || 0) + 1;
+        }
+    });
+
+    // 2. Separate Pastelitos from Bebidas & Dulces
+    const isPastelito = (p) => {
+        const cat = (window.StorageManager && window.StorageManager.getProductCategory) 
+            ? window.StorageManager.getProductCategory(p) 
+            : (p.category || 'pastelitos');
+        return cat === 'pastelitos';
+    };
+
+    const pastelitoProducts = products.filter(isPastelito);
+    const otherProducts = products.filter(p => !isPastelito(p));
+
+    // Calculate Top 3 Most Sold Pastelitos
+    const pastelitoSalesList = pastelitoProducts.map(p => ({
+        ...p,
+        soldCount: salesCountByProduct[p.id] || 0
+    })).filter(p => p.soldCount > 0)
+      .sort((a, b) => b.soldCount - a.soldCount);
+
+    const top3Pastelitos = pastelitoSalesList.slice(0, 3);
+
     const pendingDispatches = replenishments.filter(r => r.status === 'en_camino');
 
-    if (neededItems.length === 0) {
-        let dispatchesHtml = '';
-        if (pendingDispatches.length > 0) {
-            dispatchesHtml = `
-                <div class="recipe-container" style="border-color: var(--color-success-border); margin-top: 1.5rem;">
-                    <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
-                    <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
-                        ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando recibo)`).join('<br>')}
-                    </div>
+    // Build Top 3 Minimalist Metric Banner
+    let top3Html = '';
+    if (top3Pastelitos.length > 0) {
+        const medals = ['🥇', '🥈', '🥉'];
+        top3Html = `
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(212,175,55,0.25); border-radius: 10px; padding: 0.6rem 0.8rem; margin-top: 1.25rem; font-size: 0.78rem;">
+                <div style="font-size: 0.72rem; font-weight: 800; color: var(--color-gold); text-transform: uppercase; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-trophy"></i> Top 3 Pastelitos Más Vendidos Hoy
                 </div>
-            `;
-        }
-
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">
-                    <i class="fa-solid fa-circle-check"></i>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between;">
+                    ${top3Pastelitos.map((p, idx) => `
+                        <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(0,0,0,0.3); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); min-width: 120px;">
+                            <span>${medals[idx]}</span>
+                            <span style="font-weight: 800; color: var(--color-white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;">${p.name}</span>
+                            <span style="font-weight: 900; color: #34D399; margin-left: auto;">${p.soldCount} <span style="font-size: 0.65rem; font-weight: 700; color: var(--color-text-muted);">piezas</span></span>
+                        </div>
+                    `).join('')}
                 </div>
-                <h3 class="empty-state-title">¡Todo Completo!</h3>
-                <p class="empty-state-subtitle">El local tiene pastelitos suficientes de todo. ¡A descansar un ratico!</p>
             </div>
-            ${dispatchesHtml}
         `;
-        return;
+    }
+
+    let dispatchesHtml = '';
+    if (pendingDispatches.length > 0) {
+        dispatchesHtml = `
+            <div class="recipe-container" style="border-color: var(--color-success-border); margin-bottom: 1rem;">
+                <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
+                <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
+                    ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando confirmación de caja)`).join('<br>')}
+                </div>
+            </div>
+        `;
+    }
+
+    let mainContentHtml = '';
+
+    if (pastelitoProducts.length === 0) {
+        mainContentHtml = `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <h3 class="empty-state-title">No hay pastelitos registrados</h3>
+            </div>
+        `;
+    } else {
+        mainContentHtml = `
+            <p class="kitchen-notice" style="margin-bottom: 0.75rem; font-size: 0.8rem;">
+                📢 Monitoreo de Pastelitos por Sabor: Revisa vitrina, ventas y cantidades a hornear.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem;" id="kitchen-pastelitos-list"></div>
+        `;
+    }
+
+    // Secondary Block for Bebidas & Dulces (Collapsible / Separate Card)
+    let secondaryContentHtml = '';
+    if (otherProducts.length > 0) {
+        secondaryContentHtml = `
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-lg); padding: 1rem;">
+                <details style="cursor: pointer;">
+                    <summary style="font-size: 0.85rem; font-weight: 800; color: var(--color-gold); display: flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
+                        <i class="fa-solid fa-box-open"></i> Stock de Bebidas y Dulces en Vitrina (${otherProducts.length} ítems)
+                        <span style="font-size: 0.7rem; color: var(--color-text-muted); font-weight: normal; margin-left: auto;">Toca para ver/ocultar ▾</span>
+                    </summary>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem; margin-top: 0.85rem;">
+                        ${otherProducts.map(item => {
+                            const sold = salesCountByProduct[item.id] || 0;
+                            return `
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem;">
+                                    <div>
+                                        <div style="font-weight: 800; color: var(--color-white);">${item.name}</div>
+                                        <div style="font-size: 0.68rem; color: var(--color-text-muted);">Vendidos hoy: ${sold}</div>
+                                    </div>
+                                    <span style="font-weight: 900; color: ${item.stock <= item.min ? '#F87171' : 'var(--color-gold)'};">
+                                        ${item.stock} ${item.unit}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </details>
+            </div>
+        `;
     }
 
     container.innerHTML = `
-        <p class="kitchen-notice" style="margin-bottom: 1rem;">
-            📢 Cocinar las cantidades indicadas abajo y enviarlas al local.
-        </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;" id="kitchen-list"></div>
+        ${dispatchesHtml}
+        ${mainContentHtml}
+        ${secondaryContentHtml}
+        ${top3Html}
     `;
 
-    const list = document.getElementById('kitchen-list');
+    const list = document.getElementById('kitchen-pastelitos-list');
+    if (list) {
+        pastelitoProducts.forEach(item => {
+            const soldCount = salesCountByProduct[item.id] || 0;
+            const amountNeeded = Math.max(0, item.max - item.stock);
+            const isDispatched = pendingDispatches.some(d => d.productId === item.id);
 
-    neededItems.forEach(item => {
-        const amountNeeded = item.max - item.stock;
-        const isDispatched = pendingDispatches.some(d => d.productId === item.id);
+            const card = document.createElement('div');
+            card.className = "kitchen-card";
+            card.style.cssText = "display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-sm);";
 
-        const card = document.createElement('div');
-        card.className = "kitchen-card";
-        card.style.cssText = "display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem; padding: 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-sm);";
+            card.innerHTML = `
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
+                        <h3 class="product-name" style="font-size: 1rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
+                        <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.15)' : 'rgba(52, 211, 153, 0.12)'}; color: ${item.stock <= item.min ? '#F87171' : '#34D399'}; border: 1px solid ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.3)' : 'rgba(52, 211, 153, 0.3)'};">
+                            En Vitrina: ${item.stock} ${item.unit}
+                        </span>
+                    </div>
 
-        card.innerHTML = `
-            <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <h3 class="product-name" style="font-size: 1.05rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
-                    <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(248, 113, 113, 0.12); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.2);">
-                        Quedan: ${item.stock} ${item.unit}
-                    </span>
+                    <!-- 3 Indicators Bar (En Vitrina, Vendidos Hoy, Falta Cocinar) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; background: rgba(0, 0, 0, 0.3); padding: 0.4rem; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.4rem; text-align: center; font-size: 0.7rem;">
+                        <div>
+                            <div style="color: var(--color-text-muted); font-size: 0.65rem; font-weight: 700;">VITRINA</div>
+                            <div style="font-weight: 900; color: var(--color-white); font-size: 0.95rem;">${item.stock}</div>
+                        </div>
+                        <div style="border-left: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08);">
+                            <div style="color: var(--color-text-muted); font-size: 0.65rem; font-weight: 700;">VENDIDOS</div>
+                            <div style="font-weight: 900; color: #34D399; font-size: 0.95rem;">${soldCount}</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--color-gold); font-size: 0.65rem; font-weight: 700;">FALTA</div>
+                            <div style="font-weight: 900; color: ${amountNeeded > 0 ? '#F87171' : 'var(--color-text-muted)'}; font-size: 0.95rem;">${amountNeeded}</div>
+                        </div>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: baseline; justify-content: space-between; background: rgba(0, 0, 0, 0.25); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px dashed rgba(212, 175, 55, 0.25); margin-top: 0.5rem;">
-                    <span style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 700;">FALTA COCINAR:</span>
-                    <span style="font-size: 1.25rem; font-weight: 900; color: var(--color-gold); font-family: monospace;">
-                        ${amountNeeded} <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-white);">${item.unit}</span>
-                    </span>
+
+                <div>
+                    ${amountNeeded === 0 && !isDispatched 
+                        ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: #34D399; padding: 0.4rem; border-radius: var(--radius-md); background: rgba(52, 211, 153, 0.08); border: 1px dashed rgba(52, 211, 153, 0.25);">
+                             <i class="fa-solid fa-circle-check"></i> Vitrina Completa
+                           </div>`
+                        : isDispatched 
+                            ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: var(--color-gold); border: 1px dashed var(--color-gold); padding: 0.4rem; border-radius: var(--radius-md); background: rgba(212, 175, 55, 0.08);">
+                                 <i class="fa-solid fa-truck-fast"></i> En camino al local (Esperando confirmación)
+                               </div>`
+                            : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 36px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s;">
+                                 <i class="fa-solid fa-truck-ramp-box"></i>
+                                 ¡YA LO COCINÉ Y LO ENVIÉ!
+                               </button>`
+                    }
                 </div>
-            </div>
-            <div>
-                ${isDispatched 
-                    ? `<div style="text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--color-success); border: 1px dashed var(--color-success); padding: 0.6rem; border-radius: var(--radius-md); background: rgba(52, 211, 153, 0.05);">
-                         <i class="fa-solid fa-truck-fast"></i> ¡Enviado al local!
-                       </div>`
-                    : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 38px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.8125rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s, filter 0.15s;">
-                         <i class="fa-solid fa-truck-ramp-box"></i>
-                         ¡YA LO COCINÉ Y LO ENVIÉ!
-                       </button>`
-                }
-            </div>
-        `;
+            `;
 
-        if (!isDispatched) {
-            card.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
-                deliverProduct(item.id);
-            });
-        }
+            if (amountNeeded > 0 && !isDispatched) {
+                card.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
+                    deliverProduct(item.id);
+                });
+            }
 
-        list.appendChild(card);
-    });
+            list.appendChild(card);
+        });
+    }
 
-    if (window.RecipeCalculator) {
-        const ingredients = window.RecipeCalculator.calculateIngredients(neededItems);
+    // Recipe calculator (optional at bottom)
+    const neededPastelitosList = pastelitoProducts.filter(p => p.stock < p.max);
+    if (window.RecipeCalculator && neededPastelitosList.length > 0) {
+        const ingredients = window.RecipeCalculator.calculateIngredients(neededPastelitosList);
         if (ingredients.length > 0) {
             const recipeSection = document.createElement('div');
             recipeSection.className = 'recipe-container';
+            recipeSection.style.cssText = 'margin-top: 1rem; padding: 0.85rem; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);';
             recipeSection.innerHTML = `
-                <h4 class="recipe-title"><i class="fa-solid fa-scale-balanced"></i> Ingredientes para esta Tanda:</h4>
-                <div class="recipe-grid">
+                <h4 class="recipe-title" style="font-size: 0.8rem; font-weight: 800; color: var(--color-gold); margin-bottom: 0.5rem;"><i class="fa-solid fa-scale-balanced"></i> Ingredientes a preparar para esta Tanda:</h4>
+                <div class="recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.4rem; font-size: 0.72rem;">
                     ${ingredients.map(ing => `
-                        <div class="recipe-item">
-                            <span class="recipe-item-name">${ing.name}</span>
-                            <span class="recipe-item-val">${ing.amount} ${ing.unit}</span>
+                        <div class="recipe-item" style="background: rgba(0,0,0,0.3); padding: 0.35rem 0.5rem; border-radius: 6px; display: flex; justify-content: space-between;">
+                            <span class="recipe-item-name">${ing.name}:</span>
+                            <span class="recipe-item-val" style="font-weight: 800; color: var(--color-gold);">${ing.amount} ${ing.unit}</span>
                         </div>
                     `).join('')}
                 </div>

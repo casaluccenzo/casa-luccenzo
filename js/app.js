@@ -533,26 +533,7 @@ async function handleCheckoutCart() {
         loadAndRenderAdminStats();
     }
 
-    // Build modal item summary
-    const itemMap = {};
-    newSales.forEach(s => {
-        let baseName = s.name.replace(/\s*\[.*?\]/g, '').trim();
-        if (!itemMap[baseName]) {
-            itemMap[baseName] = { name: baseName, quantity: 0, totalPrice: 0, price: s.price };
-        }
-        itemMap[baseName].quantity += 1;
-        itemMap[baseName].totalPrice += s.price;
-    });
-    const modalItems = Object.values(itemMap);
-
-    // Open Payment Method Modal immediately to allow selecting payment method or leaving as active account
-    if (window.UIManager && window.UIManager.showPaymentMethodModal) {
-        window.UIManager.showPaymentMethodModal(rawName, rawRif, modalItems, timestamp, (method, name, rif) => {
-            markTransactionAsPaid(timestamp, method, name, rif);
-        });
-    } else {
-        window.UIManager.showToast(`📝 Cuenta de "${clientName}" agregada a Cuentas Activas.`, "fa-solid fa-receipt");
-    }
+    window.UIManager.showToast(`📝 Cuenta de "${clientName}" creada en Cuentas Activas (Consumiendo).`, "fa-solid fa-user-clock");
 }
 
 /**

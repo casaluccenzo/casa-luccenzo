@@ -1,5 +1,5 @@
 // Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v181';
+const CACHE_NAME = 'casa-lucenzo-v182';
 
 const ASSETS_TO_CACHE = [
   './',

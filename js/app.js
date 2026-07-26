@@ -968,8 +968,12 @@ async function addProductStockDirect(id, amountToAdd) {
     if (amountToAdd <= 0) return;
 
     triggerHaptic(15);
-    product.stock = product.stock + amountToAdd;
-    product.max = product.max + amountToAdd;
+    product.stock = (product.stock || 0) + amountToAdd;
+
+    const defProd = window.StorageManager.DEFAULT_PRODUCTS ? window.StorageManager.DEFAULT_PRODUCTS.find(d => d.id === product.id) : null;
+    const baseMax = defProd ? defProd.max : (product.max || 20);
+    product.max = Math.max(baseMax, product.stock);
+
     window.StorageManager.saveProducts(products);
 
     if (window.SupabaseManager.isConfigured()) {
@@ -999,15 +1003,18 @@ function confirmReceipt() {
         const product = products.find(p => p.id === dispatch.productId);
         if (product) {
             const added = dispatch.amount || 0;
-            product.stock = product.stock + added;
-            product.max = product.max + added;
-            product.initial_stock = (product.initial_stock !== undefined && product.initial_stock !== null) ? (product.initial_stock + added) : product.stock;
+            product.stock = (product.stock || 0) + added;
+
+            const defProd = window.StorageManager.DEFAULT_PRODUCTS ? window.StorageManager.DEFAULT_PRODUCTS.find(d => d.id === product.id) : null;
+            const baseMax = defProd ? defProd.max : (product.max || 20);
+            product.max = Math.max(baseMax, product.stock);
+
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
+                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
             }
+            logActivity("Recepción Vitrina", `Recibidos ${added} ${product.unit || 'unid.'} de ${product.name} en vitrina. Stock actual: ${product.stock}/${product.max}`);
         }
         dispatch.status = 'recibido';
-        logActivity("Recepción Vitrina", `Recibidos ${added} de ${product ? product.name : dispatch.productId} en vitrina`);
         
         if (window.SupabaseManager.isConfigured()) {
             window.SupabaseManager.deleteReplenishment(dispatch.uuid);
@@ -1023,7 +1030,7 @@ function confirmReceipt() {
     window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
-    window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina al 100%.", "fa-solid fa-circle-check");
+    window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina actualizada.", "fa-solid fa-circle-check");
 }
 
 function resetToMax() {

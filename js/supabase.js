@@ -366,7 +366,7 @@ async function fetchDebts() {
 async function fetchReplenishments() {
     if (!client) return null;
     try {
-        const { data, error } = await client.from('replenishments').select('*');
+        const { data, error } = await client.from('replenishments').select('*').neq('status', 'recibido');
         if (error) throw error;
         return data.map(r => ({ ...r, productId: r.product_id }));
     } catch (e) {

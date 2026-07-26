@@ -550,6 +550,17 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                         </span>
                     </div>
 
+            const initialQty = amountNeeded > 0 ? amountNeeded : 5;
+
+            card.innerHTML = `
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
+                        <h3 class="product-name" style="font-size: 1rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
+                        <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.15)' : 'rgba(52, 211, 153, 0.12)'}; color: ${item.stock <= item.min ? '#F87171' : '#34D399'}; border: 1px solid ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.3)' : 'rgba(52, 211, 153, 0.3)'};">
+                            En Vitrina: ${item.stock} ${item.unit}
+                        </span>
+                    </div>
+
                     <!-- 3 Indicators Bar (En Vitrina, Vendidos Hoy, Falta Cocinar) -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; background: rgba(0, 0, 0, 0.3); padding: 0.4rem; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.4rem; text-align: center; font-size: 0.7rem;">
                         <div>
@@ -565,29 +576,76 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                             <div style="font-weight: 900; color: ${amountNeeded > 0 ? '#F87171' : 'var(--color-text-muted)'}; font-size: 0.95rem;">${amountNeeded}</div>
                         </div>
                     </div>
+
+                    <!-- Quantity Stepper Controls for Custom Dispatch -->
+                    ${!isDispatched ? `
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: rgba(0,0,0,0.25); padding: 0.35rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 0.68rem; color: var(--color-text-muted); font-weight: 700;">CANTIDAD A ENVIAR:</span>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                <button class="btn-qty-minus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">-</button>
+                                <input type="number" class="input-send-qty" value="${initialQty}" min="1" max="500" style="width: 44px; height: 26px; text-align: center; font-weight: 900; font-size: 0.85rem; border: 1px solid rgba(212,175,55,0.4); border-radius: 6px; background: rgba(0,0,0,0.6); color: var(--color-gold); font-family: monospace;">
+                                <button class="btn-qty-plus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">+</button>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
 
                 <div>
-                    ${amountNeeded === 0 && !isDispatched 
-                        ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: #34D399; padding: 0.4rem; border-radius: var(--radius-md); background: rgba(52, 211, 153, 0.08); border: 1px dashed rgba(52, 211, 153, 0.25);">
-                             <i class="fa-solid fa-circle-check"></i> Vitrina Completa
+                    ${isDispatched 
+                        ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: var(--color-gold); border: 1px dashed var(--color-gold); padding: 0.4rem; border-radius: var(--radius-md); background: rgba(212, 175, 55, 0.08);">
+                             <i class="fa-solid fa-truck-fast"></i> En camino al local (Esperando confirmación)
                            </div>`
-                        : isDispatched 
-                            ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: var(--color-gold); border: 1px dashed var(--color-gold); padding: 0.4rem; border-radius: var(--radius-md); background: rgba(212, 175, 55, 0.08);">
-                                 <i class="fa-solid fa-truck-fast"></i> En camino al local (Esperando confirmación)
-                               </div>`
-                            : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 36px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s;">
-                                 <i class="fa-solid fa-truck-ramp-box"></i>
-                                 ¡YA LO COCINÉ Y LO ENVIÉ!
-                               </button>`
+                        : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 36px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s;">
+                             <i class="fa-solid fa-truck-ramp-box"></i>
+                             <span class="btn-deliver-text">¡ENVIAR ${initialQty} AL LOCAL!</span>
+                           </button>`
                     }
                 </div>
             `;
 
-            if (amountNeeded > 0 && !isDispatched) {
-                card.querySelector('.btn-kitchen-deliver').addEventListener('click', () => {
-                    deliverProduct(item.id);
-                });
+            if (!isDispatched) {
+                const qtyInput = card.querySelector('.input-send-qty');
+                const btnMinus = card.querySelector('.btn-qty-minus');
+                const btnPlus = card.querySelector('.btn-qty-plus');
+                const btnDeliver = card.querySelector('.btn-kitchen-deliver');
+                const deliverText = card.querySelector('.btn-deliver-text');
+
+                const updateBtnText = () => {
+                    let val = parseInt(qtyInput.value, 10);
+                    if (isNaN(val) || val < 1) val = 1;
+                    if (deliverText) {
+                        deliverText.textContent = `¡ENVIAR ${val} AL LOCAL!`;
+                    }
+                };
+
+                if (btnMinus && qtyInput) {
+                    btnMinus.addEventListener('click', () => {
+                        let cur = parseInt(qtyInput.value, 10) || 1;
+                        if (cur > 1) {
+                            qtyInput.value = cur - 1;
+                            updateBtnText();
+                        }
+                    });
+                }
+
+                if (btnPlus && qtyInput) {
+                    btnPlus.addEventListener('click', () => {
+                        let cur = parseInt(qtyInput.value, 10) || 1;
+                        qtyInput.value = cur + 1;
+                        updateBtnText();
+                    });
+                }
+
+                if (qtyInput) {
+                    qtyInput.addEventListener('input', updateBtnText);
+                }
+
+                if (btnDeliver && qtyInput) {
+                    btnDeliver.addEventListener('click', () => {
+                        const sendQty = parseInt(qtyInput.value, 10) || 1;
+                        deliverProduct(item.id, sendQty);
+                    });
+                }
             }
 
             list.appendChild(card);

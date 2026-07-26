@@ -816,15 +816,18 @@ function clearAllSales() {
 // ================= DISPATCH FLOWS (KITCHEN <-> LOCAL) =================
 
 /**
- * Kitchen trigger: Mark items as prepared and sent (status: en_camino)
+ * Trigger product delivery/replenishment dispatch from Kitchen to Vitrina (Sales)
  * @param {string} id Product identifier
+ * @param {number|null} customAmount Custom quantity specified by cook
  */
-function deliverProduct(id) {
+function deliverProduct(id, customAmount = null) {
     const product = products.find(p => p.id === id);
     if (!product) return;
 
-    const amountNeeded = product.max - product.stock;
-    if (amountNeeded <= 0) return;
+    let amountToSend = customAmount !== null ? parseInt(customAmount, 10) : (product.max - product.stock);
+    if (isNaN(amountToSend) || amountToSend <= 0) {
+        amountToSend = Math.max(1, product.max - product.stock);
+    }
 
     triggerHaptic(15);
 
@@ -832,7 +835,7 @@ function deliverProduct(id) {
         uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
         productId: product.id,
         name: product.name,
-        amount: amountNeeded,
+        amount: amountToSend,
         unit: product.unit || 'unid.',
         status: 'en_camino',
         timestamp: new Date().toISOString()
@@ -847,11 +850,12 @@ function deliverProduct(id) {
                 if (recipeItem.name === "Margarina") return ing.id === 'margarina';
                 if (recipeItem.name === "Relleno Carne Mechada") return ing.id === 'carne_mechada';
                 if (recipeItem.name === "Relleno Pollo Desmechado") return ing.id === 'pollo';
-                if (recipeItem.name === "Queso Blanco Rayado") return ing.id === 'queso';
+                if (recipeItem.name === "Relleno Queso Blanco") return ing.id === 'queso';
                 return false;
             });
             if (targetIng) {
-                targetIng.stock = Math.max(0, targetIng.stock - recipeItem.amount);
+                const calculatedDeduction = (recipeItem.amount / (product.max - product.stock || 1)) * amountToSend;
+                targetIng.stock = Math.max(0, targetIng.stock - calculatedDeduction);
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.upsertIngredient(targetIng);
                 }
@@ -874,8 +878,8 @@ function deliverProduct(id) {
     window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
     window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
 
-    window.UIManager.showToast(`🚚 "${product.name}" marcado como Enviado al local.`, "fa-solid fa-paper-plane");
-    logActivity("Despacho Cocina", `Cocinado y enviado ${amountNeeded} ${product.name} a vitrina`);
+    window.UIManager.showToast(`🚚 "${product.name}" (${amountToSend} ${product.unit || 'unid.'}) enviado a vitrina.`, "fa-solid fa-paper-plane");
+    logActivity("Despacho Cocina", `Cocinado y enviado ${amountToSend} ${product.unit || 'unid.'} de ${product.name} a vitrina`);
 }
 
 /**

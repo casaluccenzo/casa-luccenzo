@@ -1968,11 +1968,49 @@ async function loadAndRenderAdminStats() {
 
     // Cache statsSales globally for toggle rendering
     adminStatsSales = statsSales;
-
+    loadAndRenderUsersManagement();
     window.UIManager.renderStats(statsSales, statsExpenses, products);
     window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
     window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
     window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
+}
+
+function loadAndRenderUsersManagement() {
+    systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
+    window.UIManager.renderUsersManagement(
+        systemUsers,
+        (userToEdit) => openUserModal(userToEdit),
+        (userIdToDelete) => deleteUserHandler(userIdToDelete)
+    );
+}
+
+function openUserModal(user = null) {
+    const modal = document.getElementById('user-modal');
+    if (!modal) return;
+
+    document.getElementById('user-modal-title').textContent = user ? '✏️ Editar Usuario' : '➕ Nuevo Usuario';
+    document.getElementById('user-modal-id').value = user ? user.id : '';
+    document.getElementById('user-modal-name').value = user ? (user.name || '') : '';
+    document.getElementById('user-modal-username').value = user ? (user.username || '') : '';
+    document.getElementById('user-modal-password').value = user ? (user.passwordHash || user.password || '') : '';
+    document.getElementById('user-modal-role').value = user ? user.role : 'venta';
+
+    modal.classList.remove('hidden');
+}
+
+function closeUserModal() {
+    const modal = document.getElementById('user-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function deleteUserHandler(id) {
+    systemUsers = systemUsers.filter(u => u.id !== id);
+    window.StorageManager.saveUsers(systemUsers);
+    if (window.SupabaseManager.isConfigured()) {
+        window.SupabaseManager.deleteUser(id);
+    }
+    window.UIManager.showToast("🗑️ Usuario eliminado correctamente.", "fa-solid fa-trash");
+    loadAndRenderUsersManagement();
 }
 
 /**
@@ -2442,13 +2480,16 @@ function updateLockoutUI() {
     }
 }
 
+let systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
+let currentUser = null;
+
 /**
- * Validates PIN input codes and applies corresponding role UI layout
- * @param {string} pin 4 to 8-digit code
- * @param {boolean} isFinalSubmit Whether this is a full submission (Enter key or max length)
- * @returns {boolean} True if PIN matched a role
+ * Validates User & Password input credentials and applies corresponding role UI layout
+ * @param {string} username Username or legacy PIN
+ * @param {string} password Password string
+ * @returns {boolean} True if login successful
  */
-function handlePINInput(pin, isFinalSubmit = false) {
+function handleUserLogin(username, password) {
     const now = Date.now();
     if (now < lockoutUntil) {
         const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
@@ -2458,47 +2499,62 @@ function handlePINInput(pin, isFinalSubmit = false) {
         return false;
     }
 
-    if (pin === pinLocal) {
+    // Refresh users list
+    systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
+    
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+
+    // 1. Direct match by username & password
+    let matchedUser = systemUsers.find(u => 
+        u.username.toLowerCase() === cleanUser && 
+        (u.passwordHash === cleanPass || u.password === cleanPass)
+    );
+
+    // 2. Fallback check by username match (if password typed in username field or legacy PIN)
+    if (!matchedUser) {
+        if (cleanUser === pinLocal || cleanUser === '1111') {
+            matchedUser = systemUsers.find(u => u.role === 'venta') || { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta' };
+        } else if (cleanUser === pinCocina || cleanUser === '2222') {
+            matchedUser = systemUsers.find(u => u.role === 'cocina') || { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina' };
+        } else if (cleanUser === pinAdmin || cleanUser === '070821') {
+            matchedUser = systemUsers.find(u => u.role === 'admin') || { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin' };
+        }
+    }
+
+    if (matchedUser && matchedUser.active !== false) {
         failedPinAttempts = 0;
-        applyUserRole('local');
-        window.UIManager.showToast("🔓 Acceso Local Concedido (Venta).", "fa-solid fa-shop");
-        logActivity("Inicio de Sesión", "Ingreso al perfil Local (Ventas)");
-        return true;
-    } else if (pin === pinCocina) {
-        failedPinAttempts = 0;
-        applyUserRole('cocina');
-        window.UIManager.showToast("🔓 Acceso Cocina Concedido (Producción).", "fa-solid fa-fire-burner");
-        logActivity("Inicio de Sesión", "Ingreso al perfil Cocina");
-        return true;
-    } else if (pin === pinAdmin) {
-        failedPinAttempts = 0;
-        applyUserRole('admin');
-        window.UIManager.showToast("🔓 Acceso Administrador Concedido.", "fa-solid fa-user-shield");
-        logActivity("Inicio de Sesión", "Ingreso al perfil Administrador");
+        currentUser = matchedUser;
+        sessionStorage.setItem('casa_lucenzo_active_user', JSON.stringify(currentUser));
+        
+        const mappedRole = matchedUser.role === 'admin' ? 'admin' : (matchedUser.role === 'cocina' ? 'cocina' : 'local');
+        applyUserRole(mappedRole);
+        
+        window.UIManager.showToast(`🔓 ¡Bienvenido/a, ${matchedUser.name}!`, "fa-solid fa-user-check");
+        logActivity("Inicio de Sesión", `Ingreso de ${matchedUser.name} (${matchedUser.username}) al perfil ${mappedRole.toUpperCase()}`);
         return true;
     } else {
-        // Only count as a failed attempt if this is a final submission or reached 8 digits
-        if (isFinalSubmit || pin.length >= 8) {
-            failedPinAttempts++;
-            triggerHaptic([80, 80]); // Double haptic feedback on error
+        failedPinAttempts++;
+        triggerHaptic([80, 80]);
+
+        if (failedPinAttempts >= 3) {
+            lockoutUntil = Date.now() + 60000;
+            failedPinAttempts = 0;
+            window.UIManager.showToast("⛔ 3 intentos fallidos. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
+            logActivity("Seguridad Alerta", `Intento fallido de inicio de sesión para usuario "${cleanUser}"`);
             
-            if (failedPinAttempts >= 3) {
-                lockoutUntil = Date.now() + 60000; // 60s lockout penalty
-                failedPinAttempts = 0;
-                window.UIManager.showToast("⛔ 3 intentos fallidos. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
-                logActivity("Seguridad Alerta", "Bloqueo de 60s activado por 3 intentos fallidos de PIN");
-                
-                updateLockoutUI();
-                if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
-                lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
-            } else {
-                const remaining = 3 - failedPinAttempts;
-                window.UIManager.showToast(`❌ PIN incorrecto (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
-            }
+            updateLockoutUI();
+            if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
+            lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
+        } else {
+            const remaining = 3 - failedPinAttempts;
+            window.UIManager.showToast(`❌ Usuario o contraseña incorrectos (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
         }
         return false;
     }
 }
+window.handleUserLogin = handleUserLogin;
+window.handlePINInput = (input) => handleUserLogin(input, input);
 
 /**
  * Configures the DOM UI visibility states by active role permissions
@@ -2963,7 +3019,104 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAllDataFromLocalStorage();
     }
 
-    // 5. User roles validation checks
+    // 5. User roles validation checks & Login Form event listeners
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userInput = document.getElementById('login-username-input');
+            const passInput = document.getElementById('login-password-input');
+            const username = userInput ? userInput.value : '';
+            const password = passInput ? passInput.value : '';
+            handleUserLogin(username, password);
+        });
+    }
+
+    const btnTogglePass = document.getElementById('btn-toggle-password');
+    if (btnTogglePass) {
+        btnTogglePass.addEventListener('click', () => {
+            const passInput = document.getElementById('login-password-input');
+            if (passInput) {
+                const isPass = passInput.type === 'password';
+                passInput.type = isPass ? 'text' : 'password';
+                btnTogglePass.innerHTML = isPass ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+            }
+        });
+    }
+
+    const quickUserPills = document.querySelectorAll('.btn-quick-user-pill');
+    quickUserPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            const targetUser = pill.getAttribute('data-user');
+            const userInput = document.getElementById('login-username-input');
+            const passInput = document.getElementById('login-password-input');
+            if (userInput) userInput.value = targetUser;
+            if (passInput) passInput.focus();
+            triggerHaptic(10);
+        });
+    });
+
+    const btnOpenAddUser = document.getElementById('btn-open-add-user-modal');
+    if (btnOpenAddUser) {
+        btnOpenAddUser.addEventListener('click', () => openUserModal());
+    }
+
+    const btnUserModalClose = document.getElementById('user-modal-close');
+    if (btnUserModalClose) {
+        btnUserModalClose.addEventListener('click', closeUserModal);
+    }
+
+    const userForm = document.getElementById('user-form');
+    if (userForm) {
+        userForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('user-modal-id').value;
+            const name = document.getElementById('user-modal-name').value.trim();
+            const username = document.getElementById('user-modal-username').value.trim().toLowerCase();
+            const password = document.getElementById('user-modal-password').value.trim();
+            const role = document.getElementById('user-modal-role').value;
+
+            if (!username || !password) {
+                window.UIManager.showToast("❌ Por favor completa usuario y contraseña.", "fa-solid fa-triangle-exclamation");
+                return;
+            }
+
+            systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
+
+            if (id) {
+                const u = systemUsers.find(x => x.id === id);
+                if (u) {
+                    u.name = name || username;
+                    u.username = username;
+                    u.passwordHash = password;
+                    u.role = role;
+                }
+            } else {
+                if (systemUsers.some(x => x.username === username)) {
+                    window.UIManager.showToast("❌ El nombre de usuario ya existe.", "fa-solid fa-circle-xmark");
+                    return;
+                }
+                const newUser = {
+                    id: 'usr_' + Date.now(),
+                    name: name || username,
+                    username,
+                    passwordHash: password,
+                    role,
+                    active: true
+                };
+                systemUsers.push(newUser);
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.upsertUser(newUser);
+                }
+            }
+
+            window.StorageManager.saveUsers(systemUsers);
+            window.UIManager.showToast("✅ Usuario guardado con éxito.", "fa-solid fa-circle-check");
+            closeUserModal();
+            loadAndRenderUsersManagement();
+        });
+    }
+
     const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
     if (activeRole) {
         applyUserRole(activeRole);

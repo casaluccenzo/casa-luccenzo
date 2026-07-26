@@ -4825,6 +4825,65 @@ function renderCostFinancialResults(products, costInsumos) {
     `;
 }
 
+/**
+ * Renders the users management list in the Admin section
+ * @param {Array} users List of system users
+ * @param {Function} onEdit Callback to edit user
+ * @param {Function} onDelete Callback to delete user
+ */
+function renderUsersManagement(users, onEdit, onDelete) {
+    const container = document.getElementById('users-management-list');
+    if (!container) return;
+
+    if (!users || users.length === 0) {
+        container.innerHTML = `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 0.5rem;">No hay usuarios registrados.</div>`;
+        return;
+    }
+
+    container.innerHTML = users.map(u => {
+        const roleLabel = u.role === 'admin' ? '👑 Admin' : (u.role === 'cocina' ? '👨‍🍳 Cocina' : '🥖 Ventas');
+        const roleColor = u.role === 'admin' ? 'var(--color-gold)' : (u.role === 'cocina' ? '#F97316' : '#3B82F6');
+
+        return `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">
+                <div>
+                    <div style="font-size: 0.78rem; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 0.3rem;">
+                        <span>${u.name || u.username}</span>
+                        <span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(255,255,255,0.1); color: ${roleColor};">${roleLabel}</span>
+                    </div>
+                    <div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">
+                        Usuario: <strong style="color: var(--color-gold);">${u.username}</strong> | Clave: <span>${u.passwordHash || u.password || '••••'}</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.3rem;">
+                    <button class="btn-edit-user" data-id="${u.id}" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(59,130,246,0.2); color: #60A5FA; cursor: pointer; font-size: 0.7rem;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    ${u.username !== 'admin' ? `
+                    <button class="btn-delete-user" data-id="${u.id}" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(239,68,68,0.2); color: #FCA5A5; cursor: pointer; font-size: 0.7rem;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('.btn-edit-user').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const user = users.find(u => u.id === id);
+            if (user && typeof onEdit === 'function') onEdit(user);
+        });
+    });
+
+    container.querySelectorAll('.btn-delete-user').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            if (typeof onDelete === 'function') onDelete(id);
+        });
+    });
+}
+
 window.UIManager = {
     switchView,
     renderSearchBar,
@@ -4862,6 +4921,7 @@ window.UIManager = {
     renderPaymentAndCategoryStats,
     exportDayCloseToPDF,
     renderCostCalculator,
-    renderCostFinancialResults
+    renderCostFinancialResults,
+    renderUsersManagement
 };
 

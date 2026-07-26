@@ -960,28 +960,19 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
 
                             <!-- Right Col: Security PIN & Supabase Configuration -->
                             <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 1rem;">
-                                <!-- PIN Code configuration -->
+                                <!-- User Management Section -->
                                 <div>
-                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
-                                        <i class="fa-solid fa-key"></i> Pines de Acceso de Seguridad
+                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                                        <span><i class="fa-solid fa-users-gear"></i> Usuarios del Sistema</span>
+                                        <button type="button" id="btn-open-add-user-modal" style="font-size: 0.7rem; font-weight: 800; padding: 0.25rem 0.5rem; border-radius: 6px; border: none; background: var(--color-gold); color: var(--color-bg-navy); cursor: pointer;">
+                                            <i class="fa-solid fa-plus"></i> Nuevo Usuario
+                                        </button>
                                     </h4>
-                                    <form id="admin-pines-form" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
-                                            <div>
-                                                <label class="form-label" style="font-size: 9px;">LOCAL (VENTA)</label>
-                                                <input type="text" id="pref-pin-local" required maxlength="8" placeholder="1111" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
-                                            </div>
-                                            <div>
-                                                <label class="form-label" style="font-size: 9px;">COCINA</label>
-                                                <input type="text" id="pref-pin-cocina" required maxlength="8" placeholder="2222" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
-                                            </div>
-                                            <div>
-                                                <label class="form-label" style="font-size: 9px;">ADMIN</label>
-                                                <input type="text" id="pref-pin-admin" required maxlength="8" placeholder="070821" class="form-input" style="height: 32px; font-size: 0.75rem; text-align: center;">
-                                            </div>
-                                        </div>
-                                        <button type="submit" class="btn-form-submit" style="margin-top: 0.5rem; min-height: 32px; font-size: 10px; background-color: var(--color-success); color: white;">Guardar Nuevos Pines</button>
-                                    </form>
+                                    
+                                    <!-- Dynamic Users List Container -->
+                                    <div id="users-management-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto; padding-right: 2px;">
+                                        <!-- Injected dynamically by js/app.js -->
+                                    </div>
                                 </div>
 
                                 <!-- Supabase config -->
@@ -1170,22 +1161,48 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
     <!-- ================= PIN LOGIN OVERLAY ================= -->
     <div id="pin-overlay" class="pin-overlay">
         <div class="pin-content">
-            <!-- 4-digit PIN section -->
+            <!-- User & Password Login Section -->
             <div id="pin-login-section">
                 <div style="text-align: center; margin-bottom: 0.5rem;">
                     <!-- Round logo cropped to hide white corners -->
-                    <div style="margin: 0 auto 1rem; width: 6.5rem; height: 6.5rem; border-radius: 50%; background-image: url('img/logo.jpg'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2.5px solid var(--color-gold); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);"></div>
-                    <h2 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em;">CASA LUCENZO</h2>
-                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.25rem;">Ingresa tu código PIN de acceso</p>
+                    <div style="margin: 0 auto 0.75rem; width: 6rem; height: 6rem; border-radius: 50%; background-image: url('img/logo.jpg'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2.5px solid var(--color-gold); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);"></div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1.2rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em; margin: 0;">CASA LUCENZO</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.2rem;">Inicio de Sesión de Usuarios</p>
                 </div>
-                
-                <div class="pin-input-wrapper">
-                    <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="8" placeholder="••••••••" autocomplete="off" autofocus style="letter-spacing: 0.3em; text-align: center;">
+
+                <!-- Fast User Selector Pills -->
+                <div style="display: flex; gap: 0.4rem; justify-content: center; margin-bottom: 0.75rem;">
+                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(212,175,55,0.4); background: rgba(212,175,55,0.1); color: var(--color-gold); cursor: pointer;">
+                        👑 Admin
+                    </button>
+                    <button type="button" class="btn-quick-user-pill" data-user="vendedora" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                        🥖 Ventas
+                    </button>
+                    <button type="button" class="btn-quick-user-pill" data-user="cocina" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                        👨‍🍳 Cocina
+                    </button>
                 </div>
+
+                <form id="login-form" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Usuario:</label>
+                        <input type="text" id="login-username-input" placeholder="Ej: admin, vendedora" autocomplete="username" autofocus style="width: 100%; box-sizing: border-box; height: 38px; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.5); color: var(--color-white); font-weight: 700; font-size: 0.88rem; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Contraseña:</label>
+                        <div style="position: relative;">
+                            <input type="password" id="login-password-input" placeholder="••••••••" autocomplete="current-password" style="width: 100%; box-sizing: border-box; height: 38px; padding: 0.5rem 2.2rem 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.5); color: var(--color-gold); font-weight: 900; font-size: 0.95rem; outline: none; letter-spacing: 0.15em;">
+                            <button type="button" id="btn-toggle-password" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--color-text-muted); font-size: 0.9rem; cursor: pointer; padding: 4px;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-submit-login" style="height: 42px; margin-top: 0.4rem; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--color-gold) 0%, #B8860B 100%); color: var(--color-bg-navy); font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 4px 15px rgba(212,175,55,0.25);">
+                        <i class="fa-solid fa-key"></i> INGRESAR AL SISTEMA
+                    </button>
+                </form>
                 
-                <p style="font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: 0.35rem;">Ingresa tu PIN de seguridad de 4 a 8 dígitos.</p>
                 <div id="pin-lockout-banner" class="hidden" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #FCA5A5; font-size: 11px; font-weight: 800; text-align: center;">
-                    <!-- Injected dynamically by js/app.js -->
                 </div>
             </div>
 
@@ -1235,6 +1252,41 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     <i class="fa-solid fa-check"></i> AGREGAR A CUENTA
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ================= CREATE / EDIT USER MODAL ================= -->
+    <div id="user-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div style="background: linear-gradient(135deg, #0A1426 0%, #010F20 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-xl); width: 100%; max-width: 380px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                <h3 id="user-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--color-gold); margin: 0;">👤 Usuario del Sistema</h3>
+                <button type="button" id="user-modal-close" style="background: transparent; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer;">&times;</button>
+            </div>
+
+            <form id="user-form" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <input type="hidden" id="user-modal-id">
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE O CARGO A MOSTRAR:</label>
+                    <input type="text" id="user-modal-name" required placeholder="Ej: María (Vendedora)" class="form-input" style="height: 36px; font-size: 0.8rem;">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE DE USUARIO (LOGIN):</label>
+                    <input type="text" id="user-modal-username" required placeholder="Ej: maria" class="form-input" style="height: 36px; font-size: 0.8rem;">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">CONTRASEÑA:</label>
+                    <input type="text" id="user-modal-password" required placeholder="Clave de acceso" class="form-input" style="height: 36px; font-size: 0.85rem; font-weight: 800; color: var(--color-gold);">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">ROL DE ACCESO:</label>
+                    <select id="user-modal-role" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 800;">
+                        <option value="venta">🥖 Ventas (Vitrina, Carrito, Pagos)</option>
+                        <option value="cocina">👨‍🍳 Cocina (Comandas y Despachos)</option>
+                        <option value="admin">👑 Administrador (Control Total)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-form-submit" style="margin-top: 0.5rem; min-height: 40px; font-size: 0.85rem; background-color: var(--color-success); color: white; font-weight: 900;">Guardar Usuario</button>
+            </form>
         </div>
     </div>
 

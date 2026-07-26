@@ -701,6 +701,53 @@ async function upsertIngredient(ing) {
     }
 }
 
+async function fetchUsers() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.from('users').select('*').order('username');
+        if (error) throw error;
+        return data.map(u => ({
+            id: u.id,
+            username: u.username,
+            name: u.name,
+            role: u.role,
+            passwordHash: u.password_hash,
+            active: u.active !== false
+        }));
+    } catch (e) {
+        console.warn("Table users in Supabase not ready or offline fallback:", e);
+        return null;
+    }
+}
+
+async function upsertUser(user) {
+    if (!client) return;
+    try {
+        const payload = {
+            id: user.id || ('usr_' + user.username),
+            username: user.username,
+            name: user.name,
+            role: user.role,
+            password_hash: user.passwordHash || user.password,
+            active: user.active !== false
+        };
+        const { error } = await client.from('users').upsert(payload);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase upsertUser failed:", e);
+    }
+}
+
+async function deleteUser(id) {
+    if (!client) return;
+    try {
+        const { error } = await client.from('users').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase deleteUser failed:", e);
+    }
+}
+
 async function fetchAppConfig() {
     if (!client) return null;
     try {
@@ -1060,6 +1107,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, (p) => onDbChange('debts', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'replenishments' }, (p) => onDbChange('replenishments', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, (p) => onDbChange('ingredients', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => onDbChange('users', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, (p) => onDbChange('app_config', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'active_sessions' }, (p) => onDbChange('active_sessions', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, (p) => onDbChange('activity_logs', p))
@@ -1095,6 +1143,9 @@ window.SupabaseManager = {
     fetchDebts,
     fetchReplenishments,
     fetchIngredients,
+    fetchUsers,
+    upsertUser,
+    deleteUser,
     upsertProduct,
     updateProductStock,
     deleteProduct,

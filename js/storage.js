@@ -28,6 +28,12 @@ const DEFAULT_INGREDIENTS = [
     { id: 'queso', name: 'Queso Blanco (Relleno)', stock: 10.0, unit: 'kg' }
 ];
 
+const DEFAULT_USERS = [
+    { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin', passwordHash: 'Lucenzo2026!', active: true },
+    { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta', passwordHash: 'Ventas2026!', active: true },
+    { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina', passwordHash: 'Cocina2026!', active: true }
+];
+
 const INVENTORY_KEY = 'casa_lucenzo_inventory_modular';
 const SALES_LOG_KEY = 'casa_lucenzo_sales_log';
 const EXPENSES_KEY = 'casa_lucenzo_expenses';
@@ -35,6 +41,7 @@ const DEBTS_KEY = 'casa_lucenzo_debts';
 const REPLENISHMENTS_KEY = 'casa_lucenzo_replenishments';
 const PREFERENCES_KEY = 'casa_lucenzo_preferences';
 const INGREDIENTS_KEY = 'casa_lucenzo_ingredients';
+const USERS_KEY = 'casa_lucenzo_users';
 
 function getProductCategory(p) {
     if (!p) return 'pastelitos';
@@ -318,10 +325,38 @@ function addDeletedSalesUuids(uuids) {
     }
 }
 
+function loadUsers() {
+    try {
+        const saved = localStorage.getItem(USERS_KEY);
+        if (!saved) {
+            localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+            return DEFAULT_USERS;
+        }
+        const parsed = JSON.parse(saved);
+        if (!parsed || parsed.length === 0) {
+            localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+            return DEFAULT_USERS;
+        }
+        return parsed;
+    } catch (e) {
+        console.error("Failed to load users from localStorage", e);
+        return DEFAULT_USERS;
+    }
+}
+
+function saveUsers(users) {
+    try {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    } catch (e) {
+        console.error("Failed to save users to localStorage", e);
+    }
+}
+
 // Expose to window namespace
 window.StorageManager = {
     DEFAULT_PRODUCTS,
     DEFAULT_INGREDIENTS,
+    DEFAULT_USERS,
     DEFAULT_COST_INSUMOS,
     loadProducts,
     saveProducts,
@@ -343,6 +378,8 @@ window.StorageManager = {
     clearReplenishments,
     loadIngredients,
     saveIngredients,
+    loadUsers,
+    saveUsers,
     loadCostInsumos,
     saveCostInsumos,
     loadPreferences,

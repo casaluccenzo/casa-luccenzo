@@ -2782,6 +2782,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                // Check for updates automatically every 30 seconds
+                setInterval(() => {
+                    reg.update().catch(err => console.debug('Periodic SW update check deferred', err));
+                }, 30000);
+
+                // Also check for updates when returning to the tab
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        reg.update().catch(err => console.debug('Tab focus SW update check deferred', err));
+                    }
+                });
+
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     if (installingWorker) {

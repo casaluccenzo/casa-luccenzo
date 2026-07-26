@@ -490,14 +490,14 @@ async function handleCheckoutCart() {
     }
     sessionStorage.removeItem('casa_lucenzo_editing_client_name');
     
-    // Create sales log items for each cart product (repeated rows if quantity > 1, or just separate rows)
+    // Create sales log items for each cart product (as open active account)
     const newSales = [];
     currentCart.forEach(cartItem => {
         for (let i = 0; i < cartItem.quantity; i++) {
             const saleItem = {
                 uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                 productId: cartItem.productId,
-                name: `${cartItem.name} [${clientName}] (Pagado - Efectivo)`, // Store client name and paid status
+                name: `${cartItem.name} [${clientName}]`,
                 price: cartItem.price || 0,
                 timestamp: timestamp
             };
@@ -530,10 +530,29 @@ async function handleCheckoutCart() {
     window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
 
     if (currentRole === 'admin') {
-        window.UIManager.renderStats(salesLog, expenses);
+        loadAndRenderAdminStats();
     }
 
-    window.UIManager.showToast(`💵 Cuenta de "${clientName}" cobrada con éxito.`, "fa-solid fa-circle-check");
+    // Build modal item summary
+    const itemMap = {};
+    newSales.forEach(s => {
+        let baseName = s.name.replace(/\s*\[.*?\]/g, '').trim();
+        if (!itemMap[baseName]) {
+            itemMap[baseName] = { name: baseName, quantity: 0, totalPrice: 0, price: s.price };
+        }
+        itemMap[baseName].quantity += 1;
+        itemMap[baseName].totalPrice += s.price;
+    });
+    const modalItems = Object.values(itemMap);
+
+    // Open Payment Method Modal immediately to allow selecting payment method or leaving as active account
+    if (window.UIManager && window.UIManager.showPaymentMethodModal) {
+        window.UIManager.showPaymentMethodModal(rawName, rawRif, modalItems, timestamp, (method, name, rif) => {
+            markTransactionAsPaid(timestamp, method, name, rif);
+        });
+    } else {
+        window.UIManager.showToast(`📝 Cuenta de "${clientName}" agregada a Cuentas Activas.`, "fa-solid fa-receipt");
+    }
 }
 
 /**

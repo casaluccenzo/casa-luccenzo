@@ -2651,9 +2651,12 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
         <!-- Action Controls -->
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
             <button class="btn-confirm-pos-pay" style="height: 44px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.88rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-success); color: var(--color-bg-navy); width: 100%;">
-                <i class="fa-solid fa-cart-shopping"></i> REGISTRAR PAGO
+                <i class="fa-solid fa-check-double"></i> CONFIRMAR Y REGISTRAR PAGO
             </button>
-            <button class="btn-print-pos-ticket" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); width: 100%;">
+            <button class="btn-keep-active-account" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 800; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: rgba(255,255,255,0.08); color: var(--color-white); width: 100%;">
+                <i class="fa-solid fa-clock-rotate-left"></i> DEJAR COMO CUENTA ACTIVA (CONSUMIENDO)
+            </button>
+            <button class="btn-print-pos-ticket" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 800; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); width: 100%;">
                 <i class="fa-solid fa-print"></i> IMPRIMIR TICKET (80MM/58MM)
             </button>
         </div>
@@ -2671,6 +2674,16 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
     };
 
     modalBody.querySelector('.btn-close-pos-modal').addEventListener('click', closeModal);
+
+    const btnKeepActive = modalBody.querySelector('.btn-keep-active-account');
+    if (btnKeepActive) {
+        btnKeepActive.addEventListener('click', () => {
+            closeModal();
+            if (window.UIManager && window.UIManager.showToast) {
+                window.UIManager.showToast(`📝 Cuenta guardada en Cuentas Activas (Consumiendo).`, "fa-solid fa-user-clock");
+            }
+        });
+    }
 
     const ivaPayCheckbox = modalBody.querySelector('#toggle-pos-pay-iva');
     const ivaPayRows = modalBody.querySelector('#pos-pay-iva-rows');

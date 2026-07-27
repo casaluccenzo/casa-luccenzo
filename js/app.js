@@ -1802,14 +1802,20 @@ async function loadAllDataFromSupabase() {
     }
 
     // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
-    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng] = await Promise.all([
+    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng, supUsers] = await Promise.all([
         window.SupabaseManager.fetchProducts(),
         window.SupabaseManager.fetchSales(),
         window.SupabaseManager.fetchExpenses(),
         window.SupabaseManager.fetchDebts(),
         window.SupabaseManager.fetchReplenishments(),
-        window.SupabaseManager.fetchIngredients()
+        window.SupabaseManager.fetchIngredients(),
+        window.SupabaseManager.fetchUsers()
     ]);
+
+    if (supUsers && supUsers.length > 0) {
+        systemUsers = supUsers;
+        if (window.StorageManager) window.StorageManager.saveUsers(systemUsers);
+    }
 
     // Save and load products (auto-merge missing default products like dulces)
     if (supProducts && supProducts.length > 0) {
@@ -2499,26 +2505,42 @@ function handleUserLogin(username, password) {
         return false;
     }
 
-    // Refresh users list
-    systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
-    
-    const cleanUser = (username || '').trim().toLowerCase();
-    const cleanPass = (password || '').trim();
+    // Always ensure DEFAULT_USERS exist in systemUsers if empty or corrupted
+    let usersList = window.StorageManager ? window.StorageManager.loadUsers() : [];
+    if (!usersList || usersList.length === 0) {
+        usersList = window.StorageManager ? window.StorageManager.DEFAULT_USERS : [];
+        if (window.StorageManager) window.StorageManager.saveUsers(usersList);
+    }
+    systemUsers = usersList;
 
-    // 1. Direct match by username & password
-    let matchedUser = systemUsers.find(u => 
-        u.username.toLowerCase() === cleanUser && 
-        (u.passwordHash === cleanPass || u.password === cleanPass)
+    const rawUser = (username || '').trim();
+    const rawPass = (password || '').trim();
+    const cleanUser = rawUser.toLowerCase();
+    const cleanPass = rawPass;
+
+    let matchedUser = null;
+
+    // A. Check direct match by username and password (case-insensitive username)
+    matchedUser = systemUsers.find(u => 
+        (u.username || '').toLowerCase() === cleanUser && 
+        (u.passwordHash === cleanPass || u.password === cleanPass || u.passwordHash === rawPass)
     );
 
-    // 2. Fallback check by username match (if password typed in username field or legacy PIN)
+    // B. Check legacy PINs or username/password crossovers
     if (!matchedUser) {
-        if (cleanUser === pinLocal || cleanUser === '1111') {
-            matchedUser = systemUsers.find(u => u.role === 'venta') || { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta' };
-        } else if (cleanUser === pinCocina || cleanUser === '2222') {
-            matchedUser = systemUsers.find(u => u.role === 'cocina') || { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina' };
-        } else if (cleanUser === pinAdmin || cleanUser === '070821') {
-            matchedUser = systemUsers.find(u => u.role === 'admin') || { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin' };
+        // Admin PINs or credentials
+        if (cleanUser === 'admin' || cleanUser === '070821' || cleanPass === '070821' || cleanPass.toLowerCase() === 'lucenzo2026!' || cleanPass.toLowerCase() === 'lucenzo2026') {
+            matchedUser = systemUsers.find(u => u.role === 'admin') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'admin');
+        }
+        
+        // Ventas PINs or credentials
+        if (!matchedUser && (cleanUser === 'vendedora' || cleanUser === '1111' || cleanPass === '1111' || cleanPass.toLowerCase() === 'ventas2026!')) {
+            matchedUser = systemUsers.find(u => u.role === 'venta') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'venta');
+        }
+
+        // Cocina PINs or credentials
+        if (!matchedUser && (cleanUser === 'cocina' || cleanUser === '2222' || cleanPass === '2222' || cleanPass.toLowerCase() === 'cocina2026!')) {
+            matchedUser = systemUsers.find(u => u.role === 'cocina') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'cocina');
         }
     }
 

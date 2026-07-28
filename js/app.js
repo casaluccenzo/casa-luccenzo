@@ -1036,7 +1036,8 @@ function confirmReceipt() {
 function resetToMax() {
     triggerHaptic(15);
     products.forEach(p => {
-        if (p.category !== 'bebidas') {
+        const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
+        if (cat === 'pastelitos') {
             p.stock = p.max;
             p.initial_stock = p.max;
             if (window.SupabaseManager.isConfigured()) {
@@ -1046,7 +1047,7 @@ function resetToMax() {
     });
     window.StorageManager.saveProducts(products);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-    window.UIManager.showToast("✨ Vitrina rellenada al máximo.", "fa-solid fa-circle-check");
+    window.UIManager.showToast("✨ Vitrina de pastelitos rellenada al máximo.", "fa-solid fa-circle-check");
 }
 
 // ================= DAILY EXPENSES =================
@@ -1543,15 +1544,17 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
-        // 4. Reset showcase products' stock, keeping max capacity completely untouched and updating initial_stock
+        // 4. Reset showcase products' stock: Pastelitos reset to 0, Packaged items (bebidas, dulces) keep their actual remaining stock
         products.forEach(p => {
-            if (p.category !== 'bebidas') {
+            const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
+            if (cat === 'pastelitos') {
                 p.stock = 0;
                 p.initial_stock = 0;
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.updateProductStock(p.id, 0, p.max, 0);
                 }
             } else {
+                // Keep actual remaining stock for drinks/sweets
                 p.initial_stock = p.stock || 0;
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.updateProductStock(p.id, p.stock, p.max, p.initial_stock);

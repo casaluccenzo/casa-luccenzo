@@ -57,16 +57,12 @@ function getProductCategory(p) {
         return 'empanadas';
     }
 
-    if (p.category && p.category.trim() !== '') {
-        return p.category;
-    }
-
     const sweetKeywords = ['samba', 'cocosette', 'susy', 'savoy', 'pirulin', 'chocolate', 'cricri', 'rikiti', 'dulce', 'galleta', 'caramelo', 'nucita'];
     if (sweetKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
         return 'dulces';
     }
 
-    const beverageKeywords = ['malta', 'refresco', 'jugo', 'agua', 'bebida', 'pepsi', 'coca', 'chinotto', 'hit', '7up', 'nestea'];
+    const beverageKeywords = ['malta', 'refresco', 'jugo', 'agua', 'bebida', 'pepsi', 'coca', 'chinotto', 'hit', '7up', 'nestea', 'nestae'];
     if (beverageKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
         return 'bebidas';
     }
@@ -74,6 +70,10 @@ function getProductCategory(p) {
     const cakeKeywords = ['torta', 'cake', 'pie', 'quesillo', 'marquesa'];
     if (cakeKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
         return 'tortas';
+    }
+
+    if (p.category && p.category.trim() !== '') {
+        return p.category;
     }
 
     return p.category || 'pastelitos';

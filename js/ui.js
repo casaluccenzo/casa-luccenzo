@@ -143,6 +143,7 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange) {
     const categories = [
         { id: 'todos', name: 'Todo' },
         { id: 'pastelitos', name: 'Pastelitos' },
+        { id: 'empanadas', name: 'Empanadas' },
         { id: 'tortas', name: 'Tortas' },
         { id: 'bebidas', name: 'Bebidas' },
         { id: 'dulces', name: 'Dulces' }
@@ -418,19 +419,17 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         }
     });
 
-    // 2. Separate Pastelitos from Bebidas & Dulces
-    const isPastelito = (p) => {
-        const cat = (window.StorageManager && window.StorageManager.getProductCategory) 
-            ? window.StorageManager.getProductCategory(p) 
-            : (p.category || 'pastelitos');
-        return cat === 'pastelitos';
-    };
+    // 2. Separate Pastelitos, Empanadas, and Other products
+    const getCat = (p) => (window.StorageManager && window.StorageManager.getProductCategory) 
+        ? window.StorageManager.getProductCategory(p) 
+        : (p.category || 'pastelitos');
 
-    const pastelitoProducts = products.filter(isPastelito);
-    const otherProducts = products.filter(p => !isPastelito(p));
+    const pastelitoProducts = products.filter(p => getCat(p) === 'pastelitos');
+    const empanadaProducts = products.filter(p => getCat(p) === 'empanadas');
+    const otherProducts = products.filter(p => getCat(p) !== 'pastelitos' && getCat(p) !== 'empanadas');
 
-    // Calculate Top 3 Most Sold Pastelitos
-    const pastelitoSalesList = pastelitoProducts.map(p => ({
+    // Calculate Top 3 Most Sold Pastelitos & Empanadas
+    const pastelitoSalesList = [...pastelitoProducts, ...empanadaProducts].map(p => ({
         ...p,
         soldCount: salesCountByProduct[p.id] || 0
     })).filter(p => p.soldCount > 0)
@@ -447,7 +446,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         top3Html = `
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(212,175,55,0.25); border-radius: 10px; padding: 0.6rem 0.8rem; margin-top: 1.25rem; font-size: 0.78rem;">
                 <div style="font-size: 0.72rem; font-weight: 800; color: var(--color-gold); text-transform: uppercase; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
-                    <i class="fa-solid fa-trophy"></i> Top 3 Pastelitos Más Vendidos Hoy
+                    <i class="fa-solid fa-trophy"></i> Top 3 Productos Más Vendidos Hoy
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between;">
                     ${top3Pastelitos.map((p, idx) => `
@@ -474,21 +473,36 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         `;
     }
 
-    let mainContentHtml = '';
-
-    if (pastelitoProducts.length === 0) {
-        mainContentHtml = `
-            <div class="empty-state">
-                <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
-                <h3 class="empty-state-title">No hay pastelitos registrados</h3>
+    let pastelitosSectionHtml = '';
+    if (pastelitoProducts.length > 0) {
+        pastelitosSectionHtml = `
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.95rem; font-weight: 900; color: var(--color-gold); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                    🥐 Monitoreo de Pastelitos por Sabor
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem;" id="kitchen-pastelitos-list"></div>
             </div>
         `;
-    } else {
-        mainContentHtml = `
-            <p class="kitchen-notice" style="margin-bottom: 0.75rem; font-size: 0.8rem;">
-                📢 Monitoreo de Pastelitos por Sabor: Revisa vitrina, ventas y cantidades a hornear.
-            </p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem;" id="kitchen-pastelitos-list"></div>
+    }
+
+    let empanadasSectionHtml = '';
+    if (empanadaProducts.length > 0) {
+        empanadasSectionHtml = `
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.95rem; font-weight: 900; color: var(--color-gold); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                    🥟 Monitoreo de Empanadas por Sabor
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem;" id="kitchen-empanadas-list"></div>
+            </div>
+        `;
+    }
+
+    if (pastelitoProducts.length === 0 && empanadaProducts.length === 0) {
+        pastelitosSectionHtml = `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <h3 class="empty-state-title">No hay pastelitos ni empanadas registrados</h3>
+            </div>
         `;
     }
 
@@ -525,14 +539,17 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
 
     container.innerHTML = `
         ${dispatchesHtml}
-        ${mainContentHtml}
+        ${pastelitosSectionHtml}
+        ${empanadasSectionHtml}
         ${secondaryContentHtml}
         ${top3Html}
     `;
 
-    const list = document.getElementById('kitchen-pastelitos-list');
-    if (list) {
-        pastelitoProducts.forEach(item => {
+    const renderProductionCards = (targetElementId, itemsList) => {
+        const listEl = document.getElementById(targetElementId);
+        if (!listEl) return;
+
+        itemsList.forEach(item => {
             const soldCount = salesCountByProduct[item.id] || 0;
             const amountNeeded = Math.max(0, item.max - item.stock);
             const isDispatched = pendingDispatches.some(d => d.productId === item.id);
@@ -572,9 +589,9 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: rgba(0,0,0,0.25); padding: 0.35rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                             <span style="font-size: 0.68rem; color: var(--color-text-muted); font-weight: 700;">CANTIDAD A ENVIAR:</span>
                             <div style="display: flex; align-items: center; gap: 0.3rem;">
-                                <button class="btn-qty-minus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">-</button>
+                                <button type="button" class="btn-qty-minus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">-</button>
                                 <input type="number" class="input-send-qty" value="${initialQty}" min="1" max="500" style="width: 44px; height: 26px; text-align: center; font-weight: 900; font-size: 0.85rem; border: 1px solid rgba(212,175,55,0.4); border-radius: 6px; background: rgba(0,0,0,0.6); color: var(--color-gold); font-family: monospace;">
-                                <button class="btn-qty-plus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">+</button>
+                                <button type="button" class="btn-qty-plus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">+</button>
                             </div>
                         </div>
                     ` : ''}
@@ -585,7 +602,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                         ? `<div style="text-align: center; font-size: 0.72rem; font-weight: 800; color: var(--color-gold); border: 1px dashed var(--color-gold); padding: 0.4rem; border-radius: var(--radius-md); background: rgba(212, 175, 55, 0.08);">
                              <i class="fa-solid fa-truck-fast"></i> En camino al local (Esperando confirmación)
                            </div>`
-                        : `<button class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 36px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s;">
+                        : `<button type="button" class="btn-touch btn-kitchen-deliver" title="Enviar al local" style="width: 100%; height: 36px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); transition: transform 0.15s;">
                              <i class="fa-solid fa-truck-ramp-box"></i>
                              <span class="btn-deliver-text">¡ENVIAR ${initialQty} AL LOCAL!</span>
                            </button>`
@@ -638,9 +655,12 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                 }
             }
 
-            list.appendChild(card);
+            listEl.appendChild(card);
         });
-    }
+    };
+
+    renderProductionCards('kitchen-pastelitos-list', pastelitoProducts);
+    renderProductionCards('kitchen-empanadas-list', empanadaProducts);
 
     // Recipe calculator (optional at bottom)
     const neededPastelitosList = pastelitoProducts.filter(p => p.stock < p.max);

@@ -1547,7 +1547,7 @@ async function closeDayAndResetLogs() {
         // 4. Reset showcase products' stock: Pastelitos reset to 0, Packaged items (bebidas, dulces) keep their actual remaining stock
         products.forEach(p => {
             const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
-            if (cat === 'pastelitos') {
+            if (cat === 'pastelitos' || cat === 'empanadas') {
                 p.stock = 0;
                 p.initial_stock = 0;
                 if (window.SupabaseManager.isConfigured()) {

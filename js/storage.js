@@ -45,11 +45,16 @@ const USERS_KEY = 'casa_lucenzo_users';
 
 function getProductCategory(p) {
     if (!p) return 'pastelitos';
-    if (p.category && p.category !== 'pastelitos' && p.category.trim() !== '') {
+    if (p.category && p.category.trim() !== '') {
         return p.category;
     }
     const idLower = (p.id || '').toLowerCase();
     const nameLower = (p.name || '').toLowerCase();
+
+    const empanadaKeywords = ['empanada', 'empanadita'];
+    if (empanadaKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
+        return 'empanadas';
+    }
 
     const sweetKeywords = ['samba', 'cocosette', 'susy', 'savoy', 'pirulin', 'chocolate', 'cricri', 'rikiti', 'dulce', 'galleta', 'caramelo', 'nucita'];
     if (sweetKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {

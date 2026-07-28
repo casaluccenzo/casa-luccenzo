@@ -9,11 +9,10 @@ const DEFAULT_PRODUCTS = [
     { id: 'primavera', name: 'Primavera (Especial)', stock: 8, min: 3, max: 8, unit: 'unid.', price: 1.80, category: 'pastelitos' },
     { id: 'ricota', name: 'Ricota con Tocineta', stock: 8, min: 3, max: 8, unit: 'unid.', price: 1.80, category: 'pastelitos' },
     { id: 'tocineta', name: 'Tocineta con Queso', stock: 12, min: 4, max: 12, unit: 'unid.', price: 1.80, category: 'pastelitos' },
-    { id: 'emp_mechada', name: 'Empanada Carne Mechada', stock: 10, min: 3, max: 15, unit: 'unid.', price: 1.70, category: 'empanadas' },
-    { id: 'emp_pollo', name: 'Empanada Pollo', stock: 10, min: 3, max: 15, unit: 'unid.', price: 1.70, category: 'empanadas' },
-    { id: 'emp_queso', name: 'Empanada Queso', stock: 8, min: 2, max: 12, unit: 'unid.', price: 1.50, category: 'empanadas' },
-    { id: 'emp_molida', name: 'Empanada Carne Molida', stock: 8, min: 2, max: 12, unit: 'unid.', price: 1.70, category: 'empanadas' },
-    { id: 'emp_pabellon', name: 'Empanada Pabellón (Especial)', stock: 6, min: 2, max: 10, unit: 'unid.', price: 2.00, category: 'empanadas' },
+    { id: 'empanada_de_mechada', name: 'Empanada de Mechada', stock: 0, min: 2, max: 2, unit: 'unid.', price: 1.70, category: 'empanadas' },
+    { id: 'empanada_de_pollo', name: 'Empanada de Pollo', stock: 0, min: 2, max: 2, unit: 'unid.', price: 1.70, category: 'empanadas' },
+    { id: 'empanada_de_molida', name: 'Empanada de Molida', stock: 0, min: 2, max: 2, unit: 'unid.', price: 1.70, category: 'empanadas' },
+    { id: 'empanada_de_queso', name: 'Empanada de Queso', stock: 0, min: 2, max: 1, unit: 'unid.', price: 1.70, category: 'empanadas' },
     { id: 'tortas', name: 'Tortas de la Casa', stock: 5, min: 1, max: 5, unit: 'unid.', price: 12.00, category: 'tortas' },
     { id: 'malta', name: 'Malta Retornable', stock: 24, min: 6, max: 24, unit: 'botellas', price: 1.00, category: 'bebidas' },
     { id: 'samba_fresa', name: 'Samba de fresa', stock: 20, min: 5, max: 20, unit: 'unid.', price: 1.06, category: 'dulces' },
@@ -50,15 +49,16 @@ const USERS_KEY = 'casa_lucenzo_users';
 
 function getProductCategory(p) {
     if (!p) return 'pastelitos';
-    if (p.category && p.category.trim() !== '') {
-        return p.category;
-    }
     const idLower = (p.id || '').toLowerCase();
     const nameLower = (p.name || '').toLowerCase();
 
     const empanadaKeywords = ['empanada', 'empanadita'];
     if (empanadaKeywords.some(kw => idLower.includes(kw) || nameLower.includes(kw))) {
         return 'empanadas';
+    }
+
+    if (p.category && p.category.trim() !== '') {
+        return p.category;
     }
 
     const sweetKeywords = ['samba', 'cocosette', 'susy', 'savoy', 'pirulin', 'chocolate', 'cricri', 'rikiti', 'dulce', 'galleta', 'caramelo', 'nucita'];

@@ -24,7 +24,24 @@ BEGIN
 END;
 $$;
 
--- 4. RPC function to verify quick PIN for a user
+-- 4. RPC function for Admin to assign PIN to any target user
+CREATE OR REPLACE FUNCTION public.admin_set_user_pin(p_target_user_id uuid, p_pin text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF p_pin IS NULL OR length(trim(p_pin)) < 4 THEN
+    RAISE EXCEPTION 'El PIN debe tener al menos 4 dígitos.';
+  END IF;
+
+  UPDATE public.profiles
+  SET pin_hash = crypt(trim(p_pin), gen_salt('bf'))
+  WHERE id = p_target_user_id;
+END;
+$$;
+
+-- 5. RPC function to verify quick PIN for a user
 CREATE OR REPLACE FUNCTION public.verify_quick_pin(p_user_id uuid, p_pin text)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -46,9 +63,12 @@ BEGIN
 END;
 $$;
 
--- 5. Restrict permissions so only authenticated users can call these functions
+-- 6. Restrict permissions so only authenticated users can call these functions
 REVOKE ALL ON FUNCTION public.set_quick_pin(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.set_quick_pin(text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.admin_set_user_pin(uuid, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_pin(uuid, text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.verify_quick_pin(uuid, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.verify_quick_pin(uuid, text) TO authenticated;

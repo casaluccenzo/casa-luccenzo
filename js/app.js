@@ -2039,6 +2039,18 @@ function loadAndRenderUsersManagement() {
         (userToEdit) => openUserModal(userToEdit),
         (userIdToDelete) => deleteUserHandler(userIdToDelete)
     );
+
+    const userSelect = document.getElementById('select-admin-target-user');
+    if (userSelect) {
+        if (systemUsers && systemUsers.length > 0) {
+            userSelect.innerHTML = systemUsers.map(u => {
+                const roleLabel = u.role === 'admin' ? 'Admin' : (u.role === 'cocina' ? 'Cocina' : 'Ventas');
+                return `<option value="${u.id}">${u.name || u.username} (${roleLabel})</option>`;
+            }).join('');
+        } else {
+            userSelect.innerHTML = `<option value="">No hay usuarios</option>`;
+        }
+    }
 }
 
 function openUserModal(user = null) {
@@ -2733,6 +2745,7 @@ function applyUserRole(role) {
     if (role === 'local') {
         // Local seller: only Local + Clientes + Fiados + Cambio
         document.getElementById('btn-cocina').classList.add('hidden');
+        btnSettings.classList.add('hidden');
         if (clearSales) clearSales.classList.add('hidden');
         
         // Dynamic numbering for local role
@@ -2751,6 +2764,7 @@ function applyUserRole(role) {
     } else if (role === 'cocina') {
         // Kitchen parents: ONLY Kitchen view. Navigation bar hidden entirely.
         navBar.classList.add('hidden');
+        btnSettings.classList.add('hidden');
         
         window.UIManager.switchView('cocina');
         window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
@@ -3831,15 +3845,29 @@ function initAdminDashboardListeners() {
     bindEditStepper('btn-edit-max-minus', 'btn-edit-max-plus', 'edit-prod-max', 0);
     bindEditStepper('btn-edit-min-minus', 'btn-edit-min-plus', 'edit-prod-min', 0);
 
-    // Quick PIN configuration listener
-    const quickPinForm = document.getElementById('quick-pin-config-form');
-    if (quickPinForm) {
-        quickPinForm.addEventListener('submit', async (e) => {
+    // Admin Quick PIN configuration listener (Admin Authority Only)
+    const adminPinForm = document.getElementById('admin-pin-config-form');
+    if (adminPinForm) {
+        adminPinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             triggerHaptic(15);
 
-            const pinInput = document.getElementById('input-quick-pin');
+            if (currentRole !== 'admin') {
+                if (window.UIManager) window.UIManager.showToast("⛔ Solo el perfil Administrador tiene la potestad de asignar PINs.", "fa-solid fa-lock");
+                return;
+            }
+
+            const targetSelect = document.getElementById('select-admin-target-user');
+            const targetUserId = targetSelect ? targetSelect.value : '';
+            const targetUserName = targetSelect && targetSelect.options[targetSelect.selectedIndex] ? targetSelect.options[targetSelect.selectedIndex].text : 'Usuario';
+            
+            const pinInput = document.getElementById('input-admin-quick-pin');
             const pinVal = (pinInput ? pinInput.value : '').trim();
+
+            if (!targetUserId) {
+                if (window.UIManager) window.UIManager.showToast("⚠️ Selecciona un usuario válido.", "fa-solid fa-user-xmark");
+                return;
+            }
 
             if (!pinVal || pinVal.length !== 4 || !/^\d{4}$/.test(pinVal)) {
                 if (window.UIManager) window.UIManager.showToast("⚠️ El PIN debe ser exactamente de 4 números.", "fa-solid fa-circle-exclamation");
@@ -3847,11 +3875,11 @@ function initAdminDashboardListeners() {
             }
 
             if (window.SupabaseManager && window.SupabaseManager.isConfigured()) {
-                const { success, error } = await window.SupabaseManager.setQuickPin(pinVal);
+                const { success, error } = await window.SupabaseManager.setUserPinByAdmin(targetUserId, pinVal);
                 if (success) {
                     if (pinInput) pinInput.value = '';
-                    if (window.UIManager) window.UIManager.showToast("🔒 ¡PIN de acceso rápido guardado con éxito!", "fa-solid fa-shield-check");
-                    logActivity("Configuración PIN", "El usuario actualizó su PIN de acceso rápido");
+                    if (window.UIManager) window.UIManager.showToast(`🔑 ¡PIN asignado exitosamente a ${targetUserName}!`, "fa-solid fa-shield-check");
+                    logActivity("Configuración PIN", `Admin asignó nuevo PIN a ${targetUserName}`);
                 } else {
                     if (window.UIManager) window.UIManager.showToast(`❌ Error al guardar PIN: ${error ? error.message : 'falló la conexión'}`, "fa-solid fa-circle-xmark");
                 }

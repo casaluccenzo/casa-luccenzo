@@ -796,6 +796,24 @@ async function setQuickPin(pin) {
 }
 
 /**
+ * Sets a quick 4-digit PIN for any user (Admin authority) via RPC
+ * @param {string} targetUserId Target user UUID
+ * @param {string} pin 4-digit PIN string
+ * @returns {object} { success: boolean, error: object }
+ */
+async function setUserPinByAdmin(targetUserId, pin) {
+    if (!client || !targetUserId) return { success: false, error: new Error("Supabase client o ID no configurado.") };
+    try {
+        const { error } = await client.rpc('admin_set_user_pin', { p_target_user_id: targetUserId, p_pin: pin });
+        if (error) throw error;
+        return { success: true, error: null };
+    } catch (e) {
+        console.error("Error setting user PIN by admin in Supabase:", e);
+        return { success: false, error: e };
+    }
+}
+
+/**
  * Verifies a quick PIN for a user via RPC (validated on server)
  * @param {string} userId User UUID
  * @param {string} pin 4-digit PIN string
@@ -1287,6 +1305,7 @@ window.SupabaseManager = {
     getCurrentSession,
     getUserProfile,
     setQuickPin,
+    setUserPinByAdmin,
     verifyQuickPin,
     fetchProfiles,
     upsertProfile,

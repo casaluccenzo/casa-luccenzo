@@ -27,20 +27,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=211">
+    <link rel="stylesheet" href="css/main.css?v=212">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=211"></script>
-    <script src="js/supabase.js?v=211"></script>
-    <script src="js/exchange-rate.js?v=211"></script>
-    <script src="js/export.js?v=211"></script>
-    <script src="js/recipes.js?v=211"></script>
-    <script src="js/audio.js?v=211"></script>
-    <script src="js/share.js?v=211"></script>
-    <script src="js/agent.js?v=211"></script>
-    <script src="js/ui.js?v=211"></script>
-    <script src="js/app.js?v=211"></script>
+    <script src="js/storage.js?v=212"></script>
+    <script src="js/supabase.js?v=212"></script>
+    <script src="js/exchange-rate.js?v=212"></script>
+    <script src="js/export.js?v=212"></script>
+    <script src="js/recipes.js?v=212"></script>
+    <script src="js/audio.js?v=212"></script>
+    <script src="js/share.js?v=212"></script>
+    <script src="js/agent.js?v=212"></script>
+    <script src="js/ui.js?v=212"></script>
+    <script src="js/app.js?v=212"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -985,19 +985,24 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     </div>
                                 </div>
 
-                                <!-- Quick PIN Management Section -->
+                                <!-- Admin Quick PIN Assignment Section (Admin Authority Only) -->
                                 <div style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.75rem;">
                                     <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;">
-                                        <i class="fa-solid fa-key" style="color: var(--color-gold);"></i> Mi PIN de Acceso Rápido
+                                        <i class="fa-solid fa-key" style="color: var(--color-gold);"></i> Asignar PIN de Acceso Rápido (Solo Admin)
                                     </h4>
                                     <p style="font-size: 10px; color: var(--color-text-muted); margin-bottom: 0.5rem;">
-                                        Configura tu PIN personal de 4 dígitos para desbloquear tu sesión rápidamente en este dispositivo.
+                                        Selecciona un usuario y asígnale su PIN personal de 4 dígitos para reactivar sesión rápidamente.
                                     </p>
-                                    <form id="quick-pin-config-form" style="display: flex; gap: 0.5rem; align-items: center;">
-                                        <input type="password" id="input-quick-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="4 dígitos (ej: 4321)" class="form-input" style="height: 34px; font-size: 0.85rem; font-family: var(--font-mono); text-align: center; width: 150px;" required>
-                                        <button type="submit" class="btn-touch" style="min-height: 34px; padding: 0 0.85rem; font-size: 0.75rem; font-weight: 800; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
-                                            <i class="fa-solid fa-floppy-disk"></i> Guardar PIN
-                                        </button>
+                                    <form id="admin-pin-config-form" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <select id="select-admin-target-user" class="form-input" style="height: 34px; font-size: 0.78rem; font-weight: 700; background: rgba(0,0,0,0.4); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); flex: 1;">
+                                                <option value="">Cargando usuarios...</option>
+                                            </select>
+                                            <input type="password" id="input-admin-quick-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="4 dígitos (ej: 4321)" class="form-input" style="height: 34px; font-size: 0.85rem; font-family: var(--font-mono); text-align: center; width: 140px;" required>
+                                            <button type="submit" class="btn-touch" style="min-height: 34px; padding: 0 0.85rem; font-size: 0.75rem; font-weight: 800; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                                                <i class="fa-solid fa-key"></i> Asignar PIN
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
 

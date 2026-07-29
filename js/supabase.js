@@ -707,7 +707,7 @@ async function signInUser(usernameOrEmail, password) {
     if (!client) return { user: null, session: null, profile: null, error: new Error("Supabase client no configurado.") };
     const rawInput = (usernameOrEmail || '').trim();
     const cleanUser = rawInput.toLowerCase();
-    const email = cleanUser.includes('@') ? cleanUser : `${cleanUser}@casalucenzo.local`;
+    const email = cleanUser.includes('@') ? cleanUser : `${cleanUser}@casalucenzo.com`;
 
     try {
         const { data, error } = await client.auth.signInWithPassword({

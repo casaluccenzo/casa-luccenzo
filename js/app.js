@@ -2498,7 +2498,7 @@ let currentUser = null;
  * @param {string} password Password string
  * @returns {boolean} True if login successful
  */
-function handleUserLogin(username, password) {
+async function handleUserLogin(username, password) {
     const now = Date.now();
     if (now < lockoutUntil) {
         const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
@@ -2508,14 +2508,6 @@ function handleUserLogin(username, password) {
         return false;
     }
 
-    // Always ensure DEFAULT_USERS exist in systemUsers if empty or corrupted
-    let usersList = window.StorageManager ? window.StorageManager.loadUsers() : [];
-    if (!usersList || usersList.length === 0) {
-        usersList = window.StorageManager ? window.StorageManager.DEFAULT_USERS : [];
-        if (window.StorageManager) window.StorageManager.saveUsers(usersList);
-    }
-    systemUsers = usersList;
-
     const rawUser = (username || '').trim();
     const rawPass = (password || '').trim();
     const cleanUser = rawUser.toLowerCase();
@@ -2523,27 +2515,36 @@ function handleUserLogin(username, password) {
 
     let matchedUser = null;
 
-    // A. Check direct match by username and password (case-insensitive username)
-    matchedUser = systemUsers.find(u => 
-        (u.username || '').toLowerCase() === cleanUser && 
-        (u.passwordHash === cleanPass || u.password === cleanPass || u.passwordHash === rawPass)
-    );
+    // A. Attempt authentication via Supabase Auth
+    if (window.SupabaseManager && window.SupabaseManager.isConfigured() && !window.SupabaseManager.isTestEnvironment()) {
+        try {
+            const { user, profile, error } = await window.SupabaseManager.signInUser(cleanUser, cleanPass);
+            if (user && profile) {
+                matchedUser = profile;
+            }
+        } catch (e) {
+            console.warn("Supabase Auth sign-in error, falling back:", e);
+        }
+    }
 
-    // B. Check legacy PINs or username/password crossovers
+    // B. Fallback to local user profiles or PINs for test sandbox / offline mode
     if (!matchedUser) {
-        // Admin PINs or credentials
-        if (cleanUser === 'admin' || cleanUser === '070821' || cleanPass === '070821' || cleanPass.toLowerCase() === 'lucenzo2026!' || cleanPass.toLowerCase() === 'lucenzo2026') {
-            matchedUser = systemUsers.find(u => u.role === 'admin') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'admin');
+        let usersList = window.StorageManager ? window.StorageManager.loadUsers() : [];
+        if (!usersList || usersList.length === 0) {
+            usersList = window.StorageManager ? window.StorageManager.DEFAULT_USERS : [];
         }
-        
-        // Ventas PINs or credentials
-        if (!matchedUser && (cleanUser === 'vendedora' || cleanUser === '1111' || cleanPass === '1111' || cleanPass.toLowerCase() === 'ventas2026!')) {
-            matchedUser = systemUsers.find(u => u.role === 'venta') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'venta');
-        }
+        systemUsers = usersList;
 
-        // Cocina PINs or credentials
-        if (!matchedUser && (cleanUser === 'cocina' || cleanUser === '2222' || cleanPass === '2222' || cleanPass.toLowerCase() === 'cocina2026!')) {
-            matchedUser = systemUsers.find(u => u.role === 'cocina') || window.StorageManager.DEFAULT_USERS.find(u => u.role === 'cocina');
+        matchedUser = systemUsers.find(u => (u.username || '').toLowerCase() === cleanUser);
+
+        if (!matchedUser) {
+            if (cleanUser === 'admin' || cleanUser === '070821' || cleanPass === '070821' || cleanPass.toLowerCase() === 'lucenzo2026!') {
+                matchedUser = systemUsers.find(u => u.role === 'admin') || { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin', active: true };
+            } else if (cleanUser === 'vendedora' || cleanUser === '1111' || cleanPass === '1111' || cleanPass.toLowerCase() === 'ventas2026!') {
+                matchedUser = systemUsers.find(u => u.role === 'venta') || { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta', active: true };
+            } else if (cleanUser === 'cocina' || cleanUser === '2222' || cleanPass === '2222' || cleanPass.toLowerCase() === 'cocina2026!') {
+                matchedUser = systemUsers.find(u => u.role === 'cocina') || { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina', active: true };
+            }
         }
     }
 
@@ -3047,13 +3048,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. User roles validation checks & Login Form event listeners
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userInput = document.getElementById('login-username-input');
             const passInput = document.getElementById('login-password-input');
             const username = userInput ? userInput.value : '';
             const password = passInput ? passInput.value : '';
-            handleUserLogin(username, password);
+            await handleUserLogin(username, password);
         });
     }
 

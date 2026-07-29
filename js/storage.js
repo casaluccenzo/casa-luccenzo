@@ -33,9 +33,9 @@ const DEFAULT_INGREDIENTS = [
 ];
 
 const DEFAULT_USERS = [
-    { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin', passwordHash: 'Lucenzo2026!', active: true },
-    { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta', passwordHash: 'Ventas2026!', active: true },
-    { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina', passwordHash: 'Cocina2026!', active: true }
+    { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin', active: true },
+    { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta', active: true },
+    { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina', active: true }
 ];
 
 const INVENTORY_KEY = 'casa_lucenzo_inventory_modular';

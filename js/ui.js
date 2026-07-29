@@ -4872,7 +4872,7 @@ function renderUsersManagement(users, onEdit, onDelete) {
                         <span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(255,255,255,0.1); color: ${roleColor};">${roleLabel}</span>
                     </div>
                     <div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">
-                        Usuario: <strong style="color: var(--color-gold);">${u.username}</strong> | Clave: <span>${u.passwordHash || u.password || '••••'}</span>
+                        Usuario: <strong style="color: var(--color-gold);">${u.username}</strong> | Autenticación: <span style="color: #34D399;">Supabase Auth (Protegido)</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.3rem;">

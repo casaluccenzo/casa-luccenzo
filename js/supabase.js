@@ -701,6 +701,112 @@ async function upsertIngredient(ing) {
     }
 }
 
+// ================= AUTHENTICATION & PROFILES =================
+
+async function signInUser(usernameOrEmail, password) {
+    if (!client) return { user: null, session: null, profile: null, error: new Error("Supabase client no configurado.") };
+    const rawInput = (usernameOrEmail || '').trim();
+    const cleanUser = rawInput.toLowerCase();
+    const email = cleanUser.includes('@') ? cleanUser : `${cleanUser}@casalucenzo.local`;
+
+    try {
+        const { data, error } = await client.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+
+        if (error) throw error;
+
+        const session = data.session;
+        const user = data.user;
+
+        let profile = await getUserProfile(user.id);
+        if (!profile) {
+            const derivedRole = cleanUser.includes('admin') ? 'admin' : (cleanUser.includes('cocina') ? 'cocina' : 'venta');
+            profile = {
+                id: user.id,
+                username: cleanUser.split('@')[0],
+                name: user.user_metadata?.name || cleanUser.split('@')[0],
+                role: derivedRole,
+                active: true
+            };
+        }
+
+        return { user, session, profile, error: null };
+    } catch (e) {
+        console.warn("Supabase Auth signIn failed:", e);
+        return { user: null, session: null, profile: null, error: e };
+    }
+}
+
+async function signOutUser() {
+    if (!client) return;
+    try {
+        await client.auth.signOut();
+    } catch (e) {
+        console.warn("Supabase auth.signOut warning:", e);
+    }
+}
+
+async function getCurrentSession() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        return data.session;
+    } catch (e) {
+        console.warn("Supabase getSession failed:", e);
+        return null;
+    }
+}
+
+async function getUserProfile(userId) {
+    if (!client || !userId) return null;
+    try {
+        const { data, error } = await client.from('profiles').select('*').eq('id', userId).maybeSingle();
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.warn("Fetch profile failed, checking legacy fallback:", e);
+        return null;
+    }
+}
+
+async function fetchProfiles() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.from('profiles').select('*').order('username');
+        if (error) throw error;
+        return data.map(p => ({
+            id: p.id,
+            username: p.username,
+            name: p.name,
+            role: p.role,
+            active: p.active !== false
+        }));
+    } catch (e) {
+        return await fetchUsers();
+    }
+}
+
+async function upsertProfile(profile) {
+    if (!client) return;
+    try {
+        const payload = {
+            id: profile.id,
+            username: profile.username,
+            name: profile.name,
+            role: profile.role,
+            active: profile.active !== false,
+            updated_at: new Date().toISOString()
+        };
+        const { error } = await client.from('profiles').upsert(payload);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase upsertProfile failed:", e);
+    }
+}
+
 async function fetchUsers() {
     if (!client) return null;
     try {
@@ -711,7 +817,6 @@ async function fetchUsers() {
             username: u.username,
             name: u.name,
             role: u.role,
-            passwordHash: u.password_hash,
             active: u.active !== false
         }));
     } catch (e) {
@@ -728,7 +833,6 @@ async function upsertUser(user) {
             username: user.username,
             name: user.name,
             role: user.role,
-            password_hash: user.passwordHash || user.password,
             active: user.active !== false
         };
         const { error } = await client.from('users').upsert(payload);
@@ -741,8 +845,8 @@ async function upsertUser(user) {
 async function deleteUser(id) {
     if (!client) return;
     try {
-        const { error } = await client.from('users').delete().eq('id', id);
-        if (error) throw error;
+        const { error: err1 } = await client.from('profiles').delete().eq('id', id);
+        const { error: err2 } = await client.from('users').delete().eq('id', id);
     } catch (e) {
         console.error("Supabase deleteUser failed:", e);
     }
@@ -1137,6 +1241,12 @@ window.SupabaseManager = {
     isConfigured,
     isTestEnvironment,
     init,
+    signInUser,
+    signOutUser,
+    getCurrentSession,
+    getUserProfile,
+    fetchProfiles,
+    upsertProfile,
     fetchProducts,
     fetchSales,
     fetchExpenses,

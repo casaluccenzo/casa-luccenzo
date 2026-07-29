@@ -2733,7 +2733,6 @@ function applyUserRole(role) {
     if (role === 'local') {
         // Local seller: only Local + Clientes + Fiados + Cambio
         document.getElementById('btn-cocina').classList.add('hidden');
-        btnSettings.classList.add('hidden');
         if (clearSales) clearSales.classList.add('hidden');
         
         // Dynamic numbering for local role
@@ -2752,7 +2751,6 @@ function applyUserRole(role) {
     } else if (role === 'cocina') {
         // Kitchen parents: ONLY Kitchen view. Navigation bar hidden entirely.
         navBar.classList.add('hidden');
-        btnSettings.classList.add('hidden');
         
         window.UIManager.switchView('cocina');
         window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
@@ -3405,17 +3403,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. Bind configuration modal toggles
     document.getElementById('btn-settings-toggle').addEventListener('click', () => {
         window.UIManager.toggleSettingsModal(true, products, editProductPrompt, deleteProduct);
-        if (currentRole === 'admin') {
-            const tabSummaryBtn = document.getElementById('admin-tab-btn-summary');
-            const panelSummary = document.getElementById('admin-panel-summary');
-            if (tabSummaryBtn && panelSummary) {
-                const tabBtns = document.querySelectorAll('.admin-tab-btn');
-                const panels = document.querySelectorAll('.admin-panel');
-                tabBtns.forEach(b => b.classList.remove('active'));
-                panels.forEach(p => p.classList.remove('active'));
-                tabSummaryBtn.classList.add('active');
-                panelSummary.classList.add('active');
+        
+        const isUserAdmin = currentRole === 'admin';
+        const adminOnlyTabs = ['admin-tab-btn-summary', 'admin-tab-btn-products', 'admin-tab-btn-devices', 'admin-tab-btn-logs', 'admin-tab-btn-costs', 'admin-tab-btn-agent'];
+        adminOnlyTabs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (isUserAdmin) el.classList.remove('hidden');
+                else el.classList.add('hidden');
             }
+        });
+
+        const targetTabId = isUserAdmin ? 'admin-tab-btn-summary' : 'admin-tab-btn-preferences';
+        const targetPanelId = isUserAdmin ? 'admin-panel-summary' : 'admin-panel-preferences';
+
+        const tabBtn = document.getElementById(targetTabId);
+        const panel = document.getElementById(targetPanelId);
+
+        if (tabBtn && panel) {
+            const tabBtns = document.querySelectorAll('.admin-tab-btn');
+            const panels = document.querySelectorAll('.admin-panel');
+            tabBtns.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            tabBtn.classList.add('active');
+            panel.classList.add('active');
+        }
+
+        if (isUserAdmin) {
             loadAndRenderAdminStats();
             loadAndRenderActiveDevices();
         }

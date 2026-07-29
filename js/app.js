@@ -2568,36 +2568,15 @@ async function handleUserLogin(username, password) {
 
     let matchedUser = null;
 
-    // A. Attempt authentication via Supabase Auth
-    if (window.SupabaseManager && window.SupabaseManager.isConfigured() && !window.SupabaseManager.isTestEnvironment()) {
+    // Authentication strictly via Supabase Auth
+    if (window.SupabaseManager && window.SupabaseManager.isConfigured()) {
         try {
             const { user, profile, error } = await window.SupabaseManager.signInUser(cleanUser, cleanPass);
             if (user && profile) {
                 matchedUser = profile;
             }
         } catch (e) {
-            console.warn("Supabase Auth sign-in error, falling back:", e);
-        }
-    }
-
-    // B. Fallback to local user profiles or PINs for test sandbox / offline mode
-    if (!matchedUser) {
-        let usersList = window.StorageManager ? window.StorageManager.loadUsers() : [];
-        if (!usersList || usersList.length === 0) {
-            usersList = window.StorageManager ? window.StorageManager.DEFAULT_USERS : [];
-        }
-        systemUsers = usersList;
-
-        matchedUser = systemUsers.find(u => (u.username || '').toLowerCase() === cleanUser);
-
-        if (!matchedUser) {
-            if (cleanUser === 'admin' || cleanUser === '070821' || cleanPass === '070821' || cleanPass.toLowerCase() === 'lucenzo2026!') {
-                matchedUser = systemUsers.find(u => u.role === 'admin') || { id: 'usr_admin', username: 'admin', name: 'Enzo (Administrador)', role: 'admin', active: true };
-            } else if (cleanUser === 'vendedora' || cleanUser === '1111' || cleanPass === '1111' || cleanPass.toLowerCase() === 'ventas2026!') {
-                matchedUser = systemUsers.find(u => u.role === 'venta') || { id: 'usr_vendedora', username: 'vendedora', name: 'Vendedora POS', role: 'venta', active: true };
-            } else if (cleanUser === 'cocina' || cleanUser === '2222' || cleanPass === '2222' || cleanPass.toLowerCase() === 'cocina2026!') {
-                matchedUser = systemUsers.find(u => u.role === 'cocina') || { id: 'usr_cocina', username: 'cocina', name: 'Equipo de Cocina', role: 'cocina', active: true };
-            }
+            console.warn("Supabase Auth sign-in failed:", e);
         }
     }
 

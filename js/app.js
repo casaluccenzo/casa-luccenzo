@@ -2855,35 +2855,37 @@ async function fetchBcvRate(force = false) {
     if (!useAutoBcv && !force) return;
     try {
         console.log("Fetching official BCV exchange rate...");
-        let newRate = 0;
+        let rate1 = 0;
+        let rate2 = 0;
 
-        // Provider 1: DolarAPI Venezuela
+        // Provider 1: DolarVZLA (returns official rate for next business day)
         try {
-            const res1 = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+            const res1 = await fetch('https://rates.dolarvzla.com/bcv/current.json');
             if (res1.ok) {
                 const data1 = await res1.json();
-                if (data1 && (data1.promedio || data1.monto || data1.precio)) {
-                    newRate = parseFloat(data1.promedio || data1.monto || data1.precio);
+                if (data1 && data1.current && data1.current.usd) {
+                    rate1 = parseFloat(data1.current.usd);
                 }
             }
         } catch(e1) {
-            console.warn("DolarAPI fetch failed, trying secondary provider:", e1);
+            console.warn("DolarVZLA fetch failed:", e1);
         }
 
-        // Provider 2: DolarVZLA
-        if (!newRate || isNaN(newRate) || newRate <= 0) {
-            try {
-                const res2 = await fetch('https://rates.dolarvzla.com/bcv/current.json');
-                if (res2.ok) {
-                    const data2 = await res2.json();
-                    if (data2 && data2.current && data2.current.usd) {
-                        newRate = parseFloat(data2.current.usd);
-                    }
+        // Provider 2: DolarAPI Venezuela
+        try {
+            const res2 = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+            if (res2.ok) {
+                const data2 = await res2.json();
+                if (data2 && (data2.promedio || data2.monto || data2.precio)) {
+                    rate2 = parseFloat(data2.promedio || data2.monto || data2.precio);
                 }
-            } catch(e2) {
-                console.warn("DolarVZLA fetch failed:", e2);
             }
+        } catch(e2) {
+            console.warn("DolarAPI fetch failed:", e2);
         }
+
+        // Pick the newest/highest valid official published rate
+        const newRate = Math.max(rate1 || 0, rate2 || 0);
 
         if (newRate > 0) {
             bcvRate = newRate;

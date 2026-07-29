@@ -33,4 +33,17 @@ assetsToCopy.forEach(asset => {
     }
 });
 
+// Perform environment variable placeholder injection for production www/ build
+const supabaseBuildFile = path.join(destDir, 'js', 'supabase.js');
+if (fs.existsSync(supabaseBuildFile)) {
+    let content = fs.readFileSync(supabaseBuildFile, 'utf8');
+    const envUrl = process.env.SUPABASE_URL || 'https://xttpaqokeyywjaajvjyu.supabase.co';
+    const envKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE';
+
+    content = content.replace('__SUPABASE_URL__', envUrl);
+    content = content.replace('__SUPABASE_ANON_KEY__', envKey);
+    fs.writeFileSync(supabaseBuildFile, content, 'utf8');
+    console.log('🔒 Environment variables injected into www/js/supabase.js');
+}
+
 console.log('✨ Build completed successfully! All assets are ready in www/ folder.');

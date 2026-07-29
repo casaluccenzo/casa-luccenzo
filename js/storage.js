@@ -399,3 +399,7 @@ window.StorageManager = {
     loadLastCloseTime,
     saveLastCloseTime
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = window.StorageManager;
+}

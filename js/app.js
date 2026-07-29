@@ -4015,5 +4015,36 @@ function appendAgentTyping() {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return msgDiv;
 }
+function calculateTotals(sales = [], expenses = []) {
+    const totalSales = sales.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const netCash = Math.max(0, totalSales - totalExpenses);
+    return { totalSales, totalExpenses, netCash };
+}
+window.calculateTotals = calculateTotals;
 
+function validateStockAdjustment(currentStock, changeAmount) {
+    const nextStock = currentStock + changeAmount;
+    if (nextStock < 0) return { allowed: false, newStock: currentStock };
+    return { allowed: true, newStock: nextStock };
+}
+window.validateStockAdjustment = validateStockAdjustment;
 
+function checkRolePermission(role, action) {
+    const rolePermissions = {
+        admin: ['view_stats', 'edit_inventory', 'day_close', 'manage_users', 'view_pos', 'kitchen_dispatch'],
+        venta: ['view_pos', 'register_sale', 'view_debts'],
+        cocina: ['kitchen_dispatch', 'view_recipes', 'confirm_receipt']
+    };
+    return (rolePermissions[role] || []).includes(action);
+}
+window.checkRolePermission = checkRolePermission;
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        handleUserLogin,
+        calculateTotals,
+        validateStockAdjustment,
+        checkRolePermission
+    };
+}

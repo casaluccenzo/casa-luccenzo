@@ -4877,8 +4877,12 @@ function renderUsersManagement(users, onEdit, onDelete) {
     }
 
     container.innerHTML = users.map(u => {
-        const roleLabel = u.role === 'admin' ? '👑 Admin' : (u.role === 'cocina' ? '👨‍🍳 Cocina' : '🥖 Ventas');
-        const roleColor = u.role === 'admin' ? 'var(--color-gold)' : (u.role === 'cocina' ? '#F97316' : '#3B82F6');
+        const roleKey = (u.role || '').toLowerCase();
+        const userKey = (u.username || '').toLowerCase();
+        const isAdmin = roleKey === 'admin' || userKey.includes('admin');
+        const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
+        const roleLabel = isAdmin ? '👑 Admin' : (isCocina ? '👨‍🍳 Cocina' : '🥖 Ventas');
+        const roleColor = isAdmin ? 'var(--color-gold)' : (isCocina ? '#F97316' : '#3B82F6');
 
         return `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">

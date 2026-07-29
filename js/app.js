@@ -2065,8 +2065,13 @@ async function loadAndRenderUsersManagement() {
         const displayUsers = (supabaseProfiles && supabaseProfiles.length > 0) ? supabaseProfiles : systemUsers;
         if (displayUsers && displayUsers.length > 0) {
             userSelect.innerHTML = displayUsers.map(u => {
-                const roleLabel = u.role === 'admin' ? 'Admin' : (u.role === 'cocina' ? 'Cocina' : 'Ventas');
-                return `<option value="${u.id}">${u.name || u.username} (${roleLabel})</option>`;
+                const roleKey = (u.role || '').toLowerCase();
+                const userKey = (u.username || '').toLowerCase();
+                const isAdmin = roleKey === 'admin' || userKey.includes('admin');
+                const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
+                const roleLabel = isAdmin ? 'Admin' : (isCocina ? 'Cocina' : 'Ventas');
+                const displayName = u.name || u.username;
+                return `<option value="${u.id}">${displayName} (${roleLabel})</option>`;
             }).join('');
         } else {
             userSelect.innerHTML = `<option value="">No hay usuarios</option>`;

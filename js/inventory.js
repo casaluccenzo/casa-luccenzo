@@ -1,33 +1,27 @@
 /**
  * Casa Lucenzo - Inventory & Stock Domain Module
- * Handles stock validation, inventory adjustments, and replenishment rules.
+ * Extracted from app.js / ui.js for modular architecture.
  */
 
-const InventoryManager = {
-    /**
-     * Validates if a stock adjustment is allowed and returns the new stock level
-     * @param {number} currentStock Current stock quantity
-     * @param {number} delta Change in stock (+ or -)
-     * @returns {Object} { allowed: boolean, newStock: number }
-     */
-    validateStockAdjustment(currentStock, delta) {
-        const stock = parseInt(currentStock) || 0;
-        const change = parseInt(delta) || 0;
-        const newStock = stock + change;
+function validateStockAdjustment(currentStock, changeAmount) {
+    const stock = parseInt(currentStock) || 0;
+    const change = parseInt(changeAmount) || 0;
+    const nextStock = stock + change;
+    if (nextStock < 0) return { allowed: false, newStock: stock };
+    return { allowed: true, newStock: nextStock };
+}
 
-        if (newStock < 0) {
-            return { allowed: false, newStock: stock };
-        }
-        return { allowed: true, newStock };
-    }
+const InventoryManager = {
+    validateStockAdjustment
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        validateStockAdjustment: InventoryManager.validateStockAdjustment,
+        validateStockAdjustment,
         InventoryManager
     };
 }
 if (typeof window !== 'undefined') {
     window.InventoryManager = InventoryManager;
+    window.validateStockAdjustment = validateStockAdjustment;
 }

@@ -994,7 +994,7 @@ function renderDebts(debts, onRecordPayment) {
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
                 <div>
-                    <span class="client-name" style="font-size: 1.05rem; font-weight: 800; color: var(--color-white);">${debt.clientName}</span>
+                    <span class="client-name" style="font-size: 1.05rem; font-weight: 800; color: var(--color-white);">${escapeHtml(debt.clientName)}</span>
                     <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem;">
                         <i class="fa-regular fa-clock" style="color: var(--color-gold);"></i>
                         <span>${dateDisplay} ${timeDisplay ? `&bull; ${timeDisplay}` : ''}</span>
@@ -1011,7 +1011,7 @@ function renderDebts(debts, onRecordPayment) {
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
                 <div style="font-size: 0.78rem; color: #E2E8F0; flex: 1; min-width: 0;">
                     <i class="fa-solid fa-cookie-bite" style="color: var(--color-gold); margin-right: 0.3rem;"></i>
-                    <strong style="color: var(--color-gold);">Productos:</strong> ${itemsDetail}
+                    <strong style="color: var(--color-gold);">Productos:</strong> ${escapeHtml(itemsDetail)}
                 </div>
                 <div>
                     ${isDebtor 
@@ -1648,8 +1648,8 @@ function renderActivityLogs(logs) {
 
         tr.innerHTML = `
             <td><span class="${badgeClass}">${badgeLabel}</span></td>
-            <td style="font-weight: 700; color: var(--color-white);">${log.action}</td>
-            <td style="color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${log.details || ''}">${log.details || ''}</td>
+            <td style="font-weight: 700; color: var(--color-white);">${escapeHtml(log.action)}</td>
+            <td style="color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(log.details || '')}">${escapeHtml(log.details || '')}</td>
             <td style="text-align: right; color: var(--color-text-muted); font-size: 10px;">${timeStr}</td>
         `;
         tbody.appendChild(tr);
@@ -4888,11 +4888,11 @@ function renderUsersManagement(users, onEdit, onDelete) {
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">
                 <div>
                     <div style="font-size: 0.78rem; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 0.3rem;">
-                        <span>${u.name || u.username}</span>
+                        <span>${escapeHtml(u.name || u.username)}</span>
                         <span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(255,255,255,0.1); color: ${roleColor};">${roleLabel}</span>
                     </div>
                     <div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">
-                        Usuario: <strong style="color: var(--color-gold);">${u.username}</strong> | Autenticación: <span style="color: #34D399;">Supabase Auth (Protegido)</span>
+                        Usuario: <strong style="color: var(--color-gold);">${escapeHtml(u.username)}</strong> | Autenticación: <span style="color: #34D399;">Supabase Auth (Protegido)</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.3rem;">

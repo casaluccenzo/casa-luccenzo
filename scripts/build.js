@@ -37,6 +37,13 @@ assetsToCopy.forEach(asset => {
 const supabaseBuildFile = path.join(destDir, 'js', 'supabase.js');
 if (fs.existsSync(supabaseBuildFile)) {
     let content = fs.readFileSync(supabaseBuildFile, 'utf8');
+
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+    if (isProduction && (!process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_URL)) {
+        console.error('❌ BUILD ERROR: Missing mandatory SUPABASE_ANON_KEY or SUPABASE_URL in production build environment!');
+        process.exit(1);
+    }
+
     const envUrl = process.env.SUPABASE_URL || 'https://xttpaqokeyywjaajvjyu.supabase.co';
     const envKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE';
 

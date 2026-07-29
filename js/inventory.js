@@ -1,7 +1,17 @@
 /**
  * Casa Lucenzo - Inventory & Stock Domain Module
- * Extracted and enhanced for stock calculations and alerts.
+ * Extracted and enhanced for stock calculations, low-stock alerts, and UI badges.
  */
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 function validateStockAdjustment(currentStock, changeAmount) {
     const stock = parseInt(currentStock) || 0;
@@ -19,15 +29,53 @@ function getLowStockItems(items = []) {
     });
 }
 
+function updateLowStockUI(products = [], ingredients = [], userRole = '') {
+    if (typeof document === 'undefined') return;
+
+    const lowProducts = getLowStockItems(products);
+    const lowIngredients = getLowStockItems(ingredients);
+    const totalLowCount = lowProducts.length + lowIngredients.length;
+
+    const badge = document.getElementById('header-lowstock-badge');
+    const countSpan = document.getElementById('header-lowstock-count');
+
+    if (badge && countSpan) {
+        const normalizedRole = (userRole || '').toLowerCase();
+        const canView = normalizedRole === 'admin' || normalizedRole === 'cocina';
+
+        if (canView && totalLowCount > 0) {
+            badge.style.display = 'flex';
+            countSpan.textContent = `${totalLowCount} bajo`;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    const alertBanner = document.getElementById('kitchen-alert-banner');
+    if (alertBanner) {
+        if (totalLowCount > 0) {
+            alertBanner.classList.remove('hidden');
+            alertBanner.innerHTML = `
+                <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> 
+                <span>🚨 ALERTA DE STOCK BAJO: ${totalLowCount} ítem(s) por debajo del mínimo (Vitrina/Ingredientes).</span>
+            `;
+        } else {
+            alertBanner.classList.add('hidden');
+        }
+    }
+}
+
 const InventoryManager = {
     validateStockAdjustment,
-    getLowStockItems
+    getLowStockItems,
+    updateLowStockUI
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         validateStockAdjustment,
         getLowStockItems,
+        updateLowStockUI,
         InventoryManager
     };
 }

@@ -45,7 +45,7 @@ if (fs.existsSync(supabaseBuildFile)) {
     }
 
     const envUrl = process.env.SUPABASE_URL || 'https://xttpaqokeyywjaajvjyu.supabase.co';
-    const envKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE';
+    const envKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
 
     content = content.replace('__SUPABASE_URL__', envUrl);
     content = content.replace('__SUPABASE_ANON_KEY__', envKey);

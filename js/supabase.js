@@ -15,7 +15,7 @@ const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
 function isConfigured() {
     const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
     const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : 'https://xttpaqokeyywjaajvjyu.supabase.co');
-    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE');
+    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX');
     return !!(url && key);
 }
 
@@ -49,7 +49,7 @@ function init() {
     
     const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
     const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : 'https://xttpaqokeyywjaajvjyu.supabase.co');
-    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE');
+    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX');
     
     if (window.supabase) {
         try {

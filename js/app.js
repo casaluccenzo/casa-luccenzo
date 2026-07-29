@@ -1846,8 +1846,16 @@ async function loadAllDataFromSupabase() {
             bcvRateInput.disabled = useAutoBcv;
         }
         if (headerBcvInput) headerBcvInput.value = bcvRate;
+
+        // Auto-fetch updated live BCV rate from official API providers
+        if (useAutoBcv) {
+            fetchBcvRate();
+        }
     } else {
         lastCloseTime = window.StorageManager.loadLastCloseTime();
+        if (useAutoBcv) {
+            fetchBcvRate();
+        }
     }
 
     // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
@@ -2847,38 +2855,61 @@ async function fetchBcvRate(force = false) {
     if (!useAutoBcv && !force) return;
     try {
         console.log("Fetching official BCV exchange rate...");
-        const response = await fetch('https://rates.dolarvzla.com/bcv/current.json');
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.current && data.current.usd) {
-                const newRate = parseFloat(data.current.usd);
-                if (newRate > 0) {
-                    bcvRate = newRate;
-                    window.bcvRate = bcvRate;
-                    useAutoBcv = true;
-                    saveAndSyncBcvConfig();
-                    console.log(`BCV Rate updated successfully: ${bcvRate} Bs.`);
-                    
-                    const bcvRateInput = document.getElementById('pref-bcv-rate');
-                    const autoCheckbox = document.getElementById('pref-bcv-auto');
-                    if (bcvRateInput) {
-                        bcvRateInput.value = bcvRate;
-                        bcvRateInput.disabled = true;
-                    }
-                    if (autoCheckbox) {
-                        autoCheckbox.checked = true;
-                    }
-                    
-                    updateBcvHeaderDisplay();
-                    
-                    // Re-render UI
-                    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-                    window.UIManager.renderCashRegister(salesLog, expenses);
-                    window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
-                    window.UIManager.renderDebts(debts, settleDebtPayment);
-                    window.UIManager.renderQuickConversionTable();
+        let newRate = 0;
+
+        // Provider 1: DolarAPI Venezuela
+        try {
+            const res1 = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+            if (res1.ok) {
+                const data1 = await res1.json();
+                if (data1 && (data1.promedio || data1.monto || data1.precio)) {
+                    newRate = parseFloat(data1.promedio || data1.monto || data1.precio);
                 }
             }
+        } catch(e1) {
+            console.warn("DolarAPI fetch failed, trying secondary provider:", e1);
+        }
+
+        // Provider 2: DolarVZLA
+        if (!newRate || isNaN(newRate) || newRate <= 0) {
+            try {
+                const res2 = await fetch('https://rates.dolarvzla.com/bcv/current.json');
+                if (res2.ok) {
+                    const data2 = await res2.json();
+                    if (data2 && data2.current && data2.current.usd) {
+                        newRate = parseFloat(data2.current.usd);
+                    }
+                }
+            } catch(e2) {
+                console.warn("DolarVZLA fetch failed:", e2);
+            }
+        }
+
+        if (newRate > 0) {
+            bcvRate = newRate;
+            window.bcvRate = bcvRate;
+            useAutoBcv = true;
+            saveAndSyncBcvConfig();
+            console.log(`BCV Rate updated successfully to ${bcvRate} Bs.`);
+
+            const bcvRateInput = document.getElementById('pref-bcv-rate');
+            const autoCheckbox = document.getElementById('pref-bcv-auto');
+            const headerBcvInput = document.getElementById('header-bcv-rate-input');
+            if (bcvRateInput) {
+                bcvRateInput.value = bcvRate;
+                bcvRateInput.disabled = true;
+            }
+            if (headerBcvInput) {
+                headerBcvInput.value = bcvRate;
+            }
+            if (autoCheckbox) {
+                autoCheckbox.checked = true;
+            }
+
+            updateBcvHeaderDisplay();
+
+            // Re-render UI
+            renderAllViews();
         }
     } catch (e) {
         console.error("Failed to fetch BCV rate, using fallback/cached value.", e);

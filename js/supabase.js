@@ -778,6 +778,41 @@ async function getUserProfile(userId) {
     }
 }
 
+/**
+ * Sets a quick 4-digit PIN for the logged-in user via RPC (hashed on server)
+ * @param {string} pin 4-digit PIN string
+ * @returns {object} { success: boolean, error: object }
+ */
+async function setQuickPin(pin) {
+    if (!client) return { success: false, error: new Error("Supabase client no configurado.") };
+    try {
+        const { error } = await client.rpc('set_quick_pin', { p_pin: pin });
+        if (error) throw error;
+        return { success: true, error: null };
+    } catch (e) {
+        console.error("Error setting quick PIN in Supabase:", e);
+        return { success: false, error: e };
+    }
+}
+
+/**
+ * Verifies a quick PIN for a user via RPC (validated on server)
+ * @param {string} userId User UUID
+ * @param {string} pin 4-digit PIN string
+ * @returns {boolean} True if PIN is correct
+ */
+async function verifyQuickPin(userId, pin) {
+    if (!client || !userId || !pin) return false;
+    try {
+        const { data, error } = await client.rpc('verify_quick_pin', { p_user_id: userId, p_pin: pin });
+        if (error) throw error;
+        return data === true;
+    } catch (e) {
+        console.error("Error verifying quick PIN in Supabase:", e);
+        return false;
+    }
+}
+
 async function fetchProfiles() {
     if (!client) return null;
     try {
@@ -1251,6 +1286,8 @@ window.SupabaseManager = {
     signOutUser,
     getCurrentSession,
     getUserProfile,
+    setQuickPin,
+    verifyQuickPin,
     fetchProfiles,
     upsertProfile,
     fetchProducts,

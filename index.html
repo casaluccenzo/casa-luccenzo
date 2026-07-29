@@ -27,20 +27,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=209">
+    <link rel="stylesheet" href="css/main.css?v=210">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=209"></script>
-    <script src="js/supabase.js?v=209"></script>
-    <script src="js/exchange-rate.js?v=209"></script>
-    <script src="js/export.js?v=209"></script>
-    <script src="js/recipes.js?v=209"></script>
-    <script src="js/audio.js?v=209"></script>
-    <script src="js/share.js?v=209"></script>
-    <script src="js/agent.js?v=209"></script>
-    <script src="js/ui.js?v=209"></script>
-    <script src="js/app.js?v=209"></script>
+    <script src="js/storage.js?v=210"></script>
+    <script src="js/supabase.js?v=210"></script>
+    <script src="js/exchange-rate.js?v=210"></script>
+    <script src="js/export.js?v=210"></script>
+    <script src="js/recipes.js?v=210"></script>
+    <script src="js/audio.js?v=210"></script>
+    <script src="js/share.js?v=210"></script>
+    <script src="js/agent.js?v=210"></script>
+    <script src="js/ui.js?v=210"></script>
+    <script src="js/app.js?v=210"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -983,6 +983,22 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     <div id="users-management-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto; padding-right: 2px;">
                                         <!-- Injected dynamically by js/app.js -->
                                     </div>
+                                </div>
+
+                                <!-- Quick PIN Management Section -->
+                                <div style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.75rem;">
+                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;">
+                                        <i class="fa-solid fa-key" style="color: var(--color-gold);"></i> Mi PIN de Acceso Rápido
+                                    </h4>
+                                    <p style="font-size: 10px; color: var(--color-text-muted); margin-bottom: 0.5rem;">
+                                        Configura tu PIN personal de 4 dígitos para desbloquear tu sesión rápidamente en este dispositivo.
+                                    </p>
+                                    <form id="quick-pin-config-form" style="display: flex; gap: 0.5rem; align-items: center;">
+                                        <input type="password" id="input-quick-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="4 dígitos (ej: 4321)" class="form-input" style="height: 34px; font-size: 0.85rem; font-family: var(--font-mono); text-align: center; width: 150px;" required>
+                                        <button type="submit" class="btn-touch" style="min-height: 34px; padding: 0 0.85rem; font-size: 0.75rem; font-weight: 800; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                                            <i class="fa-solid fa-floppy-disk"></i> Guardar PIN
+                                        </button>
+                                    </form>
                                 </div>
 
                                 <!-- Supabase config -->

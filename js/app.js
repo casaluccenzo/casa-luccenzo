@@ -22,12 +22,6 @@ let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: 
 // User access role
 let currentRole = null;
 
-// Customizable security PIN codes
-let pinLocal = localStorage.getItem('casa_lucenzo_pin_local') || '1111';
-let pinCocina = localStorage.getItem('casa_lucenzo_pin_cocina') || '2222';
-let pinAdmin = '070821';
-localStorage.setItem('casa_lucenzo_pin_admin', '070821');
-
 // BCV Exchange Rate state
 let bcvRate = 732.48;
 let useAutoBcv = true;
@@ -2612,7 +2606,80 @@ async function handleUserLogin(username, password) {
     }
 }
 window.handleUserLogin = handleUserLogin;
-window.handlePINInput = (input) => handleUserLogin(input, input);
+
+/**
+ * Handles Quick PIN unlock via Supabase RPC server-side verification
+ * @param {string} pin 4-digit PIN string
+ * @returns {boolean} Success state
+ */
+async function handleQuickPINInput(pin) {
+    const now = Date.now();
+    if (now < lockoutUntil) {
+        const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
+        triggerHaptic([80, 80]);
+        if (window.UIManager) window.UIManager.showToast(`⛔ Sistema bloqueado por seguridad. Espera ${remainingSec}s.`, "fa-solid fa-ban");
+        updateLockoutUI();
+        return false;
+    }
+
+    const pinStr = (pin || '').trim();
+    if (!pinStr) return false;
+
+    let activeUser = currentUser;
+    if (!activeUser) {
+        try {
+            activeUser = JSON.parse(sessionStorage.getItem('casa_lucenzo_active_user') || 'null');
+        } catch(e) {}
+    }
+
+    if (!activeUser || !activeUser.id) {
+        if (window.UIManager) window.UIManager.showToast("⚠️ Primero debes iniciar sesión con correo y contraseña.", "fa-solid fa-lock");
+        return false;
+    }
+
+    let isValid = false;
+    if (window.SupabaseManager && window.SupabaseManager.isConfigured()) {
+        try {
+            isValid = await window.SupabaseManager.verifyQuickPin(activeUser.id, pinStr);
+        } catch (e) {
+            console.error("PIN verification error:", e);
+        }
+    }
+
+    if (isValid) {
+        failedPinAttempts = 0;
+        currentUser = activeUser;
+        const roleKey = (activeUser.role || '').toLowerCase();
+        const userKey = (activeUser.username || '').toLowerCase();
+        const isAdmin = roleKey === 'admin' || userKey.includes('admin');
+        const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
+        const mappedRole = isAdmin ? 'admin' : (isCocina ? 'cocina' : 'local');
+        
+        applyUserRole(mappedRole);
+        if (window.UIManager) window.UIManager.showToast(`🔓 Sesión reactivada (${activeUser.name})`, "fa-solid fa-user-check");
+        logActivity("Desbloqueo PIN", `Reactivación de sesión de ${activeUser.name} vía PIN rápido`);
+        return true;
+    } else {
+        failedPinAttempts++;
+        triggerHaptic([80, 80]);
+
+        if (failedPinAttempts >= 3) {
+            lockoutUntil = Date.now() + 60000;
+            failedPinAttempts = 0;
+            if (window.UIManager) window.UIManager.showToast("⛔ 3 intentos fallidos de PIN. Sistema bloqueado por 60 segundos.", "fa-solid fa-triangle-exclamation");
+            logActivity("Seguridad Alerta", `Intento fallido de PIN para usuario "${activeUser.username || activeUser.name}"`);
+            
+            updateLockoutUI();
+            if (lockoutCountdownInterval) clearInterval(lockoutCountdownInterval);
+            lockoutCountdownInterval = setInterval(updateLockoutUI, 1000);
+        } else {
+            const remaining = 3 - failedPinAttempts;
+            if (window.UIManager) window.UIManager.showToast(`❌ PIN incorrecto (${remaining} intento${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}).`, "fa-solid fa-circle-xmark");
+        }
+        return false;
+    }
+}
+window.handlePINInput = handleQuickPINInput;
 
 /**
  * Configures the DOM UI visibility states by active role permissions
@@ -3749,6 +3816,36 @@ function initAdminDashboardListeners() {
     bindEditStepper('btn-edit-stock-minus', 'btn-edit-stock-plus', 'edit-prod-stock', 0);
     bindEditStepper('btn-edit-max-minus', 'btn-edit-max-plus', 'edit-prod-max', 0);
     bindEditStepper('btn-edit-min-minus', 'btn-edit-min-plus', 'edit-prod-min', 0);
+
+    // Quick PIN configuration listener
+    const quickPinForm = document.getElementById('quick-pin-config-form');
+    if (quickPinForm) {
+        quickPinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            triggerHaptic(15);
+
+            const pinInput = document.getElementById('input-quick-pin');
+            const pinVal = (pinInput ? pinInput.value : '').trim();
+
+            if (!pinVal || pinVal.length !== 4 || !/^\d{4}$/.test(pinVal)) {
+                if (window.UIManager) window.UIManager.showToast("⚠️ El PIN debe ser exactamente de 4 números.", "fa-solid fa-circle-exclamation");
+                return;
+            }
+
+            if (window.SupabaseManager && window.SupabaseManager.isConfigured()) {
+                const { success, error } = await window.SupabaseManager.setQuickPin(pinVal);
+                if (success) {
+                    if (pinInput) pinInput.value = '';
+                    if (window.UIManager) window.UIManager.showToast("🔒 ¡PIN de acceso rápido guardado con éxito!", "fa-solid fa-shield-check");
+                    logActivity("Configuración PIN", "El usuario actualizó su PIN de acceso rápido");
+                } else {
+                    if (window.UIManager) window.UIManager.showToast(`❌ Error al guardar PIN: ${error ? error.message : 'falló la conexión'}`, "fa-solid fa-circle-xmark");
+                }
+            } else {
+                if (window.UIManager) window.UIManager.showToast("⚠️ Conexión con Supabase no disponible para guardar PIN.", "fa-solid fa-wifi");
+            }
+        });
+    }
 
     // Edit Product form submission
     const editProductForm = document.getElementById('edit-product-form');

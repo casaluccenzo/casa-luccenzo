@@ -720,16 +720,22 @@ async function signInUser(usernameOrEmail, password) {
         const session = data.session;
         const user = data.user;
 
+        const emailPrefix = cleanUser.split('@')[0];
+        const derivedRole = (emailPrefix.includes('admin') || cleanUser.includes('admin')) ? 'admin' : ((emailPrefix.includes('cocina') || cleanUser.includes('cocina')) ? 'cocina' : 'venta');
+
         let profile = await getUserProfile(user.id);
         if (!profile) {
-            const derivedRole = cleanUser.includes('admin') ? 'admin' : (cleanUser.includes('cocina') ? 'cocina' : 'venta');
             profile = {
                 id: user.id,
-                username: cleanUser.split('@')[0],
-                name: user.user_metadata?.name || cleanUser.split('@')[0],
+                username: emailPrefix,
+                name: user.user_metadata?.name || (derivedRole === 'admin' ? 'Enzo (Administrador)' : (derivedRole === 'cocina' ? 'Equipo de Cocina' : 'Vendedora POS')),
                 role: derivedRole,
                 active: true
             };
+            await upsertProfile(profile);
+        } else if (profile.role !== derivedRole) {
+            profile.role = derivedRole;
+            await upsertProfile(profile);
         }
 
         return { user, session, profile, error: null };

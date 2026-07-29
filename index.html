@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
-            alert("CRASH DETECTADO:\n" + message + "\nLínea: " + lineno + "\nColumna: " + colno + "\nArchivo: " + source);
+            console.error("CRASH DETECTADO:", message, source, lineno, colno, error);
             return false;
         };
         window.addEventListener('unhandledrejection', function(event) {
-            alert("PROMISE REJECTED:\n" + event.reason);
+            console.warn("PROMISE REJECTED (handled silently):", event ? event.reason : 'unknown');
+            if (event && event.preventDefault) event.preventDefault();
         });
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,18 +24,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=173">
+    <link rel="stylesheet" href="css/main.css?v=201">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=173"></script>
-    <script src="js/supabase.js?v=173"></script>
-    <script src="js/recipes.js?v=173"></script>
-    <script src="js/audio.js?v=173"></script>
-    <script src="js/share.js?v=173"></script>
-    <script src="js/agent.js?v=173"></script>
-    <script src="js/ui.js?v=173"></script>
-    <script src="js/app.js?v=173"></script>
+    <script src="js/storage.js?v=201"></script>
+    <script src="js/supabase.js?v=201"></script>
+    <script src="js/recipes.js?v=201"></script>
+    <script src="js/audio.js?v=201"></script>
+    <script src="js/share.js?v=201"></script>
+    <script src="js/agent.js?v=201"></script>
+    <script src="js/ui.js?v=201"></script>
+    <script src="js/app.js?v=201"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">

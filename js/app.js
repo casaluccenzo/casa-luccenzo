@@ -3747,7 +3747,7 @@ function initAdminDashboardListeners() {
     };
 
     bindEditStepper('btn-edit-stock-minus', 'btn-edit-stock-plus', 'edit-prod-stock', 0);
-    bindEditStepper('btn-edit-max-minus', 'btn-edit-max-plus', 'edit-prod-max', 1);
+    bindEditStepper('btn-edit-max-minus', 'btn-edit-max-plus', 'edit-prod-max', 0);
     bindEditStepper('btn-edit-min-minus', 'btn-edit-min-plus', 'edit-prod-min', 0);
 
     // Edit Product form submission
@@ -3765,7 +3765,8 @@ function initAdminDashboardListeners() {
             const newPrice = parseFloat(document.getElementById('edit-prod-price').value) || 0;
             const newCategory = document.getElementById('edit-prod-category').value;
             const stockVal = parseInt(document.getElementById('edit-prod-stock').value) || 0;
-            const maxVal = parseInt(document.getElementById('edit-prod-max').value) || 1;
+            const maxValRaw = parseInt(document.getElementById('edit-prod-max').value);
+            const maxVal = isNaN(maxValRaw) ? 0 : Math.max(0, maxValRaw);
             const minVal = parseInt(document.getElementById('edit-prod-min').value) || 0;
 
             if (!newName) {
@@ -3783,7 +3784,7 @@ function initAdminDashboardListeners() {
             product.stock = stockVal;
             product.min = minVal;
 
-            if (maxVal !== oldMax && maxVal > 0) {
+            if (maxVal !== oldMax) {
                 product.max = maxVal;
             } else if (stockDiff > 0) {
                 product.max = oldMax + stockDiff;

@@ -267,6 +267,9 @@ function adjustStock(id, amount, event) {
         // Render Cart and Local
         window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        if (window.InventoryManager && window.InventoryManager.updateLowStockUI) {
+            window.InventoryManager.updateLowStockUI(products, ingredients, currentRole);
+        }
     } else if (amount === 1) {
         // Restocking vitrina (standard + button)
         const originalStock = product.stock;
@@ -2128,6 +2131,10 @@ function renderAllViews() {
 
     if (currentRole === 'admin') {
         loadAndRenderAdminStats();
+        updateAdminDashboard();
+    }
+    if (window.InventoryManager && window.InventoryManager.updateLowStockUI) {
+        window.InventoryManager.updateLowStockUI(products, ingredients, currentRole);
     }
 }
 
@@ -2816,13 +2823,53 @@ function applyUserRole(role) {
         if (cambioSpan) cambioSpan.textContent = '6. CAMBIO';
 
         window.UIManager.switchView('admin-dashboard');
+        updateAdminDashboard();
         loadAndRenderAdminStats();
         loadAndRenderActiveDevices();
+    }
+
+    // Refresh Low Stock Alerts for Admin and Kitchen
+    if (window.InventoryManager && window.InventoryManager.updateLowStockUI) {
+        window.InventoryManager.updateLowStockUI(products, ingredients, currentRole);
     }
 
     // Refresh active session on Supabase
     refreshMySession();
 }
+
+async function updateAdminDashboard() {
+    const container = document.getElementById('admin-dashboard-container');
+    if (!container) return;
+
+    if (window.AuthManager && !window.AuthManager.checkRolePermission(currentRole, 'view_stats') && currentRole !== 'admin') {
+        container.innerHTML = `<div style="color: #F87171; padding: 1rem; text-align: center;">Acceso denegado. Vista solo para administradores.</div>`;
+        return;
+    }
+
+    const sales = typeof getTodaySalesLog === 'function' ? getTodaySalesLog() : (salesLog || []);
+    const expensesList = typeof getExpenses === 'function' ? getExpenses() : (expenses || []);
+
+    let previousWeekTotal = null;
+    try {
+        const allSales = (typeof StorageManager !== 'undefined' && StorageManager.loadSalesLog) ? StorageManager.loadSalesLog() : [];
+        const today = new Date();
+        const lastWeek = new Date(today);
+        lastWeek.setDate(today.getDate() - 7);
+        const lastWeekStr = lastWeek.toISOString().slice(0, 10);
+
+        const lastWeekSales = allSales.filter(s => (s.timestamp || '').startsWith(lastWeekStr));
+        if (lastWeekSales.length > 0) {
+            previousWeekTotal = lastWeekSales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+        }
+    } catch(e) {
+        previousWeekTotal = null;
+    }
+
+    if (window.SalesManager && window.SalesManager.renderAdminDashboard) {
+        container.innerHTML = window.SalesManager.renderAdminDashboard(sales, expensesList, previousWeekTotal);
+    }
+}
+window.updateAdminDashboard = updateAdminDashboard;
 
 /**
  * Locks the current role and forces PIN re-entry overlay
@@ -3318,8 +3365,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAdminDash) {
         btnAdminDash.addEventListener('click', () => {
             window.UIManager.switchView('admin-dashboard');
+            updateAdminDashboard();
             loadAndRenderAdminStats();
             loadAndRenderActiveDevices();
+        });
+    }
+
+    const btnRefreshDash = document.getElementById('btn-refresh-dashboard');
+    if (btnRefreshDash) {
+        btnRefreshDash.addEventListener('click', () => {
+            updateAdminDashboard();
+            if (window.UIManager && window.UIManager.showToast) {
+                window.UIManager.showToast('Resumen del día actualizado', 'fa-solid fa-rotate');
+            }
         });
     }
 

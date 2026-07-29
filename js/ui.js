@@ -222,6 +222,35 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
 
+    // Render POS Quick Access Bar (Productos Frecuentes)
+    const quickBarContainer = document.getElementById('pos-quick-items-list');
+    if (quickBarContainer && window.SalesManager && window.SalesManager.getQuickProductsList) {
+        const quickProducts = window.SalesManager.getQuickProductsList(products);
+        if (quickProducts && quickProducts.length > 0) {
+            quickBarContainer.innerHTML = quickProducts.map(p => `
+                <button class="btn-quick-pos-item" data-id="${p.id}" style="padding: 0.35rem 0.65rem; border-radius: 8px; border: 1px solid var(--color-gold); background: rgba(243, 198, 63, 0.15); color: #FFF; font-weight: 800; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-plus-circle" style="color: var(--color-gold);"></i> ${escapeHtml(p.name)} ($${(p.price || 0).toFixed(2)})
+                </button>
+            `).join('');
+
+            quickBarContainer.querySelectorAll('.btn-quick-pos-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const productId = btn.getAttribute('data-id');
+                    const targetProduct = products.find(p => p.id === productId);
+                    if (targetProduct) {
+                        const activeAddToCart = window.handleAddToCart || ((product) => {
+                            if (window.SalesManager && window.SalesManager.addToCart) {
+                                window.currentCart = window.SalesManager.addToCart(window.currentCart || [], product);
+                                window.UIManager.renderActiveCart(window.currentCart, window.handleAddToCart, window.handleRemoveFromCart, window.handleClearCart, window.handleCheckoutCart);
+                            }
+                        });
+                        activeAddToCart(targetProduct);
+                    }
+                });
+            });
+        }
+    }
+
     // Render vitrina header summary stats
     const statsContainer = document.getElementById('vitrina-summary-stats');
     if (statsContainer) {

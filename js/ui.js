@@ -296,11 +296,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         card.innerHTML = `
             <div class="product-info">
                 <div class="product-header-row">
-                    <h3 class="product-name" title="${product.name}">${product.name}</h3>
+                    <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
                     ${alertBadge}
                 </div>
                 <p class="product-stock-desc">
-                    Quedan: <span class="${stockStyle}">${product.stock}</span> de ${product.max} ${product.unit} 
+                    Quedan: <span class="${stockStyle}">${product.stock}</span> de ${product.max} ${escapeHtml(product.unit)} 
                     <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
                         $${(product.price || 0).toFixed(2)} 
                         <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>
@@ -578,9 +578,9 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
             card.innerHTML = `
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
-                        <h3 class="product-name" style="font-size: 1rem; font-weight: 800; color: var(--color-white); margin: 0;">${item.name}</h3>
+                        <h3 class="product-name" style="font-size: 1rem; font-weight: 800; color: var(--color-white); margin: 0;">${escapeHtml(item.name)}</h3>
                         <span style="font-size: 10px; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; background: ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.15)' : 'rgba(52, 211, 153, 0.12)'}; color: ${item.stock <= item.min ? '#F87171' : '#34D399'}; border: 1px solid ${item.stock <= item.min ? 'rgba(248, 113, 113, 0.3)' : 'rgba(52, 211, 153, 0.3)'};">
-                            En Vitrina: ${item.stock} ${item.unit}
+                            En Vitrina: ${item.stock} ${escapeHtml(item.unit)}
                         </span>
                     </div>
 
@@ -878,7 +878,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
         item.innerHTML = `
             <div class="history-item-desc" style="flex: 1; min-width: 0;">
                 <span class="history-item-title" style="font-weight: 800; color: var(--color-gold);">
-                    ${group.clientName} <span style="font-weight: normal; color: var(--color-white); font-size: 0.75rem;">(${itemsSummary})</span>
+                    ${escapeHtml(group.clientName)} <span style="font-weight: normal; color: var(--color-white); font-size: 0.75rem;">(${escapeHtml(itemsSummary)})</span>
                 </span>
                 <span class="history-item-time">
                     ${timeStr} &bull; Total: $${group.total.toFixed(2)} 
@@ -937,7 +937,7 @@ function renderExpenses(expenses, onRemove) {
         const row = document.createElement('div');
         row.className = 'expense-item';
         row.innerHTML = `
-            <span class="expense-desc">${exp.description}</span>
+            <span class="expense-desc">${escapeHtml(exp.description)}</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span class="expense-amount">-$${exp.amount.toFixed(2)} <span style="font-size: 0.625rem; opacity: 0.75; margin-left: 0.125rem;">(Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)})</span></span>
                 <button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>
@@ -1231,9 +1231,9 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
 
         item.innerHTML = `
             <div class="settings-product-info">
-                <span class="settings-product-name" title="${p.name}">${p.name}</span>
+                <span class="settings-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
                 <span class="settings-product-details">
-                    Precio: $${(p.price || 0).toFixed(2)} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${p.unit}
+                    Precio: $${(p.price || 0).toFixed(2)} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${escapeHtml(p.unit)}
                 </span>
             </div>
             <div class="settings-actions">
@@ -1718,7 +1718,7 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                 ${cart.map(item => `
                     <div class="cart-item-row">
                         <div class="cart-item-details">
-                            <span class="cart-item-title">${item.name}</span>
+                            <span class="cart-item-title">${escapeHtml(item.name)}</span>
                             <span class="cart-item-sub">
                                 $${(item.price || 0).toFixed(2)} &bull; Sub: $${((item.price || 0) * item.quantity).toFixed(2)}
                             </span>
@@ -1886,7 +1886,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
     modalBody.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem; margin-bottom: 0.5rem;">
             <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fa-solid fa-utensils"></i> ${tableName}
+                <i class="fa-solid fa-utensils"></i> ${escapeHtml(tableName)}
             </h3>
             <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 4px; ${isOccupied ? 'background: rgba(212,175,55,0.15); border: 1px solid var(--color-gold); color: var(--color-gold);' : 'background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--color-text-muted);'}">
                 ${isOccupied ? 'Ocupada' : 'Libre'}

@@ -1,6 +1,6 @@
 /**
  * Casa Lucenzo - Sales & Revenue Domain Module
- * Extracted and enhanced for domain calculations and executive dashboard.
+ * Extracted and enhanced for domain calculations, executive dashboard, and POS quick shortcuts.
  */
 
 function escapeHtml(str) {
@@ -22,6 +22,18 @@ function calculateTotals(sales = [], expenses = []) {
         totalExpenses: Number(totalExpenses.toFixed(2)),
         netCash: Number(netCash.toFixed(2))
     };
+}
+
+function addToCart(cart = [], product) {
+    if (!product || !product.id) return cart;
+    const newCart = [...cart];
+    const index = newCart.findIndex(item => item.id === product.id || item.productId === product.id);
+    if (index >= 0) {
+        newCart[index] = { ...newCart[index], qty: (newCart[index].qty || newCart[index].quantity || 1) + 1 };
+    } else {
+        newCart.push({ ...product, productId: product.id, qty: 1, quantity: 1 });
+    }
+    return newCart;
 }
 
 function getTopProductOfDay(sales = []) {
@@ -50,6 +62,35 @@ function compareSalesVsPreviousWeek(currentTotal, previousTotal) {
         pctChange: Number(pct.toFixed(1)),
         label: `${symbol} ${Math.abs(pct).toFixed(1)}% vs. semana pasada`
     };
+}
+
+function loadQuickPOSSelection() {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const saved = localStorage.getItem('casa_lucenzo_quick_pos_items');
+            if (saved) return JSON.parse(saved);
+        }
+    } catch(e) {}
+    return null;
+}
+
+function saveQuickPOSSelection(selectedIds = []) {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('casa_lucenzo_quick_pos_items', JSON.stringify(selectedIds));
+        }
+    } catch(e) {}
+}
+
+function getQuickProductsList(products = []) {
+    if (!products || products.length === 0) return [];
+    const savedIds = loadQuickPOSSelection();
+    if (savedIds && Array.isArray(savedIds) && savedIds.length > 0) {
+        const filtered = products.filter(p => savedIds.includes(p.id));
+        if (filtered.length > 0) return filtered;
+    }
+    // Default top 4 products
+    return products.slice(0, 4);
 }
 
 function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = null) {
@@ -135,16 +176,24 @@ function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = nul
 
 const SalesManager = {
     calculateTotals,
+    addToCart,
     getTopProductOfDay,
     compareSalesVsPreviousWeek,
+    loadQuickPOSSelection,
+    saveQuickPOSSelection,
+    getQuickProductsList,
     renderAdminDashboard
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         calculateTotals,
+        addToCart,
         getTopProductOfDay,
         compareSalesVsPreviousWeek,
+        loadQuickPOSSelection,
+        saveQuickPOSSelection,
+        getQuickProductsList,
         renderAdminDashboard,
         SalesManager
     };

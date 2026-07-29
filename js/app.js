@@ -2616,6 +2616,7 @@ async function handleUserLogin(username, password) {
         failedPinAttempts = 0;
         currentUser = matchedUser;
         sessionStorage.setItem('casa_lucenzo_active_user', JSON.stringify(currentUser));
+        localStorage.setItem('casa_lucenzo_active_user', JSON.stringify(currentUser));
         
         const mappedRole = matchedUser.role === 'admin' ? 'admin' : (matchedUser.role === 'cocina' ? 'cocina' : 'local');
         applyUserRole(mappedRole);
@@ -2666,7 +2667,7 @@ async function handleQuickPINInput(pin) {
     let activeUser = currentUser;
     if (!activeUser) {
         try {
-            activeUser = JSON.parse(sessionStorage.getItem('casa_lucenzo_active_user') || 'null');
+            activeUser = JSON.parse(sessionStorage.getItem('casa_lucenzo_active_user') || localStorage.getItem('casa_lucenzo_active_user') || 'null');
         } catch(e) {}
     }
 

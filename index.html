@@ -24,18 +24,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=201">
+    <link rel="stylesheet" href="css/main.css?v=202">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=201"></script>
-    <script src="js/supabase.js?v=201"></script>
-    <script src="js/recipes.js?v=201"></script>
-    <script src="js/audio.js?v=201"></script>
-    <script src="js/share.js?v=201"></script>
-    <script src="js/agent.js?v=201"></script>
-    <script src="js/ui.js?v=201"></script>
-    <script src="js/app.js?v=201"></script>
+    <script src="js/storage.js?v=202"></script>
+    <script src="js/supabase.js?v=202"></script>
+    <script src="js/recipes.js?v=202"></script>
+    <script src="js/audio.js?v=202"></script>
+    <script src="js/share.js?v=202"></script>
+    <script src="js/agent.js?v=202"></script>
+    <script src="js/ui.js?v=202"></script>
+    <script src="js/app.js?v=202"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">
@@ -74,6 +74,10 @@
                         <div id="header-cash-badge" style="display: flex; align-items: center; gap: 0.35rem; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 6px; padding: 2px 8px; color: var(--color-success); font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Caja Estimada (Hoy)">
                             <i class="fa-solid fa-cash-register" style="font-size: 10px;"></i>
                             <span id="header-cash-val">$0.00</span>
+                        </div>
+                        <div id="header-offline-badge" style="display: none; align-items: center; gap: 0.35rem; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.5); border-radius: 6px; padding: 2px 8px; color: #FBBF24; font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Operaciones pendientes de sincronizar">
+                            <i class="fa-solid fa-wifi-slash" style="font-size: 10px;"></i>
+                            <span id="header-offline-count">0 pend.</span>
                         </div>
                     </div>
                 </div>

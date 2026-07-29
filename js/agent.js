@@ -201,8 +201,6 @@ class AgentManager {
     }
 
     async callGeminiAPI(query, context) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.geminiApiKey}`;
-
         const { products = [], salesLog = [], expenses = [], bcvRate = 1 } = context;
         const totalSales = salesLog.reduce((s, x) => s + (x.price || 0), 0);
         const totalExpenses = expenses.reduce((s, x) => s + (x.amount || 0), 0);
@@ -220,11 +218,32 @@ DATOS EN TIEMPO REAL DEL NEGOCIO:
 
 Responde directamente a la consulta del usuario usando emojis, negritas y listas.`;
 
+        const fullPrompt = `${systemPrompt}\n\nConsulta del usuario: ${query}`;
+
+        // 1. Try Vercel Serverless Function first (/api/gemini)
+        try {
+            const apiRes = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: fullPrompt, apiKey: this.geminiApiKey })
+            });
+            if (apiRes.ok) {
+                const data = await apiRes.json();
+                if (data && data.text) return { text: data.text };
+            }
+        } catch (e) {
+            console.warn("Serverless /api/gemini endpoint unreachable, using client API fallback:", e);
+        }
+
+        // 2. Client-side fallback if user configured a client key in localStorage
+        if (!this.geminiApiKey) return null;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.geminiApiKey}`;
         const payload = {
             contents: [
                 {
                     role: "user",
-                    parts: [{ text: `${systemPrompt}\n\nConsulta del usuario: ${query}` }]
+                    parts: [{ text: fullPrompt }]
                 }
             ]
         };

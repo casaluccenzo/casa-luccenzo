@@ -14,6 +14,22 @@ function parseUTCTimestamp(timestampStr) {
 window.parseUTCTimestamp = parseUTCTimestamp;
 
 /**
+ * Safely escapes HTML special characters to prevent XSS injection
+ * @param {string} str Input string
+ * @returns {string} Escaped HTML string
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
+/**
  * Switch view tabs in the header and toggle main sections
  * @param {string} view 'local' or 'cocina' or 'fiados'
  */

@@ -63,6 +63,7 @@ function addToOfflineQueue(actionType, payload) {
         const queue = getOfflineQueue();
         queue.push({ id: Date.now() + '_' + Math.random().toString(36).substring(2,6), actionType, payload, createdAt: new Date().toISOString() });
         localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+        if (typeof updateOfflineStatusUI === 'function') updateOfflineStatusUI();
     } catch(e) {
         console.error("Self-Healing Queue: Failed to save offline item", e);
     }
@@ -70,7 +71,10 @@ function addToOfflineQueue(actionType, payload) {
 
 async function processOfflineQueue() {
     const queue = getOfflineQueue();
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+        if (typeof updateOfflineStatusUI === 'function') updateOfflineStatusUI();
+        return;
+    }
     if (!window.SupabaseManager.isConfigured()) return;
 
     console.log(`Self-Healing: Processing ${queue.length} offline queued items...`);
@@ -90,6 +94,7 @@ async function processOfflineQueue() {
         }
     }
     localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    if (typeof updateOfflineStatusUI === 'function') updateOfflineStatusUI();
 }
 
 function sanitizeDataIntegrity(log) {
@@ -107,6 +112,34 @@ function sanitizeDataIntegrity(log) {
     });
 }
 
+function updateOfflineStatusUI() {
+    const badge = document.getElementById('header-offline-badge');
+    const countSpan = document.getElementById('header-offline-count');
+    if (!badge || !countSpan) return;
+
+    const queue = getOfflineQueue();
+    const count = queue.length;
+    const isOnline = navigator.onLine;
+
+    if (!isOnline || count > 0) {
+        badge.style.display = 'flex';
+        if (!isOnline) {
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            badge.style.color = '#F87171';
+            countSpan.textContent = count > 0 ? `⚡ Sin Conexión (${count})` : '⚡ Sin Conexión';
+        } else {
+            badge.style.background = 'rgba(245, 158, 11, 0.18)';
+            badge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+            badge.style.color = '#FBBF24';
+            countSpan.textContent = `⚡ ${count} pend.`;
+        }
+    } else {
+        badge.style.display = 'none';
+    }
+}
+window.updateOfflineStatusUI = updateOfflineStatusUI;
+
 function initSelfHealingSentinel() {
     // Intercept unhandled errors & promise rejections to prevent crashing UI
     window.addEventListener('error', (event) => {
@@ -119,18 +152,27 @@ function initSelfHealingSentinel() {
         if (event && event.preventDefault) event.preventDefault();
     });
 
-    // Online heartbeat listener to flush offline queue as soon as internet returns
+    // Online/offline status listeners
     window.addEventListener('online', () => {
         console.log("Network online detected. Triggering Self-Healing Queue sync...");
+        updateOfflineStatusUI();
         processOfflineQueue();
+    });
+
+    window.addEventListener('offline', () => {
+        console.log("Network offline detected.");
+        updateOfflineStatusUI();
     });
 
     // Periodic background check every 20 seconds
     setInterval(() => {
+        updateOfflineStatusUI();
         if (navigator.onLine) {
             processOfflineQueue();
         }
     }, 20000);
+
+    setTimeout(updateOfflineStatusUI, 1000);
 }
 
 // Call Self-Healing Sentinel initialization immediately
@@ -571,6 +613,8 @@ function handleUndoSale(timestamp) {
         salesLog = salesLog.filter(s => s.timestamp !== timestamp);
         window.StorageManager.saveSalesLog(salesLog);
         window.StorageManager.saveProducts(products);
+
+        logActivity("Reversión de Venta", `Revertida cuenta del horario ${new Date(timestamp).toLocaleTimeString()} (${matchingSales.length} ítems devueltos a stock)`);
 
         // Refresh all views
         renderAllViews();
@@ -1210,6 +1254,8 @@ function settleDebtPayment(uuid) {
 
     window.StorageManager.saveDebts(debts);
     window.StorageManager.saveSalesLog(salesLog);
+
+    logActivity("Abono de Deuda", `Cliente ${client.clientName} abonó $${paymentAmount.toFixed(2)}. Restante: $${client.amount.toFixed(2)}`);
 
     if (window.SupabaseManager.isConfigured()) {
         window.SupabaseManager.upsertDebt(client);

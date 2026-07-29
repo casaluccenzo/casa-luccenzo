@@ -16,7 +16,10 @@ global.logActivity = () => {};
 global.applyUserRole = () => {};
 global.updateLockoutUI = () => {};
 
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin } = require('../js/app.js');
+const { calculateTotals } = require('../js/sales.js');
+const { validateStockAdjustment } = require('../js/inventory.js');
+const { checkRolePermission } = require('../js/auth.js');
+const { handleUserLogin } = require('../js/app.js');
 
 function assert(condition, message) {
     if (!condition) {

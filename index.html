@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
     <script>
+        if (typeof Sentry !== 'undefined' && Sentry.init) {
+            try {
+                Sentry.init({
+                    dsn: '__SENTRY_DSN__',
+                    environment: 'production',
+                    tracesSampleRate: 0.1
+                });
+            } catch (e) {
+                console.warn('Sentry init skipped:', e.message);
+            }
+        }
         window.onerror = function(message, source, lineno, colno, error) {
             console.error("CRASH DETECTADO:", message, source, lineno, colno, error);
             if (typeof Sentry !== 'undefined' && Sentry.captureException && error) Sentry.captureException(error);
@@ -27,20 +38,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="css/main.css?v=217">
+    <link rel="stylesheet" href="css/main.css?v=218">
     
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/storage.js?v=217"></script>
-    <script src="js/supabase.js?v=217"></script>
-    <script src="js/exchange-rate.js?v=217"></script>
-    <script src="js/export.js?v=217"></script>
-    <script src="js/recipes.js?v=217"></script>
-    <script src="js/audio.js?v=217"></script>
-    <script src="js/share.js?v=217"></script>
-    <script src="js/agent.js?v=217"></script>
-    <script src="js/ui.js?v=217"></script>
-    <script src="js/app.js?v=217"></script>
+    <script src="js/storage.js?v=218"></script>
+    <script src="js/supabase.js?v=218"></script>
+    <script src="js/exchange-rate.js?v=218"></script>
+    <script src="js/export.js?v=218"></script>
+    <script src="js/auth.js?v=218"></script>
+    <script src="js/sales.js?v=218"></script>
+    <script src="js/inventory.js?v=218"></script>
+    <script src="js/pin-management.js?v=218"></script>
+    <script src="js/recipes.js?v=218"></script>
+    <script src="js/audio.js?v=218"></script>
+    <script src="js/share.js?v=218"></script>
+    <script src="js/agent.js?v=218"></script>
+    <script src="js/ui.js?v=218"></script>
+    <script src="js/app.js?v=218"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="manifest.json" onerror="this.onerror=null;">

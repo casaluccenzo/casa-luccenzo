@@ -1,6 +1,6 @@
 /**
  * Casa Lucenzo - Inventory & Stock Domain Module
- * Extracted from app.js / ui.js for modular architecture.
+ * Extracted and enhanced for stock calculations and alerts.
  */
 
 function validateStockAdjustment(currentStock, changeAmount) {
@@ -11,13 +11,23 @@ function validateStockAdjustment(currentStock, changeAmount) {
     return { allowed: true, newStock: nextStock };
 }
 
+function getLowStockItems(items = []) {
+    return (items || []).filter(item => {
+        const stock = parseInt(item.stock) || 0;
+        const min = parseInt(item.min || item.stock_min) || 0;
+        return stock <= min;
+    });
+}
+
 const InventoryManager = {
-    validateStockAdjustment
+    validateStockAdjustment,
+    getLowStockItems
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         validateStockAdjustment,
+        getLowStockItems,
         InventoryManager
     };
 }

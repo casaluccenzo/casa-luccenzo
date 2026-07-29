@@ -2277,8 +2277,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             window.UIManager.renderQuickConversionTable();
         }
     } else if (tableName === 'active_sessions') {
-        const { eventType, new: newRow, old: oldRow } = payload;
-        const targetId = eventType === 'DELETE' ? oldRow.device_id : newRow.device_id;
+        const targetId = eventType === 'DELETE' ? (oldRow ? oldRow.device_id : null) : (newRow ? newRow.device_id : null);
         
         if (targetId === myDeviceId) {
             if (eventType === 'DELETE' || (newRow && newRow.is_blocked)) {

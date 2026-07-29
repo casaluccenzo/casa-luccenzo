@@ -801,10 +801,31 @@ async function setQuickPin(pin) {
  * @param {string} pin 4-digit PIN string
  * @returns {object} { success: boolean, error: object }
  */
-async function setUserPinByAdmin(targetUserId, pin) {
-    if (!client || !targetUserId) return { success: false, error: new Error("Supabase client o ID no configurado.") };
+async function setUserPinByAdmin(targetUserIdOrUsername, pin) {
+    if (!client || !targetUserIdOrUsername) return { success: false, error: new Error("Supabase client o usuario no especificado.") };
     try {
-        const { error } = await client.rpc('admin_set_user_pin', { p_target_user_id: targetUserId, p_pin: pin });
+        let uuid = targetUserIdOrUsername;
+        
+        // If target is not a valid UUID format (e.g. "usr_admin", "admin", "vendedora")
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+        if (!isUuid) {
+            const targetUsername = uuid.replace(/^usr_/, '').toLowerCase();
+            const { data: profile, error: profErr } = await client.from('profiles').select('id').eq('username', targetUsername).maybeSingle();
+            if (profile && profile.id) {
+                uuid = profile.id;
+            } else {
+                // Fallback query by ILIKE in case username casing differs
+                const { data: profList } = await client.from('profiles').select('id, username');
+                const matched = (profList || []).find(p => (p.username || '').toLowerCase() === targetUsername);
+                if (matched && matched.id) {
+                    uuid = matched.id;
+                } else {
+                    throw new Error(`No se encontró el perfil en Supabase para el usuario "${targetUsername}".`);
+                }
+            }
+        }
+
+        const { error } = await client.rpc('admin_set_user_pin', { p_target_user_id: uuid, p_pin: pin });
         if (error) throw error;
         return { success: true, error: null };
     } catch (e) {

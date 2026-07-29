@@ -2032,8 +2032,28 @@ async function loadAndRenderAdminStats() {
     window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
 }
 
-function loadAndRenderUsersManagement() {
+async function loadAndRenderUsersManagement() {
     systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
+    
+    let supabaseProfiles = null;
+    if (window.SupabaseManager && window.SupabaseManager.isConfigured() && navigator.onLine) {
+        try {
+            supabaseProfiles = await window.SupabaseManager.fetchProfiles();
+        } catch (e) {
+            console.error("Failed to fetch Supabase profiles:", e);
+        }
+    }
+
+    if (supabaseProfiles && Array.isArray(supabaseProfiles) && supabaseProfiles.length > 0) {
+        systemUsers.forEach(u => {
+            const cleanUser = (u.username || '').toLowerCase();
+            const match = supabaseProfiles.find(p => (p.username || '').toLowerCase() === cleanUser);
+            if (match && match.id) {
+                u.id = match.id;
+            }
+        });
+    }
+
     window.UIManager.renderUsersManagement(
         systemUsers,
         (userToEdit) => openUserModal(userToEdit),
@@ -2042,8 +2062,9 @@ function loadAndRenderUsersManagement() {
 
     const userSelect = document.getElementById('select-admin-target-user');
     if (userSelect) {
-        if (systemUsers && systemUsers.length > 0) {
-            userSelect.innerHTML = systemUsers.map(u => {
+        const displayUsers = (supabaseProfiles && supabaseProfiles.length > 0) ? supabaseProfiles : systemUsers;
+        if (displayUsers && displayUsers.length > 0) {
+            userSelect.innerHTML = displayUsers.map(u => {
                 const roleLabel = u.role === 'admin' ? 'Admin' : (u.role === 'cocina' ? 'Cocina' : 'Ventas');
                 return `<option value="${u.id}">${u.name || u.username} (${roleLabel})</option>`;
             }).join('');

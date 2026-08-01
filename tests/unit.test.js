@@ -70,7 +70,46 @@ async function verifyLegacyLoginRejections() {
     }
 }
 
-verifyLegacyLoginRejections().then(() => {
+const waWebhookHandler = require('../api/whatsapp-webhook.js');
+
+function createMockReqRes(method, query = {}, body = {}) {
+    let statusCode = 200;
+    let responseData = null;
+    return {
+        req: { method, query, body },
+        res: {
+            status(code) { statusCode = code; return this; },
+            send(data) { responseData = data; return this; },
+            json(data) { responseData = data; return this; },
+            getStatusCode() { return statusCode; },
+            getData() { return responseData; }
+        }
+    };
+}
+
+async function verifyWhatsAppBot() {
+    // 1. Handshake verification
+    const { req: r1, res: res1 } = createMockReqRes('GET', { 'hub.mode': 'subscribe', 'hub.verify_token': 'casa_lucenzo_wa_token', 'hub.challenge': '5551212' });
+    await waWebhookHandler(r1, res1);
+    assert(res1.getStatusCode() === 200 && res1.getData() === '5551212', "REAL WhatsApp Bot: GET handshake verification returns 200 OK with challenge");
+
+    // 2. Unauthorized sender rejection
+    const { req: r2, res: res2 } = createMockReqRes('POST', {}, { entry: [{ changes: [{ value: { messages: [{ from: '19999999999', type: 'text', text: { body: 'hack' } }] } }] }] });
+    await waWebhookHandler(r2, res2);
+    assert(res2.getData()?.status === 'unauthorized_sender', "REAL WhatsApp Bot: Unauthorized phone number correctly blocked");
+
+    // 3. Stock add command
+    const { req: r3, res: res3 } = createMockReqRes('POST', {}, { entry: [{ changes: [{ value: { contacts: [{ profile: { name: 'Admin' } }], messages: [{ from: '584141234567', type: 'text', text: { body: 'Cárgame 30 pastelitos de queso' } }] } }] }] });
+    await waWebhookHandler(r3, res3);
+    assert(res3.getData()?.status === 'success' && res3.getData()?.intent === 'add_stock', "REAL WhatsApp Bot: Stock add command correctly extracted intent 'add_stock'");
+
+    // 4. Sales query command
+    const { req: r4, res: res4 } = createMockReqRes('POST', {}, { entry: [{ changes: [{ value: { contacts: [{ profile: { name: 'Admin' } }], messages: [{ from: '584141234567', type: 'text', text: { body: '¿Cuánto llevamos vendido hoy?' } }] } }] }] });
+    await waWebhookHandler(r4, res4);
+    assert(res4.getData()?.status === 'success' && res4.getData()?.intent === 'query_sales', "REAL WhatsApp Bot: Sales query command correctly extracted intent 'query_sales'");
+}
+
+verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => {
     console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
 }).catch(err => {
     console.error("❌ Test runner error:", err);

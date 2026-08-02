@@ -431,7 +431,7 @@ async function downloadAndTranscribeAudio(audioId) {
  */
 async function sendWhatsAppMessage(recipientPhone, textBody) {
     const waToken = process.env.WHATSAPP_API_TOKEN;
-    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '100000000000000';
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1244705252057836';
 
     if (!waToken) {
         console.log(`📱 [SIMULATED WHATSAPP OUTGOING TO +${recipientPhone}]:\n${textBody}`);

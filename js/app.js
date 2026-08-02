@@ -2926,8 +2926,11 @@ function getDeviceName() {
  * Register or refresh current active session on Supabase
  */
 async function refreshMySession() {
-    if (window.SupabaseManager.isConfigured() && navigator.onLine) {
-        await window.SupabaseManager.registerSession(myDeviceId, getDeviceName(), currentRole || 'local');
+    // active_sessions RLS only grants access to authenticated users -- an
+    // anonymous visitor (no currentRole yet) always gets rejected, so don't
+    // even try until someone's actually logged in.
+    if (currentRole && window.SupabaseManager.isConfigured() && navigator.onLine) {
+        await window.SupabaseManager.registerSession(myDeviceId, getDeviceName(), currentRole);
     }
 }
 

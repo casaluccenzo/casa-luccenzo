@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 // Helper to normalize text (remove accents/diacritics and lower-case)
 function normalizeText(str) {
     if (!str) return '';
@@ -11,6 +13,36 @@ function normalizeText(str) {
 function normalizePhone(phone) {
     if (!phone) return '';
     return String(phone).replace(/[^0-9]/g, '');
+}
+
+// Read raw body buffer from request
+function getRawBody(req) {
+    return new Promise((resolve, reject) => {
+        if (req.rawBody) return resolve(req.rawBody);
+        if (Buffer.isBuffer(req.body)) return resolve(req.body);
+        if (typeof req.body === 'string') return resolve(Buffer.from(req.body, 'utf8'));
+        const chunks = [];
+        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', (err) => reject(err));
+    });
+}
+
+// Verify Meta HMAC-SHA256 signature
+function verifyMetaSignature(rawBodyBuffer, signatureHeader, appSecret) {
+    if (!signatureHeader || !appSecret) return false;
+    try {
+        const hmac = crypto.createHmac('sha256', appSecret).update(rawBodyBuffer).digest('hex');
+        const expected = `sha256=${hmac}`;
+        const expectedBuffer = Buffer.from(expected);
+        const signatureBuffer = Buffer.from(signatureHeader);
+        if (expectedBuffer.length !== signatureBuffer.length) {
+            return false;
+        }
+        return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
+    } catch (e) {
+        return false;
+    }
 }
 
 // Default product catalog fallback for Naming & Matching
@@ -92,7 +124,14 @@ class SupabaseRest {
 /**
  * Main Vercel Serverless Function Endpoint: /api/whatsapp-webhook
  */
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
+    // ----------------------------------------------------
+    // 0. Safety Check: Bot Disabled by Default (HTTP 503)
+    // ----------------------------------------------------
+    if (process.env.WHATSAPP_BOT_ENABLED !== 'true') {
+        return res.status(503).json({ error: 'WhatsApp Bot is currently disabled (WHATSAPP_BOT_ENABLED !== true)' });
+    }
+
     // ----------------------------------------------------
     // 1. GET Request: Meta Webhook Handshake Verification
     // ----------------------------------------------------
@@ -101,7 +140,11 @@ module.exports = async (req, res) => {
         const token = req.query['hub.verify_token'];
         const challenge = req.query['hub.challenge'];
 
-        const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN || 'casa_lucenzo_wa_token';
+        const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN;
+        if (!expectedToken) {
+            console.error('❌ Missing required environment variable: WHATSAPP_VERIFY_TOKEN');
+            return res.status(500).json({ error: 'Server misconfiguration: WHATSAPP_VERIFY_TOKEN missing' });
+        }
 
         if (mode === 'subscribe' && token === expectedToken) {
             console.log('✅ WhatsApp Webhook Verified Successfully!');
@@ -120,8 +163,24 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const body = req.body || {};
-        
+        const rawBodyBuffer = await getRawBody(req);
+        const signatureHeader = req.headers['x-hub-signature-256'];
+        const appSecret = process.env.WHATSAPP_APP_SECRET;
+
+        if (!appSecret) {
+            console.error('❌ Missing required environment variable: WHATSAPP_APP_SECRET');
+            return res.status(500).json({ error: 'Server misconfiguration: WHATSAPP_APP_SECRET missing' });
+        }
+
+        // Verify Meta HMAC-SHA256 signature
+        if (!verifyMetaSignature(rawBodyBuffer, signatureHeader, appSecret)) {
+            console.warn('❌ WhatsApp Webhook Signature Verification Failed: Invalid X-Hub-Signature-256');
+            return res.status(403).json({ error: 'Invalid request signature' });
+        }
+
+        const rawBodyStr = rawBodyBuffer.toString('utf8');
+        const body = rawBodyStr ? JSON.parse(rawBodyStr) : {};
+
         // Extract incoming message payload from Meta Graph API structure
         const entry = body.entry?.[0];
         const changes = entry?.changes?.[0];
@@ -133,14 +192,19 @@ module.exports = async (req, res) => {
             return res.status(200).json({ status: 'event_ignored_no_message' });
         }
 
-        const rawFrom = message.from; // Phone number e.g. 56967979763
+        const rawFrom = message.from;
         const normalizedFrom = normalizePhone(rawFrom);
-        const senderName = contact?.profile?.name || 'Gustavo';
+        const senderName = contact?.profile?.name || 'Administrador';
 
         // ----------------------------------------------------
         // 3. Security Authorization Check (Phone Whitelist)
         // ----------------------------------------------------
-        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE || '56967979763,56936274015,584141234567,584241234567';
+        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE;
+        if (!adminPhonesEnv) {
+            console.error('❌ Missing required environment variable: WHATSAPP_ADMIN_PHONE');
+            return res.status(500).json({ error: 'Server misconfiguration: WHATSAPP_ADMIN_PHONE missing' });
+        }
+
         const allowedPhones = adminPhonesEnv.split(',').map(p => normalizePhone(p));
 
         const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -193,7 +257,7 @@ module.exports = async (req, res) => {
         }
 
         let salesSummaryText = 'No hay ventas registradas hoy todavía.';
-        let topProductsText = 'Sin datos de productos más vendidos hoy.';
+        let topProductsText = 'Sin datos de ventas aún.';
         let totalSalesUsd = 0;
         let salesCount = 0;
 
@@ -204,18 +268,16 @@ module.exports = async (req, res) => {
             salesCount = todaySales.length;
             totalSalesUsd = todaySales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
 
-            // Compute Top Products Sold Today
             const counts = {};
             todaySales.forEach(s => {
                 const name = s.product_name || 'Producto';
                 counts[name] = (counts[name] || 0) + (parseInt(s.quantity, 10) || 1);
             });
 
-            const sortedProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-            if (sortedProducts.length > 0) {
-                topProductsText = sortedProducts.map(([name, qty], idx) => `${idx + 1}. ${name}: ${qty} unidades`).join('\n');
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            if (sorted.length > 0) {
+                topProductsText = sorted.map(([name, qty], idx) => `${idx + 1}. ${name}: ${qty} unidades`).join('\n');
             }
-
             salesSummaryText = `Ventas Totales Hoy: $${totalSalesUsd.toFixed(2)} USD | Operaciones: ${salesCount}`;
         }
 
@@ -298,6 +360,13 @@ module.exports = async (req, res) => {
     }
 };
 
+module.exports = handler;
+module.exports.config = {
+    api: {
+        bodyParser: false
+    }
+};
+
 function findBestMatchingProduct(userText, catalog) {
     if (!catalog || catalog.length === 0) return null;
     const text = normalizeText(userText);
@@ -331,38 +400,12 @@ function findBestMatchingProduct(userText, catalog) {
  */
 async function processIntentWithGemini(userText, catalog, liveContext) {
     const apiKey = process.env.GEMINI_API_KEY;
-    const textNorm = normalizeText(userText);
-
     const catalogText = catalog.map(p => `- ID: "${p.id}" | Nombre: "${p.name}" | Categoría: "${p.category}" | Stock Actual en Vitrina: ${p.stock}`).join('\n');
 
     if (!apiKey) {
-        let intent = 'conversational_chat';
-        let matchedProduct = findBestMatchingProduct(userText, catalog);
-        let targetId = matchedProduct ? matchedProduct.id : catalog[0]?.id;
-        let qty = 10;
-        let reply = `🤖 ¡Hola ${liveContext.senderName}! En el momento este es el estado del negocio:\n\n📊 ${liveContext.salesSummaryText}\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`;
-
-        if (textNorm.includes('carga') || textNorm.includes('agrega') || textNorm.includes('mas') || textNorm.includes('pastelito') || textNorm.includes('empanada') || textNorm.includes('stock')) {
-            intent = 'add_stock';
-            const numMatch = userText.match(/\d+/);
-            if (numMatch) qty = parseInt(numMatch[0], 10);
-            reply = `✅ ¡Entendido! He actualizado +${qty} unidades de *${matchedProduct ? matchedProduct.name : 'Producto'}* al inventario de la panadería.`;
-        } else if (textNorm.includes('cuanto') || textNorm.includes('caja') || textNorm.includes('venta') || textNorm.includes('resumen')) {
-            intent = 'query_sales';
-            reply = `📊 *Resumen de Caja del Día (Casa Lucenzo)*\n\n💰 *Ventas Totales:* $${liveContext.totalSalesUsd.toFixed(2)} USD\n🛒 *Transacciones:* ${liveContext.salesCount} operaciones\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`;
-        } else if (textNorm.includes('tasa') || textNorm.includes('bcv') || textNorm.includes('dolar')) {
-            intent = 'update_bcv';
-            const rateMatch = userText.match(/\d+[\.,]?\d*/);
-            const rate = rateMatch ? parseFloat(rateMatch[0].replace(',', '.')) : 36.5;
-            reply = `💵 ¡Tasa BCV actualizada a ${rate.toFixed(2)} VES/USD! Los precios en la vitrina han sido recargados.`;
-        }
-
         return {
-            intent,
-            target_product_id: targetId,
-            product_name: matchedProduct ? matchedProduct.name : '',
-            quantity: qty,
-            reply_text: reply
+            intent: 'conversational_chat',
+            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
         };
     }
 
@@ -397,26 +440,18 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO SIN BLOQUES MARKDOWN:
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [
-                    {
-                        role: "user",
-                        parts: [{ text: `${systemPrompt}\n\nMensaje de ${liveContext.senderName}: "${userText}"` }]
-                    }
-                ]
+                contents: [{
+                    role: "user",
+                    parts: [{ text: `${systemPrompt}\n\nMensaje de ${liveContext.senderName}: "${userText}"` }]
+                }]
             })
         });
-
-        if (!resp.ok) {
-            throw new Error(`Gemini API Error ${resp.status}`);
-        }
-
+        if (!resp.ok) throw new Error(`Gemini API Error ${resp.status}`);
         const data = await resp.json();
         let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        
         return JSON.parse(rawText);
     } catch (e) {
-        console.warn('⚠️ Gemini intent extraction error:', e.message);
         return {
             intent: 'conversational_chat',
             reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
@@ -428,7 +463,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO SIN BLOQUES MARKDOWN:
  * Transcribe Audio Voice Notes using Gemini 2.5 Flash Multimodal
  */
 async function downloadAndTranscribeAudio(audioId) {
-    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSPLALoWZBEoGyF0S2pTGt0P2xJVCqZBZC0JHjbs9ymHiEcOZBVvvdL7lu1ckFcDZAWZC2FDfXC5DGDzNHqxR89wnWQffiqexys9dtyBn6ZATnCdlN9xOgzZAVf5Wh34DdEtTzQIRsNZBmpGjKFHQYXZBnm7UkPuaVfXP2bOLBMcbZB2BpYGZAy4zwQZDZD';
+    const waToken = process.env.WHATSAPP_API_TOKEN;
     if (!waToken || !audioId) {
         return 'Mensaje de voz recibido';
     }
@@ -474,10 +509,10 @@ async function downloadAndTranscribeAudio(audioId) {
  * Send Outgoing WhatsApp Message via Meta Graph API
  */
 async function sendWhatsAppMessage(recipientPhone, textBody) {
-    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSPLALoWZBEoGyF0S2pTGt0P2xJVCqZBZC0JHjbs9ymHiEcOZBVvvdL7lu1ckFcDZAWZC2FDfXC5DGDzNHqxR89wnWQffiqexys9dtyBn6ZATnCdlN9xOgzZAVf5Wh34DdEtTzQIRsNZBmpGjKFHQYXZBnm7UkPuaVfXP2bOLBMcbZB2BpYGZAy4zwQZDZD';
-    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1235301469669762';
+    const waToken = process.env.WHATSAPP_API_TOKEN;
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-    if (!waToken) {
+    if (!waToken || !phoneId) {
         console.log(`📱 [SIMULATED WHATSAPP OUTGOING TO +${recipientPhone}]:\n${textBody}`);
         return;
     }

@@ -1,12 +1,25 @@
-const http = require('http');
+const crypto = require('crypto');
 const handler = require('../api/whatsapp-webhook');
 
+// Setup mock environment variables for integration runner
+process.env.WHATSAPP_BOT_ENABLED = 'true';
+process.env.WHATSAPP_VERIFY_TOKEN = 'test_verify_token';
+process.env.WHATSAPP_APP_SECRET = 'test_app_secret';
+process.env.WHATSAPP_ADMIN_PHONE = '15550001111';
+
 // Simple mock req/res helper for testing serverless functions in Node
-function createMockReqRes(method, query = {}, body = {}) {
+function createMockReqRes(method, query = {}, body = {}, headers = {}) {
+    const rawBodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+    const hmac = crypto.createHmac('sha256', process.env.WHATSAPP_APP_SECRET).update(rawBodyStr).digest('hex');
+
     const req = {
         method,
         query,
-        body
+        body: rawBodyStr,
+        headers: {
+            'x-hub-signature-256': `sha256=${hmac}`,
+            ...headers
+        }
     };
 
     let statusCode = 200;
@@ -39,7 +52,7 @@ async function runWhatsAppBotTests() {
     console.log('Test 1: Meta Webhook Verification Handshake (GET)');
     const { req: req1, res: res1 } = createMockReqRes('GET', {
         'hub.mode': 'subscribe',
-        'hub.verify_token': 'casa_lucenzo_wa_token',
+        'hub.verify_token': 'test_verify_token',
         'hub.challenge': '123456789'
     });
     await handler(req1, res1);
@@ -57,7 +70,7 @@ async function runWhatsAppBotTests() {
                 value: {
                     contacts: [{ profile: { name: 'Intruso' } }],
                     messages: [{
-                        from: '584999999999', // Unauthorized phone
+                        from: '19999999999', // Unauthorized phone
                         type: 'text',
                         text: { body: 'Cárgame 100 pastelitos' }
                     }]
@@ -67,7 +80,7 @@ async function runWhatsAppBotTests() {
     });
     await handler(req2, res2);
     if (res2.getData()?.status === 'unauthorized_sender') {
-        console.log('  ✅ PASSED: Unauthorized sender +584999999999 correctly blocked with 403 / rejection.\n');
+        console.log('  ✅ PASSED: Unauthorized sender correctly blocked with 200 / rejection.\n');
     } else {
         console.error('  ❌ FAILED: Security check failed to block unauthorized sender:', res2.getData());
     }
@@ -80,7 +93,7 @@ async function runWhatsAppBotTests() {
                 value: {
                     contacts: [{ profile: { name: 'Enzo (Admin)' } }],
                     messages: [{
-                        from: '584141234567', // Authorized admin phone
+                        from: '15550001111', // Authorized admin phone
                         type: 'text',
                         text: { body: 'Cárgame 30 pastelitos de queso' }
                     }]
@@ -104,7 +117,7 @@ async function runWhatsAppBotTests() {
                 value: {
                     contacts: [{ profile: { name: 'Enzo (Admin)' } }],
                     messages: [{
-                        from: '584141234567',
+                        from: '15550001111',
                         type: 'text',
                         text: { body: '¿Cuánto llevamos vendido hoy?' }
                     }]

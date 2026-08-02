@@ -318,7 +318,9 @@
             <p class="lede">El mismo sabor de siempre, hecho a mano, todos los días. Empanadas, pastelitos y dulces que acompañan a varias generaciones de familias.</p>
             <div class="hero-actions">
                 <a class="btn btn-gold" href="#menu">Ver el menú</a>
-                <button type="button" class="btn btn-outline" id="btn-hero-pedido">Hacer un pedido</button>
+                <!-- Pedidos online: temporarily paused while we keep improving it.
+                     Remove style="display:none" here and on #btn-open-pedido below to re-enable. -->
+                <button type="button" class="btn btn-outline" id="btn-hero-pedido" style="display:none;">Hacer un pedido</button>
             </div>
         </div>
         <div class="scroll-hint" aria-hidden="true">
@@ -369,8 +371,9 @@
         </div>
     </section>
 
-    <!-- Order FAB: opens the pedido popup. Stays fixed over every section. -->
-    <button type="button" class="order-fab" id="btn-open-pedido" aria-haspopup="dialog" aria-controls="pedido-modal">
+    <!-- Order FAB: opens the pedido popup. Stays fixed over every section.
+         Temporarily hidden (see hero button above) -- remove style="display:none" to re-enable. -->
+    <button type="button" class="order-fab" id="btn-open-pedido" aria-haspopup="dialog" aria-controls="pedido-modal" style="display:none;">
         🛍️ Hacer Pedido
         <span class="cart-count" id="fab-cart-count">0</span>
     </button>

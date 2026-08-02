@@ -137,8 +137,45 @@
         footer .shell { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; }
         footer .brandline { font-family: var(--serif); font-weight: 700; letter-spacing: 0.04em; color: var(--gold-300); }
         footer .fineprint { font-size: 0.76rem; color: rgba(246,241,228,0.55); }
-        .staff-link { font-size: 0.78rem; color: rgba(246,241,228,0.7); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.2s ease, color 0.2s ease; }
-        .staff-link:hover { color: var(--gold-300); border-color: var(--gold-500); }
+        .staff-fab {
+            position: fixed;
+            right: 1.1rem;
+            bottom: 1.1rem;
+            z-index: 40;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 999px;
+            background: rgba(15, 33, 55, 0.72);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(201, 162, 74, 0.3);
+            color: rgba(246, 241, 228, 0.75);
+            text-decoration: none;
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            opacity: 0.6;
+            transition: opacity 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
+        }
+        .staff-fab svg { flex-shrink: 0; }
+        .staff-fab span {
+            max-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: max-width 0.3s ease;
+        }
+        .staff-fab:hover {
+            opacity: 1;
+            border-color: var(--gold-500);
+            color: var(--gold-300);
+            transform: translateY(-2px);
+        }
+        .staff-fab:hover span { max-width: 8rem; }
+        @media (hover: none) {
+            .staff-fab { opacity: 0.75; }
+            .staff-fab span { max-width: 8rem; }
+        }
         a:focus-visible, button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 3px; }
     </style>
 </head>
@@ -222,9 +259,13 @@
         <div class="shell">
             <div class="brandline">CASA LUCENZO</div>
             <div class="fineprint">© 2026 Casa Lucenzo. Todos los derechos reservados. HECHO EN VENEZUELA</div>
-            <a class="staff-link" href="/sistema/">Acceso Staff →</a>
         </div>
     </footer>
+
+    <a class="staff-fab" href="/sistema/" aria-label="Acceso Staff">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span>Acceso Staff</span>
+    </a>
 
     <script>
         // Scroll reveal

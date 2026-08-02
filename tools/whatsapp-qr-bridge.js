@@ -4,7 +4,7 @@ const QRCode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
-const { DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { DEFAULT_PRODUCTS, SupabaseRest, getAuthorizationLevel, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 async function startWhatsAppQRBridge() {
     console.log('🚀 Iniciando Servicio de Conexión por Código QR (Casa Lucenzo WhatsApp Bridge)...');
@@ -127,15 +127,15 @@ async function startWhatsAppQRBridge() {
             const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
             const db = new SupabaseRest(supabaseUrl, supabaseKey);
 
-            // Security: only the whitelisted admin phone(s) may drive stock/BCV changes.
-            // The Baileys bridge has no signature verification like the official Meta
-            // webhook, so this check is the only thing standing between a random
-            // WhatsApp contact and your inventory.
+            // Security: only whitelisted phones may talk to the bot at all, and only
+            // 'admin' can drive stock/BCV changes. The Baileys bridge has no signature
+            // verification like the official Meta webhook, so this check is the only
+            // thing standing between a random WhatsApp contact and your inventory.
             const rawFrom = String(remoteJid || '').split('@')[0];
-            const isAuthorized = await isAuthorizedPhone(db, rawFrom);
-            if (!isAuthorized) {
+            const authLevel = await getAuthorizationLevel(db, rawFrom);
+            if (!authLevel) {
                 console.warn(`⛔ Mensaje ignorado de número no autorizado: ${rawFrom}`);
-                await sock.sendMessage(remoteJid, { text: `⛔ Acceso denegado: este número no está autorizado para administrar Casa Lucenzo.` });
+                await sock.sendMessage(remoteJid, { text: `⛔ Acceso denegado: este número no está autorizado para hablar con Casa Lucenzo.` });
                 return;
             }
 
@@ -179,16 +179,20 @@ async function startWhatsAppQRBridge() {
                 totalSalesUsd,
                 salesCount,
                 senderName,
-                historicalSummaryText
+                historicalSummaryText,
+                authLevel
             }, conversationHistory);
 
             await appendConversationTurn(db, rawFrom, 'user', messageText);
 
             const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
+            const isMutationIntent = intent === 'add_stock' || intent === 'set_stock' || intent === 'update_bcv';
             let replyMessage = reply_text || `🤖 ¡Hola ${senderName}! he procesado tu instrucción.`;
 
-            // Execute Actions
-            if (intent === 'add_stock' || intent === 'set_stock') {
+            // Execute Actions (admin only, enforced here regardless of AI intent)
+            if (isMutationIntent && authLevel !== 'admin') {
+                replyMessage = `🙅 Esa acción (cambiar stock o tasa) solo la puede hacer un administrador. Puedo ayudarte con consultas.`;
+            } else if (intent === 'add_stock' || intent === 'set_stock') {
                 const targetProduct = catalog.find(p => p.id === target_product_id) || catalog[0];
                 if (targetProduct) {
                     const qtyVal = parseInt(quantity, 10) || 0;

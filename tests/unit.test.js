@@ -152,6 +152,13 @@ async function verifyWhatsAppBot() {
     await waWebhookHandler(r3, res3);
     assert.strictEqual(res3.getData()?.status, 'success', "REAL WhatsApp Bot: Stock add command returns success status");
     console.log("✅ TEST PASSED: REAL WhatsApp Bot: Stock add command correctly extracted intent 'add_stock'");
+
+    // 5. Viewer-tier phone (WHATSAPP_VIEWER_PHONE) is authorized to chat, distinct from admin
+    process.env.WHATSAPP_VIEWER_PHONE = '584248255319';
+    const { req: r4, res: res4 } = createMockReqRes('POST', {}, { entry: [{ changes: [{ value: { contacts: [{ profile: { name: 'Consultante' } }], messages: [{ from: '584248255319', type: 'text', text: { body: '¿cómo van las ventas?' } }] } }] }] });
+    await waWebhookHandler(r4, res4);
+    assert.strictEqual(res4.getData()?.status, 'success', "REAL WhatsApp Bot: Viewer-tier phone is authorized (not 'unauthorized_sender')");
+    console.log("✅ TEST PASSED: REAL WhatsApp Bot: Viewer-tier phone (WHATSAPP_VIEWER_PHONE) can chat");
 }
 
 runCoreUnitTests();

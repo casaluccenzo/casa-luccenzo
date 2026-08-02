@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { normalizeText, DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { normalizeText, DEFAULT_PRODUCTS, SupabaseRest, getAuthorizationLevel, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 // Read raw body buffer from request
 function getRawBody(req) {
@@ -106,22 +106,16 @@ const handler = async (req, res) => {
         const senderName = contact?.profile?.name || 'Administrador';
 
         // ----------------------------------------------------
-        // 3. Security Authorization Check (Phone Whitelist)
+        // 3. Security Authorization Check (admin vs viewer vs none)
         // ----------------------------------------------------
-        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE;
-        if (!adminPhonesEnv) {
-            console.error('❌ Missing required environment variable: WHATSAPP_ADMIN_PHONE');
-            return res.status(500).json({ error: 'Server misconfiguration: WHATSAPP_ADMIN_PHONE missing' });
-        }
-
         const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
         const db = new SupabaseRest(supabaseUrl, supabaseKey);
 
-        const isAuthorized = await isAuthorizedPhone(db, rawFrom);
+        const authLevel = await getAuthorizationLevel(db, rawFrom);
 
-        if (!isAuthorized) {
-            const unauthorizedMsg = `⛔ Acceso denegado: El número (+${rawFrom}) no está autorizado para administrar Casa Lucenzo. Contacta al soporte para registrar tu número.`;
+        if (!authLevel) {
+            const unauthorizedMsg = `⛔ Acceso denegado: El número (+${rawFrom}) no está autorizado para hablar con Casa Lucenzo. Contacta al administrador para registrar tu número.`;
             await sendWhatsAppMessage(rawFrom, unauthorizedMsg);
             return res.status(200).json({ status: 'unauthorized_sender', phone: rawFrom });
         }
@@ -192,19 +186,24 @@ const handler = async (req, res) => {
             totalSalesUsd,
             salesCount,
             senderName,
-            historicalSummaryText
+            historicalSummaryText,
+            authLevel
         }, conversationHistory);
 
         await appendConversationTurn(db, rawFrom, 'user', messageText);
 
         const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
+        const isMutationIntent = intent === 'add_stock' || intent === 'set_stock' || intent === 'update_bcv';
 
         // ----------------------------------------------------
-        // 7. Execute Database Actions (If mutation requested)
+        // 7. Execute Database Actions (If mutation requested, admin only --
+        //    enforced here regardless of what the AI decided, not just via prompt)
         // ----------------------------------------------------
         let replyMessage = reply_text || '';
 
-        if (intent === 'add_stock' || intent === 'set_stock') {
+        if (isMutationIntent && authLevel !== 'admin') {
+            replyMessage = `🙅 Esa acción (cambiar stock o tasa) solo la puede hacer un administrador. Puedo ayudarte con consultas: ventas, inventario, cómo funciona la app, lo que necesites.`;
+        } else if (intent === 'add_stock' || intent === 'set_stock') {
             const targetProduct = currentProducts.find(p => p.id === target_product_id) || 
                                   currentProducts.find(p => normalizeText(p.name).includes(normalizeText(aiResult.product_name || '')));
 

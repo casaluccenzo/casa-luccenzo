@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
     <script>
+        // Vercel currently serves this repo as static source without running
+        // scripts/build.js (see vercel.json), so the __SENTRY_DSN__ placeholder
+        // never gets replaced. Fall back to the real DSN in that case -- same
+        // pattern as js/supabase.js. A Sentry DSN is meant to be public (it only
+        // lets a client send events in, not read anything back), so this is safe.
+        var sentryDsn = '__SENTRY_DSN__';
+        if (sentryDsn === '__SENTRY_DSN__') {
+            sentryDsn = 'https://ad2837e78a50e5c2949fd962d9a5fb37@o4511842951823360.ingest.us.sentry.io/4511842957983749';
+        }
         if (typeof Sentry !== 'undefined' && Sentry.init) {
             try {
                 Sentry.init({
-                    dsn: '__SENTRY_DSN__',
+                    dsn: sentryDsn,
                     environment: 'production',
                     tracesSampleRate: 0.1
                 });

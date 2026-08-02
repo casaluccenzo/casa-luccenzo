@@ -2974,7 +2974,12 @@ async function handleTrustDevice(deviceId, isTrusted) {
  */
 function saveAndSyncBcvConfig() {
     window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-    window.SupabaseManager.upsertAppConfig({ bcvRate, useAutoBcv });
+    // Only admin/venta are allowed to write app_config per RLS -- anonymous
+    // visitors and 'cocina' sessions would just hit a policy violation on every
+    // auto-fetch, spamming the console and the offline retry queue for nothing.
+    if (currentRole === 'admin' || currentRole === 'venta') {
+        window.SupabaseManager.upsertAppConfig({ bcvRate, useAutoBcv });
+    }
 }
 
 /**

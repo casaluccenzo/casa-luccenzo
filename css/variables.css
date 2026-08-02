@@ -1,10 +1,10 @@
 /* Design tokens and variables */
 :root {
     /* Color Palette */
-    --color-bg-navy: #000F20;
-    --color-bg-header: #000A14;
-    --color-card-navy: #011F3F;
-    --color-card-navy-hover: #022b57;
+    --color-bg-navy: #10233A;
+    --color-bg-header: #0A1826;
+    --color-card-navy: #1C3A54;
+    --color-card-navy-hover: #274A68;
     
     --color-gold: #F3C63F;
     --color-gold-dark: #D4AF37;

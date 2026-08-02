@@ -560,7 +560,7 @@ details.settings-group summary {
 
 /* Cash Register Card */
 .cash-card {
-    background: linear-gradient(135deg, #012852 0%, #000F20 100%);
+    background: linear-gradient(135deg, #012852 0%, #10233A 100%);
     border: 2px solid var(--color-gold);
     border-radius: var(--radius-lg);
     padding: 1rem;
@@ -857,7 +857,7 @@ details.settings-group summary {
 
 /* Dispatch notifications card */
 .dispatch-card {
-    background: linear-gradient(135deg, #022c22 0%, #000F20 100%);
+    background: linear-gradient(135deg, #022c22 0%, #10233A 100%);
     border: 2px solid var(--color-success);
     border-radius: var(--radius-lg);
     padding: 1rem;

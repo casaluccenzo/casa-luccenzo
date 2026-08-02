@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { SupabaseRest, getAuthorizationLevel, handleIncomingMessage } = require('../lib/bot-shared');
+const { SupabaseRest, getAuthorizationLevel, handleIncomingMessage, sendWhatsAppMessage } = require('../lib/bot-shared');
 
 // Read raw body buffer from request
 function getRawBody(req) {
@@ -215,38 +215,3 @@ async function downloadAndTranscribeAudio(audioId) {
     return 'Mensaje de voz recibido';
 }
 
-/**
- * Send Outgoing WhatsApp Message via Meta Graph API
- */
-async function sendWhatsAppMessage(recipientPhone, textBody) {
-    const waToken = process.env.WHATSAPP_API_TOKEN;
-    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    if (!waToken || !phoneId) {
-        console.log(`📱 [SIMULATED WHATSAPP OUTGOING TO +${recipientPhone}]:\n${textBody}`);
-        return;
-    }
-
-    try {
-        const resp = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${waToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                messaging_product: 'whatsapp',
-                to: recipientPhone,
-                type: 'text',
-                text: { body: textBody }
-            })
-        });
-
-        if (!resp.ok) {
-            const errTxt = await resp.text();
-            console.error('❌ Meta Graph API Send Error:', errTxt);
-        }
-    } catch (e) {
-        console.error('❌ Error sending WhatsApp message:', e.message);
-    }
-}

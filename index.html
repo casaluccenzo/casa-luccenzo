@@ -79,6 +79,7 @@
             font-family: var(--sans); font-weight: 600; font-size: 0.95rem; padding: 0.9rem 1.6rem; border-radius: 2px;
             text-decoration: none; letter-spacing: 0.01em; display: inline-flex; align-items: center; gap: 0.5rem;
             transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+            border: none; background: none; cursor: pointer;
         }
         .btn-gold { background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); color: var(--navy-950); box-shadow: 0 10px 30px -12px rgba(201,162,74,0.55); }
         .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -12px rgba(201,162,74,0.7); }
@@ -121,14 +122,68 @@
         .menu-card ul { list-style: none; margin: 0; padding: 0; font-size: 0.92rem; color: var(--cream-200); line-height: 1.9; }
 
         /* ---- Pedido (order form) ---- */
-        .pedido { background: linear-gradient(180deg, var(--navy-950), var(--navy-900)); color: var(--cream-100); }
-        .pedido .eyebrow { color: var(--gold-300); }
-        .pedido h2 { color: #fff; font-size: clamp(1.9rem, 3.6vw, 2.4rem); font-weight: 800; margin-top: 0.6rem; }
-        .pedido-intro { color: var(--cream-200); max-width: 34rem; margin-top: 1rem; line-height: 1.65; }
-        .order-card {
-            background: rgba(255,255,255,0.04); border: 1px solid var(--rule); border-radius: 14px;
-            padding: 1.75rem; margin-top: 2.5rem; max-width: 32rem;
+        /* ===== Order FAB + popup modal ===== */
+        .order-fab {
+            position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 45;
+            display: inline-flex; align-items: center; gap: 0.55rem;
+            padding: 0.85rem 1.35rem; border-radius: 999px; border: none; cursor: pointer;
+            background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); color: var(--navy-950);
+            font-family: var(--sans); font-weight: 800; font-size: 0.85rem;
+            box-shadow: 0 14px 30px -8px rgba(201,162,74,0.55), 0 4px 10px rgba(0,0,0,0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+        .order-fab:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -8px rgba(201,162,74,0.65), 0 4px 10px rgba(0,0,0,0.4); }
+        .order-fab:active { transform: scale(0.96); }
+        .order-fab .cart-count {
+            background: var(--navy-950); color: var(--gold-300); font-size: 10px; font-weight: 900;
+            min-width: 18px; height: 18px; border-radius: 999px; display: none;
+            align-items: center; justify-content: center; padding: 0 4px;
+        }
+        .order-fab .cart-count.show { display: flex; }
+
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 60;
+            background: rgba(6,12,22,0.72); backdrop-filter: blur(3px);
+            display: flex; align-items: flex-end; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+        }
+        .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+        .modal-sheet {
+            width: 100%; max-width: 30rem; max-height: 90vh;
+            background: linear-gradient(180deg, var(--navy-950), var(--navy-900));
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            border: 1px solid var(--rule); border-bottom: none;
+            display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.32s cubic-bezier(.22,.61,.36,1);
+        }
+        @media (min-width: 640px) {
+            .modal-backdrop { align-items: center; }
+            .modal-sheet { border-radius: 18px; border-bottom: 1px solid var(--rule); max-height: 85vh; }
+        }
+        .modal-backdrop.open .modal-sheet { transform: translateY(0); }
+        .modal-handle { width: 36px; height: 4px; border-radius: 99px; background: rgba(255,255,255,0.18); margin: 0.6rem auto 0.2rem; }
+        .modal-head { padding: 0.6rem 1.3rem 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .modal-head h2 { color: #fff; font-size: 1.25rem; font-weight: 800; margin: 0; }
+        .modal-head p { color: var(--cream-200); font-size: 0.8rem; margin-top: 0.4rem; line-height: 1.5; }
+        .modal-close {
+            position: absolute; top: 0.9rem; right: 1rem;
+            width: 30px; height: 30px; border-radius: 999px; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.06); color: var(--cream-200); font-size: 13px;
+        }
+        #pedido-order-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        .modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 1.3rem; }
+        .modal-foot { padding: 0.9rem 1.3rem 1.4rem; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(10,20,38,0.4); }
+
+        .filter-row { display: flex; gap: 0.4rem; padding: 0.9rem 1.3rem; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .filter-row::-webkit-scrollbar { display: none; }
+        .filter-pill {
+            flex: 0 0 auto; font-size: 0.76rem; font-weight: 700; color: var(--cream-200);
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px; padding: 0.42rem 0.85rem; cursor: pointer; transition: all 0.15s ease;
+        }
+        .filter-pill:hover { background: rgba(255,255,255,0.08); }
+        .filter-pill.active { background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); border-color: var(--gold-500); color: var(--navy-950); }
+
         .field-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-300); margin-bottom: 0.4rem; display: block; }
         .field-input {
             width: 100%; padding: 0.7rem 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
@@ -136,7 +191,7 @@
         }
         .field-input::placeholder { color: rgba(246,241,228,0.4); }
         .field-input:focus { outline: none; border-color: var(--gold-500); }
-        .category-heading { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-700, var(--gold-300)); margin: 1.1rem 0 0.4rem; opacity: 0.85; }
+        .form-fields { padding-top: 1rem; }
         .product-row {
             display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
             padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -150,16 +205,25 @@
             background: rgba(201,162,74,0.1); color: var(--gold-300); font-weight: 800; cursor: pointer; font-size: 0.9rem;
         }
         .qty-val { min-width: 1.2rem; text-align: center; color: #fff; font-weight: 700; font-size: 0.9rem; }
-        .payment-options { display: flex; gap: 0.6rem; margin-top: 0.3rem; margin-bottom: 1.1rem; }
+        .payment-options { display: flex; gap: 0.6rem; margin-top: 1rem; margin-bottom: 0.9rem; }
         .payment-opt {
             flex: 1; padding: 0.65rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
             background: rgba(255,255,255,0.03); color: var(--cream-200); font-size: 0.8rem; font-weight: 600;
             text-align: center; cursor: pointer; transition: all 0.2s ease;
         }
         .payment-opt.selected { border-color: var(--gold-500); background: rgba(201,162,74,0.15); color: var(--gold-300); }
+        .payment-info-panel {
+            border: 1px dashed rgba(201,162,74,0.4); border-radius: 10px; padding: 0.9rem 1rem;
+            margin-bottom: 1rem; font-size: 0.8rem; color: var(--cream-200); line-height: 1.6;
+        }
+        .payment-info-panel img { display: block; max-width: 10rem; margin: 0 auto 0.6rem; border-radius: 8px; }
+        .payment-info-panel .pi-title { color: var(--gold-300); font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+        .payment-info-panel .pi-row { display: flex; justify-content: space-between; gap: 0.5rem; }
+        .payment-info-panel .pi-row + .pi-row { margin-top: 0.2rem; }
+
         .order-total {
-            display: flex; justify-content: space-between; align-items: baseline; margin: 1.2rem 0;
-            padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.15);
+            display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.9rem;
+            padding-top: 0.9rem; border-top: 1px dashed rgba(255,255,255,0.15);
         }
         .order-total .label { font-size: 0.8rem; color: var(--cream-200); }
         .order-total .value { font-size: 1.5rem; font-weight: 800; color: var(--gold-300); font-family: var(--serif); }
@@ -172,7 +236,7 @@
         .submit-btn:active { transform: scale(0.98); }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .order-error { color: #FCA5A5; font-size: 0.8rem; margin-top: 0.6rem; display: none; }
-        .order-loading { text-align: center; color: var(--cream-200); font-size: 0.85rem; padding: 2rem 0; }
+        .order-loading { text-align: center; color: var(--cream-200); font-size: 0.85rem; padding: 2.5rem 0; }
         .sent-confirm { display: none; text-align: center; padding: 2.5rem 1.5rem; }
         .sent-confirm.show { display: block; }
         .sent-confirm .check { font-size: 2.5rem; margin-bottom: 0.75rem; }
@@ -202,7 +266,7 @@
         footer .fineprint { font-size: 0.76rem; color: rgba(246,241,228,0.55); }
         .staff-fab {
             position: fixed;
-            right: 1.1rem;
+            left: 1.1rem;
             bottom: 1.1rem;
             z-index: 40;
             display: inline-flex;
@@ -253,7 +317,7 @@
             <p class="lede">El mismo sabor de siempre, hecho a mano, todos los días. Empanadas, pastelitos y dulces que acompañan a varias generaciones de familias.</p>
             <div class="hero-actions">
                 <a class="btn btn-gold" href="#menu">Ver el menú</a>
-                <a class="btn btn-outline" href="#pedido">Hacer un pedido</a>
+                <button type="button" class="btn btn-outline" id="btn-hero-pedido">Hacer un pedido</button>
             </div>
         </div>
         <div class="scroll-hint" aria-hidden="true">
@@ -304,38 +368,63 @@
         </div>
     </section>
 
-    <section class="pedido" id="pedido">
-        <div class="shell reveal">
-            <p class="eyebrow">Hacer un pedido</p>
-            <h2>Elegí y coordinamos el resto</h2>
-            <p class="pedido-intro">Armá tu pedido, elegí cómo vas a pagar, y te confirmamos por WhatsApp los detalles.</p>
+    <!-- Order FAB: opens the pedido popup. Stays fixed over every section. -->
+    <button type="button" class="order-fab" id="btn-open-pedido" aria-haspopup="dialog" aria-controls="pedido-modal">
+        🛍️ Hacer Pedido
+        <span class="cart-count" id="fab-cart-count">0</span>
+    </button>
 
-            <div class="order-card" id="order-form-card">
-                <div class="order-loading" id="order-loading">Cargando el menú del día…</div>
-                <form id="order-form" style="display:none;">
-                    <label class="field-label">Tu nombre</label>
-                    <input class="field-input" id="c-name" placeholder="Ej: María Pérez" required>
+    <!-- Order popup: name/phone, products filtered by category, payment method + info, total -->
+    <div class="modal-backdrop" id="pedido-backdrop">
+        <div class="modal-sheet" id="pedido-modal" role="dialog" aria-modal="true" aria-labelledby="pedido-modal-title">
+            <div class="modal-handle"></div>
+            <div class="modal-head" style="position:relative;">
+                <h2 id="pedido-modal-title">Hacer tu Pedido</h2>
+                <p>Armá tu pedido, elegí cómo vas a pagar, y te confirmamos por WhatsApp los detalles.</p>
+                <button type="button" class="modal-close" id="btn-close-pedido" aria-label="Cerrar">✕</button>
+            </div>
 
-                    <label class="field-label">Tu teléfono</label>
-                    <input class="field-input" id="c-phone" placeholder="Ej: 0412-1234567" required>
+            <div id="pedido-order-wrap">
+                <div class="filter-row" id="category-filter-row">
+                    <div class="filter-pill active" data-cat="todos">Todo</div>
+                    <div class="filter-pill" data-cat="pastelitos">Pastelitos</div>
+                    <div class="filter-pill" data-cat="empanadas">Empanadas</div>
+                    <div class="filter-pill" data-cat="tortas">Tortas</div>
+                    <div class="filter-pill" data-cat="bebidas">Bebidas</div>
+                    <div class="filter-pill" data-cat="dulces">Dulces</div>
+                </div>
 
-                    <label class="field-label">Productos</label>
-                    <div id="product-list"></div>
+                <div class="modal-body">
+                    <div class="order-loading" id="order-loading">Cargando el menú del día…</div>
+                    <form id="order-form" style="display:none;">
+                        <div class="form-fields">
+                            <label class="field-label">Tu nombre</label>
+                            <input class="field-input" id="c-name" placeholder="Ej: María Pérez" required>
 
-                    <div class="category-heading" style="margin-top:1.1rem;">¿Cómo vas a pagar?</div>
-                    <div class="payment-options">
-                        <div class="payment-opt selected" data-pago="Pago Móvil">Pago Móvil</div>
-                        <div class="payment-opt" data-pago="Transferencia">Transferencia</div>
-                    </div>
+                            <label class="field-label">Tu teléfono</label>
+                            <input class="field-input" id="c-phone" placeholder="Ej: 0412-1234567" required>
+                        </div>
 
+                        <div id="product-list"></div>
+
+                        <div class="payment-options">
+                            <div class="payment-opt selected" data-pago="Pago Móvil">Pago Móvil</div>
+                            <div class="payment-opt" data-pago="Transferencia">Transferencia</div>
+                        </div>
+
+                        <div class="payment-info-panel" id="payment-info-panel"></div>
+
+                        <div class="order-error" id="order-error"></div>
+                    </form>
+                </div>
+
+                <div class="modal-foot">
                     <div class="order-total">
                         <span class="label">Total del pedido</span>
                         <span class="value" id="order-total-val">$0.00</span>
                     </div>
-
-                    <button type="submit" class="submit-btn" id="btn-submit-order" disabled>Enviar Pedido</button>
-                    <div class="order-error" id="order-error"></div>
-                </form>
+                    <button type="submit" form="order-form" class="submit-btn" id="btn-submit-order" disabled>Enviar Pedido</button>
+                </div>
             </div>
 
             <div class="sent-confirm" id="sent-confirm">
@@ -345,7 +434,7 @@
                 <button type="button" id="btn-new-order">Hacer otro pedido</button>
             </div>
         </div>
-    </section>
+    </div>
 
     <section class="contact" id="contacto">
         <div class="shell reveal">
@@ -420,7 +509,7 @@
         })();
     </script>
 
-    <!-- Pedido form: loads the real live menu and submits orders to Supabase.
+    <!-- Order popup: opens on demand, loads the real live menu, submits orders to Supabase.
          Uses the public anon key -- safe to expose (protected by RLS: anon can
          only INSERT, never read other customers' orders back). -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -432,67 +521,106 @@
         const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
 
-        const CATEGORY_LABELS = {
-            pastelitos: 'Pastelitos', empanadas: 'Empanadas', tortas: 'Tortas',
-            bebidas: 'Bebidas', dulces: 'Dulces'
+        // Fill these in once the real payment details are available -- until
+        // then the panel below falls back to a friendly "we'll send you the
+        // details" message instead of showing broken/empty fields.
+        const PAYMENT_INFO = {
+            'Pago Móvil': {
+                qrUrl: '',
+                fallback: 'Te compartiremos el QR de Pago Móvil junto con la confirmación de tu pedido.'
+            },
+            'Transferencia': {
+                banco: '', titular: '', cuenta: '', rif: '',
+                fallback: 'Te compartiremos los datos de la cuenta junto con la confirmación de tu pedido.'
+            }
         };
 
+        const backdrop = document.getElementById('pedido-backdrop');
+        const wrapEl = document.getElementById('pedido-order-wrap');
         const productList = document.getElementById('product-list');
         const loadingEl = document.getElementById('order-loading');
         const totalEl = document.getElementById('order-total-val');
         const submitBtn = document.getElementById('btn-submit-order');
         const errorEl = document.getElementById('order-error');
-        const cardEl = document.getElementById('order-form-card');
         const confirmEl = document.getElementById('sent-confirm');
+        const paymentInfoPanel = document.getElementById('payment-info-panel');
+        const fabCount = document.getElementById('fab-cart-count');
         let selectedPago = 'Pago Móvil';
+        let menuLoaded = false;
+
+        function openPedidoModal() {
+            backdrop.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            if (!menuLoaded) {
+                menuLoaded = true;
+                loadMenu();
+            }
+        }
+        function closePedidoModal() {
+            backdrop.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        const fabBtn = document.getElementById('btn-open-pedido');
+        const heroBtn = document.getElementById('btn-hero-pedido');
+        if (fabBtn) fabBtn.addEventListener('click', openPedidoModal);
+        if (heroBtn) heroBtn.addEventListener('click', openPedidoModal);
+        document.getElementById('btn-close-pedido').addEventListener('click', closePedidoModal);
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closePedidoModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && backdrop.classList.contains('open')) closePedidoModal();
+        });
+
+        function renderPaymentInfo() {
+            const info = PAYMENT_INFO[selectedPago];
+            if (selectedPago === 'Pago Móvil') {
+                paymentInfoPanel.innerHTML = info.qrUrl
+                    ? `<div class="pi-title">Escaneá para pagar</div><img src="${info.qrUrl}" alt="QR de Pago Móvil Casa Lucenzo">`
+                    : `<div class="pi-title">Pago Móvil</div>${info.fallback}`;
+            } else {
+                paymentInfoPanel.innerHTML = info.banco
+                    ? `<div class="pi-title">Datos para Transferencia</div>
+                       <div class="pi-row"><span>Banco</span><strong>${info.banco}</strong></div>
+                       <div class="pi-row"><span>Titular</span><strong>${info.titular}</strong></div>
+                       <div class="pi-row"><span>Cuenta</span><strong>${info.cuenta}</strong></div>
+                       <div class="pi-row"><span>RIF/Cédula</span><strong>${info.rif}</strong></div>`
+                    : `<div class="pi-title">Transferencia</div>${info.fallback}`;
+            }
+        }
 
         function recalc() {
             let total = 0;
-            let anySelected = false;
+            let totalQty = 0;
             productList.querySelectorAll('.product-row').forEach(row => {
                 const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
-                if (qty > 0) anySelected = true;
+                totalQty += qty;
                 total += qty * parseFloat(row.dataset.price);
             });
             totalEl.textContent = '$' + total.toFixed(2);
+            fabCount.textContent = totalQty;
+            fabCount.classList.toggle('show', totalQty > 0);
             const nameOk = document.getElementById('c-name').value.trim().length > 0;
             const phoneOk = document.getElementById('c-phone').value.trim().length > 0;
-            submitBtn.disabled = !(anySelected && nameOk && phoneOk);
+            submitBtn.disabled = !(totalQty > 0 && nameOk && phoneOk);
         }
 
         function renderProducts(products) {
-            const byCategory = {};
-            products.forEach(p => {
-                const cat = p.category || 'otros';
-                if (!byCategory[cat]) byCategory[cat] = [];
-                byCategory[cat].push(p);
-            });
-
             productList.innerHTML = '';
-            Object.keys(CATEGORY_LABELS).forEach(cat => {
-                const items = byCategory[cat];
-                if (!items || items.length === 0) return;
-                const heading = document.createElement('div');
-                heading.className = 'category-heading';
-                heading.textContent = CATEGORY_LABELS[cat];
-                productList.appendChild(heading);
-
-                items.forEach(p => {
-                    const row = document.createElement('div');
-                    row.className = 'product-row';
-                    row.dataset.name = p.name;
-                    row.dataset.price = p.price;
-                    row.innerHTML =
-                        '<div><div class="name"></div><div class="price"></div></div>' +
-                        '<div class="qty-control">' +
-                        '<button type="button" class="qty-btn" data-dir="-1">−</button>' +
-                        '<span class="qty-val">0</span>' +
-                        '<button type="button" class="qty-btn" data-dir="1">+</button>' +
-                        '</div>';
-                    row.querySelector('.name').textContent = p.name;
-                    row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
-                    productList.appendChild(row);
-                });
+            products.forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'product-row';
+                row.dataset.name = p.name;
+                row.dataset.price = p.price;
+                row.dataset.cat = p.category || 'otros';
+                row.innerHTML =
+                    '<div><div class="name"></div><div class="price"></div></div>' +
+                    '<div class="qty-control">' +
+                    '<button type="button" class="qty-btn" data-dir="-1">−</button>' +
+                    '<span class="qty-val">0</span>' +
+                    '<button type="button" class="qty-btn" data-dir="1">+</button>' +
+                    '</div>';
+                row.querySelector('.name').textContent = p.name;
+                row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                productList.appendChild(row);
             });
 
             productList.querySelectorAll('.qty-btn').forEach(btn => {
@@ -529,13 +657,26 @@
             }
         }
 
+        document.querySelectorAll('#category-filter-row .filter-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                const cat = pill.dataset.cat;
+                productList.querySelectorAll('.product-row').forEach(row => {
+                    row.style.display = (cat === 'todos' || row.dataset.cat === cat) ? 'flex' : 'none';
+                });
+            });
+        });
+
         document.querySelectorAll('.payment-opt').forEach(opt => {
             opt.addEventListener('click', () => {
                 document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
                 opt.classList.add('selected');
                 selectedPago = opt.dataset.pago;
+                renderPaymentInfo();
             });
         });
+        renderPaymentInfo();
 
         document.getElementById('c-name').addEventListener('input', recalc);
         document.getElementById('c-phone').addEventListener('input', recalc);
@@ -559,18 +700,30 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando…';
 
+            const orderPayload = {
+                customer_name: document.getElementById('c-name').value.trim(),
+                customer_phone: document.getElementById('c-phone').value.trim(),
+                items: items,
+                total: Math.round(total * 100) / 100,
+                payment_method: selectedPago
+            };
+
             try {
-                const { error } = await window._pedidoClient.from('pedidos_online').insert({
-                    customer_name: document.getElementById('c-name').value.trim(),
-                    customer_phone: document.getElementById('c-phone').value.trim(),
-                    items: items,
-                    total: Math.round(total * 100) / 100,
-                    payment_method: selectedPago
-                });
+                const { error } = await window._pedidoClient.from('pedidos_online').insert(orderPayload);
                 if (error) throw error;
 
-                cardEl.style.display = 'none';
+                wrapEl.style.display = 'none';
                 confirmEl.classList.add('show');
+                fabCount.textContent = '0';
+                fabCount.classList.remove('show');
+
+                // Best-effort WhatsApp alert to staff -- the order itself is
+                // already safely saved regardless of whether this succeeds.
+                fetch('/api/notify-pedido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderPayload)
+                }).catch(() => {});
             } catch (err) {
                 errorEl.textContent = 'No pudimos enviar el pedido. Probá de nuevo, o escribinos por WhatsApp.';
                 errorEl.style.display = 'block';
@@ -582,13 +735,18 @@
         document.getElementById('btn-new-order').addEventListener('click', () => {
             form.reset();
             productList.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
+            productList.querySelectorAll('.product-row').forEach(row => row.style.display = 'flex');
+            document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
+            document.querySelector('#category-filter-row .filter-pill[data-cat="todos"]').classList.add('active');
+            document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
+            document.querySelector('.payment-opt[data-pago="Pago Móvil"]').classList.add('selected');
+            selectedPago = 'Pago Móvil';
+            renderPaymentInfo();
             recalc();
             submitBtn.textContent = 'Enviar Pedido';
             confirmEl.classList.remove('show');
-            cardEl.style.display = 'block';
+            wrapEl.style.display = 'block';
         });
-
-        loadMenu();
     })();
     </script>
 </body>

@@ -1,4 +1,4 @@
-async function getAuthenticatedUser(req) {
+async function getAuthenticatedAdmin(req) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) return null;
@@ -8,11 +8,23 @@ async function getAuthenticatedUser(req) {
     if (!supabaseUrl || !anonKey) return null;
 
     try {
-        const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
             headers: { 'Authorization': `Bearer ${token}`, 'apikey': anonKey }
         });
-        if (!resp.ok) return null;
-        return await resp.json();
+        if (!userResp.ok) return null;
+        const user = await userResp.json();
+        if (!user?.id) return null;
+
+        // Only 'admin' profiles get to use the AI assistant (venta/cocina do not).
+        // RLS on profiles allows a user to read their own row, so their own token suffices.
+        const profileResp = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=role`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'apikey': anonKey }
+        });
+        if (!profileResp.ok) return null;
+        const rows = await profileResp.json();
+        if (rows?.[0]?.role !== 'admin') return null;
+
+        return user;
     } catch (e) {
         return null;
     }
@@ -23,9 +35,9 @@ module.exports = async (req, res) => {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const user = await getAuthenticatedUser(req);
+    const user = await getAuthenticatedAdmin(req);
     if (!user) {
-        return res.status(401).json({ error: 'Unauthorized: se requiere una sesión de Supabase válida.' });
+        return res.status(401).json({ error: 'Unauthorized: se requiere una sesión de administrador de Casa Lucenzo.' });
     }
 
     const apiKey = process.env.GEMINI_API_KEY || req.body?.apiKey;

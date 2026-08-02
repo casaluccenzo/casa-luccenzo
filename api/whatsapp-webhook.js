@@ -1,19 +1,5 @@
 const crypto = require('crypto');
-
-// Helper to normalize text (remove accents/diacritics and lower-case)
-function normalizeText(str) {
-    if (!str) return '';
-    return String(str)
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-}
-
-// Helper to normalize phone numbers (remove +, spaces, hyphens)
-function normalizePhone(phone) {
-    if (!phone) return '';
-    return String(phone).replace(/[^0-9]/g, '');
-}
+const { normalizeText, normalizePhone, DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 // Read raw body buffer from request
 function getRawBody(req) {
@@ -42,82 +28,6 @@ function verifyMetaSignature(rawBodyBuffer, signatureHeader, appSecret) {
         return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
     } catch (e) {
         return false;
-    }
-}
-
-// Default product catalog fallback for Naming & Matching
-const DEFAULT_PRODUCTS = [
-    { id: 'p1', name: 'Pastelito de Queso', stock: 20, price: 1.50, category: 'pastelitos' },
-    { id: 'p2', name: 'Pastelito de Pollo', stock: 15, price: 1.50, category: 'pastelitos' },
-    { id: 'p3', name: 'Pastelito de Carne', stock: 12, price: 1.50, category: 'pastelitos' },
-    { id: 'p4', name: 'Empanada de Queso', stock: 25, price: 1.20, category: 'empanadas' },
-    { id: 'p5', name: 'Empanada de Carne', stock: 18, price: 1.20, category: 'empanadas' },
-    { id: 'p6', name: 'Coca Cola 355ml', stock: 30, price: 1.00, category: 'bebidas' },
-    { id: 'p7', name: 'Malta 250ml', stock: 24, price: 1.00, category: 'bebidas' },
-    { id: 'p8', name: 'Torta Tres Leches', stock: 8, price: 3.50, category: 'tortas' }
-];
-
-/**
- * Lightweight Zero-Dependency Supabase REST Helper
- */
-class SupabaseRest {
-    constructor(url, key) {
-        this.url = url?.replace(/\/$/, '');
-        this.key = key;
-    }
-
-    async get(table, select = '*') {
-        if (!this.url || !this.key) return null;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}?select=${encodeURIComponent(select)}`, {
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`
-                }
-            });
-            if (!resp.ok) return null;
-            return await resp.json();
-        } catch (e) {
-            return null;
-        }
-    }
-
-    async patch(table, filterCol, filterVal, data) {
-        if (!this.url || !this.key) return false;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}?${filterCol}=eq.${encodeURIComponent(filterVal)}`, {
-                method: 'PATCH',
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify(data)
-            });
-            return resp.ok;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    async post(table, data) {
-        if (!this.url || !this.key) return false;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}`, {
-                method: 'POST',
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify(data)
-            });
-            return resp.ok;
-        } catch (e) {
-            return false;
-        }
     }
 }
 
@@ -193,7 +103,6 @@ const handler = async (req, res) => {
         }
 
         const rawFrom = message.from;
-        const normalizedFrom = normalizePhone(rawFrom);
         const senderName = contact?.profile?.name || 'Administrador';
 
         // ----------------------------------------------------
@@ -205,21 +114,11 @@ const handler = async (req, res) => {
             return res.status(500).json({ error: 'Server misconfiguration: WHATSAPP_ADMIN_PHONE missing' });
         }
 
-        const allowedPhones = adminPhonesEnv.split(',').map(p => normalizePhone(p));
-
         const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
         const db = new SupabaseRest(supabaseUrl, supabaseKey);
 
-        let isAuthorized = allowedPhones.includes(normalizedFrom);
-
-        if (!isAuthorized && supabaseUrl && supabaseKey) {
-            const userProfiles = await db.get('profiles', 'phone,role');
-            if (userProfiles) {
-                const found = userProfiles.find(p => normalizePhone(p.phone) === normalizedFrom && p.role === 'admin');
-                if (found) isAuthorized = true;
-            }
-        }
+        const isAuthorized = await isAuthorizedPhone(db, rawFrom);
 
         if (!isAuthorized) {
             const unauthorizedMsg = `⛔ Acceso denegado: El número (+${rawFrom}) no está autorizado para administrar Casa Lucenzo. Contacta al soporte para registrar tu número.`;
@@ -366,70 +265,6 @@ module.exports.config = {
         bodyParser: false
     }
 };
-
-/**
- * Call Gemini 2.5 Flash API for Conversational NLU & Natural Language Generation
- */
-async function processIntentWithGemini(userText, catalog, liveContext) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    const catalogText = catalog.map(p => `- ID: "${p.id}" | Nombre: "${p.name}" | Categoría: "${p.category}" | Stock Actual en Vitrina: ${p.stock}`).join('\n');
-
-    if (!apiKey) {
-        return {
-            intent: 'conversational_chat',
-            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
-        };
-    }
-
-    const systemPrompt = `Eres el Asistente Conversacional Inteligente de Casa Lucenzo (panadería/pastelería).
-Hablas con ${liveContext.senderName} (el dueño/administrador) de forma totalmente natural, amable, cercana y profesional por WhatsApp.
-
-DATOS EN TIEMPO REAL DEL NEGOCIO (HOY):
-- Resumen de Caja: ${liveContext.salesSummaryText}
-- Productos Más Vendidos Hoy:
-${liveContext.topProductsText}
-
-CATÁLOGO E INVENTARIO ACTUAL EN VITRINA:
-${catalogText}
-
-INSTRUCCIONES:
-1. Responde a la pregunta de ${liveContext.senderName} de forma 100% conversacional, natural y directa (ej: si pregunta qué sabor se vende más, dile cuál es el producto estrella hoy con las cantidades vendidas y cuál le sigue).
-2. Si el usuario pide cargar stock, cambiar tasa o modificar algo en lenguaje natural, identifica la intención ("add_stock", "set_stock", "update_bcv", "query_sales", "conversational_chat"), extrae los parámetros y redacta una respuesta conversacional confirmando la acción.
-
-RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO SIN BLOQUES MARKDOWN:
-{
-  "intent": "add_stock" | "set_stock" | "query_sales" | "update_bcv" | "conversational_chat",
-  "target_product_id": "ID del producto si aplica",
-  "product_name": "Nombre detectado del producto si aplica",
-  "quantity": numero_entero_si_aplica,
-  "bcv_rate": numero_decimal_si_aplica,
-  "reply_text": "Tu respuesta conversacional en español formateada con emojis elegantes para WhatsApp"
-}`;
-
-    try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    role: "user",
-                    parts: [{ text: `${systemPrompt}\n\nMensaje de ${liveContext.senderName}: "${userText}"` }]
-                }]
-            })
-        });
-        if (!resp.ok) throw new Error(`Gemini API Error ${resp.status}`);
-        const data = await resp.json();
-        let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(rawText);
-    } catch (e) {
-        return {
-            intent: 'conversational_chat',
-            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
-        };
-    }
-}
 
 /**
  * Transcribe Audio Voice Notes using Gemini 2.5 Flash Multimodal

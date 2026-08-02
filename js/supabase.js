@@ -101,31 +101,59 @@ function enqueueOfflineOp(table, action, data = null, key = null, keyValue = nul
     console.log(`Enqueued offline action for table: ${table} (${action})`);
 }
 
+// Items that have been retrying for longer than this are assumed to be permanently
+// broken (bad payload, deleted parent row, etc.) rather than a transient network blip.
+// Without this cap, a single bad record retries forever on every sync tick.
+const OFFLINE_QUEUE_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+/**
+ * Moves permanently-stuck offline ops to a dead-letter store instead of silently
+ * dropping them, so the data isn't just lost without a trace.
+ */
+function moveToDeadLetterQueue(deadOps) {
+    if (!deadOps.length) return;
+    try {
+        const dead = JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue_failed') || '[]');
+        dead.push(...deadOps);
+        localStorage.setItem('casa_lucenzo_offline_queue_failed', JSON.stringify(dead));
+    } catch (e) {
+        console.error("Failed to persist dead-letter offline queue", e);
+    }
+    console.error(`⚠️ ${deadOps.length} offline operation(s) failed to sync for over 48h and were moved to casa_lucenzo_offline_queue_failed for manual review:`, deadOps);
+}
+
 /**
  * Process the local offline queue and push pending items to Supabase in optimized batches
  */
 async function syncOfflineQueue() {
     if (!client || !navigator.onLine) return;
 
-    const queue = JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]');
+    const rawQueue = JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]');
+    if (rawQueue.length === 0) return;
+
+    const now = Date.now();
+    const queue = rawQueue.filter(op => (now - (op.timestamp || now)) <= OFFLINE_QUEUE_MAX_AGE_MS);
+    const deadOnArrival = rawQueue.filter(op => (now - (op.timestamp || now)) > OFFLINE_QUEUE_MAX_AGE_MS);
+    if (deadOnArrival.length) moveToDeadLetterQueue(deadOnArrival);
     if (queue.length === 0) return;
 
     console.log(`Syncing ${queue.length} offline operations to Supabase in optimized batches...`);
-    
+
     // Group operations by action and table to process them in batches
     const upsertsByTable = {};
     const deletesByTableAndKey = {};
     const nonBatchable = [];
 
     queue.forEach(op => {
+        const timestamp = op.timestamp || now;
         if (op.action === 'insert' || op.action === 'upsert') {
             if (!upsertsByTable[op.table]) {
                 upsertsByTable[op.table] = [];
             }
             if (Array.isArray(op.data)) {
-                upsertsByTable[op.table].push(...op.data);
+                op.data.forEach(d => upsertsByTable[op.table].push({ payload: d, timestamp }));
             } else {
-                upsertsByTable[op.table].push(op.data);
+                upsertsByTable[op.table].push({ payload: op.data, timestamp });
             }
         } else if (op.action === 'delete') {
             if (!deletesByTableAndKey[op.table]) {
@@ -134,7 +162,7 @@ async function syncOfflineQueue() {
             if (!deletesByTableAndKey[op.table][op.key]) {
                 deletesByTableAndKey[op.table][op.key] = [];
             }
-            deletesByTableAndKey[op.table][op.key].push(op.keyValue);
+            deletesByTableAndKey[op.table][op.key].push({ value: op.keyValue, timestamp });
         } else {
             nonBatchable.push(op);
         }
@@ -150,7 +178,7 @@ async function syncOfflineQueue() {
             const uniqueRecords = [];
             const seenIds = new Set();
             for (let i = records.length - 1; i >= 0; i--) {
-                const rec = records[i];
+                const rec = records[i].payload;
                 const keyVal = rec.uuid || rec.id || JSON.stringify(rec);
                 if (!seenIds.has(keyVal)) {
                     seenIds.add(keyVal);
@@ -166,32 +194,32 @@ async function syncOfflineQueue() {
             const { error } = await client.from(table).upsert(uniqueRecords);
             if (error) {
                 console.error(`Batch upsert error for table ${table}:`, error.message);
-                records.forEach(r => failedOps.push({ table, action: 'upsert', data: r }));
+                records.forEach(r => failedOps.push({ table, action: 'upsert', data: r.payload, timestamp: r.timestamp }));
             } else {
                 console.log(`Synced batch of ${uniqueRecords.length} upserts for table: ${table}`);
             }
         } catch (e) {
             console.error(`Batch upsert network error for table ${table}:`, e);
-            records.forEach(r => failedOps.push({ table, action: 'upsert', data: r }));
+            records.forEach(r => failedOps.push({ table, action: 'upsert', data: r.payload, timestamp: r.timestamp }));
         }
     }
 
     // 2. Process Delete Batches (using .in() selection)
     for (const [table, keysObj] of Object.entries(deletesByTableAndKey)) {
-        for (const [key, values] of Object.entries(keysObj)) {
-            if (values.length === 0) continue;
+        for (const [key, entries] of Object.entries(keysObj)) {
+            if (entries.length === 0) continue;
             try {
-                const uniqueValues = [...new Set(values)];
+                const uniqueValues = [...new Set(entries.map(e => e.value))];
                 const { error } = await client.from(table).delete().in(key, uniqueValues);
                 if (error) {
                     console.error(`Batch delete error for table ${table} on ${key}:`, error.message);
-                    values.forEach(val => failedOps.push({ table, action: 'delete', key, keyValue: val }));
+                    entries.forEach(e => failedOps.push({ table, action: 'delete', key, keyValue: e.value, timestamp: e.timestamp }));
                 } else {
                     console.log(`Synced batch of ${uniqueValues.length} deletes for table: ${table}`);
                 }
             } catch (e) {
                 console.error(`Batch delete network error for table ${table}:`, e);
-                values.forEach(val => failedOps.push({ table, action: 'delete', key, keyValue: val }));
+                entries.forEach(entry => failedOps.push({ table, action: 'delete', key, keyValue: entry.value, timestamp: entry.timestamp }));
             }
         }
     }
@@ -214,7 +242,7 @@ async function syncOfflineQueue() {
         }
     }
 
-    // Write failed items back to queue
+    // Write failed items back to queue (still eligible for retry until OFFLINE_QUEUE_MAX_AGE_MS)
     localStorage.setItem('casa_lucenzo_offline_queue', JSON.stringify(failedOps));
     if (failedOps.length === 0) {
         console.log("All offline operations synced successfully to Supabase.");
@@ -343,20 +371,19 @@ async function fetchIngredients() {
 
 async function upsertProduct(product) {
     if (!client) return;
+    const payload = {
+        id: product.id,
+        name: product.name,
+        stock: product.stock,
+        min: product.min,
+        max: product.max,
+        unit: product.unit,
+        price: product.price,
+        category: product.category,
+        initial_stock: product.initial_stock !== undefined ? product.initial_stock : product.stock,
+        updated_at: new Date().toISOString()
+    };
     try {
-        const payload = {
-            id: product.id,
-            name: product.name,
-            stock: product.stock,
-            min: product.min,
-            max: product.max,
-            unit: product.unit,
-            price: product.price,
-            category: product.category,
-            initial_stock: product.initial_stock !== undefined ? product.initial_stock : product.stock,
-            updated_at: new Date().toISOString()
-        };
-        
         if (!navigator.onLine) {
             enqueueOfflineOp('products', 'upsert', payload);
             return;
@@ -413,16 +440,15 @@ async function deleteProduct(id) {
 
 async function insertSale(sale) {
     if (!client) return;
+    const payload = {
+        uuid: sale.uuid,
+        product_id: sale.productId,
+        name: sale.name,
+        price: sale.price,
+        timestamp: sale.timestamp,
+        bcv_rate: sale.bcvRate || window.bcvRate || null
+    };
     try {
-        const payload = {
-            uuid: sale.uuid,
-            product_id: sale.productId,
-            name: sale.name,
-            price: sale.price,
-            timestamp: sale.timestamp,
-            bcv_rate: sale.bcvRate || window.bcvRate || null
-        };
-
         if (!navigator.onLine) {
             enqueueOfflineOp('sales', 'insert', payload);
             return;
@@ -497,14 +523,13 @@ async function deleteSales(uuids) {
 
 async function insertExpense(expense) {
     if (!client) return;
+    const payload = {
+        uuid: expense.uuid,
+        description: expense.description,
+        amount: expense.amount,
+        timestamp: expense.timestamp
+    };
     try {
-        const payload = {
-            uuid: expense.uuid,
-            description: expense.description,
-            amount: expense.amount,
-            timestamp: expense.timestamp
-        };
-
         if (!navigator.onLine) {
             enqueueOfflineOp('expenses', 'insert', payload);
             return;
@@ -551,15 +576,14 @@ async function deleteExpenses(uuids) {
 
 async function upsertDebt(debt) {
     if (!client) return;
+    const payload = {
+        uuid: debt.uuid,
+        client_name: debt.clientName,
+        amount: debt.amount,
+        description: debt.description,
+        timestamp: debt.timestamp
+    };
     try {
-        const payload = {
-            uuid: debt.uuid,
-            client_name: debt.clientName,
-            amount: debt.amount,
-            description: debt.description,
-            timestamp: debt.timestamp
-        };
-
         if (!navigator.onLine) {
             enqueueOfflineOp('debts', 'upsert', payload);
             return;
@@ -590,17 +614,16 @@ async function deleteDebt(uuid) {
 
 async function upsertReplenishment(repl) {
     if (!client) return;
+    const payload = {
+        uuid: repl.uuid,
+        product_id: repl.productId,
+        name: repl.name,
+        amount: repl.amount,
+        unit: repl.unit,
+        status: repl.status,
+        timestamp: repl.timestamp
+    };
     try {
-        const payload = {
-            uuid: repl.uuid,
-            product_id: repl.productId,
-            name: repl.name,
-            amount: repl.amount,
-            unit: repl.unit,
-            status: repl.status,
-            timestamp: repl.timestamp
-        };
-
         if (!navigator.onLine) {
             enqueueOfflineOp('replenishments', 'upsert', payload);
             return;
@@ -631,15 +654,14 @@ async function deleteReplenishment(uuid) {
 
 async function upsertIngredient(ing) {
     if (!client) return;
+    const payload = {
+        id: ing.id,
+        name: ing.name,
+        stock: ing.stock,
+        unit: ing.unit,
+        updated_at: new Date().toISOString()
+    };
     try {
-        const payload = {
-            id: ing.id,
-            name: ing.name,
-            stock: ing.stock,
-            unit: ing.unit,
-            updated_at: new Date().toISOString()
-        };
-
         if (!navigator.onLine) {
             enqueueOfflineOp('ingredients', 'upsert', payload);
             return;
@@ -904,25 +926,25 @@ async function fetchAppConfig() {
 
 async function upsertAppConfig(config) {
     if (!client) return;
-    try {
-        const payload = {
-            id: 1,
-            bcv_rate: parseFloat(config.bcvRate) || 732.48,
-            use_auto_bcv: !!config.useAutoBcv,
-            updated_at: new Date().toISOString()
-        };
-        
-        if (config.pinLocal !== undefined) payload.pin_local = config.pinLocal;
-        if (config.pinCocina !== undefined) payload.pin_cocina = config.pinCocina;
-        if (config.pinAdmin !== undefined) payload.pin_admin = config.pinAdmin;
-        
-        if (dbSupportsLastClose) {
-            if (config.lastCloseTime !== undefined) {
-                payload.last_close_time = config.lastCloseTime;
-                supabaseLastCloseTime = config.lastCloseTime;
-            }
-        }
+    const payload = {
+        id: 1,
+        bcv_rate: parseFloat(config.bcvRate) || 732.48,
+        use_auto_bcv: !!config.useAutoBcv,
+        updated_at: new Date().toISOString()
+    };
 
+    if (config.pinLocal !== undefined) payload.pin_local = config.pinLocal;
+    if (config.pinCocina !== undefined) payload.pin_cocina = config.pinCocina;
+    if (config.pinAdmin !== undefined) payload.pin_admin = config.pinAdmin;
+
+    if (dbSupportsLastClose) {
+        if (config.lastCloseTime !== undefined) {
+            payload.last_close_time = config.lastCloseTime;
+            supabaseLastCloseTime = config.lastCloseTime;
+        }
+    }
+
+    try {
         if (!navigator.onLine) {
             enqueueOfflineOp('app_config', 'upsert', payload);
             return;
@@ -1311,7 +1333,6 @@ window.SupabaseManager = {
     upsertAppConfig,
     subscribeToChanges,
     syncOfflineQueue,
-    getDbSupportsTotp: () => dbSupportsTotp,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,
     fetchDayReport,

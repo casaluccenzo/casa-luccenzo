@@ -27,3 +27,4 @@ www/
 .vercel
 .env*
 supabase/.temp
+.staging-db-password.txt

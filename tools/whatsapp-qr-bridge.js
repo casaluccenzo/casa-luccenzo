@@ -4,88 +4,7 @@ const QRCode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
-
-// Helper to normalize text
-function normalizeText(str) {
-    if (!str) return '';
-    return String(str)
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-}
-
-// Default products fallback
-const DEFAULT_PRODUCTS = [
-    { id: 'p1', name: 'Pastelito de Queso', stock: 20, price: 1.50, category: 'pastelitos' },
-    { id: 'p2', name: 'Pastelito de Pollo', stock: 15, price: 1.50, category: 'pastelitos' },
-    { id: 'p3', name: 'Pastelito de Carne', stock: 12, price: 1.50, category: 'pastelitos' },
-    { id: 'p4', name: 'Empanada de Queso', stock: 25, price: 1.20, category: 'empanadas' },
-    { id: 'p5', name: 'Empanada de Carne', stock: 18, price: 1.20, category: 'empanadas' },
-    { id: 'p6', name: 'Coca Cola 355ml', stock: 30, price: 1.00, category: 'bebidas' },
-    { id: 'p7', name: 'Malta 250ml', stock: 24, price: 1.00, category: 'bebidas' },
-    { id: 'p8', name: 'Torta Tres Leches', stock: 8, price: 3.50, category: 'tortas' }
-];
-
-class SupabaseRest {
-    constructor(url, key) {
-        this.url = url?.replace(/\/$/, '');
-        this.key = key;
-    }
-
-    async get(table, select = '*') {
-        if (!this.url || !this.key) return null;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}?select=${encodeURIComponent(select)}`, {
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`
-                }
-            });
-            if (!resp.ok) return null;
-            return await resp.json();
-        } catch (e) {
-            return null;
-        }
-    }
-
-    async patch(table, filterCol, filterVal, data) {
-        if (!this.url || !this.key) return false;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}?${filterCol}=eq.${encodeURIComponent(filterVal)}`, {
-                method: 'PATCH',
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify(data)
-            });
-            return resp.ok;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    async post(table, data) {
-        if (!this.url || !this.key) return false;
-        try {
-            const resp = await fetch(`${this.url}/rest/v1/${table}`, {
-                method: 'POST',
-                headers: {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${this.key}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify(data)
-            });
-            return resp.ok;
-        } catch (e) {
-            return false;
-        }
-    }
-}
+const { DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 async function startWhatsAppQRBridge() {
     console.log('🚀 Iniciando Servicio de Conexión por Código QR (Casa Lucenzo WhatsApp Bridge)...');
@@ -204,11 +123,23 @@ async function startWhatsAppQRBridge() {
 
             console.log(`📩 Mensaje recibido de ${senderName} (${remoteJid}): "${messageText}"`);
 
-            // Fetch Products & Sales from Supabase
             const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
             const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
             const db = new SupabaseRest(supabaseUrl, supabaseKey);
 
+            // Security: only the whitelisted admin phone(s) may drive stock/BCV changes.
+            // The Baileys bridge has no signature verification like the official Meta
+            // webhook, so this check is the only thing standing between a random
+            // WhatsApp contact and your inventory.
+            const rawFrom = String(remoteJid || '').split('@')[0];
+            const isAuthorized = await isAuthorizedPhone(db, rawFrom);
+            if (!isAuthorized) {
+                console.warn(`⛔ Mensaje ignorado de número no autorizado: ${rawFrom}`);
+                await sock.sendMessage(remoteJid, { text: `⛔ Acceso denegado: este número no está autorizado para administrar Casa Lucenzo.` });
+                return;
+            }
+
+            // Fetch Products & Sales from Supabase
             let catalog = DEFAULT_PRODUCTS;
             const dbProducts = await db.get('products');
             if (dbProducts && dbProducts.length > 0) catalog = dbProducts;
@@ -285,67 +216,6 @@ async function startWhatsAppQRBridge() {
             console.error('❌ Error procesando mensaje de WhatsApp QR:', err.message);
         }
     });
-}
-
-async function processIntentWithGemini(userText, catalog, liveContext) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    const catalogText = catalog.map(p => `- ID: "${p.id}" | Nombre: "${p.name}" | Categoría: "${p.category}" | Stock Actual en Vitrina: ${p.stock}`).join('\n');
-
-    if (!apiKey) {
-        return {
-            intent: 'conversational_chat',
-            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
-        };
-    }
-
-    const systemPrompt = `Eres el Asistente Conversacional Inteligente de Casa Lucenzo (panadería/pastelería).
-Hablas con ${liveContext.senderName} (el dueño/administrador) de forma totalmente natural, amable, cercana y profesional por WhatsApp.
-
-DATOS EN TIEMPO REAL DEL NEGOCIO (HOY):
-- Resumen de Caja: ${liveContext.salesSummaryText}
-- Productos Más Vendidos Hoy:
-${liveContext.topProductsText}
-
-CATÁLOGO E INVENTARIO ACTUAL EN VITRINA:
-${catalogText}
-
-INSTRUCCIONES:
-1. Responde a la pregunta de ${liveContext.senderName} de forma 100% conversacional, natural y directa (ej: si pregunta qué sabor se vende más, dile cuál es el producto estrella hoy con las cantidades vendidas y cuál le sigue).
-2. Si el usuario pide cargar stock, cambiar tasa o modificar algo en lenguaje natural, identifica la intención ("add_stock", "set_stock", "update_bcv", "query_sales", "conversational_chat"), extrae los parámetros y redacta una respuesta conversacional confirmando la acción.
-
-RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO SIN BLOQUES MARKDOWN:
-{
-  "intent": "add_stock" | "set_stock" | "query_sales" | "update_bcv" | "conversational_chat",
-  "target_product_id": "ID del producto si aplica",
-  "product_name": "Nombre detectado del producto si aplica",
-  "quantity": numero_entero_si_aplica,
-  "bcv_rate": numero_decimal_si_aplica,
-  "reply_text": "Tu respuesta conversacional en español formateada con emojis elegantes para WhatsApp"
-}`;
-
-    try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    role: "user",
-                    parts: [{ text: `${systemPrompt}\n\nMensaje de ${liveContext.senderName}: "${userText}"` }]
-                }]
-            })
-        });
-        if (!resp.ok) throw new Error(`Gemini API Error ${resp.status}`);
-        const data = await resp.json();
-        let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(rawText);
-    } catch (e) {
-        return {
-            intent: 'conversational_chat',
-            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
-        };
-    }
 }
 
 if (require.main === module) {

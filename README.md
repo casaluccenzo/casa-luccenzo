@@ -39,6 +39,23 @@ http://localhost:8080/?test=true
 
 ---
 
+## 🧬 Entornos: Producción vs Staging
+
+Existen dos proyectos Supabase separados para no mezclar pruebas con datos reales del negocio:
+
+| Entorno | Proyecto Supabase | Ref |
+|---|---|---|
+| Producción | `Casa Lucenzo` | `xttpaqokeyywjaajvjyu` |
+| Staging | `casa-lucenzo-staging` | `iwwymgxsqxfrkpryabnk` |
+
+Para trabajar contra staging: `npx supabase link --project-ref iwwymgxsqxfrkpryabnk` y luego `npx supabase db push` (aplica `supabase/migrations/*`). Para volver a producción: `npx supabase link --project-ref xttpaqokeyywjaajvjyu`.
+
+> ⚠️ Las tablas base (`products`, `sales`, `expenses`, `debts`, `replenishments`, `ingredients`, `app_config`, `active_sessions`) se crearon a mano en el dashboard de producción antes de que existiera la carpeta `supabase/migrations/`, así que **no están capturadas en ningún archivo de migración**. Si staging aparece sin esas tablas, restaurarlas ahí es un paso manual único (Supabase Dashboard → Database → Backups, o exportar/importar el schema). Las migraciones `001`-`006` sí están versionadas y se aplican igual en ambos entornos.
+
+La contraseña de la base de datos de staging quedó guardada localmente en `.staging-db-password.txt` (ignorado por git, no se sube a ningún lado).
+
+---
+
 ## 🧪 Pruebas Unitarias
 
 El proyecto incluye una suite de pruebas unitarias livianas para validar cálculos de dinero, inventario y permisos:

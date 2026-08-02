@@ -16,6 +16,13 @@ let categoryStatsFilter = 'day';
 
 let lastCloseTime = null;
 
+// Quick-access PINs for role switching (never declared before — was relying on
+// implicit globals, which throws ReferenceError in strict mode and is undefined
+// until the first assignment ever runs, e.g. before fetchAppConfig() resolves)
+let pinLocal = null;
+let pinCocina = null;
+let pinAdmin = null;
+
 // Sound and vibration preferences
 let preferences = { sound: true, vibration: true, supabaseUrl: '', supabaseKey: '' };
 

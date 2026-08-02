@@ -289,6 +289,34 @@ module.exports = async (req, res) => {
     }
 };
 
+function findBestMatchingProduct(userText, catalog) {
+    if (!catalog || catalog.length === 0) return null;
+    const text = normalizeText(userText);
+
+    let match = catalog.find(p => text.includes(normalizeText(p.name)));
+    if (match) return match;
+
+    let bestProd = null;
+    let maxScore = 0;
+
+    catalog.forEach(prod => {
+        const prodWords = normalizeText(prod.name).split(/\s+/).filter(w => w.length > 2);
+        let score = 0;
+        prodWords.forEach(word => {
+            const stem = word.replace(/s$/, '');
+            if (text.includes(stem)) {
+                score += 1;
+            }
+        });
+        if (score > maxScore) {
+            maxScore = score;
+            bestProd = prod;
+        }
+    });
+
+    return bestProd || catalog[0];
+}
+
 /**
  * Call Gemini 2.5 Flash API for Intent Parsing & Entity Extraction
  */
@@ -298,16 +326,14 @@ async function processIntentWithGemini(userText, catalog) {
 
     if (!apiKey) {
         let intent = 'unknown';
-        let targetId = catalog[0]?.id;
+        let matchedProduct = findBestMatchingProduct(userText, catalog);
+        let targetId = matchedProduct ? matchedProduct.id : catalog[0]?.id;
         let qty = 10;
 
-        if (textNorm.includes('carga') || textNorm.includes('agrega') || textNorm.includes('mas') || textNorm.includes('pastelito') || textNorm.includes('empanada')) {
+        if (textNorm.includes('carga') || textNorm.includes('agrega') || textNorm.includes('mas') || textNorm.includes('pastelito') || textNorm.includes('empanada') || textNorm.includes('stock')) {
             intent = 'add_stock';
             const numMatch = userText.match(/\d+/);
             if (numMatch) qty = parseInt(numMatch[0], 10);
-            
-            const foundProd = catalog.find(p => textNorm.includes(normalizeText(p.name)) || textNorm.includes(normalizeText(p.category)));
-            if (foundProd) targetId = foundProd.id;
         } else if (textNorm.includes('cuanto') || textNorm.includes('caja') || textNorm.includes('venta') || textNorm.includes('resumen')) {
             intent = 'query_sales';
         } else if (textNorm.includes('tasa') || textNorm.includes('bcv') || textNorm.includes('dolar')) {
@@ -317,8 +343,9 @@ async function processIntentWithGemini(userText, catalog) {
         return {
             intent,
             target_product_id: targetId,
+            product_name: matchedProduct ? matchedProduct.name : '',
             quantity: qty,
-            explanation: 'Procesado por motor de respaldo regex'
+            explanation: 'Procesado por motor de respaldo'
         };
     }
 

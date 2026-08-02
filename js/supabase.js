@@ -10,14 +10,16 @@ const DEFAULT_SUPABASE_URL = "__SUPABASE_URL__";
 const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
 
 /**
- * Resolve the effective Supabase URL/key from user prefs or the build-injected defaults.
- * Returns nulls (not a hardcoded fallback) when nothing is configured, so an
- * un-built/unconfigured local checkout never silently talks to production.
+ * Resolve the effective Supabase URL/key from user prefs, the build-injected
+ * defaults, or (since Vercel currently serves this repo as static source without
+ * running scripts/build.js -- see vercel.json) this hardcoded production fallback.
+ * The key here is the public anon/publishable key, meant to be client-visible and
+ * protected by RLS, not a secret.
  */
 function getSupabaseConfig() {
     const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
-    const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : null);
-    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : null);
+    const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : 'https://xttpaqokeyywjaajvjyu.supabase.co');
+    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX');
     return { url, key };
 }
 

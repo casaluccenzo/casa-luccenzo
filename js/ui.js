@@ -316,6 +316,13 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
             : '';
             
         const stockStyle = isCritical ? 'stock-value critical' : 'stock-value';
+        // Stock can legitimately exceed max (e.g. a delivery bigger than what fits
+        // on display) -- don't lose that real count, just don't show a confusing
+        // "44 de 34" either.
+        const overMax = product.stock > product.max;
+        const stockOfMaxText = overMax
+            ? `${escapeHtml(product.unit)} <span style="opacity:.7;font-size:.85em;">(vitrina llena, máx. ${product.max})</span>`
+            : `de ${product.max} ${escapeHtml(product.unit)}`;
 
         // Find current quantity of this product in the active cart
         const cartItem = (window.currentCart || []).find(item => item.productId === product.id);
@@ -329,7 +336,7 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                     ${alertBadge}
                 </div>
                 <p class="product-stock-desc">
-                    Quedan: <span class="${stockStyle}">${product.stock}</span> de ${product.max} ${escapeHtml(product.unit)} 
+                    Quedan: <span class="${stockStyle}">${product.stock}</span> ${stockOfMaxText}
                     <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
                         $${(product.price || 0).toFixed(2)} 
                         <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>

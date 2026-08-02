@@ -4,7 +4,7 @@ const QRCode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
-const { DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 async function startWhatsAppQRBridge() {
     console.log('🚀 Iniciando Servicio de Conexión por Código QR (Casa Lucenzo WhatsApp Bridge)...');
@@ -169,14 +169,20 @@ async function startWhatsAppQRBridge() {
                 salesSummaryText = `Ventas Totales Hoy: $${totalSalesUsd.toFixed(2)} USD | Operaciones: ${salesCount}`;
             }
 
-            // Call Conversational AI Engine
+            // Call Conversational AI Engine (with memory)
+            const historicalSummaryText = await fetchHistoricalDailySummary(db, 14);
+            const conversationHistory = await getConversationHistory(db, rawFrom);
+
             const aiResult = await processIntentWithGemini(messageText, catalog, {
                 salesSummaryText,
                 topProductsText,
                 totalSalesUsd,
                 salesCount,
-                senderName
-            });
+                senderName,
+                historicalSummaryText
+            }, conversationHistory);
+
+            await appendConversationTurn(db, rawFrom, 'user', messageText);
 
             const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
             let replyMessage = reply_text || `🤖 ¡Hola ${senderName}! he procesado tu instrucción.`;
@@ -209,6 +215,7 @@ async function startWhatsAppQRBridge() {
             }
 
             // Send Outgoing WhatsApp Response
+            await appendConversationTurn(db, rawFrom, 'assistant', replyMessage);
             console.log(`📤 Enviando respuesta a ${senderName}...`);
             await sock.sendMessage(remoteJid, { text: replyMessage });
 

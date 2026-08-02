@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { normalizeText, normalizePhone, DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { normalizeText, DEFAULT_PRODUCTS, SupabaseRest, isAuthorizedPhone, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
 
 // Read raw body buffer from request
 function getRawBody(req) {
@@ -181,15 +181,21 @@ const handler = async (req, res) => {
         }
 
         // ----------------------------------------------------
-        // 6. Conversational AI NLU with Gemini 2.5 Flash
+        // 6. Conversational AI NLU with Gemini 2.5 Flash (with memory)
         // ----------------------------------------------------
+        const historicalSummaryText = await fetchHistoricalDailySummary(db, 14);
+        const conversationHistory = await getConversationHistory(db, rawFrom);
+
         const aiResult = await processIntentWithGemini(messageText, currentProducts, {
             salesSummaryText,
             topProductsText,
             totalSalesUsd,
             salesCount,
-            senderName
-        });
+            senderName,
+            historicalSummaryText
+        }, conversationHistory);
+
+        await appendConversationTurn(db, rawFrom, 'user', messageText);
 
         const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
 
@@ -250,6 +256,7 @@ const handler = async (req, res) => {
         }
 
         // Send WhatsApp Outgoing Response Message
+        await appendConversationTurn(db, rawFrom, 'assistant', replyMessage);
         await sendWhatsAppMessage(rawFrom, replyMessage);
         return res.status(200).json({ status: 'success', intent, reply: replyMessage });
 

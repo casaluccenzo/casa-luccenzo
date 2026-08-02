@@ -33,12 +33,16 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
+const tgWebhookHandler = require('../api/telegram-webhook');
 
 // Setup mock environment variables for unit testing
 process.env.WHATSAPP_BOT_ENABLED = 'true';
 process.env.WHATSAPP_VERIFY_TOKEN = 'test_verify_token';
 process.env.WHATSAPP_APP_SECRET = 'test_app_secret';
 process.env.WHATSAPP_ADMIN_PHONE = '584141234567';
+process.env.TELEGRAM_BOT_ENABLED = 'true';
+process.env.TELEGRAM_WEBHOOK_SECRET = 'test_tg_secret';
+process.env.TELEGRAM_ADMIN_ID = '999888777';
 
 // Simple mock req/res helper for testing serverless functions in Node
 function createMockReqRes(method, query = {}, body = {}, headers = {}) {
@@ -71,6 +75,31 @@ function createMockReqRes(method, query = {}, body = {}, headers = {}) {
             responseData = data;
             return this;
         },
+        getStatusCode() { return statusCode; },
+        getData() { return responseData; }
+    };
+
+    return { req, res };
+}
+
+// Mock req/res helper for the Telegram webhook (secret-token auth, not HMAC)
+function createMockTelegramReqRes(body = {}, headers = {}) {
+    const req = {
+        method: 'POST',
+        body,
+        headers: {
+            'x-telegram-bot-api-secret-token': process.env.TELEGRAM_WEBHOOK_SECRET,
+            ...headers
+        }
+    };
+
+    let statusCode = 200;
+    let responseData = null;
+
+    const res = {
+        status(code) { statusCode = code; return this; },
+        send(data) { responseData = data; return this; },
+        json(data) { responseData = data; return this; },
         getStatusCode() { return statusCode; },
         getData() { return responseData; }
     };
@@ -161,8 +190,36 @@ async function verifyWhatsAppBot() {
     console.log("✅ TEST PASSED: REAL WhatsApp Bot: Viewer-tier phone (WHATSAPP_VIEWER_PHONE) can chat");
 }
 
+async function verifyTelegramBot() {
+    // 0. Disabled bot check (503 response when TELEGRAM_BOT_ENABLED is not 'true')
+    process.env.TELEGRAM_BOT_ENABLED = 'false';
+    const { req: r503, res: res503 } = createMockTelegramReqRes({});
+    await tgWebhookHandler(r503, res503);
+    assert.strictEqual(res503.getStatusCode(), 503, "REAL Telegram Bot: Missing/disabled TELEGRAM_BOT_ENABLED returns HTTP 503");
+    console.log("✅ TEST PASSED: REAL Telegram Bot: Disabled flag returns 503 Service Unavailable");
+    process.env.TELEGRAM_BOT_ENABLED = 'true';
+
+    // 1. Wrong secret token rejected (403)
+    const { req: rSecret, res: resSecret } = createMockTelegramReqRes({ message: { chat: { id: 1 }, from: { id: 999888777 }, text: 'hola' } }, { 'x-telegram-bot-api-secret-token': 'wrong' });
+    await tgWebhookHandler(rSecret, resSecret);
+    assert.strictEqual(resSecret.getStatusCode(), 403, "REAL Telegram Bot: Wrong secret token returns HTTP 403");
+    console.log("✅ TEST PASSED: REAL Telegram Bot: Invalid secret token correctly rejected with HTTP 403");
+
+    // 2. Unauthorized sender rejection
+    const { req: rUnauth, res: resUnauth } = createMockTelegramReqRes({ message: { chat: { id: 2 }, from: { id: 111222333 }, text: 'hola' } });
+    await tgWebhookHandler(rUnauth, resUnauth);
+    assert.strictEqual(resUnauth.getData()?.status, 'unauthorized_sender', "REAL Telegram Bot: Unauthorized user id correctly blocked");
+    console.log("✅ TEST PASSED: REAL Telegram Bot: Unauthorized Telegram user id correctly blocked");
+
+    // 3. Authorized admin can chat
+    const { req: rAdmin, res: resAdmin } = createMockTelegramReqRes({ message: { chat: { id: 3 }, from: { id: 999888777, first_name: 'Gustavo' }, text: '¿cómo van las ventas?' } });
+    await tgWebhookHandler(rAdmin, resAdmin);
+    assert.strictEqual(resAdmin.getData()?.status, 'success', "REAL Telegram Bot: Authorized admin id gets a successful reply");
+    console.log("✅ TEST PASSED: REAL Telegram Bot: Authorized admin id (TELEGRAM_ADMIN_ID) can chat");
+}
+
 runCoreUnitTests();
-verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => {
+verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => verifyTelegramBot()).then(() => {
     console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
     process.exit(0);
 }).catch(err => {

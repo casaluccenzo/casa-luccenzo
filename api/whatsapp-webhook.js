@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { normalizeText, DEFAULT_PRODUCTS, SupabaseRest, getAuthorizationLevel, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { SupabaseRest, getAuthorizationLevel, handleIncomingMessage } = require('../lib/bot-shared');
 
 // Read raw body buffer from request
 function getRawBody(req) {
@@ -141,121 +141,18 @@ const handler = async (req, res) => {
         }
 
         // ----------------------------------------------------
-        // 5. Fetch Full Live Business Context (Products & Sales)
+        // 5-7. Fetch context, ask the AI, execute any authorized action --
+        //      all shared with the Telegram/Baileys channels via bot-shared.js
         // ----------------------------------------------------
-        let currentProducts = DEFAULT_PRODUCTS;
-        const dbProducts = await db.get('products');
-        if (dbProducts && dbProducts.length > 0) {
-            currentProducts = dbProducts;
-        }
-
-        let salesSummaryText = 'No hay ventas registradas hoy todavía.';
-        let topProductsText = 'Sin datos de ventas aún.';
-        let totalSalesUsd = 0;
-        let salesCount = 0;
-
-        const dbSales = await db.get('sales');
-        if (dbSales && Array.isArray(dbSales)) {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const todaySales = dbSales.filter(s => (s.timestamp || '').startsWith(todayStr));
-            salesCount = todaySales.length;
-            totalSalesUsd = todaySales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
-
-            const counts = {};
-            todaySales.forEach(s => {
-                const name = s.product_name || 'Producto';
-                counts[name] = (counts[name] || 0) + (parseInt(s.quantity, 10) || 1);
-            });
-
-            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-            if (sorted.length > 0) {
-                topProductsText = sorted.map(([name, qty], idx) => `${idx + 1}. ${name}: ${qty} unidades`).join('\n');
-            }
-            salesSummaryText = `Ventas Totales Hoy: $${totalSalesUsd.toFixed(2)} USD | Operaciones: ${salesCount}`;
-        }
-
-        // ----------------------------------------------------
-        // 6. Conversational AI NLU with Gemini 2.5 Flash (with memory)
-        // ----------------------------------------------------
-        const historicalSummaryText = await fetchHistoricalDailySummary(db, 14);
-        const conversationHistory = await getConversationHistory(db, rawFrom);
-
-        const aiResult = await processIntentWithGemini(messageText, currentProducts, {
-            salesSummaryText,
-            topProductsText,
-            totalSalesUsd,
-            salesCount,
+        const { replyMessage, intent } = await handleIncomingMessage({
+            db,
+            conversationKey: rawFrom,
             senderName,
-            historicalSummaryText,
-            authLevel
-        }, conversationHistory);
+            messageText,
+            authLevel,
+            channelLabel: 'WhatsApp'
+        });
 
-        await appendConversationTurn(db, rawFrom, 'user', messageText);
-
-        const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
-        const isMutationIntent = intent === 'add_stock' || intent === 'set_stock' || intent === 'update_bcv';
-
-        // ----------------------------------------------------
-        // 7. Execute Database Actions (If mutation requested, admin only --
-        //    enforced here regardless of what the AI decided, not just via prompt)
-        // ----------------------------------------------------
-        let replyMessage = reply_text || '';
-
-        if (isMutationIntent && authLevel !== 'admin') {
-            replyMessage = `🙅 Esa acción (cambiar stock o tasa) solo la puede hacer un administrador. Puedo ayudarte con consultas: ventas, inventario, cómo funciona la app, lo que necesites.`;
-        } else if (intent === 'add_stock' || intent === 'set_stock') {
-            const targetProduct = currentProducts.find(p => p.id === target_product_id) || 
-                                  currentProducts.find(p => normalizeText(p.name).includes(normalizeText(aiResult.product_name || '')));
-
-            if (targetProduct) {
-                const qtyVal = parseInt(quantity, 10) || 0;
-                let newStock = targetProduct.stock || 0;
-
-                if (intent === 'add_stock') {
-                    newStock += qtyVal;
-                } else {
-                    newStock = qtyVal;
-                }
-
-                // Update Supabase
-                await db.patch('products', 'id', targetProduct.id, { stock: newStock });
-                targetProduct.stock = newStock;
-
-                // Log Activity
-                await db.post('activity_logs', {
-                    user_name: `WhatsApp (${senderName})`,
-                    action: 'Ajuste de Stock vía WhatsApp',
-                    details: `${intent === 'add_stock' ? 'Cargados' : 'Establecido'} ${qtyVal} ud de ${targetProduct.name}. Nuevo stock: ${newStock}`,
-                    timestamp: new Date().toISOString()
-                });
-
-                if (!replyMessage || replyMessage.includes('⚠️')) {
-                    replyMessage = `✅ *¡Stock Actualizado Exitosamente!*\n\n` +
-                                   `📦 *Producto:* ${targetProduct.name}\n` +
-                                   `➕ *Cantidad:* ${intent === 'add_stock' ? '+' : ''}${qtyVal}\n` +
-                                   `📊 *Nuevo Stock en Vitrina:* ${newStock} unidades\n\n` +
-                                   `*Casa Lucenzo Bot* 🥖`;
-                }
-            }
-        } else if (intent === 'update_bcv') {
-            const newRate = parseFloat(bcv_rate) || 0;
-            if (newRate > 0) {
-                await db.post('exchange_rates', {
-                    rate: newRate,
-                    source: 'WhatsApp Admin',
-                    timestamp: new Date().toISOString()
-                });
-                if (!replyMessage) {
-                    replyMessage = `💵 *Tasa BCV Actualizada Exitosamente*\n\n` +
-                                   `📈 *Nueva Tasa:* ${newRate.toFixed(2)} VES/USD\n` +
-                                   `👤 *Actualizado por:* ${senderName}\n\n` +
-                                   `Todos los precios en Bolívares se han recargado en el POS.`;
-                }
-            }
-        }
-
-        // Send WhatsApp Outgoing Response Message
-        await appendConversationTurn(db, rawFrom, 'assistant', replyMessage);
         await sendWhatsAppMessage(rawFrom, replyMessage);
         return res.status(200).json({ status: 'success', intent, reply: replyMessage });
 

@@ -4,7 +4,7 @@ const QRCode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
-const { DEFAULT_PRODUCTS, SupabaseRest, getAuthorizationLevel, getConversationHistory, appendConversationTurn, fetchHistoricalDailySummary, processIntentWithGemini } = require('../lib/whatsapp-bot-shared');
+const { SupabaseRest, getAuthorizationLevel, handleIncomingMessage } = require('../lib/bot-shared');
 
 async function startWhatsAppQRBridge() {
     console.log('🚀 Iniciando Servicio de Conexión por Código QR (Casa Lucenzo WhatsApp Bridge)...');
@@ -139,87 +139,16 @@ async function startWhatsAppQRBridge() {
                 return;
             }
 
-            // Fetch Products & Sales from Supabase
-            let catalog = DEFAULT_PRODUCTS;
-            const dbProducts = await db.get('products');
-            if (dbProducts && dbProducts.length > 0) catalog = dbProducts;
-
-            let salesSummaryText = 'No hay ventas registradas hoy todavía.';
-            let topProductsText = 'Sin datos de ventas aún.';
-            let totalSalesUsd = 0;
-            let salesCount = 0;
-
-            const dbSales = await db.get('sales');
-            if (dbSales && Array.isArray(dbSales)) {
-                const todayStr = new Date().toISOString().slice(0, 10);
-                const todaySales = dbSales.filter(s => (s.timestamp || '').startsWith(todayStr));
-                salesCount = todaySales.length;
-                totalSalesUsd = todaySales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
-
-                const counts = {};
-                todaySales.forEach(s => {
-                    const name = s.product_name || 'Producto';
-                    counts[name] = (counts[name] || 0) + (parseInt(s.quantity, 10) || 1);
-                });
-
-                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-                if (sorted.length > 0) {
-                    topProductsText = sorted.map(([name, qty], idx) => `${idx + 1}. ${name}: ${qty} unidades`).join('\n');
-                }
-                salesSummaryText = `Ventas Totales Hoy: $${totalSalesUsd.toFixed(2)} USD | Operaciones: ${salesCount}`;
-            }
-
-            // Call Conversational AI Engine (with memory)
-            const historicalSummaryText = await fetchHistoricalDailySummary(db, 14);
-            const conversationHistory = await getConversationHistory(db, rawFrom);
-
-            const aiResult = await processIntentWithGemini(messageText, catalog, {
-                salesSummaryText,
-                topProductsText,
-                totalSalesUsd,
-                salesCount,
+            const { replyMessage } = await handleIncomingMessage({
+                db,
+                conversationKey: rawFrom,
                 senderName,
-                historicalSummaryText,
-                authLevel
-            }, conversationHistory);
-
-            await appendConversationTurn(db, rawFrom, 'user', messageText);
-
-            const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
-            const isMutationIntent = intent === 'add_stock' || intent === 'set_stock' || intent === 'update_bcv';
-            let replyMessage = reply_text || `🤖 ¡Hola ${senderName}! he procesado tu instrucción.`;
-
-            // Execute Actions (admin only, enforced here regardless of AI intent)
-            if (isMutationIntent && authLevel !== 'admin') {
-                replyMessage = `🙅 Esa acción (cambiar stock o tasa) solo la puede hacer un administrador. Puedo ayudarte con consultas.`;
-            } else if (intent === 'add_stock' || intent === 'set_stock') {
-                const targetProduct = catalog.find(p => p.id === target_product_id) || catalog[0];
-                if (targetProduct) {
-                    const qtyVal = parseInt(quantity, 10) || 0;
-                    let newStock = targetProduct.stock || 0;
-                    newStock = (intent === 'add_stock') ? (newStock + qtyVal) : qtyVal;
-
-                    await db.patch('products', 'id', targetProduct.id, { stock: newStock });
-                    await db.post('activity_logs', {
-                        user_name: `WhatsApp QR (${senderName})`,
-                        action: 'Ajuste de Stock vía WhatsApp QR',
-                        details: `${intent === 'add_stock' ? 'Cargados' : 'Establecido'} ${qtyVal} ud de ${targetProduct.name}. Nuevo stock: ${newStock}`,
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            } else if (intent === 'update_bcv') {
-                const newRate = parseFloat(bcv_rate) || 0;
-                if (newRate > 0) {
-                    await db.post('exchange_rates', {
-                        rate: newRate,
-                        source: 'WhatsApp QR Admin',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            }
+                messageText,
+                authLevel,
+                channelLabel: 'WhatsApp QR'
+            });
 
             // Send Outgoing WhatsApp Response
-            await appendConversationTurn(db, rawFrom, 'assistant', replyMessage);
             console.log(`📤 Enviando respuesta a ${senderName}...`);
             await sock.sendMessage(remoteJid, { text: replyMessage });
 

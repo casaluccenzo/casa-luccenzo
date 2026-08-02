@@ -7,6 +7,7 @@ const destDir = path.resolve(srcDir, 'www');
 // List of files/directories to copy
 const assetsToCopy = [
     'index.html',
+    'sistema',
     'manifest.json',
     'sw.js',
     'css',
@@ -35,7 +36,9 @@ assetsToCopy.forEach(asset => {
 
 // Perform environment variable placeholder injection for production www/ build
 const supabaseBuildFile = path.join(destDir, 'js', 'supabase.js');
-const indexBuildFile = path.join(destDir, 'index.html');
+// The Sentry init + __SENTRY_DSN__ placeholder lives in the internal POS app
+// (sistema/index.html), not the public landing page (index.html).
+const indexBuildFile = path.join(destDir, 'sistema', 'index.html');
 
 const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
@@ -64,7 +67,7 @@ if (fs.existsSync(indexBuildFile)) {
     const sentryDsn = process.env.SENTRY_DSN || 'https://mock-sentry-dsn@o0.ingest.sentry.io/0';
     indexContent = indexContent.replace('__SENTRY_DSN__', sentryDsn);
     fs.writeFileSync(indexBuildFile, indexContent, 'utf8');
-    console.log('🛡️ SENTRY_DSN injected into www/index.html');
+    console.log('🛡️ SENTRY_DSN injected into www/sistema/index.html');
 }
 
 console.log('✨ Build completed successfully! All assets are ready in www/ folder.');

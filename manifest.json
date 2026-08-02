@@ -29,8 +29,8 @@
       "purpose": "maskable"
     }
   ],
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/sistema/index.html",
+  "scope": "/sistema/",
   "background_color": "#000F20",
   "theme_color": "#000A14",
   "display": "standalone",

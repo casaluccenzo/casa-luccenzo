@@ -3084,7 +3084,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1200);
         });
 
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('/sw.js', { scope: '/sistema/' })
             .then(reg => {
                 console.log('Service Worker Registered with scope:', reg.scope);
                 

@@ -1,24 +1,26 @@
-// Service Worker for offline operations
-const CACHE_NAME = 'casa-lucenzo-v224';
+// Service Worker for offline operations -- scoped to /sistema/ (the internal
+// POS tool), registered from js/app.js. The public landing page at / is a
+// plain static page and isn't part of this PWA/offline experience.
+const CACHE_NAME = 'casa-lucenzo-v225';
 
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './css/main.css',
-  './css/variables.css',
-  './css/layout.css',
-  './css/components.css',
-  './js/app.js',
-  './js/storage.js',
-  './js/supabase.js',
-  './js/recipes.js',
-  './js/audio.js',
-  './js/share.js',
-  './js/agent.js',
-  './js/ui.js',
-  './img/logo-192.png',
-  './img/logo-512.png'
+  '/sistema/',
+  '/sistema/index.html',
+  '/manifest.json',
+  '/css/main.css',
+  '/css/variables.css',
+  '/css/layout.css',
+  '/css/components.css',
+  '/js/app.js',
+  '/js/storage.js',
+  '/js/supabase.js',
+  '/js/recipes.js',
+  '/js/audio.js',
+  '/js/share.js',
+  '/js/agent.js',
+  '/js/ui.js',
+  '/img/logo-192.png',
+  '/img/logo-512.png'
 ];
 
 // Install Event - cache assets
@@ -84,7 +86,7 @@ self.addEventListener('fetch', event => {
           .catch(() => {
             // Offline fallback for navigation requests
             if (event.request.mode === 'navigate') {
-              return caches.match('./index.html');
+              return caches.match('/sistema/index.html');
             }
           });
       })

@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+    <script>
+        // Vercel currently serves this repo as static source without running
+        // scripts/build.js (see vercel.json), so the __SENTRY_DSN__ placeholder
+        // never gets replaced. Fall back to the real DSN in that case -- same
+        // pattern as js/supabase.js. A Sentry DSN is meant to be public (it only
+        // lets a client send events in, not read anything back), so this is safe.
+        var sentryDsn = '__SENTRY_DSN__';
+        if (sentryDsn === '__SENTRY_DSN__') {
+            sentryDsn = 'https://ad2837e78a50e5c2949fd962d9a5fb37@o4511842951823360.ingest.us.sentry.io/4511842957983749';
+        }
+        if (typeof Sentry !== 'undefined' && Sentry.init) {
+            try {
+                Sentry.init({
+                    dsn: sentryDsn,
+                    environment: 'production',
+                    tracesSampleRate: 0.1
+                });
+            } catch (e) {
+                console.warn('Sentry init skipped:', e.message);
+            }
+        }
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("CRASH DETECTADO:", message, source, lineno, colno, error);
+            if (typeof Sentry !== 'undefined' && Sentry.captureException && error) Sentry.captureException(error);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            console.warn("PROMISE REJECTED (handled silently):", event ? event.reason : 'unknown');
+            if (typeof Sentry !== 'undefined' && Sentry.captureException && event && event.reason) Sentry.captureException(event.reason);
+            if (event && event.preventDefault) event.preventDefault();
+        });
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Stock Fácil - Casa Lucenzo</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://xttpaqokeyywjaajvjyu.supabase.co" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Link to Modular Custom CSS Styles -->
+    <link rel="stylesheet" href="/css/main.css?v=224">
+    
+    <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/storage.js?v=224"></script>
+    <script src="/js/supabase.js?v=224"></script>
+    <script src="/js/exchange-rate.js?v=224"></script>
+    <script src="/js/export.js?v=224"></script>
+    <script src="/js/auth.js?v=224"></script>
+    <script src="/js/sales.js?v=224"></script>
+    <script src="/js/inventory.js?v=224"></script>
+    <script src="/js/pin-management.js?v=224"></script>
+    <script src="/js/ui/shared.js?v=224"></script>
+    <script src="/js/recipes.js?v=224"></script>
+    <script src="/js/audio.js?v=224"></script>
+    <script src="/js/share.js?v=224"></script>
+    <script src="/js/agent.js?v=224"></script>
+    <script src="/js/ui.js?v=224"></script>
+    <script src="/js/app.js?v=224"></script>
+    
+    <!-- PWA manifest for android/iOS install support -->
+    <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
+
+    <!-- iOS PWA Support Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Casa Lucenzo">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000A14">
+
+    <!-- Apple Touch Icons (iOS home screen icon) -->
+    <link rel="apple-touch-icon" href="/img/logo-192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/logo-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/logo-512.png">
+</head>
+<body>
+
+    <!-- Header section -->
+    <header>
+        <div class="container-md header-grid">
+            
+            <div class="logo-container">
+                <!-- Round header logo cropped to hide white corners -->
+                <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background-image: url('/img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold); box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
+                <div style="display: flex; flex-direction: column;">
+                    <h1 class="brand-title" style="margin: 0; line-height: 1.1; display: flex; align-items: center; gap: 0.375rem;">
+                        CASA LUCENZO
+                        <span id="conn-status" class="conn-status local" title="Modo Local Activo"></span>
+                    </h1>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 12px; color: var(--color-gold); font-weight: 700; opacity: 0.95;">
+                            <span>Tasa Bs:</span>
+                            <input type="number" id="header-bcv-rate-input" step="0.0001" style="width: 5.5rem; height: 24px; background: rgba(243, 198, 63, 0.18); border: 1.5px solid var(--color-gold); border-radius: 6px; color: var(--color-gold); font-weight: 800; text-align: center; font-size: 11px; outline: none; padding: 0 4px; letter-spacing: 0.02em;" title="Toca para cambiar la tasa manualmente">
+                        </div>
+                        <div id="header-cash-badge" style="display: flex; align-items: center; gap: 0.35rem; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 6px; padding: 2px 8px; color: var(--color-success); font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Caja Estimada (Hoy)">
+                            <i class="fa-solid fa-cash-register" style="font-size: 10px;"></i>
+                            <span id="header-cash-val">$0.00</span>
+                        </div>
+                        <div id="header-offline-badge" style="display: none; align-items: center; gap: 0.35rem; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.5); border-radius: 6px; padding: 2px 8px; color: #FBBF24; font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Operaciones pendientes de sincronizar">
+                            <i class="fa-solid fa-wifi-slash" style="font-size: 10px;"></i>
+                            <span id="header-offline-count">0 pend.</span>
+                        </div>
+                        <div id="header-lowstock-badge" style="display: none; align-items: center; gap: 0.35rem; background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; padding: 2px 8px; color: #F87171; font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Ítems con stock bajo">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 10px;"></i>
+                            <span id="header-lowstock-count">0 bajo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Lock button to lock screen and change user role -->
+                <button id="btn-lock-user" class="btn-lock" title="Bloquear Pantalla / Cambiar Rol">
+                    <i class="fa-solid fa-lock"></i>
+                </button>
+                <!-- Gear button to open Settings Modal -->
+                <button id="btn-settings-toggle" class="btn-settings-action edit" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full);" title="Configurar Productos">
+                    <i class="fa-solid fa-gear" style="font-size: 1.125rem;"></i>
+                </button>
+            </div>
+
+            <!-- View switch controller (Vitrina vs Cocina vs Fiados) -->
+            <div class="switch-nav" id="switch-nav-bar" role="tablist">
+                <button id="btn-admin-dashboard" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-admin-dashboard">
+                    <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="nav-label">CONTROL</span>
+                </button>
+                <button id="btn-local" class="active" role="tab" aria-selected="true" aria-controls="view-local">
+                    <span class="nav-icon"><i class="fa-solid fa-shop"></i></span>
+                    <span class="nav-label">1. LOCAL</span>
+                </button>
+                <button id="btn-clientes" class="inactive" role="tab" aria-selected="false" aria-controls="view-clientes">
+                    <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
+                    <span class="nav-label">2. CLIENTES</span>
+                </button>
+                <button id="btn-cocina" class="inactive" role="tab" aria-selected="false" aria-controls="view-cocina">
+                    <span class="nav-icon" style="display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span id="kitchen-badge" class="badge-kitchen-nav hidden">0</span>
+                    </span>
+                    <span class="nav-label">3. COCINA</span>
+                </button>
+                <button id="btn-fiados" class="inactive" role="tab" aria-selected="false" aria-controls="view-fiados">
+                    <span class="nav-icon"><i class="fa-solid fa-handshake-angle"></i></span>
+                    <span class="nav-label">4. CRÉDITOS</span>
+                </button>
+                <button id="btn-cambio" class="inactive" role="tab" aria-selected="false" aria-controls="view-cambio">
+                    <span class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
+                    <span class="nav-label">5. CAMBIO</span>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main dynamic interface -->
+    <main class="container-md">
+        
+        
+
+        
+        <!-- Dynamic container wrapper margin -->
+        <div style="margin-top: 1rem;">
+            
+            <!-- ================= VIEW 1: STORE FRONT (LOCAL) ================= -->
+            <section id="view-local" class="view-section">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div>
+                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">¿Qué tenemos en Vitrina?</h2>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                            Pulsa <strong style="color: var(--color-danger);">[-] Menos</strong> cuando vendas un pastelito.
+                        </p>
+                    </div>
+                    <!-- Refill all trigger -->
+                    <button id="btn-reset-all" class="btn-action-small">
+                        <i class="fa-solid fa-rotate-left"></i> Rellenar todo
+                    </button>
+                </div>
+                <!-- Responsive Grid/Flex wrapper for catalog and checkout -->
+                <div class="local-layout-wrapper">
+                    
+                    <!-- Left/Main Column: Product Catalog & Search -->
+                    <div class="local-catalog-col">
+                        <!-- Vitrina dynamic summary stats -->
+                        <div id="vitrina-summary-stats" class="vitrina-stats-bar"></div>
+
+                        <!-- Alert card when kitchen has dispatched items (confirm receipt) -->
+                        <div id="dispatch-container" class="hidden">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+
+                        <!-- Sticky Catalog Search and Filter Header -->
+                        <div class="sticky-catalog-header">
+                            <!-- Search bar input -->
+                            <div id="search-bar-container">
+                                <!-- Dynamic search bar from js/ui.js -->
+                            </div>
+
+                            <!-- PWA Category filter pills -->
+                            <div id="category-filter-container" class="category-filter-bar">
+                                <!-- Dynamic tabs from js/ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- Main dynamic stock control list -->
+                        <div class="inventory-list" id="inventory-list">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+                    </div>
+
+                    <!-- Right/Side Column: Cart, Caja register, and Daily Actions -->
+                    <div class="local-checkout-col">
+                        <!-- Active Customer Account / Cart -->
+                        <div id="active-cart-container" class="hidden">
+                            <!-- Dynamic injections from js/ui.js -->
+                        </div>
+
+                        <!-- Day Close trigger -->
+                        <div style="margin-top: 1.5rem;" id="day-close-trigger-section">
+                            <button id="btn-cierre-dia-open" class="btn-touch btn-kitchen-deliver" style="background-color: var(--color-gold); color: #000000; font-weight: 900; gap: 0.5rem; width: 100%;">
+                                <i class="fa-solid fa-door-closed text-lg"></i>
+                                CERRAR JORNADA (CIERRE DE DÍA)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 2: KITCHEN LIST (COCINA) ================= -->
+            <section id="view-cocina" class="view-section hidden">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div>
+                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Inventario y Cocina</h2>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                            Carga el stock inicial de hoy o revisa lo que hace falta por cocinar.
+                        </p>
+                    </div>
+                    <!-- WhatsApp share button -->
+                    <button id="btn-whatsapp-share" class="btn-action-small btn-whatsapp">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 14px;"></i> Enviar a Papás
+                    </button>
+                </div>
+
+                <!-- Alert banner if items are critical -->
+                <div id="kitchen-alert-banner" class="kitchen-alert-banner hidden">
+                    <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> 
+                    <span>🚨 ALERTA: Hacen falta productos en vitrina. ¡Revisar reposiciones necesarias abajo!</span>
+                </div>
+
+                <!-- Replenishment orders list -->
+                <div id="kitchen-orders-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Dynamic injections from js/ui.js -->
+                </div>
+            </section>
+
+            <!-- ================= VIEW 5: CLIENTS AND TABLES ================= -->
+            <section id="view-clientes" class="view-section hidden">
+                <!-- Live statistics summary card -->
+                <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-gold);">
+                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-chart-line animate-pulse"></i> RESUMEN EN VIVO (HOY)
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">En Vitrina</div>
+                            <div id="live-stat-vitrina" style="font-size: 1.125rem; font-weight: 900; color: var(--color-white); margin-top: 0.25rem;">0</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Vendidos Hoy</div>
+                            <div id="live-stat-vendidos" style="font-size: 1.125rem; font-weight: 900; color: var(--color-gold); margin-top: 0.25rem;">0</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Total Ventas</div>
+                            <div id="live-stat-ventas" style="margin-top: 0.25rem;">$0.00</div>
+                        </div>
+                        <div id="live-stat-total-real-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 0.5rem; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 8px; color: #A7F3D0; text-transform: uppercase; font-weight: 700;">Total Real (Hoy)</div>
+                            <div id="live-stat-total-real" style="margin-top: 0.25rem;">$0.00</div>
+                        </div>
+                    </div>
+                    <!-- Live category breakdown -->
+                    <div id="live-stat-categories" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr; gap: 0.4rem;">
+                        <!-- Dynamic injections from js/ui.js -->
+                    </div>
+                </div>
+
+                <!-- Conciliación / Auditoría de Inventario y Caja -->
+                <div id="inventory-match-section" class="card-pantry hidden" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-success-border); background-color: rgba(16, 185, 129, 0.02);">
+                    <!-- Dynamic reconciliation UI injected by js/ui.js -->
+                </div>
+
+                <!-- Sub-view switcher for Mesas vs Cuentas Activas vs Historial -->
+                <div class="sub-switch-nav" id="clientes-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
+                    <button id="btn-sub-mesas" class="active" role="tab" aria-selected="true" aria-controls="sub-view-mesas" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                        <i class="fa-solid fa-table-cells-large"></i> <span>1. MESAS</span>
+                    </button>
+                    <button id="btn-sub-cuentas" class="inactive" role="tab" aria-selected="false" aria-controls="sub-view-cuentas" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                        <i class="fa-solid fa-utensils"></i> <span>2. CUENTAS</span>
+                    </button>
+                    <button id="btn-sub-historial" class="inactive" role="tab" aria-selected="false" aria-controls="sub-view-historial" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> <span>3. HISTORIAL</span>
+                    </button>
+                </div>
+
+                <!-- SUB-VIEW 1: MESAS -->
+                <div id="sub-view-mesas">
+                    <!-- Tables grid card -->
+                    <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem;">
+                        <div id="tables-grid-container">
+                            <!-- Dynamic tables grid injected by js/ui.js -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 2: CUENTAS ACTIVAS -->
+                <div id="sub-view-cuentas" class="hidden">
+                    <!-- Active/Unpaid accounts card -->
+                    <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem;">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-utensils"></i> Cuentas Activas (Consumiendo)
+                        </h3>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                            Clientes y mesas que siguen consumiendo y aún no han pagado.
+                        </p>
+                        <div id="clientes-activos-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Dynamic active clients -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 3: HISTORIAL -->
+                <div id="sub-view-historial" class="hidden">
+                    <!-- Closed/Paid accounts history card -->
+                    <div class="card-pantry" style="padding: 1.25rem;">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-success); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Historial de Cierres por Cliente (Pagados)
+                        </h3>
+                        <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                            Cuentas que ya fueron cobradas y cerradas en la jornada de hoy.
+                        </p>
+                        <div id="clientes-pagados-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Dynamic paid closures history -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 3: DEBTS virtual ledger (CRÉDITOS) ================= -->
+            <section id="view-fiados" class="view-section hidden">
+                <div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Gestión de Créditos</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        Registro de cuentas por cobrar y créditos otorgados a clientes.
+                    </p>
+                </div>
+
+                <!-- Foldable form to add customer debts -->
+                <details class="settings-group">
+                    <summary><i class="fa-solid fa-user-plus" style="margin-right: 0.25rem;"></i> Anotar Nuevo Crédito</summary>
+                    <form id="add-debt-form" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div class="form-field">
+                            <label class="form-label">Nombre del Cliente</label>
+                            <input type="text" id="debt-client-name" required placeholder="Ej: Juan Pérez" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Monto del Crédito ($)</label>
+                            <input type="number" id="debt-amount" step="0.01" required placeholder="Ej: 3.00" class="form-input">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Productos / Detalle de Ítems (Ej: 2 Mechadas, 1 Malta)</label>
+                            <input type="text" id="debt-desc" placeholder="Ej: 2 Mechadas, 1 Malta" class="form-input">
+                        </div>
+                        <button type="submit" class="btn-form-submit" style="margin-top: 0.25rem;">Registrar Crédito</button>
+                    </form>
+                </details>
+
+                <!-- Debts list -->
+                <div id="debts-list" class="client-ledger-container" style="margin-top: 1rem;">
+                    <!-- Dynamic items from js/ui.js -->
+                </div>
+            </section>
+
+            <!-- ================= VIEW 4: CURRENCY CONVERTER ================= -->
+            <!-- ================= VIEW 4: CURRENCY CONVERTER ================= -->
+            <section id="view-cambio" class="view-section hidden">
+                <!-- Columns wrapper -->
+                <div class="cambio-cols-grid">
+                    <!-- Column 1: Calculator and Quick Reference (Red Box / Cambio) -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Left Column Header Card: Conversor de Monedas -->
+                        <div class="cash-card" style="margin-top: 0; margin-bottom: 0; padding: 1.25rem; justify-content: space-between; border-color: rgba(255,255,255,0.15); background: linear-gradient(135deg, #012852 0%, #000F20 100%); box-shadow: var(--shadow-lg);">
+                            <div class="cash-label-group">
+                                <span class="cash-label" style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--color-gold);">Conversor de Monedas</span>
+                                <span style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.15rem;">Calculadora de cambio del día</span>
+                            </div>
+                            <div style="font-size: 1.5rem; color: var(--color-gold);">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                        </div>
+
+                        <!-- Conversor Inputs Card -->
+                        <div class="card-pantry" style="padding: 1.25rem;">
+                            <!-- Calculator inputs -->
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div class="form-field">
+                                    <label class="form-label" style="display: flex; justify-content: space-between;">
+                                        <span>Monto en Dólares ($)</span>
+                                        <span style="font-weight: 900; color: var(--color-gold);">USD</span>
+                                    </label>
+                                    <input type="number" id="calc-usd" step="0.01" placeholder="Ej: 10.00" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                                </div>
+                                
+                                <div style="text-align: center; color: var(--color-gold); font-size: 1.25rem; margin: -0.25rem 0;">
+                                    <i class="fa-solid fa-repeat"></i>
+                                </div>
+                                
+                                <div class="form-field">
+                                    <label class="form-label" style="display: flex; justify-content: space-between;">
+                                        <span>Monto en Bolívares (Bs.)</span>
+                                        <span style="font-weight: 900; color: var(--color-gold);">VES</span>
+                                    </label>
+                                    <input type="number" id="calc-ves" step="0.01" placeholder="Ej: 7324.78" class="form-input" style="font-size: 1.125rem; font-weight: bold; height: 44px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equivalencias rápidas -->
+                        <div class="card-pantry" style="padding: 1.25rem;">
+                            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Tabla de Cambio Rápido</h4>
+                            <div id="conversion-quick-table" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Injected dynamically by js/ui.js -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Caja y Gastos de Hoy (Yellow Box / Caja y Historial) -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Right Column Header Card: Caja Estimada (Hoy) -->
+                        <div class="cash-card" style="margin-top: 0; margin-bottom: 0; padding: 1.25rem; justify-content: space-between;">
+                            <div class="cash-label-group">
+                                <span class="cash-label" style="font-size: 0.75rem; letter-spacing: 0.05em;">Caja Estimada (Hoy)</span>
+                                <span id="cash-value" class="cash-value" style="font-size: 1.5rem; font-weight: 900; color: var(--color-gold); margin-top: 0.15rem;">$0.00</span>
+                            </div>
+                            <div style="font-size: 1.5rem; color: var(--color-gold);">
+                                <i class="fa-solid fa-cash-register animate-pulse"></i>
+                            </div>
+                        </div>
+
+                        <!-- Daily Expenses Section -->
+                        <div class="expenses-container" id="daily-expenses-section" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <h3 class="history-title">Gastos del Local</h3>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
+                            </div>
+                            
+                            <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
+                                <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
+                                <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
+                                <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </form>
+                            
+                            <div id="expense-list" class="expense-list">
+                                <!-- Dynamic items from js/ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- Sales History Log -->
+                        <div class="history-container hidden" id="sales-history-section" style="margin-bottom: 0;">
+                            <div class="history-header">
+                                <h3 class="history-title">Registro de Ventas</h3>
+                                <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
+                                    <i class="fa-solid fa-trash-can"></i> Limpiar Caja
+                                </button>
+                            </div>
+                            <div id="history-list" class="history-list">
+                                <!-- Dynamic items from js/ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- Report Preview Button -->
+                        <button id="btn-preview-report" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background: linear-gradient(135deg, #1E3A5F 0%, #0A1929 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-md); font-weight: 800; font-size: 0.8125rem; color: var(--color-gold); gap: 0.5rem; margin-top: 0.75rem; letter-spacing: 0.03em;">
+                            <i class="fa-solid fa-file-invoice"></i> VER REPORTE DEL DÍA
+                        </button>
+
+                        <!-- Report History Button -->
+                        <button id="btn-report-history" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 40px; min-height: 40px; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md); font-weight: 700; font-size: 0.75rem; color: var(--color-text-muted); gap: 0.5rem; margin-top: 0.375rem; letter-spacing: 0.03em;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> HISTORIAL DE REPORTES
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <!-- Page Footer with Copyright & Seal -->
+            <footer class="app-footer" style="margin-top: 3rem; padding: 1.5rem 0 1rem; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; font-size: 10px; color: var(--color-text-muted); opacity: 0.8; font-family: var(--font-sans); letter-spacing: 0.03em;">
+                <span>&copy; 2026 Casa Luccenzo. Todos los derechos reservados.</span>
+                <div style="margin-top: 0.25rem; font-size: 9px; font-weight: 700; color: var(--color-gold); letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                    <i class="fa-solid fa-shield-halved"></i> HECHO EN VENEZUELA
+                </div>
+            </footer>
+            
+        </div>
+        
+        <!-- ================= VIEW: ADMIN DASHBOARD (CONTROL) ================= -->
+        <section id="view-admin-dashboard" class="view-section hidden">
+            <div class="admin-dashboard-container">
+            
+            <!-- Sidebar Navigation -->
+            <div class="admin-sidebar">
+                <div class="admin-sidebar-logo">
+                    <div style="width: 2.25rem; height: 2.25rem; border-radius: 50%; background-image: url('/img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold);"></div>
+                    <div style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0; font-family: var(--font-serif); font-size: 11px; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.2;">Luccenzo</h4>
+                        <span style="font-size: 8px; color: var(--color-text-muted); font-weight: 700; text-transform: uppercase;">Administración</span>
+                    </div>
+                </div>
+                
+                <div class="admin-sidebar-menu">
+                    <button id="admin-tab-btn-summary" class="admin-tab-btn active">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>📊 Resumen</span>
+                    </button>
+                    <button id="admin-tab-btn-products" class="admin-tab-btn">
+                        <i class="fa-solid fa-box"></i>
+                        <span>📦 Productos</span>
+                    </button>
+                    <button id="admin-tab-btn-devices" class="admin-tab-btn">
+                        <i class="fa-solid fa-network-wired"></i>
+                        <span>🔌 Dispositivos</span>
+                    </button>
+                    <button id="admin-tab-btn-logs" class="admin-tab-btn">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>📋 Bitácora</span>
+                    </button>
+                    <button id="admin-tab-btn-costs" class="admin-tab-btn">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>🧮 Costos y Ganancias</span>
+                    </button>
+                    <button id="admin-tab-btn-agent" class="admin-tab-btn">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>🤖 Agente IA</span>
+                    </button>
+                    <button id="admin-tab-btn-preferences" class="admin-tab-btn">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>⚙️ Ajustes</span>
+                    </button>
+                </div>
+                
+                <button id="btn-settings-cancel" class="admin-tab-btn close-btn">
+                    <i class="fa-solid fa-door-open"></i>
+                    <span>Listo / Salir</span>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="admin-content-area">
+                
+                <!-- PANEL 1: SUMMARY / DASHBOARD -->
+                <div id="admin-panel-summary" class="admin-panel active">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Resumen de Operaciones
+                        </h3>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button id="btn-refresh-dashboard" class="btn-action-small" style="font-size: 10px; padding: 2px 8px;">
+                                <i class="fa-solid fa-rotate"></i> Refrescar
+                            </button>
+                            <div style="font-size: 10px; color: var(--color-text-muted); font-weight: 700;" id="admin-summary-time-display">
+                                Cargando estado en vivo...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-panel-body">
+                        <!-- Executive Dashboard Container -->
+                        <div id="admin-dashboard-container" style="margin-bottom: 1rem;"></div>
+                        <!-- KPI Cards Grid -->
+                        <div class="admin-kpi-grid">
+                            <div class="admin-kpi-card caja">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-cash-register"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Caja (Estimado)</span>
+                                    <span id="admin-kpi-caja" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card ventas">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Ventas Hoy</span>
+                                    <span id="admin-kpi-ventas" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card gastos">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-wallet"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Gastos Hoy</span>
+                                    <span id="admin-kpi-gastos" class="admin-kpi-value">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="admin-kpi-card dispositivos">
+                                <div class="admin-kpi-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                                <div class="admin-kpi-info">
+                                    <span class="admin-kpi-label">Dispositivos</span>
+                                    <span id="admin-kpi-devices" class="admin-kpi-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Critical Stock Alerts (Shown dynamically if products are low on stock) -->
+                        <div id="admin-critical-stock-container" class="hidden" style="margin-top: 1rem; width: 100%;">
+                            <!-- Injected by js/ui.js -->
+                        </div>
+
+                        <!-- Metrics / Charts grid -->
+                        <div class="admin-dashboard-row">
+                            <!-- Left Col: Favorite Products -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-star"></i> Productos Más Consumidos
+                                </h4>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                    <div>
+                                        <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos del Día (Hoy)</div>
+                                        <div id="admin-favorites-daily" class="admin-favorites-grid">
+                                            <!-- Injected by js/ui.js -->
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 0.25rem;">
+                                        <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos de la Semana (Últimos 7 días)</div>
+                                        <div id="admin-favorites-weekly" class="admin-favorites-grid">
+                                            <!-- Injected by js/ui.js -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Weekly Chart -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-chart-simple"></i> Reporte de Ventas Semanales
+                                </h4>
+                                <div id="stats-chart-content" class="chart-container" style="margin-top: 0.5rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Hourly Sales Distribution -->
+                        <div class="admin-dashboard-row" style="margin-top: 1rem; grid-template-columns: 1fr;">
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-clock"></i> Distribución de Ventas por Hora</span>
+                                    <div style="display: flex; gap: 0.35rem;" id="hourly-toggle-container">
+                                        <button id="btn-hourly-today" class="btn-action-small active" style="padding: 2px 8px; font-size: 9px;">Hoy</button>
+                                        <button id="btn-hourly-weekly" class="btn-action-small" style="padding: 2px 8px; font-size: 9px;">Semana</button>
+                                        <button id="btn-hourly-pdf" class="btn-action-small" style="padding: 2px 8px; font-size: 9px; background: rgba(243, 198, 63, 0.15); border-color: var(--color-gold); color: var(--color-gold);">
+                                            <i class="fa-solid fa-file-pdf"></i> Reporte PDF
+                                        </button>
+                                    </div>
+                                </h4>
+                                <div id="hourly-chart-content" style="margin-top: 0.5rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Payment Methods & Category Performance -->
+                        <div class="admin-dashboard-row" style="margin-top: 1rem;">
+                            <!-- Column 1: Payment Methods -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
+                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                        <i class="fa-solid fa-credit-card"></i> Métodos de Pago
+                                    </span>
+                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                        <button id="btn-stats-payment-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
+                                        <button id="btn-stats-payment-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    </div>
+                                </h4>
+                                <div id="payment-methods-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                            
+                            <!-- Column 2: Category Performance -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
+                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                        <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
+                                    </span>
+                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                        <button id="btn-stats-cat-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
+                                        <button id="btn-stats-cat-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    </div>
+                                </h4>
+                                <div id="category-performance-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 2: PRODUCTS MANAGER -->
+                <div id="admin-panel-products" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Gestión de Catálogo y Menú
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <!-- Split: Form left, List right -->
+                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.3fr;">
+                            <!-- Add Product Form -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                    <i class="fa-solid fa-plus-circle"></i> Nuevo Producto
+                                </h4>
+                                <form id="add-product-form" style="margin-top: 0.5rem;">
+                                    <div class="form-field">
+                                        <label class="form-label">Nombre del Producto</label>
+                                        <input type="text" id="new-name" required placeholder="Ej: Jamón con Queso" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label">Precio ($)</label>
+                                        <input type="number" id="new-price" step="0.01" required value="1.50" min="0" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label">Categoría</label>
+                                        <select id="new-category" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                            <option value="pastelitos">Pastelitos</option>
+                                            <option value="tortas">Tortas</option>
+                                            <option value="bebidas">Bebidas</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-grid-3" style="margin-top: 0.5rem;">
+                                        <div>
+                                            <label class="form-label">Máx (Vitrina)</label>
+                                            <input type="number" id="new-max" required min="1" value="25" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Alerta Mín.</label>
+                                            <input type="number" id="new-min" required min="0" value="8" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Unidad</label>
+                                            <select id="new-unit" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                                <option value="unid.">Unidades</option>
+                                                <option value="botellas">Botellas</option>
+                                                <option value="porciones">Porciones</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-form-submit" style="margin-top: 1rem; min-height: 36px;">Guardar Producto</button>
+                                </form>
+                            </div>
+
+                            <!-- Current Products List -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; max-height: 430px;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-list"></i> Productos en Menú</span>
+                                </h4>
+                                <div id="settings-products-list" style="overflow-y: auto; flex: 1; padding-right: 0.25rem;">
+                                    <!-- Injected by js/ui.js -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 3: ACTIVE DEVICES -->
+                <div id="admin-panel-devices" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Control de Dispositivos Conectados
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div class="admin-dashboard-card">
+                            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                <i class="fa-solid fa-network-wired"></i> Navegadores en vivo
+                            </h4>
+                            <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                                Usa el escudo verde para autorizar de forma permanente un dispositivo de confianza, o la puerta roja para sacarlo de línea al instante.
+                            </p>
+                            <div id="settings-devices-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Injected by js/ui.js -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 4: AUDIT LOG / ACTIVITY LOG -->
+                <div id="admin-panel-logs" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Bitácora de Actividades (Auditoría)
+                        </h3>
+                        <button class="btn-action-small" id="btn-admin-logs-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
+                            <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+                        </button>
+                    </div>
+                    <div class="admin-panel-body" style="padding-top: 0.75rem;">
+                        <div class="admin-dashboard-card" style="padding: 0.75rem; max-height: 440px; display: flex; flex-direction: column;">
+                            <div style="overflow-y: auto; flex: 1;">
+                                <table class="audit-log-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Perfil</th>
+                                            <th style="width: 50%;">Acción Realizada</th>
+                                            <th style="width: 20%;">Detalles</th>
+                                            <th style="width: 15%; text-align: right;">Hora</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-logs-tbody">
+                                        <!-- Injected by js/ui.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5: COST & PROFIT CALCULATOR -->
+                <div id="admin-panel-costs" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-calculator"></i> Calculadora de Costos y Ganancias Neta (Sólidos y Líquidos)
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body" style="padding-top: 0.75rem;">
+                        <!-- Two Column Layout: Left Column = Raw Ingredients Purchase Costs (Solid & Liquid), Right Column = Product Recipe Cost & Net Profit Analysis -->
+                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.25fr; gap: 1rem;">
+                            
+                            <!-- Left Column: Raw Insumos Costs (Solid & Liquid) -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-boxes-stacked"></i> Materia Prima e Insumos</span>
+                                </h4>
+                                
+                                <!-- Add Insumo Form -->
+                                <form id="form-add-cost-insumo" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <div style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase;">+ Registrar Compra de Insumo</div>
+                                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.5rem;">
+                                        <input type="text" id="cost-insumo-name" placeholder="Ej: Aceite, Harina, Queso" required class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        <select id="cost-insumo-type" class="form-input" style="height: 32px; font-size: 0.75rem; background: var(--color-bg-dark); color: white;">
+                                            <option value="solid">Sólido (kg)</option>
+                                            <option value="liquid">Líquido (L)</option>
+                                            <option value="unit">Unidad (unid.)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                        <div>
+                                            <label class="form-label" style="font-size: 8px;">CANTIDAD COMPRADA</label>
+                                            <input type="number" id="cost-insumo-qty" step="0.01" min="0.01" required placeholder="Ej: 20 (kg o L)" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                        <div>
+                                            <label class="form-label" style="font-size: 8px;">COSTO COMPRA ($)</label>
+                                            <input type="number" id="cost-insumo-price" step="0.01" min="0.01" required placeholder="Ej: 22.00" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-form-submit" style="min-height: 32px; font-size: 10px; background: var(--color-success); color: white; margin-top: 0.25rem;">
+                                        Guardar Insumo
+                                    </button>
+                                </form>
+
+                                <!-- List of Insumos with Unit Costs -->
+                                <div style="overflow-y: auto; max-height: 280px;">
+                                    <div id="cost-insumos-list-container">
+                                        <!-- Injected dynamically by js/ui.js -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Product Recipe Cost & Net Profit Calculator -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-chart-pie"></i> Análisis de Costo y Ganancia Neta</span>
+                                </h4>
+
+                                <!-- Product Selector & Selling Price Input -->
+                                <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
+                                    <div>
+                                        <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">SELECCIONAR PRODUCTO</label>
+                                        <select id="cost-calc-product-select" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 700; background: var(--color-bg-dark); color: white;">
+                                            <!-- Injected dynamically -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">PRECIO DE VENTA ($)</label>
+                                        <input type="number" id="cost-calc-sell-price" step="0.01" min="0" class="form-input" style="height: 36px; font-size: 0.95rem; font-weight: 900; color: #10B981; text-align: center;">
+                                    </div>
+                                </div>
+
+                                <!-- Financial Results Card (Net Profit, Cost, Margin %, Tray Profit) -->
+                                <div id="cost-financial-results-container">
+                                    <!-- Injected dynamically by js/ui.js -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5.5: AGENTE VIRTUAL IA -->
+                <div id="admin-panel-agent" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-robot"></i> Agente Lucenzo IA
+                            <span style="font-size: 9px; padding: 2px 6px; border-radius: 10px; background: rgba(243, 198, 63, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); font-weight: 700; text-transform: uppercase;">Beta</span>
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body" style="padding: 0.75rem 0.5rem 0.5rem 0.5rem;">
+                        <div class="agent-chat-container">
+                            <div id="agent-chat-messages" class="agent-chat-messages">
+                                <div class="agent-msg agent">
+                                    <div class="agent-msg-bubble">
+👋 <strong>¡Hola! Soy tu Agente Lucenzo IA.</strong><br>
+Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar precios de productos.<br><br>
+<em>Prueba con una sugerencia rápida o escribe tu consulta abajo:</em>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="agent-quick-chips">
+                                <button class="agent-chip" data-prompt="Resumen de ventas de hoy">📊 Resumen de Hoy</button>
+                                <button class="agent-chip" data-prompt="¿Qué productos tienen poco stock?">⚠️ Poco Stock</button>
+                                <button class="agent-chip" data-prompt="¿Cuál es el producto más vendido?">🏆 Top Ventas</button>
+                                <button class="agent-chip" data-prompt="Reabastece la vitrina a stock máximo">📦 Rellenar Vitrina</button>
+                            </div>
+                            <form id="agent-chat-form" class="agent-chat-form">
+                                <input type="text" id="agent-chat-input" placeholder="Escribe un comando o pregunta a tu agente..." autocomplete="off" class="agent-input">
+                                <button type="submit" class="agent-send-btn">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 6: SYSTEM PREFERENCES & PIN MANAGEMENT -->
+                <div id="admin-panel-preferences" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Ajustes del Sistema y Seguridad
+                        </h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div class="admin-dashboard-row">
+                            <!-- Left Col: App Preferences & Tasa -->
+                            <div class="admin-dashboard-card">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                    <i class="fa-solid fa-sliders"></i> Preferencias de la App
+                                </h4>
+                                <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Efectos de Sonido (Stocks)</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-sound" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="switch-setting-row" style="margin-bottom: 0.75rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Vibración Háptica</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-vibrate" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">Tasa de Cambio Oficial (BCV)</h5>
+                                <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 600;">Actualizar tasa automática</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pref-bcv-auto" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="form-field" style="margin-top: 0.25rem;">
+                                    <label class="form-label" style="font-size: 9px;">TASA DEL DÍA (Bs.)</label>
+                                    <input type="number" id="pref-bcv-rate" step="0.0001" placeholder="Ej: 732.4787" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                </div>
+
+                                <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.75rem; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">
+                                    <i class="fa-solid fa-brain"></i> Inteligencia Artificial (Gemini API)
+                                </h5>
+                                <div class="form-field" style="margin-top: 0.25rem;">
+                                    <label class="form-label" style="font-size: 9px;">API KEY DE GOOGLE GEMINI (OPCIONAL)</label>
+                                    <input type="password" id="pref-gemini-key" placeholder="AIzaSy..." class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    <span style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
+                                </div>
+
+                                <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
+                                    <button id="btn-factory-reset" style="width: 100%; min-height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;">
+                                        Reiniciar de Fábrica
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Security PIN & Supabase Configuration -->
+                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- User Management Section -->
+                                <div>
+                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                                        <span><i class="fa-solid fa-users-gear"></i> Usuarios del Sistema</span>
+                                        <button type="button" id="btn-open-add-user-modal" style="font-size: 0.7rem; font-weight: 800; padding: 0.25rem 0.5rem; border-radius: 6px; border: none; background: var(--color-gold); color: var(--color-bg-navy); cursor: pointer;">
+                                            <i class="fa-solid fa-plus"></i> Nuevo Usuario
+                                        </button>
+                                    </h4>
+                                    
+                                    <!-- Dynamic Users List Container -->
+                                    <div id="users-management-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto; padding-right: 2px;">
+                                        <!-- Injected dynamically by js/app.js -->
+                                    </div>
+                                </div>
+
+                                <!-- Admin Quick PIN Assignment Section (Admin Authority Only) -->
+                                <div style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.75rem;">
+                                    <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;">
+                                        <i class="fa-solid fa-key" style="color: var(--color-gold);"></i> Asignar PIN de Acceso Rápido (Solo Admin)
+                                    </h4>
+                                    <p style="font-size: 10px; color: var(--color-text-muted); margin-bottom: 0.5rem;">
+                                        Selecciona un usuario y asígnale su PIN personal de 4 dígitos para reactivar sesión rápidamente.
+                                    </p>
+                                    <form id="admin-pin-config-form" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <select id="select-admin-target-user" class="form-input" style="height: 34px; font-size: 0.78rem; font-weight: 700; background: rgba(0,0,0,0.4); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); flex: 1;">
+                                                <option value="">Cargando usuarios...</option>
+                                            </select>
+                                            <input type="password" id="input-admin-quick-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="4 dígitos (ej: 4321)" class="form-input" style="height: 34px; font-size: 0.85rem; font-family: var(--font-mono); text-align: center; width: 140px;" required>
+                                            <button type="submit" class="btn-touch" style="min-height: 34px; padding: 0 0.85rem; font-size: 0.75rem; font-weight: 800; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                                                <i class="fa-solid fa-key"></i> Asignar PIN
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <!-- Supabase config -->
+                                <div>
+                                    <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">Sincronización Supabase (En Vivo)</h5>
+                                    <div class="form-field">
+                                        <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
+                                        <input type="text" id="pref-supabase-url" placeholder="https://xxxx.supabase.co" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label" style="font-size: 9px;">SUPABASE ANON KEY</label>
+                                        <input type="password" id="pref-supabase-key" placeholder="Clave pública anon" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+    
+    </main>
+
+    <div id="edit-product-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 440px; border: 1.5px solid var(--color-gold); background: linear-gradient(145deg, #0A1426 0%, #020C1B 100%); border-radius: var(--radius-xl); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);">
+            <!-- Header -->
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1.25rem 1.5rem;">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar Producto
+                </h3>
+                <button id="btn-edit-product-close" type="button" style="width: 2.2rem; height: 2.2rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.12); background: rgba(255, 255, 255, 0.06); color: var(--color-white); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: all 0.2s;">
+                    &times;
+                </button>
+            </div>
+
+            <form id="edit-product-form">
+                <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 1.5rem;">
+                    <input type="hidden" id="edit-prod-id">
+                    
+                    <!-- Product Name -->
+                    <div class="form-field">
+                        <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                            <i class="fa-solid fa-tag" style="color: var(--color-gold);"></i> NOMBRE DEL PRODUCTO
+                        </label>
+                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 40px; font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); color: var(--color-white); padding: 0 0.75rem;">
+                    </div>
+
+                    <!-- Price ($) & Realtime (Bs.) Conversion + Category -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="fa-solid fa-dollar-sign" style="color: #10B981;"></i> PRECIO ($)
+                            </label>
+                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                            <div id="edit-prod-price-bs" style="font-size: 11px; font-weight: 700; color: #10B981; margin-top: 0.35rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.25rem;">
+                                <i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. 0.00
+                            </div>
+                        </div>
+                        
+                        <div class="form-field">
+                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="fa-solid fa-layer-group" style="color: var(--color-gold);"></i> CATEGORÍA
+                            </label>
+                            <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
+                                <option value="pastelitos">Pastelitos</option>
+                                <option value="tortas">Tortas</option>
+                                <option value="bebidas">Bebidas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Color-Coded Metrics: Stock (Green), Max (Gold), Alert Min (Amber) with Stepper (-) and (+) buttons -->
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.25rem;">
+                        <!-- Stock Field (Green accent) -->
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: #10B981; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-boxes-stacked"></i> CANT. ACTUAL (STOCK)
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Vitrina disponible</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-stock-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-stock" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #10B981; background: rgba(0,0,0,0.5); border: 1.5px solid #10B981; border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-stock-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Max Vitrina Field (Gold accent) -->
+                        <div style="background: rgba(243, 198, 63, 0.08); border: 1.5px solid rgba(243, 198, 63, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-chart-line"></i> MÁXIMO VITRINA
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Meta / Acumulado diario</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-max-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(243, 198, 63, 0.4); background: rgba(243, 198, 63, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-max" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: var(--color-gold); background: rgba(0,0,0,0.5); border: 1.5px solid var(--color-gold); border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-max-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(243, 198, 63, 0.4); background: rgba(243, 198, 63, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Min Alert Field (Amber accent) -->
+                        <div style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-lg); padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 900; color: #F59E0B; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-bell"></i> ALERTA MÍNIMA
+                                </div>
+                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Aviso de reposición a cocina</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button type="button" id="btn-edit-min-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
+                                <input type="number" id="edit-prod-min" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #F59E0B; background: rgba(0,0,0,0.5); border: 1.5px solid #F59E0B; border-radius: 6px; font-family: var(--font-mono);">
+                                <button type="button" id="btn-edit-min-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="modal-footer" style="padding: 1.25rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <button type="button" id="btn-edit-product-cancel" class="btn-touch" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; min-height: 42px; padding: 0 1.25rem; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 700; cursor: pointer;">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-touch" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; min-height: 42px; padding: 0 1.5rem; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 900; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= HISTORIAL DE REPORTES MODAL ================= -->
+    <div id="report-history-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Historial de Reportes
+                </h3>
+                <button id="btn-report-history-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body" id="report-history-modal-body">
+                <div style="text-align: center; padding: 2rem 0; color: var(--color-text-muted); font-size: 0.8125rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                    Cargando historial...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-report-history-done" style="flex: 1; min-height: 40px; border-radius: var(--radius-md); border: none; background-color: var(--color-gold); color: #000000; font-weight: 900; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CIERRE DE DIA MODAL ================= -->
+    <div id="day-close-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-door-closed"></i> Cierre de Jornada
+                </h3>
+                <button id="btn-cierre-dia-close" style="width: 2rem; height: 2rem; border-radius: var(--radius-full); border: none; background-color: rgba(255, 255, 255, 0.1); color: var(--color-white); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none;">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body" id="day-close-modal-body">
+                <!-- Dynamic summaries injected by js/ui.js -->
+            </div>
+            <div class="modal-footer" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+                <button id="btn-cierre-dia-pdf" class="btn-touch" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-gold); color: #000000; border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none; display: flex; align-items: center; justify-content: center; gap: 0.35rem; cursor: pointer; text-transform: uppercase;">
+                    <i class="fa-solid fa-file-pdf"></i> Exportar Cierre en PDF
+                </button>
+                <button id="btn-cierre-dia-confirm" class="btn-touch btn-kitchen-deliver" style="width: 100%; height: 44px; min-height: 44px; background-color: var(--color-success); border-radius: var(--radius-md); font-weight: 900; font-size: 0.875rem; border: none; cursor: pointer;">
+                    <i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR INFORME POR WHATSAPP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PIN LOGIN OVERLAY ================= -->
+    <div id="pin-overlay" class="pin-overlay">
+        <div class="pin-content">
+            <!-- User & Password Login Section -->
+            <div id="pin-login-section">
+                <div style="text-align: center; margin-bottom: 0.5rem;">
+                    <!-- Round logo cropped to hide white corners -->
+                    <div style="margin: 0 auto 0.75rem; width: 6rem; height: 6rem; border-radius: 50%; background-image: url('/img/logo.jpg'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2.5px solid var(--color-gold); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);"></div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1.2rem; color: var(--color-gold); font-weight: 900; letter-spacing: 0.05em; margin: 0;">CASA LUCENZO</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.2rem;">Inicio de Sesión de Usuarios</p>
+                </div>
+
+                <!-- Fast User Selector Pills -->
+                <div style="display: flex; gap: 0.4rem; justify-content: center; margin-bottom: 0.75rem;">
+                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(212,175,55,0.4); background: rgba(212,175,55,0.1); color: var(--color-gold); cursor: pointer;">
+                        👑 Admin
+                    </button>
+                    <button type="button" class="btn-quick-user-pill" data-user="vendedora" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                        🥖 Ventas
+                    </button>
+                    <button type="button" class="btn-quick-user-pill" data-user="cocina" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                        👨‍🍳 Cocina
+                    </button>
+                </div>
+
+                <form id="login-form" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Usuario:</label>
+                        <input type="text" id="login-username-input" placeholder="Ej: admin, vendedora" autocomplete="username" autofocus style="width: 100%; box-sizing: border-box; height: 38px; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.5); color: var(--color-white); font-weight: 700; font-size: 0.88rem; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Contraseña:</label>
+                        <div style="position: relative;">
+                            <input type="password" id="login-password-input" placeholder="••••••••" autocomplete="current-password" style="width: 100%; box-sizing: border-box; height: 38px; padding: 0.5rem 2.2rem 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.5); color: var(--color-gold); font-weight: 900; font-size: 0.95rem; outline: none; letter-spacing: 0.15em;">
+                            <button type="button" id="btn-toggle-password" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--color-text-muted); font-size: 0.9rem; cursor: pointer; padding: 4px;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-submit-login" style="height: 42px; margin-top: 0.4rem; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--color-gold) 0%, #B8860B 100%); color: var(--color-bg-navy); font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 4px 15px rgba(212,175,55,0.25);">
+                        <i class="fa-solid fa-key"></i> INGRESAR AL SISTEMA
+                    </button>
+                </form>
+                
+                <div id="pin-lockout-banner" class="hidden" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #FCA5A5; font-size: 11px; font-weight: 800; text-align: center;">
+                </div>
+            </div>
+
+
+        </div>
+        
+        <!-- Copyright Seal at the bottom of login screen -->
+        <div style="position: absolute; bottom: 1.5rem; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--color-text-muted); opacity: 0.8; font-family: var(--font-sans); letter-spacing: 0.03em;">
+            <span>&copy; 2026 Casa Luccenzo. Todos los derechos reservados.</span>
+            <div style="margin-top: 0.25rem; font-size: 9px; font-weight: 700; color: var(--color-gold); letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                <i class="fa-solid fa-shield-halved"></i> HECHO EN VENEZUELA
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= QUICK QUANTITY SELECTOR MODAL ================= -->
+    <div id="qty-selector-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div style="background: linear-gradient(135deg, #0A1426 0%, #010F20 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-xl); width: 100%; max-width: 360px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; gap: 1rem;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+                <div>
+                    <h3 id="qty-modal-prod-name" style="font-size: 1.1rem; font-weight: 900; color: var(--color-white); margin: 0;">Producto</h3>
+                    <div id="qty-modal-prod-info" style="font-size: 0.75rem; color: var(--color-gold); margin-top: 0.25rem; font-weight: 700;">$0.00</div>
+                </div>
+                <button id="qty-modal-close" style="background: transparent; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer; padding: 0.25rem;">&times;</button>
+            </div>
+
+            <!-- Quick Number Buttons Grid -->
+            <div>
+                <span style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">⚡ Selección Rápida de Cantidad:</span>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;" id="qty-modal-quick-grid">
+                    <!-- Dynamic buttons: 1, 2, 3, 4, 5, 6, 8, 10 -->
+                </div>
+            </div>
+
+            <!-- Stepper / Manual Input -->
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
+                <button id="qty-modal-minus" style="width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: var(--color-white); font-size: 1.1rem; font-weight: 800; cursor: pointer;">-</button>
+                <input type="tel" id="qty-modal-input" value="1" min="0" max="99" inputmode="numeric" pattern="[0-9]*" style="width: 60px; height: 38px; text-align: center; font-size: 1.25rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.4); border: 1.5px solid var(--color-gold); border-radius: 6px; outline: none; font-family: monospace;">
+                <button id="qty-modal-plus" style="width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: var(--color-white); font-size: 1.1rem; font-weight: 800; cursor: pointer;">+</button>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="qty-modal-cancel" style="flex: 1; height: 42px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.12); background: transparent; color: var(--color-text-muted); font-weight: 700; font-size: 0.85rem; cursor: pointer;">Cancelar</button>
+                <button id="qty-modal-confirm" style="flex: 2; height: 42px; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #F3C63F 0%, #D4AF37 100%); color: #000000; font-weight: 900; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(243, 198, 63, 0.25);">
+                    <i class="fa-solid fa-check"></i> AGREGAR A CUENTA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CREATE / EDIT USER MODAL ================= -->
+    <div id="user-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div style="background: linear-gradient(135deg, #0A1426 0%, #010F20 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-xl); width: 100%; max-width: 380px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                <h3 id="user-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--color-gold); margin: 0;">👤 Usuario del Sistema</h3>
+                <button type="button" id="user-modal-close" style="background: transparent; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer;">&times;</button>
+            </div>
+
+            <form id="user-form" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <input type="hidden" id="user-modal-id">
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE O CARGO A MOSTRAR:</label>
+                    <input type="text" id="user-modal-name" required placeholder="Ej: María (Vendedora)" class="form-input" style="height: 36px; font-size: 0.8rem;">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE DE USUARIO (LOGIN):</label>
+                    <input type="text" id="user-modal-username" required placeholder="Ej: maria" class="form-input" style="height: 36px; font-size: 0.8rem;">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">CONTRASEÑA:</label>
+                    <input type="text" id="user-modal-password" required placeholder="Clave de acceso" class="form-input" style="height: 36px; font-size: 0.85rem; font-weight: 800; color: var(--color-gold);">
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">ROL DE ACCESO:</label>
+                    <select id="user-modal-role" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 800;">
+                        <option value="venta">🥖 Ventas (Vitrina, Carrito, Pagos)</option>
+                        <option value="cocina">👨‍🍳 Cocina (Comandas y Despachos)</option>
+                        <option value="admin">👑 Administrador (Control Total)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-form-submit" style="margin-top: 0.5rem; min-height: 40px; font-size: 0.85rem; background-color: var(--color-success); color: white; font-weight: 900;">Guardar Usuario</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alert toast feedback panel -->
+    <div id="toast" class="toast-container">
+        <div class="toast-icon-wrapper">
+            <span id="toast-icon"></span>
+        </div>
+        <span id="toast-message"></span>
+    </div>
+
+</body>
+</html>

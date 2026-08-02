@@ -430,7 +430,7 @@ async function downloadAndTranscribeAudio(audioId) {
  * Send Outgoing WhatsApp Message via Meta Graph API
  */
 async function sendWhatsAppMessage(recipientPhone, textBody) {
-    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSPLALowZBEcGyF0S2pTGt0P2xJVCqZBZCOJHjBs9ymHiEC0ZBVvvdL7lu1ckFcDZAWC2FDFXC5DGDzNHqxRB9wnWQfficcxys9dtyBn6ZATnCdIN9xOgzZAVf5Wh34DdEtTzQIRsNZBmpGJKFHQYXZBnm7UkPuaVfXP2b0LBMcb';
+    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSPLALoWZBEoGyF0S2pTGt0P2xJVCqZBZC0JHjbs9ymHiEcOZBVvvdL7lu1ckFcDZAWZC2FDfXC5DGDzNHqxR89wnWQffiqexys9dtyBn6ZATnCdlN9xOgzZAVf5Wh34DdEtTzQIRsNZBmpGjKFHQYXZBnm7UkPuaVfXP2bOLBMcbZB2BpYGZAy4zwQZDZD';
     const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1235301469669762';
 
     if (!waToken) {

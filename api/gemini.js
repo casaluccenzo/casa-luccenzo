@@ -1,6 +1,31 @@
+async function getAuthenticatedUser(req) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return null;
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) return null;
+
+    try {
+        const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'apikey': anonKey }
+        });
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch (e) {
+        return null;
+    }
+}
+
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized: se requiere una sesión de Supabase válida.' });
     }
 
     const apiKey = process.env.GEMINI_API_KEY || req.body?.apiKey;

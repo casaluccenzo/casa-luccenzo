@@ -367,34 +367,6 @@ module.exports.config = {
     }
 };
 
-function findBestMatchingProduct(userText, catalog) {
-    if (!catalog || catalog.length === 0) return null;
-    const text = normalizeText(userText);
-
-    let match = catalog.find(p => text.includes(normalizeText(p.name)));
-    if (match) return match;
-
-    let bestProd = null;
-    let maxScore = 0;
-
-    catalog.forEach(prod => {
-        const prodWords = normalizeText(prod.name).split(/\s+/).filter(w => w.length > 2);
-        let score = 0;
-        prodWords.forEach(word => {
-            const stem = word.replace(/s$/, '');
-            if (text.includes(stem)) {
-                score += 1;
-            }
-        });
-        if (score > maxScore) {
-            maxScore = score;
-            bestProd = prod;
-        }
-    });
-
-    return bestProd || catalog[0];
-}
-
 /**
  * Call Gemini 2.5 Flash API for Conversational NLU & Natural Language Generation
  */

@@ -157,6 +157,7 @@ async function verifyWhatsAppBot() {
 runCoreUnitTests();
 verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => {
     console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
+    process.exit(0);
 }).catch(err => {
     console.error("❌ Test runner error:", err);
     process.exit(1);

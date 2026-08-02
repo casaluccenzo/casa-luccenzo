@@ -222,9 +222,17 @@ Responde directamente a la consulta del usuario usando emojis, negritas y listas
 
         // 1. Try Vercel Serverless Function first (/api/gemini)
         try {
+            let authHeaders = {};
+            if (window.SupabaseManager && typeof window.SupabaseManager.getCurrentSession === 'function') {
+                const session = await window.SupabaseManager.getCurrentSession();
+                if (session?.access_token) {
+                    authHeaders = { 'Authorization': `Bearer ${session.access_token}` };
+                }
+            }
+
             const apiRes = await fetch('/api/gemini', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
                 body: JSON.stringify({ prompt: fullPrompt, apiKey: this.geminiApiKey })
             });
             if (apiRes.ok) {

@@ -45,14 +45,18 @@ if (isProduction && (!process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_URL
 }
 
 if (fs.existsSync(supabaseBuildFile)) {
-    let content = fs.readFileSync(supabaseBuildFile, 'utf8');
-    const envUrl = process.env.SUPABASE_URL || 'https://xttpaqokeyywjaajvjyu.supabase.co';
-    const envKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+    const envUrl = process.env.SUPABASE_URL;
+    const envKey = process.env.SUPABASE_ANON_KEY;
 
-    content = content.replace('__SUPABASE_URL__', envUrl);
-    content = content.replace('__SUPABASE_ANON_KEY__', envKey);
-    fs.writeFileSync(supabaseBuildFile, content, 'utf8');
-    console.log('🔒 Environment variables injected into www/js/supabase.js');
+    if (envUrl && envKey) {
+        let content = fs.readFileSync(supabaseBuildFile, 'utf8');
+        content = content.replace('__SUPABASE_URL__', envUrl);
+        content = content.replace('__SUPABASE_ANON_KEY__', envKey);
+        fs.writeFileSync(supabaseBuildFile, content, 'utf8');
+        console.log('🔒 Environment variables injected into www/js/supabase.js');
+    } else {
+        console.warn('⚠️ SUPABASE_URL/SUPABASE_ANON_KEY not set — leaving placeholders unreplaced (app will run in local-only mode).');
+    }
 }
 
 if (fs.existsSync(indexBuildFile)) {

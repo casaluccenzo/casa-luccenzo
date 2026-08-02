@@ -10,12 +10,22 @@ const DEFAULT_SUPABASE_URL = "__SUPABASE_URL__";
 const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
 
 /**
+ * Resolve the effective Supabase URL/key from user prefs or the build-injected defaults.
+ * Returns nulls (not a hardcoded fallback) when nothing is configured, so an
+ * un-built/unconfigured local checkout never silently talks to production.
+ */
+function getSupabaseConfig() {
+    const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
+    const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : null);
+    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : null);
+    return { url, key };
+}
+
+/**
  * Check if Supabase URL and Key are set up
  */
 function isConfigured() {
-    const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
-    const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : 'https://xttpaqokeyywjaajvjyu.supabase.co');
-    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX');
+    const { url, key } = getSupabaseConfig();
     return !!(url && key);
 }
 
@@ -46,11 +56,9 @@ function init() {
         client = null;
         return false;
     }
-    
-    const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
-    const url = prefs.supabaseUrl || (DEFAULT_SUPABASE_URL !== '__SUPABASE_URL__' ? DEFAULT_SUPABASE_URL : 'https://xttpaqokeyywjaajvjyu.supabase.co');
-    const key = prefs.supabaseKey || (DEFAULT_SUPABASE_KEY !== '__SUPABASE_ANON_KEY__' ? DEFAULT_SUPABASE_KEY : 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX');
-    
+
+    const { url, key } = getSupabaseConfig();
+
     if (window.supabase) {
         try {
             client = window.supabase.createClient(url, key);
@@ -212,62 +220,6 @@ async function syncOfflineQueue() {
         console.log("All offline operations synced successfully to Supabase.");
     } else {
         console.log(`Offline sync finished. ${failedOps.length} operations remain in queue.`);
-    }
-}
-
-async function insertSale(sale) {
-    if (!client) return;
-    const basePayload = {
-        uuid: sale.uuid,
-        product_id: sale.productId,
-        name: sale.name,
-        price: sale.price,
-        timestamp: sale.timestamp
-    };
-
-    try {
-        if (!navigator.onLine) {
-            enqueueOfflineOp('sales', 'insert', basePayload);
-            return;
-        }
-
-        const { error } = await client.from('sales').insert(basePayload);
-        if (error) {
-            console.error("Supabase insertSale failed:", error.message);
-            enqueueOfflineOp('sales', 'insert', basePayload);
-        }
-    } catch (e) {
-        console.error("Supabase insertSale failed. Enqueuing offline...", e);
-        enqueueOfflineOp('sales', 'insert', basePayload);
-    }
-}
-
-async function insertSales(sales) {
-    if (!client) return;
-    if (!Array.isArray(sales) || sales.length === 0) return;
-    
-    const basePayloads = sales.map(sale => ({
-        uuid: sale.uuid,
-        product_id: sale.productId,
-        name: sale.name,
-        price: sale.price,
-        timestamp: sale.timestamp
-    }));
-
-    try {
-        if (!navigator.onLine) {
-            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
-            return;
-        }
-
-        const { error } = await client.from('sales').insert(basePayloads);
-        if (error) {
-            console.error("Supabase insertSales batch failed:", error.message);
-            basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
-        }
-    } catch (e) {
-        console.error("Supabase insertSales batch failed. Enqueuing offline...", e);
-        basePayloads.forEach(payload => enqueueOfflineOp('sales', 'insert', payload));
     }
 }
 

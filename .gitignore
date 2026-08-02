@@ -23,3 +23,7 @@ js/supabaseConfig.js
 # Dependencies and build folders
 node_modules/
 www/
+
+.vercel
+.env*
+supabase/.temp

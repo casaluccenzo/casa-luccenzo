@@ -140,7 +140,7 @@ module.exports = async (req, res) => {
         // ----------------------------------------------------
         // 3. Security Authorization Check (Phone Whitelist)
         // ----------------------------------------------------
-        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE || '584141234567,584241234567';
+        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE || '56936274015,584141234567,584241234567';
         const allowedPhones = adminPhonesEnv.split(',').map(p => normalizePhone(p));
 
         const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -430,7 +430,7 @@ async function downloadAndTranscribeAudio(audioId) {
  * Send Outgoing WhatsApp Message via Meta Graph API
  */
 async function sendWhatsAppMessage(recipientPhone, textBody) {
-    const waToken = process.env.WHATSAPP_API_TOKEN;
+    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAIY0BS09fk132msB5rYvuMuQ8jJ907v6iZBXvrXZCCZB1mIQBPcPBjfjvlHaLw5GDtS1ZAm43CkvVK95FRUrUp';
     const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1244705252057836';
 
     if (!waToken) {

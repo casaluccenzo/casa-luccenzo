@@ -120,6 +120,69 @@
         .menu-card h3 { font-size: 1.25rem; font-weight: 700; color: #fff; }
         .menu-card ul { list-style: none; margin: 0; padding: 0; font-size: 0.92rem; color: var(--cream-200); line-height: 1.9; }
 
+        /* ---- Pedido (order form) ---- */
+        .pedido { background: linear-gradient(180deg, var(--navy-950), var(--navy-900)); color: var(--cream-100); }
+        .pedido .eyebrow { color: var(--gold-300); }
+        .pedido h2 { color: #fff; font-size: clamp(1.9rem, 3.6vw, 2.4rem); font-weight: 800; margin-top: 0.6rem; }
+        .pedido-intro { color: var(--cream-200); max-width: 34rem; margin-top: 1rem; line-height: 1.65; }
+        .order-card {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--rule); border-radius: 14px;
+            padding: 1.75rem; margin-top: 2.5rem; max-width: 32rem;
+        }
+        .field-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-300); margin-bottom: 0.4rem; display: block; }
+        .field-input {
+            width: 100%; padding: 0.7rem 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05); color: #fff; font-family: var(--sans); font-size: 0.9rem; margin-bottom: 1rem;
+        }
+        .field-input::placeholder { color: rgba(246,241,228,0.4); }
+        .field-input:focus { outline: none; border-color: var(--gold-500); }
+        .category-heading { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-700, var(--gold-300)); margin: 1.1rem 0 0.4rem; opacity: 0.85; }
+        .product-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+            padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .product-row:last-child { border-bottom: none; }
+        .product-row .name { font-size: 0.88rem; color: #fff; font-weight: 600; }
+        .product-row .price { font-size: 0.78rem; color: var(--gold-300); }
+        .qty-control { display: flex; align-items: center; gap: 0.5rem; }
+        .qty-btn {
+            width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(201,162,74,0.4);
+            background: rgba(201,162,74,0.1); color: var(--gold-300); font-weight: 800; cursor: pointer; font-size: 0.9rem;
+        }
+        .qty-val { min-width: 1.2rem; text-align: center; color: #fff; font-weight: 700; font-size: 0.9rem; }
+        .payment-options { display: flex; gap: 0.6rem; margin-top: 0.3rem; margin-bottom: 1.1rem; }
+        .payment-opt {
+            flex: 1; padding: 0.65rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.03); color: var(--cream-200); font-size: 0.8rem; font-weight: 600;
+            text-align: center; cursor: pointer; transition: all 0.2s ease;
+        }
+        .payment-opt.selected { border-color: var(--gold-500); background: rgba(201,162,74,0.15); color: var(--gold-300); }
+        .order-total {
+            display: flex; justify-content: space-between; align-items: baseline; margin: 1.2rem 0;
+            padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.15);
+        }
+        .order-total .label { font-size: 0.8rem; color: var(--cream-200); }
+        .order-total .value { font-size: 1.5rem; font-weight: 800; color: var(--gold-300); font-family: var(--serif); }
+        .submit-btn {
+            width: 100%; padding: 0.95rem; border-radius: 8px; border: none; cursor: pointer;
+            background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); color: var(--navy-950);
+            font-weight: 800; font-size: 0.95rem; font-family: var(--sans);
+            box-shadow: 0 10px 24px -10px rgba(201,162,74,0.5); transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .order-error { color: #FCA5A5; font-size: 0.8rem; margin-top: 0.6rem; display: none; }
+        .order-loading { text-align: center; color: var(--cream-200); font-size: 0.85rem; padding: 2rem 0; }
+        .sent-confirm { display: none; text-align: center; padding: 2.5rem 1.5rem; }
+        .sent-confirm.show { display: block; }
+        .sent-confirm .check { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .sent-confirm h3 { color: var(--gold-300); font-size: 1.3rem; }
+        .sent-confirm p { color: var(--cream-200); font-size: 0.88rem; margin-top: 0.5rem; line-height: 1.6; }
+        .sent-confirm button {
+            margin-top: 1.5rem; background: none; border: 1px solid rgba(201,162,74,0.4); color: var(--gold-300);
+            padding: 0.6rem 1.2rem; border-radius: 999px; cursor: pointer; font-family: var(--sans); font-weight: 600; font-size: 0.82rem;
+        }
+
         .contact { background: var(--cream-200); text-align: center; }
         .contact .shell { max-width: 40rem; }
         .contact h2 { font-size: clamp(1.8rem, 3.5vw, 2.4rem); font-weight: 800; color: var(--navy-900); }
@@ -190,7 +253,7 @@
             <p class="lede">El mismo sabor de siempre, hecho a mano, todos los días. Empanadas, pastelitos y dulces que acompañan a varias generaciones de familias.</p>
             <div class="hero-actions">
                 <a class="btn btn-gold" href="#menu">Ver el menú</a>
-                <a class="btn btn-outline" href="#contacto">Cómo pedir</a>
+                <a class="btn btn-outline" href="#pedido">Hacer un pedido</a>
             </div>
         </div>
         <div class="scroll-hint" aria-hidden="true">
@@ -241,11 +304,54 @@
         </div>
     </section>
 
+    <section class="pedido" id="pedido">
+        <div class="shell reveal">
+            <p class="eyebrow">Hacer un pedido</p>
+            <h2>Elegí y coordinamos el resto</h2>
+            <p class="pedido-intro">Armá tu pedido, elegí cómo vas a pagar, y te confirmamos por WhatsApp los detalles.</p>
+
+            <div class="order-card" id="order-form-card">
+                <div class="order-loading" id="order-loading">Cargando el menú del día…</div>
+                <form id="order-form" style="display:none;">
+                    <label class="field-label">Tu nombre</label>
+                    <input class="field-input" id="c-name" placeholder="Ej: María Pérez" required>
+
+                    <label class="field-label">Tu teléfono</label>
+                    <input class="field-input" id="c-phone" placeholder="Ej: 0412-1234567" required>
+
+                    <label class="field-label">Productos</label>
+                    <div id="product-list"></div>
+
+                    <div class="category-heading" style="margin-top:1.1rem;">¿Cómo vas a pagar?</div>
+                    <div class="payment-options">
+                        <div class="payment-opt selected" data-pago="Pago Móvil">Pago Móvil</div>
+                        <div class="payment-opt" data-pago="Transferencia">Transferencia</div>
+                    </div>
+
+                    <div class="order-total">
+                        <span class="label">Total del pedido</span>
+                        <span class="value" id="order-total-val">$0.00</span>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="btn-submit-order" disabled>Enviar Pedido</button>
+                    <div class="order-error" id="order-error"></div>
+                </form>
+            </div>
+
+            <div class="sent-confirm" id="sent-confirm">
+                <div class="check">✅</div>
+                <h3>¡Pedido enviado!</h3>
+                <p>Casa Lucenzo lo recibió al instante. Te confirmamos por WhatsApp los datos para el pago y cuándo pasarlo a buscar.</p>
+                <button type="button" id="btn-new-order">Hacer otro pedido</button>
+            </div>
+        </div>
+    </section>
+
     <section class="contact" id="contacto">
         <div class="shell reveal">
             <p class="eyebrow" style="color:var(--gold-700)">Encuéntranos</p>
-            <h2>Síguenos y haz tu pedido</h2>
-            <p>Siempre hay algo recién hecho.</p>
+            <h2>Síguenos en nuestras redes</h2>
+            <p>O escribinos directo por WhatsApp si preferís coordinar el pedido por chat.</p>
             <div class="social-row">
                 <a class="social-pill" href="https://www.instagram.com/casalucenzo" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Casa Lucenzo">Instagram</a>
                 <a class="social-pill" href="#" aria-label="Facebook de Casa Lucenzo">Facebook</a>
@@ -312,6 +418,178 @@
             window.addEventListener('resize', function () { resize(); makeParticles(Math.round((w * h) / 90000) + 20); });
             draw();
         })();
+    </script>
+
+    <!-- Pedido form: loads the real live menu and submits orders to Supabase.
+         Uses the public anon key -- safe to expose (protected by RLS: anon can
+         only INSERT, never read other customers' orders back). -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+    (function () {
+        const form = document.getElementById('order-form');
+        if (!form) return;
+
+        const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+
+        const CATEGORY_LABELS = {
+            pastelitos: 'Pastelitos', empanadas: 'Empanadas', tortas: 'Tortas',
+            bebidas: 'Bebidas', dulces: 'Dulces'
+        };
+
+        const productList = document.getElementById('product-list');
+        const loadingEl = document.getElementById('order-loading');
+        const totalEl = document.getElementById('order-total-val');
+        const submitBtn = document.getElementById('btn-submit-order');
+        const errorEl = document.getElementById('order-error');
+        const cardEl = document.getElementById('order-form-card');
+        const confirmEl = document.getElementById('sent-confirm');
+        let selectedPago = 'Pago Móvil';
+
+        function recalc() {
+            let total = 0;
+            let anySelected = false;
+            productList.querySelectorAll('.product-row').forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+                if (qty > 0) anySelected = true;
+                total += qty * parseFloat(row.dataset.price);
+            });
+            totalEl.textContent = '$' + total.toFixed(2);
+            const nameOk = document.getElementById('c-name').value.trim().length > 0;
+            const phoneOk = document.getElementById('c-phone').value.trim().length > 0;
+            submitBtn.disabled = !(anySelected && nameOk && phoneOk);
+        }
+
+        function renderProducts(products) {
+            const byCategory = {};
+            products.forEach(p => {
+                const cat = p.category || 'otros';
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(p);
+            });
+
+            productList.innerHTML = '';
+            Object.keys(CATEGORY_LABELS).forEach(cat => {
+                const items = byCategory[cat];
+                if (!items || items.length === 0) return;
+                const heading = document.createElement('div');
+                heading.className = 'category-heading';
+                heading.textContent = CATEGORY_LABELS[cat];
+                productList.appendChild(heading);
+
+                items.forEach(p => {
+                    const row = document.createElement('div');
+                    row.className = 'product-row';
+                    row.dataset.name = p.name;
+                    row.dataset.price = p.price;
+                    row.innerHTML =
+                        '<div><div class="name"></div><div class="price"></div></div>' +
+                        '<div class="qty-control">' +
+                        '<button type="button" class="qty-btn" data-dir="-1">−</button>' +
+                        '<span class="qty-val">0</span>' +
+                        '<button type="button" class="qty-btn" data-dir="1">+</button>' +
+                        '</div>';
+                    row.querySelector('.name').textContent = p.name;
+                    row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                    productList.appendChild(row);
+                });
+            });
+
+            productList.querySelectorAll('.qty-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const row = btn.closest('.product-row');
+                    const valEl = row.querySelector('.qty-val');
+                    let val = parseInt(valEl.textContent, 10) + parseInt(btn.dataset.dir, 10);
+                    if (val < 0) val = 0;
+                    valEl.textContent = val;
+                    recalc();
+                });
+            });
+        }
+
+        async function loadMenu() {
+            try {
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { data, error } = await client
+                    .from('products')
+                    .select('name, price, category, stock')
+                    .gt('stock', 0)
+                    .order('category')
+                    .order('name');
+                if (error) throw error;
+                if (!data || data.length === 0) throw new Error('empty');
+
+                renderProducts(data);
+                loadingEl.style.display = 'none';
+                form.style.display = 'block';
+
+                window._pedidoClient = client;
+            } catch (e) {
+                loadingEl.textContent = 'No pudimos cargar el menú ahora mismo. Escribinos directo por WhatsApp para hacer tu pedido 🙂';
+            }
+        }
+
+        document.querySelectorAll('.payment-opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedPago = opt.dataset.pago;
+            });
+        });
+
+        document.getElementById('c-name').addEventListener('input', recalc);
+        document.getElementById('c-phone').addEventListener('input', recalc);
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            errorEl.style.display = 'none';
+
+            const items = [];
+            let total = 0;
+            productList.querySelectorAll('.product-row').forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+                if (qty > 0) {
+                    const price = parseFloat(row.dataset.price);
+                    items.push({ name: row.dataset.name, qty, price });
+                    total += qty * price;
+                }
+            });
+            if (items.length === 0 || !window._pedidoClient) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando…';
+
+            try {
+                const { error } = await window._pedidoClient.from('pedidos_online').insert({
+                    customer_name: document.getElementById('c-name').value.trim(),
+                    customer_phone: document.getElementById('c-phone').value.trim(),
+                    items: items,
+                    total: Math.round(total * 100) / 100,
+                    payment_method: selectedPago
+                });
+                if (error) throw error;
+
+                cardEl.style.display = 'none';
+                confirmEl.classList.add('show');
+            } catch (err) {
+                errorEl.textContent = 'No pudimos enviar el pedido. Probá de nuevo, o escribinos por WhatsApp.';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar Pedido';
+            }
+        });
+
+        document.getElementById('btn-new-order').addEventListener('click', () => {
+            form.reset();
+            productList.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
+            recalc();
+            submitBtn.textContent = 'Enviar Pedido';
+            confirmEl.classList.remove('show');
+            cardEl.style.display = 'block';
+        });
+
+        loadMenu();
+    })();
     </script>
 </body>
 </html>

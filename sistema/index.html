@@ -157,6 +157,13 @@
                     <span class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
                     <span class="nav-label">5. CAMBIO</span>
                 </button>
+                <button id="btn-pedidos" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-pedidos">
+                    <span class="nav-icon" style="display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                        <span id="pedidos-badge" class="badge-kitchen-nav hidden">0</span>
+                    </span>
+                    <span class="nav-label">6. PEDIDOS</span>
+                </button>
             </div>
 
         </div>
@@ -498,6 +505,20 @@
                             <i class="fa-solid fa-clock-rotate-left"></i> HISTORIAL DE REPORTES
                         </button>
                     </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW: ONLINE ORDERS (PEDIDOS ONLINE) ================= -->
+            <section id="view-pedidos" class="view-section hidden">
+                <div>
+                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Pedidos Online</h2>
+                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        Pedidos enviados por clientes desde la página web. Confirmá o rechazá según el pago recibido por Pago Móvil o Transferencia.
+                    </p>
+                </div>
+
+                <div id="pedidos-online-list" style="margin-top: 1rem;">
+                    <!-- Dynamic items from js/ui.js -->
                 </div>
             </section>
             <!-- Page Footer with Copyright & Seal -->

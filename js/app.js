@@ -7,6 +7,7 @@ let expenses = [];
 let debts = [];
 let replenishments = [];
 let ingredients = [];
+let pedidosOnline = [];
 let activeCategory = 'todos';
 let searchQuery = '';
 let currentCart = [];
@@ -1277,6 +1278,48 @@ function settleDebtPayment(uuid) {
     window.UIManager.showToast(`💵 Pago de $${paymentAmount.toFixed(2)} registrado en caja.`, "fa-solid fa-hand-holding-dollar");
 }
 
+// ================= PEDIDOS ONLINE =================
+
+/**
+ * Marks a customer's online order as confirmed (payment received).
+ * Does NOT touch stock or create a sale record -- staff still ring up the
+ * sale normally when the customer picks up the order.
+ */
+function handleConfirmPedido(id) {
+    const pedido = pedidosOnline.find(p => p.id === id);
+    if (!pedido) return;
+
+    triggerHaptic(15);
+    pedido.status = 'confirmado';
+
+    window.SupabaseManager.updatePedidoStatus(id, 'confirmado');
+    logActivity("Pedido Online Confirmado", `Pedido de ${pedido.customer_name} por $${Number(pedido.total).toFixed(2)} confirmado.`);
+
+    window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+    window.UIManager.updatePedidosBadge(pedidosOnline);
+    window.UIManager.showToast(`✅ Pedido de ${pedido.customer_name} confirmado.`, "fa-solid fa-check");
+}
+
+/**
+ * Marks a customer's online order as rejected (e.g. payment never arrived).
+ */
+function handleRechazarPedido(id) {
+    const pedido = pedidosOnline.find(p => p.id === id);
+    if (!pedido) return;
+
+    if (!confirm(`¿Rechazar el pedido de ${pedido.customer_name} por $${Number(pedido.total).toFixed(2)}?`)) return;
+
+    triggerHaptic(15);
+    pedido.status = 'rechazado';
+
+    window.SupabaseManager.updatePedidoStatus(id, 'rechazado');
+    logActivity("Pedido Online Rechazado", `Pedido de ${pedido.customer_name} por $${Number(pedido.total).toFixed(2)} rechazado.`);
+
+    window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+    window.UIManager.updatePedidosBadge(pedidosOnline);
+    window.UIManager.showToast(`🚫 Pedido de ${pedido.customer_name} rechazado.`, "fa-solid fa-ban");
+}
+
 // ================= INGREDIENTS STOCK =================
 
 /**
@@ -1863,15 +1906,20 @@ async function loadAllDataFromSupabase() {
     }
 
     // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
-    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng, supUsers] = await Promise.all([
+    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng, supUsers, supPedidos] = await Promise.all([
         window.SupabaseManager.fetchProducts(),
         window.SupabaseManager.fetchSales(),
         window.SupabaseManager.fetchExpenses(),
         window.SupabaseManager.fetchDebts(),
         window.SupabaseManager.fetchReplenishments(),
         window.SupabaseManager.fetchIngredients(),
-        window.SupabaseManager.fetchUsers()
+        window.SupabaseManager.fetchUsers(),
+        window.SupabaseManager.fetchPedidosOnline()
     ]);
+
+    if (supPedidos) {
+        pedidosOnline = supPedidos;
+    }
 
     if (supUsers && supUsers.length > 0) {
         systemUsers = supUsers;
@@ -2136,6 +2184,11 @@ function renderAllViews() {
     window.UIManager.renderDebts(debts, settleDebtPayment);
     window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
 
+    if (currentRole === 'admin' || currentRole === 'local') {
+        window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+        window.UIManager.updatePedidosBadge(pedidosOnline);
+    }
+
     if (currentRole === 'admin') {
         loadAndRenderAdminStats();
         updateAdminDashboard();
@@ -2399,6 +2452,24 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 const devKpi = document.getElementById('admin-kpi-devices');
                 if (devKpi) devKpi.textContent = sessions ? sessions.length : 0;
             }).catch(err => console.error("Error fetching sessions in realtime update:", err));
+        }
+    } else if (tableName === 'pedidos_online') {
+        if (eventType === 'DELETE') {
+            pedidosOnline = pedidosOnline.filter(p => p.id !== oldRow.id);
+        } else {
+            const idx = pedidosOnline.findIndex(p => p.id === newRow.id);
+            if (idx !== -1) {
+                pedidosOnline[idx] = newRow;
+            } else {
+                pedidosOnline.unshift(newRow);
+                if ((currentRole === 'admin' || currentRole === 'local') && newRow.status === 'pendiente') {
+                    window.UIManager.showToast(`🛍️ Nuevo pedido online de ${newRow.customer_name} ($${Number(newRow.total).toFixed(2)})`, "fa-solid fa-bag-shopping");
+                }
+            }
+        }
+        if (currentRole === 'admin' || currentRole === 'local') {
+            window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+            window.UIManager.updatePedidosBadge(pedidosOnline);
         }
     }
 }
@@ -2757,6 +2828,7 @@ function applyUserRole(role) {
     document.getElementById('btn-cocina').classList.remove('hidden');
     document.getElementById('btn-fiados').classList.remove('hidden');
     document.getElementById('btn-cambio').classList.remove('hidden');
+    document.getElementById('btn-pedidos').classList.remove('hidden');
     navBar.classList.remove('hidden');
     btnSettings.classList.remove('hidden');
     
@@ -2794,19 +2866,23 @@ function applyUserRole(role) {
         const clientesSpan = document.querySelector('#btn-clientes .nav-label');
         const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
         const cambioSpan = document.querySelector('#btn-cambio .nav-label');
+        const pedidosSpanLocal = document.querySelector('#btn-pedidos .nav-label');
         if (localSpan) localSpan.textContent = '1. LOCAL';
         if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
         if (fiadosSpan) fiadosSpan.textContent = '3. CRÉDITOS';
         if (cambioSpan) cambioSpan.textContent = '4. CAMBIO';
+        if (pedidosSpanLocal) pedidosSpanLocal.textContent = '5. PEDIDOS';
 
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
         window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+        window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+        window.UIManager.updatePedidosBadge(pedidosOnline);
     } else if (role === 'cocina') {
         // Kitchen parents: ONLY Kitchen view. Navigation bar hidden entirely.
         navBar.classList.add('hidden');
         btnSettings.classList.add('hidden');
-        
+
         window.UIManager.switchView('cocina');
         window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
         window.UIManager.renderIngredientsPantry(ingredients, addIngredientStock);
@@ -2814,7 +2890,7 @@ function applyUserRole(role) {
         // Full Admin: Everything visible, statistics dashboard loaded
         if (undoSales) undoSales.classList.remove('hidden');
         if (adminTab) adminTab.classList.remove('hidden');
-        
+
         // Dynamic numbering for admin role
         const adminSpan = document.querySelector('#btn-admin-dashboard .nav-label');
         const localSpan = document.querySelector('#btn-local .nav-label');
@@ -2822,17 +2898,21 @@ function applyUserRole(role) {
         const cocinaSpan = document.querySelector('#btn-cocina .nav-label');
         const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
         const cambioSpan = document.querySelector('#btn-cambio .nav-label');
+        const pedidosSpanAdmin = document.querySelector('#btn-pedidos .nav-label');
         if (adminSpan) adminSpan.textContent = '1. CONTROL';
         if (localSpan) localSpan.textContent = '2. VITRINA';
         if (clientesSpan) clientesSpan.textContent = '3. CLIENTES';
         if (cocinaSpan) cocinaSpan.textContent = '4. COCINA';
         if (fiadosSpan) fiadosSpan.textContent = '5. CRÉDITOS';
         if (cambioSpan) cambioSpan.textContent = '6. CAMBIO';
+        if (pedidosSpanAdmin) pedidosSpanAdmin.textContent = '7. PEDIDOS';
 
         window.UIManager.switchView('admin-dashboard');
         updateAdminDashboard();
         loadAndRenderAdminStats();
         loadAndRenderActiveDevices();
+        window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
+        window.UIManager.updatePedidosBadge(pedidosOnline);
     }
 
     // Refresh Low Stock Alerts for Admin and Kitchen
@@ -2977,10 +3057,12 @@ async function handleTrustDevice(deviceId, isTrusted) {
  */
 function saveAndSyncBcvConfig() {
     window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-    // Only admin/venta are allowed to write app_config per RLS -- anonymous
-    // visitors and 'cocina' sessions would just hit a policy violation on every
-    // auto-fetch, spamming the console and the offline retry queue for nothing.
-    if (currentRole === 'admin' || currentRole === 'venta') {
+    // Only admin/local are allowed to write app_config per RLS (DB role 'venta'
+    // maps to frontend role 'local' -- see handleUserLogin's mappedRole) --
+    // anonymous visitors and 'cocina' sessions would just hit a policy
+    // violation on every auto-fetch, spamming the console and the offline
+    // retry queue for nothing.
+    if (currentRole === 'admin' || currentRole === 'local') {
         window.SupabaseManager.upsertAppConfig({ bcvRate, useAutoBcv });
     }
 }
@@ -3422,6 +3504,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cambio').addEventListener('click', () => {
         window.UIManager.switchView('cambio');
         window.UIManager.renderQuickConversionTable();
+    });
+
+    document.getElementById('btn-pedidos').addEventListener('click', () => {
+        window.UIManager.switchView('pedidos');
+        window.UIManager.renderPedidosOnline(pedidosOnline, handleConfirmPedido, handleRechazarPedido);
     });
 
     // 7. Bind Clientes sub-navigation buttons (Mesas vs Cuentas Activas vs Historial)

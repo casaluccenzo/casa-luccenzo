@@ -369,6 +369,18 @@ async function fetchIngredients() {
     }
 }
 
+async function fetchPedidosOnline() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.from('pedidos_online').select('*').order('created_at', { ascending: false }).limit(100);
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.error("Error fetching pedidos_online from Supabase:", e);
+        return null;
+    }
+}
+
 // ================= DATA MUTATORS =================
 
 async function upsertProduct(product) {
@@ -611,6 +623,22 @@ async function deleteDebt(uuid) {
     } catch (e) {
         console.error("Supabase deleteDebt failed. Enqueuing offline...", e);
         enqueueOfflineOp('debts', 'delete', null, 'uuid', uuid);
+    }
+}
+
+async function updatePedidoStatus(id, status) {
+    if (!client) return;
+    const payload = { status };
+    try {
+        if (!navigator.onLine) {
+            enqueueOfflineOp('pedidos_online', 'update_stock', payload, 'id', id);
+            return;
+        }
+        const { error } = await client.from('pedidos_online').update(payload).eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error("Supabase updatePedidoStatus failed. Enqueuing offline...", e);
+        enqueueOfflineOp('pedidos_online', 'update_stock', payload, 'id', id);
     }
 }
 
@@ -1271,6 +1299,7 @@ function subscribeToChanges(onDbChange) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, (p) => onDbChange('app_config', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'active_sessions' }, (p) => onDbChange('active_sessions', p))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, (p) => onDbChange('activity_logs', p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_online' }, (p) => onDbChange('pedidos_online', p))
         .subscribe((status) => {
             console.log(`Realtime channel status: ${status}`);
             if (status === 'SUBSCRIBED') {
@@ -1312,6 +1341,8 @@ window.SupabaseManager = {
     fetchDebts,
     fetchReplenishments,
     fetchIngredients,
+    fetchPedidosOnline,
+    updatePedidoStatus,
     fetchUsers,
     upsertUser,
     deleteUser,

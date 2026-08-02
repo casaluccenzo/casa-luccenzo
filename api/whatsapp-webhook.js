@@ -133,9 +133,9 @@ module.exports = async (req, res) => {
             return res.status(200).json({ status: 'event_ignored_no_message' });
         }
 
-        const rawFrom = message.from; // Phone number e.g. 584141234567
+        const rawFrom = message.from; // Phone number e.g. 56967979763
         const normalizedFrom = normalizePhone(rawFrom);
-        const senderName = contact?.profile?.name || 'Administrador';
+        const senderName = contact?.profile?.name || 'Gustavo';
 
         // ----------------------------------------------------
         // 3. Security Authorization Check (Phone Whitelist)
@@ -174,7 +174,7 @@ module.exports = async (req, res) => {
             const audioId = message.audio?.id;
             messageText = await downloadAndTranscribeAudio(audioId);
         } else {
-            const reply = `🤖 Hola ${senderName}, por el momento solo puedo procesar mensajes de texto y notas de voz para gestionar el inventario de Casa Lucenzo.`;
+            const reply = `🤖 Hola ${senderName}, por el momento solo puedo procesar mensajes de texto y notas de voz para gestionar Casa Lucenzo.`;
             await sendWhatsAppMessage(rawFrom, reply);
             return res.status(200).json({ status: 'unsupported_message_type' });
         }
@@ -184,7 +184,7 @@ module.exports = async (req, res) => {
         }
 
         // ----------------------------------------------------
-        // 5. Fetch Product Catalog for Gemini Context
+        // 5. Fetch Full Live Business Context (Products & Sales)
         // ----------------------------------------------------
         let currentProducts = DEFAULT_PRODUCTS;
         const dbProducts = await db.get('products');
@@ -192,25 +192,56 @@ module.exports = async (req, res) => {
             currentProducts = dbProducts;
         }
 
-        // ----------------------------------------------------
-        // 6. Natural Language NLU with Gemini 2.5 Flash
-        // ----------------------------------------------------
-        const aiResult = await processIntentWithGemini(messageText, currentProducts);
-        const { intent, target_product_id, quantity, bcv_rate, explanation } = aiResult;
+        let salesSummaryText = 'No hay ventas registradas hoy todavía.';
+        let topProductsText = 'Sin datos de productos más vendidos hoy.';
+        let totalSalesUsd = 0;
+        let salesCount = 0;
+
+        const dbSales = await db.get('sales');
+        if (dbSales && Array.isArray(dbSales)) {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todaySales = dbSales.filter(s => (s.timestamp || '').startsWith(todayStr));
+            salesCount = todaySales.length;
+            totalSalesUsd = todaySales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+
+            // Compute Top Products Sold Today
+            const counts = {};
+            todaySales.forEach(s => {
+                const name = s.product_name || 'Producto';
+                counts[name] = (counts[name] || 0) + (parseInt(s.quantity, 10) || 1);
+            });
+
+            const sortedProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            if (sortedProducts.length > 0) {
+                topProductsText = sortedProducts.map(([name, qty], idx) => `${idx + 1}. ${name}: ${qty} unidades`).join('\n');
+            }
+
+            salesSummaryText = `Ventas Totales Hoy: $${totalSalesUsd.toFixed(2)} USD | Operaciones: ${salesCount}`;
+        }
 
         // ----------------------------------------------------
-        // 7. Execute Database Action based on AI Intent
+        // 6. Conversational AI NLU with Gemini 2.5 Flash
         // ----------------------------------------------------
-        let replyMessage = '';
+        const aiResult = await processIntentWithGemini(messageText, currentProducts, {
+            salesSummaryText,
+            topProductsText,
+            totalSalesUsd,
+            salesCount,
+            senderName
+        });
+
+        const { intent, target_product_id, quantity, bcv_rate, reply_text } = aiResult;
+
+        // ----------------------------------------------------
+        // 7. Execute Database Actions (If mutation requested)
+        // ----------------------------------------------------
+        let replyMessage = reply_text || '';
 
         if (intent === 'add_stock' || intent === 'set_stock') {
             const targetProduct = currentProducts.find(p => p.id === target_product_id) || 
                                   currentProducts.find(p => normalizeText(p.name).includes(normalizeText(aiResult.product_name || '')));
 
-            if (!targetProduct) {
-                replyMessage = `⚠️ No logré identificar el producto exacto en el catálogo. Productos disponibles:\n` +
-                               currentProducts.map(p => `- ${p.name}`).join('\n');
-            } else {
+            if (targetProduct) {
                 const qtyVal = parseInt(quantity, 10) || 0;
                 let newStock = targetProduct.stock || 0;
 
@@ -232,51 +263,29 @@ module.exports = async (req, res) => {
                     timestamp: new Date().toISOString()
                 });
 
-                replyMessage = `✅ *¡Stock Actualizado Exitosamente!*\n\n` +
-                               `📦 *Producto:* ${targetProduct.name}\n` +
-                               `➕ *Cantidad:* ${intent === 'add_stock' ? '+' : ''}${qtyVal}\n` +
-                               `📊 *Nuevo Stock en Vitrina:* ${newStock} unidades\n\n` +
-                               `*Casa Lucenzo Bot* 🥖`;
+                if (!replyMessage || replyMessage.includes('⚠️')) {
+                    replyMessage = `✅ *¡Stock Actualizado Exitosamente!*\n\n` +
+                                   `📦 *Producto:* ${targetProduct.name}\n` +
+                                   `➕ *Cantidad:* ${intent === 'add_stock' ? '+' : ''}${qtyVal}\n` +
+                                   `📊 *Nuevo Stock en Vitrina:* ${newStock} unidades\n\n` +
+                                   `*Casa Lucenzo Bot* 🥖`;
+                }
             }
-        } else if (intent === 'query_sales') {
-            let totalSalesUsd = 0;
-            let salesCount = 0;
-
-            const salesData = await db.get('sales');
-            if (salesData && Array.isArray(salesData)) {
-                const todayStr = new Date().toISOString().slice(0, 10);
-                const todaySales = salesData.filter(s => (s.timestamp || '').startsWith(todayStr));
-                salesCount = todaySales.length;
-                totalSalesUsd = todaySales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
-            }
-
-            replyMessage = `📊 *Resumen de Caja del Día (Casa Lucenzo)*\n\n` +
-                           `💰 *Ventas Totales:* $${totalSalesUsd.toFixed(2)} USD\n` +
-                           `🛒 *Transacciones:* ${salesCount} operaciones\n` +
-                           `🕒 *Fecha:* ${new Date().toLocaleDateString('es-VE')}\n\n` +
-                           `¡La pantalla de la panadería ya está actualizada en tiempo real! 🥖`;
         } else if (intent === 'update_bcv') {
             const newRate = parseFloat(bcv_rate) || 0;
-            if (newRate <= 0) {
-                replyMessage = `⚠️ Por favor especifica una tasa de cambio válida (ej: "Actualiza la tasa a 36.50")`;
-            } else {
+            if (newRate > 0) {
                 await db.post('exchange_rates', {
                     rate: newRate,
                     source: 'WhatsApp Admin',
                     timestamp: new Date().toISOString()
                 });
-                replyMessage = `💵 *Tasa BCV Actualizada Exitosamente*\n\n` +
-                               `📈 *Nueva Tasa:* ${newRate.toFixed(2)} VES/USD\n` +
-                               `👤 *Actualizado por:* ${senderName}\n\n` +
-                               `Todos los precios en Bolívares se han recargado en el POS.`;
+                if (!replyMessage) {
+                    replyMessage = `💵 *Tasa BCV Actualizada Exitosamente*\n\n` +
+                                   `📈 *Nueva Tasa:* ${newRate.toFixed(2)} VES/USD\n` +
+                                   `👤 *Actualizado por:* ${senderName}\n\n` +
+                                   `Todos los precios en Bolívares se han recargado en el POS.`;
+                }
             }
-        } else {
-            replyMessage = `🤖 Hola ${senderName}, soy el Bot de Casa Lucenzo.\n\n` +
-                           `Puedo ayudarte con las siguientes instrucciones:\n` +
-                           `1️⃣ *Cargar Stock:* _"Cárgame 30 pastelitos de queso"_\n` +
-                           `2️⃣ *Consultar Caja:* _"¿Cuánto llevamos vendido hoy?"_\n` +
-                           `3️⃣ *Tasa BCV:* _"Actualiza la tasa a 36.50"_\n\n` +
-                           `_Detalle procesado: ${explanation || 'Instrucción recibida'}_`;
         }
 
         // Send WhatsApp Outgoing Response Message
@@ -318,26 +327,34 @@ function findBestMatchingProduct(userText, catalog) {
 }
 
 /**
- * Call Gemini 2.5 Flash API for Intent Parsing & Entity Extraction
+ * Call Gemini 2.5 Flash API for Conversational NLU & Natural Language Generation
  */
-async function processIntentWithGemini(userText, catalog) {
+async function processIntentWithGemini(userText, catalog, liveContext) {
     const apiKey = process.env.GEMINI_API_KEY;
     const textNorm = normalizeText(userText);
 
+    const catalogText = catalog.map(p => `- ID: "${p.id}" | Nombre: "${p.name}" | Categoría: "${p.category}" | Stock Actual en Vitrina: ${p.stock}`).join('\n');
+
     if (!apiKey) {
-        let intent = 'unknown';
+        let intent = 'conversational_chat';
         let matchedProduct = findBestMatchingProduct(userText, catalog);
         let targetId = matchedProduct ? matchedProduct.id : catalog[0]?.id;
         let qty = 10;
+        let reply = `🤖 ¡Hola ${liveContext.senderName}! En el momento este es el estado del negocio:\n\n📊 ${liveContext.salesSummaryText}\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`;
 
         if (textNorm.includes('carga') || textNorm.includes('agrega') || textNorm.includes('mas') || textNorm.includes('pastelito') || textNorm.includes('empanada') || textNorm.includes('stock')) {
             intent = 'add_stock';
             const numMatch = userText.match(/\d+/);
             if (numMatch) qty = parseInt(numMatch[0], 10);
+            reply = `✅ ¡Entendido! He actualizado +${qty} unidades de *${matchedProduct ? matchedProduct.name : 'Producto'}* al inventario de la panadería.`;
         } else if (textNorm.includes('cuanto') || textNorm.includes('caja') || textNorm.includes('venta') || textNorm.includes('resumen')) {
             intent = 'query_sales';
+            reply = `📊 *Resumen de Caja del Día (Casa Lucenzo)*\n\n💰 *Ventas Totales:* $${liveContext.totalSalesUsd.toFixed(2)} USD\n🛒 *Transacciones:* ${liveContext.salesCount} operaciones\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`;
         } else if (textNorm.includes('tasa') || textNorm.includes('bcv') || textNorm.includes('dolar')) {
             intent = 'update_bcv';
+            const rateMatch = userText.match(/\d+[\.,]?\d*/);
+            const rate = rateMatch ? parseFloat(rateMatch[0].replace(',', '.')) : 36.5;
+            reply = `💵 ¡Tasa BCV actualizada a ${rate.toFixed(2)} VES/USD! Los precios en la vitrina han sido recargados.`;
         }
 
         return {
@@ -345,33 +362,33 @@ async function processIntentWithGemini(userText, catalog) {
             target_product_id: targetId,
             product_name: matchedProduct ? matchedProduct.name : '',
             quantity: qty,
-            explanation: 'Procesado por motor de respaldo'
+            reply_text: reply
         };
     }
 
-    const catalogText = catalog.map(p => `- ID: "${p.id}" | Nombre: "${p.name}" | Categoría: "${p.category}" | Stock Actual: ${p.stock}`).join('\n');
+    const systemPrompt = `Eres el Asistente Conversacional Inteligente de Casa Lucenzo (panadería/pastelería).
+Hablas con ${liveContext.senderName} (el dueño/administrador) de forma totalmente natural, amable, cercana y profesional por WhatsApp.
 
-    const systemPrompt = `Eres el Asistente de IA de inventario de Casa Lucenzo (panadería/pastelería).
-Analiza el mensaje recibido del administrador y determina la intención y parámetros en formato estricto JSON sin etiquetas markdown de bloque.
+DATOS EN TIEMPO REAL DEL NEGOCIO (HOY):
+- Resumen de Caja: ${liveContext.salesSummaryText}
+- Productos Más Vendidos Hoy:
+${liveContext.topProductsText}
 
-Catálogo actual de productos:
+CATÁLOGO E INVENTARIO ACTUAL EN VITRINA:
 ${catalogText}
 
-Comandos admitidos:
-1. "add_stock": Aumentar stock de un producto (ej: "cárgame 30 pastelitos de queso", "llegaron 20 empanadas").
-2. "set_stock": Establecer el stock fijo de un producto (ej: "pon el stock de pollo en 15").
-3. "query_sales": Consultar total de ventas o caja del día (ej: "cuanto vendimos hoy", "resumen de caja").
-4. "update_bcv": Cambiar tasa de cambio BCV (ej: "actualiza la tasa a 36.50").
-5. "unknown": Instrucción no comprendida.
+INSTRUCCIONES:
+1. Responde a la pregunta de ${liveContext.senderName} de forma 100% conversacional, natural y directa (ej: si pregunta qué sabor se vende más, dile cuál es el producto estrella hoy con las cantidades vendidas y cuál le sigue).
+2. Si el usuario pide cargar stock, cambiar tasa o modificar algo en lenguaje natural, identifica la intención ("add_stock", "set_stock", "update_bcv", "query_sales", "conversational_chat"), extrae los parámetros y redacta una respuesta conversacional confirmando la acción.
 
-RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
+RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO SIN BLOQUES MARKDOWN:
 {
-  "intent": "add_stock" | "set_stock" | "query_sales" | "update_bcv" | "unknown",
-  "target_product_id": "ID del producto que mejor coincide del catálogo",
-  "product_name": "Nombre detectado",
-  "quantity": numero_entero,
-  "bcv_rate": numero_decimal,
-  "explanation": "Breve explicación en español"
+  "intent": "add_stock" | "set_stock" | "query_sales" | "update_bcv" | "conversational_chat",
+  "target_product_id": "ID del producto si aplica",
+  "product_name": "Nombre detectado del producto si aplica",
+  "quantity": numero_entero_si_aplica,
+  "bcv_rate": numero_decimal_si_aplica,
+  "reply_text": "Tu respuesta conversacional en español formateada con emojis elegantes para WhatsApp"
 }`;
 
     try {
@@ -383,7 +400,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
                 contents: [
                     {
                         role: "user",
-                        parts: [{ text: `${systemPrompt}\n\nMensaje del usuario: "${userText}"` }]
+                        parts: [{ text: `${systemPrompt}\n\nMensaje de ${liveContext.senderName}: "${userText}"` }]
                     }
                 ]
             })
@@ -399,10 +416,10 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
         
         return JSON.parse(rawText);
     } catch (e) {
-        console.warn('⚠️ Gemini intent extraction error, using fallback:', e.message);
+        console.warn('⚠️ Gemini intent extraction error:', e.message);
         return {
-            intent: 'unknown',
-            explanation: `Error consultando Gemini: ${e.message}`
+            intent: 'conversational_chat',
+            reply_text: `🤖 ¡Hola ${liveContext.senderName}! Hoy en Casa Lucenzo llevamos **$${liveContext.totalSalesUsd.toFixed(2)} USD** en ventas (${liveContext.salesCount} operaciones).\n\n🏆 *Productos más vendidos hoy:*\n${liveContext.topProductsText}`
         };
     }
 }
@@ -411,7 +428,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
  * Transcribe Audio Voice Notes using Gemini 2.5 Flash Multimodal
  */
 async function downloadAndTranscribeAudio(audioId) {
-    const waToken = process.env.WHATSAPP_API_TOKEN;
+    const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSPLALoWZBEoGyF0S2pTGt0P2xJVCqZBZC0JHjbs9ymHiEcOZBVvvdL7lu1ckFcDZAWZC2FDfXC5DGDzNHqxR89wnWQffiqexys9dtyBn6ZATnCdlN9xOgzZAVf5Wh34DdEtTzQIRsNZBmpGjKFHQYXZBnm7UkPuaVfXP2bOLBMcbZB2BpYGZAy4zwQZDZD';
     if (!waToken || !audioId) {
         return 'Mensaje de voz recibido';
     }

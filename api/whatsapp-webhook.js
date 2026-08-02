@@ -140,7 +140,7 @@ module.exports = async (req, res) => {
         // ----------------------------------------------------
         // 3. Security Authorization Check (Phone Whitelist)
         // ----------------------------------------------------
-        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE || '56936274015,584141234567,584241234567';
+        const adminPhonesEnv = process.env.WHATSAPP_ADMIN_PHONE || '56967979763,56936274015,584141234567,584241234567';
         const allowedPhones = adminPhonesEnv.split(',').map(p => normalizePhone(p));
 
         const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -431,7 +431,7 @@ async function downloadAndTranscribeAudio(audioId) {
  */
 async function sendWhatsAppMessage(recipientPhone, textBody) {
     const waToken = process.env.WHATSAPP_API_TOKEN || 'EAAb73TUZAiY0BSO9fk132msB5rYvuMuQ8jJ907v6iZBXvrXZCCZB1mIqBPc3070PfNxx3No633F3DoXcqgJAska874X8PBjfjvlHaLw5GDtS1ZAm43CkvVK95FRUrUptYSKZCSUPNtjIxPfbk7ZBECygfZCAg2bDtffmZBsoFxpzff1B25AlvppbURPsZB4qovbCccPK1poRhcoXq84qub39CWJFeJHTVBMsTPTrZCmZAyRkk32mEELCQGwPJTIWr7OvFJkG16WheCeAlJetE3drJaOvrMMZD';
-    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1244705252057836';
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1235301469669762';
 
     if (!waToken) {
         console.log(`📱 [SIMULATED WHATSAPP OUTGOING TO +${recipientPhone}]:\n${textBody}`);

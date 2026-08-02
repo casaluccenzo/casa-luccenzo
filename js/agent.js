@@ -246,7 +246,7 @@ Responde directamente a la consulta del usuario usando emojis, negritas y listas
         // 2. Client-side fallback if user configured a client key in localStorage
         if (!this.geminiApiKey) return null;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.geminiApiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${this.geminiApiKey}`;
         const payload = {
             contents: [
                 {

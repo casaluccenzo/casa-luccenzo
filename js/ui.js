@@ -316,13 +316,21 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
             : '';
             
         const stockStyle = isCritical ? 'stock-value critical' : 'stock-value';
-        // Stock can legitimately exceed max (e.g. a delivery bigger than what fits
-        // on display) -- don't lose that real count, just don't show a confusing
-        // "44 de 34" either.
-        const overMax = product.stock > product.max;
-        const stockOfMaxText = overMax
-            ? `${escapeHtml(product.unit)} <span style="opacity:.7;font-size:.85em;">(vitrina llena, máx. ${product.max})</span>`
-            : `de ${product.max} ${escapeHtml(product.unit)}`;
+        // max=0 is used deliberately for items whose daily stock varies by flavor
+        // (pastelería) -- there's no fixed cap to compare against, so just show the
+        // count. For items with a real max, stock can still legitimately exceed it
+        // (e.g. a delivery bigger than what fits on display) -- don't lose that real
+        // count, just don't show a confusing "44 de 34" either.
+        const hasMax = product.max > 0;
+        const overMax = hasMax && product.stock > product.max;
+        let stockOfMaxText;
+        if (!hasMax) {
+            stockOfMaxText = escapeHtml(product.unit);
+        } else if (overMax) {
+            stockOfMaxText = `${escapeHtml(product.unit)} <span style="opacity:.7;font-size:.85em;">(vitrina llena, máx. ${product.max})</span>`;
+        } else {
+            stockOfMaxText = `de ${product.max} ${escapeHtml(product.unit)}`;
+        }
 
         // Find current quantity of this product in the active cart
         const cartItem = (window.currentCart || []).find(item => item.productId === product.id);

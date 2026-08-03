@@ -157,7 +157,11 @@
                     <span class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
                     <span class="nav-label">5. CAMBIO</span>
                 </button>
-                <button id="btn-pedidos" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-pedidos">
+                <!-- Pedidos online: temporarily paused for every role while we keep
+                     improving it on the landing page. Remove style="display:none"
+                     to bring it back -- applyUserRole()'s classList.remove('hidden')
+                     doesn't touch this inline style, so it stays hidden regardless of role. -->
+                <button id="btn-pedidos" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-pedidos" style="display:none;">
                     <span class="nav-icon" style="display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
                         <i class="fa-solid fa-bag-shopping"></i>
                         <span id="pedidos-badge" class="badge-kitchen-nav hidden">0</span>

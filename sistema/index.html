@@ -47,25 +47,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=224">
-    
+    <link rel="stylesheet" href="/css/main.css?v=265">
+
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
+    <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
+         in sw.js -- the service worker keys its cache by the exact request URL,
+         so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/js/storage.js?v=224"></script>
-    <script src="/js/supabase.js?v=224"></script>
-    <script src="/js/exchange-rate.js?v=224"></script>
-    <script src="/js/export.js?v=224"></script>
-    <script src="/js/auth.js?v=224"></script>
-    <script src="/js/sales.js?v=224"></script>
-    <script src="/js/inventory.js?v=224"></script>
-    <script src="/js/pin-management.js?v=224"></script>
-    <script src="/js/ui/shared.js?v=224"></script>
-    <script src="/js/recipes.js?v=224"></script>
-    <script src="/js/audio.js?v=224"></script>
-    <script src="/js/share.js?v=224"></script>
-    <script src="/js/agent.js?v=224"></script>
-    <script src="/js/ui.js?v=224"></script>
-    <script src="/js/app.js?v=224"></script>
+    <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
+    <script src="/js/ui/shared.js?v=265"></script>
+    <script src="/js/storage.js?v=265"></script>
+    <script src="/js/supabase.js?v=265"></script>
+    <script src="/js/exchange-rate.js?v=265"></script>
+    <script src="/js/export.js?v=265"></script>
+    <script src="/js/auth.js?v=265"></script>
+    <script src="/js/sales.js?v=265"></script>
+    <script src="/js/inventory.js?v=265"></script>
+    <script src="/js/pin-management.js?v=265"></script>
+    <script src="/js/recipes.js?v=265"></script>
+    <script src="/js/audio.js?v=265"></script>
+    <script src="/js/share.js?v=265"></script>
+    <script src="/js/agent.js?v=265"></script>
+    <script src="/js/ui.js?v=265"></script>
+    <script src="/js/app.js?v=265"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -76,6 +80,9 @@
     <meta name="apple-mobile-web-app-title" content="Casa Lucenzo">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000A14">
+
+    <!-- Browser tab icon -- without this the browser probes /favicon.ico and 404s -->
+    <link rel="icon" href="/img/logo-192.png">
 
     <!-- Apple Touch Icons (iOS home screen icon) -->
     <link rel="apple-touch-icon" href="/img/logo-192.png">

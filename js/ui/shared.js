@@ -1,8 +1,20 @@
 /**
  * Casa Lucenzo UI - Shared UI Utilities & Controls
  * Extracted from ui.js for modular architecture.
+ *
+ * sistema/index.html loads this file first, so everything it publishes on
+ * `window` is available to every other js/ module.
+ *
+ * Note: showToast lives in js/ui.js, not here. This file used to carry a second
+ * implementation that rendered into a `#toast-container` element the page never
+ * had, so it silently did nothing and was shadowed by ui.js at load time.
  */
 
+/**
+ * Safely escapes HTML special characters to prevent XSS injection
+ * @param {string} str Input string
+ * @returns {string} Escaped HTML string
+ */
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -13,25 +25,9 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function showToast(message, iconClass = 'fa-solid fa-circle-check', durationMs = 3200) {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification';
-    toast.innerHTML = `<i class="${escapeHtml(iconClass)}"></i> <span>${escapeHtml(message)}</span>`;
-    
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, durationMs);
-}
-
 if (typeof window !== 'undefined') {
     window.escapeHtml = escapeHtml;
-    window.showToast = showToast;
 }
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escapeHtml, showToast };
+    module.exports = { escapeHtml };
 }

@@ -68,6 +68,16 @@ node tests/unit.test.js
 
 ## 📦 Compilación y Despliegue
 
+Para levantar el sitio en local, tal cual lo sirve Vercel (raíz del repo):
+
+```bash
+npm run dev
+```
+
+Queda en `http://localhost:4173/` (landing) y `http://localhost:4173/sistema/`
+(el POS). Ojo: `js/supabase.js` cae a la URL y llave publishable del proyecto
+real, así que estás hablando con la base de producción.
+
 Para generar la carpeta de producción `www/` con inyección de variables de entorno:
 
 ```bash
@@ -78,3 +88,13 @@ Variables de entorno configurables en Vercel:
 - `SUPABASE_URL`: URL del proyecto Supabase.
 - `SUPABASE_ANON_KEY`: Llave pública anónima de Supabase.
 - `GEMINI_API_KEY`: Clave API para el Asistente IA.
+- `PEDIDOS_ONLINE_ENABLED`: debe valer `true` para que `/api/notify-pedido` avise
+  al staff por WhatsApp. Con cualquier otro valor el endpoint responde 503. El
+  pedido se guarda igual en Supabase; lo único que se pierde es la notificación.
+
+## Versionado de assets
+
+`sistema/index.html` pide cada `.js`/`.css` con `?v=NNN` y `sw.js` define
+`APP_VERSION = 'NNN'`. **Los dos números tienen que subir juntos en cada
+release**: el service worker cachea por URL completa, así que si no coinciden el
+precache queda huérfano y los usuarios siguen ejecutando código viejo.

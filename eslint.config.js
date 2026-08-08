@@ -19,11 +19,18 @@ const browserGlobals = {
     CustomEvent: 'readonly',
     alert: 'readonly',
     confirm: 'readonly',
+    prompt: 'readonly',
+    crypto: 'readonly',
     // js/*.js files are dual CommonJS/browser modules (guarded by `typeof module !== 'undefined'`)
     // to stay unit-testable under Node — see tests/unit.test.js.
     module: 'readonly',
     require: 'readonly',
-    exports: 'writable'
+    exports: 'writable',
+    // Globals one of our own scripts publishes on `window` for the others to use.
+    // They're real at runtime because sistema/index.html loads the owner first.
+    escapeHtml: 'readonly',    // js/ui/shared.js
+    showToast: 'readonly',     // js/ui.js
+    StorageManager: 'readonly' // js/storage.js
 };
 
 const nodeGlobals = {
@@ -49,7 +56,12 @@ module.exports = [
             globals: browserGlobals
         },
         rules: {
-            'no-unused-vars': ['warn', { args: 'none', varsIgnorePattern: '^_' }],
+            // caughtErrors: 'none' -- `catch (e)` without touching `e` is the house
+            // style for deliberate swallows; flagging ~40 of those buried the real hits.
+            'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
+            // The shared globals above are declared by files inside this same glob,
+            // so their definition sites must not be reported as redeclarations.
+            'no-redeclare': ['error', { builtinGlobals: false }],
             'no-undef': 'warn'
         }
     },
@@ -61,8 +73,19 @@ module.exports = [
             globals: nodeGlobals
         },
         rules: {
-            'no-unused-vars': ['warn', { args: 'none', varsIgnorePattern: '^_' }],
+            // caughtErrors: 'none' -- `catch (e)` without touching `e` is the house
+            // style for deliberate swallows; flagging ~40 of those buried the real hits.
+            'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
             'no-undef': 'warn'
+        }
+    },
+    {
+        // This config file itself is CommonJS and runs under Node.
+        files: ['*.config.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'commonjs',
+            globals: nodeGlobals
         }
     },
     {

@@ -711,7 +711,7 @@ async function handleEditSale(timestamp) {
     });
 
     // Extract client name
-    let clientName = 'Cliente';
+    let clientName;
     const firstSale = matchingSales[0];
     const match = firstSale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
     if (match) {
@@ -1188,7 +1188,7 @@ function addDebt(e) {
     triggerHaptic(15);
 
     const existingClient = debts.find(d => d.clientName.toLowerCase() === name.toLowerCase());
-    let targetDebtObj = null;
+    let targetDebtObj;
 
     if (existingClient) {
         existingClient.amount += amount;
@@ -1352,16 +1352,6 @@ function addIngredientStock(id) {
 }
 
 // ================= DAY CLOSE BROADCASTS =================
-
-/**
- * Format sales data and compile a WhatsApp day-close message
- */
-function shareDayClose() {
-    triggerHaptic(15);
-    const message = generateWhatsAppReport(salesLog, expenses, new Date().toLocaleDateString(), bcvRate, products);
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
-}
 
 /**
  * Open Cierre de Día modal overlay
@@ -2689,6 +2679,7 @@ async function handleUserLogin(username, password) {
     if (window.SupabaseManager && window.SupabaseManager.isConfigured()) {
         try {
             const { user, profile, error } = await window.SupabaseManager.signInUser(cleanUser, cleanPass);
+            if (error) console.warn("Supabase Auth rejected the sign-in:", error.message || error);
             if (user && profile) {
                 matchedUser = profile;
             }
@@ -2753,7 +2744,7 @@ async function handleQuickPINInput(pin) {
     if (!activeUser) {
         try {
             activeUser = JSON.parse(sessionStorage.getItem('casa_lucenzo_active_user') || localStorage.getItem('casa_lucenzo_active_user') || 'null');
-        } catch(e) {}
+        } catch { /* corrupt stored session -- treated as "not logged in" below */ }
     }
 
     if (!activeUser || !activeUser.id) {
@@ -2933,8 +2924,10 @@ async function updateAdminDashboard() {
         return;
     }
 
-    const sales = typeof getTodaySalesLog === 'function' ? getTodaySalesLog() : (salesLog || []);
-    const expensesList = typeof getExpenses === 'function' ? getExpenses() : (expenses || []);
+    // getTodaySalesLog()/getExpenses() never existed anywhere in the codebase, so
+    // these guarded ternaries always took the fallback branch.
+    const sales = salesLog || [];
+    const expensesList = expenses || [];
 
     let previousWeekTotal = null;
     try {
@@ -2979,7 +2972,7 @@ function lockSession() {
         if (display) display.innerText = '• • • •';
     }
 
-    window.UIManager.initPinKeypad(handlePINInput);
+    window.UIManager.initPinKeypad(window.handlePINInput);
 }
 
 /**

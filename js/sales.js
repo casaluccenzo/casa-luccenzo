@@ -3,15 +3,17 @@
  * Extracted and enhanced for domain calculations, executive dashboard, and POS quick shortcuts.
  */
 
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+// escapeHtml is defined once in js/ui/shared.js, which sistema/index.html loads
+// before this file. Under Node (tests require this module on its own) that script
+// never runs, so fall back to CommonJS.
+//
+// Deliberately NOT named `escapeHtml`: a top-level `function escapeHtml` in a
+// classic script overwrites window.escapeHtml, so the lookup below would resolve
+// back to this very function and blow the stack. A `const` creates no window
+// property, which is exactly what we want here.
+const escapeHtmlSafe = (typeof window !== 'undefined' && window.escapeHtml)
+    ? window.escapeHtml
+    : require('./ui/shared.js').escapeHtml;
 
 function calculateTotals(sales = [], expenses = []) {
     const totalSales = (sales || []).reduce((sum, s) => sum + (parseFloat(s.price || s.total) || 0), 0);
@@ -70,7 +72,7 @@ function loadQuickPOSSelection() {
             const saved = localStorage.getItem('casa_lucenzo_quick_pos_items');
             if (saved) return JSON.parse(saved);
         }
-    } catch(e) {}
+    } catch { /* corrupt or blocked storage -- fall through to the default selection */ }
     return null;
 }
 
@@ -79,7 +81,7 @@ function saveQuickPOSSelection(selectedIds = []) {
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem('casa_lucenzo_quick_pos_items', JSON.stringify(selectedIds));
         }
-    } catch(e) {}
+    } catch { /* storage full or blocked -- the selection just won't persist */ }
 }
 
 function getQuickProductsList(products = []) {
@@ -106,7 +108,7 @@ function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = nul
 
     const topProductHtml = topProduct ? `
         <div style="font-weight: 900; font-size: 1.1rem; color: var(--color-gold); margin-top: 0.25rem;">
-            ${escapeHtml(topProduct.name)}
+            ${escapeHtmlSafe(topProduct.name)}
         </div>
         <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.15rem;">
             <b>${topProduct.quantity}</b> unidades vendidas ($${topProduct.totalAmount.toFixed(2)})

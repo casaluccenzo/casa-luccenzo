@@ -814,7 +814,8 @@ async function setUserPinByAdmin(targetUserIdOrUsername, pin) {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
         if (!isUuid) {
             const targetUsername = uuid.replace(/^usr_/, '').toLowerCase();
-            const { data: profile, error: profErr } = await client.from('profiles').select('id').eq('username', targetUsername).maybeSingle();
+            // A failed/empty lookup is handled by the ILIKE fallback below, so the error is not read here.
+            const { data: profile } = await client.from('profiles').select('id').eq('username', targetUsername).maybeSingle();
             if (profile && profile.id) {
                 uuid = profile.id;
             } else {
@@ -929,8 +930,10 @@ async function upsertUser(user) {
 async function deleteUser(id) {
     if (!client) return;
     try {
-        const { error: err1 } = await client.from('profiles').delete().eq('id', id);
-        const { error: err2 } = await client.from('users').delete().eq('id', id);
+        const { error: profileErr } = await client.from('profiles').delete().eq('id', id);
+        if (profileErr) throw profileErr;
+        const { error: userErr } = await client.from('users').delete().eq('id', id);
+        if (userErr) throw userErr;
     } catch (e) {
         console.error("Supabase deleteUser failed:", e);
     }
@@ -1280,7 +1283,7 @@ function subscribeToChanges(onDbChange) {
     if (activeSubscription) {
         try {
             activeSubscription.unsubscribe();
-        } catch(e) {}
+        } catch { /* already closed or socket dropped -- we're replacing it anyway */ }
     }
 
     if (reconnectTimer) {

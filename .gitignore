@@ -28,3 +28,7 @@ www/
 .env*
 supabase/.temp
 .staging-db-password.txt
+
+# Baileys WhatsApp auth state -- these files are equivalent to being logged in
+# to the WhatsApp account. Never commit them.
+whatsapp-session/

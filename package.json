@@ -4,6 +4,7 @@
   "description": "Sistema de gestión de inventario y caja para Casa Lucenzo.",
   "main": "index.html",
   "scripts": {
+    "dev": "node scripts/devserver.js",
     "build": "node scripts/build.js",
     "test": "node tests/unit.test.js",
     "lint": "eslint ."

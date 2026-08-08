@@ -13,21 +13,8 @@ function parseUTCTimestamp(timestampStr) {
 }
 window.parseUTCTimestamp = parseUTCTimestamp;
 
-/**
- * Safely escapes HTML special characters to prevent XSS injection
- * @param {string} str Input string
- * @returns {string} Escaped HTML string
- */
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-window.escapeHtml = escapeHtml;
+// escapeHtml (XSS-safe HTML escaping) is defined once in js/ui/shared.js, which
+// sistema/index.html loads before this file and exposes as a browser global.
 
 /**
  * Switch view tabs in the header and toggle main sections
@@ -882,7 +869,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
     const groups = {};
     todaySalesLog.forEach(sale => {
         let productName = sale.name;
-        let clientName = '';
+        let clientName;
         const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
         if (match) {
             productName = match[1];
@@ -923,7 +910,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
         const item = document.createElement('div');
         item.className = 'history-item';
 
-        let timeStr = '';
+        let timeStr;
         try {
             const date = parseUTCTimestamp(group.timestamp);
             timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1039,7 +1026,7 @@ function renderDebts(debts, onRecordPayment) {
         card.className = `client-card${isDebtor ? ' debtor' : ''}`;
         card.style.cssText = "display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border-radius: var(--radius-lg); background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 0.75rem;";
         
-        let dateDisplay = 'Reciente';
+        let dateDisplay;
         let timeDisplay = '';
         try {
             const d = parseUTCTimestamp(debt.timestamp);
@@ -2023,7 +2010,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
     overlay.style.boxSizing = 'border-box';
     
     // Group active items for display
-    let itemsListHtml = '';
+    let itemsListHtml;
     const grouped = {};
     if (isOccupied) {
         tableSales.forEach(s => {
@@ -2282,12 +2269,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const categoryStatsMap = {};
 
     todaySalesLog.forEach(s => {
-        let catKey = 'otros';
-        let catLabel = 'Otros / Varios';
-        let icon = 'fa-box';
-        let color = '#D4A373';
-        let unitLabel = 'op.';
-        let sortOrder = 99;
+        let catKey;
+        let catLabel;
+        let icon;
+        let color;
+        let unitLabel;
+        let sortOrder;
 
         if (s.productId === 'abono') {
             catKey = 'otros';
@@ -2624,7 +2611,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const groups = {};
     salesLog.forEach(sale => {
         let productName = sale.name;
-        let clientName = '';
+        let clientName;
         let isPaid = false;
         let paymentMethod = '';
         
@@ -2699,7 +2686,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         card.style.gap = '0.5rem';
         card.style.padding = '0.75rem';
 
-        let timeStr = '';
+        let timeStr;
         try {
             const date = parseUTCTimestamp(group.timestamp);
             timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -3045,7 +3032,7 @@ function showPosReceiptModal({
         const d = parseUTCTimestamp(timestamp);
         timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         dateStr = d.toLocaleDateString('es-VE');
-    } catch(e) {}
+    } catch { /* unparseable timestamp -- keep the 'Ahora' / today defaults above */ }
 
     if (!facNo) {
         facNo = (timestamp.replace(/\D/g, '') + '0000').substring(0, 16);
@@ -3428,7 +3415,7 @@ function renderHourlyStats(salesLog, mode = 'today') {
     const targetHours = [6, 7, 8, 9, 10, 11, 12, 13, 14];
 
     // Filter salesLog based on active mode
-    let filteredSales = [];
+    let filteredSales;
     if (mode === 'today') {
         const startOfToday = new Date();
         startOfToday.setHours(0,0,0,0);
@@ -3507,7 +3494,7 @@ function renderHourlyStats(salesLog, mode = 'today') {
         `;
     }
 
-    let summaryText = '';
+    let summaryText;
     if (peakHour !== -1 && hourlyData[peakHour].revenue > 0) {
         const peakLabel = peakHour >= 12 ? (peakHour === 12 ? '12:00 PM' : `${peakHour - 12}:00 PM`) : `${peakHour}:00 AM`;
         const totalVolume = hourlyData[peakHour].count;
@@ -3730,8 +3717,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         'pasteles': { label: '🥐 Pasteles y Repostería', items: {} },
         'bebidas': { label: '🥤 Bebidas', items: {} }
     };
-    let totalItemsSold = 0;
-    
+
     salesLog.forEach(sale => {
         if (sale.productId === 'abono') return;
         
@@ -3756,7 +3742,6 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         }
         categorySales[category].items[cleanName].count++;
         categorySales[category].items[cleanName].total += sale.price || 0;
-        totalItemsSold++;
     });
 
     // Group payment methods
@@ -4190,7 +4175,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
     const targetHours = [6, 7, 8, 9, 10, 11, 12, 13, 14];
 
     // Filter salesLog based on active mode
-    let filteredSales = [];
+    let filteredSales;
     if (mode === 'today') {
         const startOfToday = new Date();
         startOfToday.setHours(0,0,0,0);
@@ -4247,8 +4232,8 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
     }
 
     function getConsultantInsights(hourlyData, peakHour, totalSalesVal, outsideRevenue) {
-        let mainInsight = "";
-        let points = [];
+        let mainInsight;
+        let points;
 
         if (totalSalesVal === 0) {
             return `
@@ -4841,8 +4826,8 @@ function renderCostCalculator(products, costInsumos, onDeleteInsumo) {
                 card.style.cssText = "background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;";
                 
                 const unitPrice = item.price / (item.qty || 1);
-                let detailText = '';
-                let typeBadge = '';
+                let detailText;
+                let typeBadge;
 
                 if (item.type === 'solid') {
                     const pricePerGram = unitPrice / 1000;
@@ -4936,8 +4921,8 @@ function renderCostFinancialResults(products, costInsumos) {
     const priceMargarinaG = findInsumo('margarina', 18.00 / 10000); // 0.0018 / g
     const priceAceiteMl = findInsumo('aceite', 20.00 / 10000); // 0.002 / ml
 
-    let unitProductionCost = 0;
-    let ingredientBreakdownHtml = '';
+    let unitProductionCost;
+    let ingredientBreakdownHtml;
 
     // Standard dough cost for 1 pastelito (50g Harina + 5g Margarina + 15ml Fritura)
     const costHarina = 50 * priceHarinaG;
@@ -4945,8 +4930,8 @@ function renderCostFinancialResults(products, costInsumos) {
     const costAceite = 15 * priceAceiteMl;
 
     if (product.category === 'pastelitos') {
-        let fillingCost = 0;
-        let fillingName = 'Relleno';
+        let fillingCost;
+        let fillingName;
         let fillingGrams = 30;
 
         if (product.id.includes('mechada')) {

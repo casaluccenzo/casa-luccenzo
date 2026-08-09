@@ -91,6 +91,11 @@ Variables de entorno configurables en Vercel:
 - `PEDIDOS_ONLINE_ENABLED`: debe valer `true` para que `/api/notify-pedido` avise
   al staff por WhatsApp. Con cualquier otro valor el endpoint responde 503. El
   pedido se guarda igual en Supabase; lo único que se pierde es la notificación.
+- `CRON_SECRET`: string aleatorio (16+ caracteres) que autoriza al cron diario
+  `/api/keepalive` a pinguear Supabase (evita que el proyecto se pause por
+  inactividad tras 7 días sin uso). Vercel lo envía solo como header al
+  disparar el cron definido en `vercel.json`; sin esta variable el endpoint
+  rechaza toda petición.
 
 ## Versionado de assets
 

@@ -1,4 +1,10 @@
 {
   "buildCommand": "echo 'No build step required'",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

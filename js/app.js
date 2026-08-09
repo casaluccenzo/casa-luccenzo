@@ -685,6 +685,16 @@ async function handleEditSale(timestamp) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
 
+    // A closed/collected sale is tagged "(Pagado ...)" on every item's name.
+    // Reopening one for correction is money-sensitive: the corrected cuenta comes
+    // back as pending payment, so the cashier must re-register the collection.
+    const wasPaid = /\(Pagado(?:\s*-\s*.*?)?\)\s*$/.test(matchingSales[0].name);
+    if (wasPaid) {
+        if (!confirm("Esta venta ya fue cobrada. Al corregirla, la cuenta volverá a quedar PENDIENTE DE PAGO y tendrás que registrar el cobro de nuevo con el monto correcto. ¿Deseas continuar?")) {
+            return;
+        }
+    }
+
     if (currentCart.length > 0) {
         if (!confirm("Ya tienes productos en la cuenta activa. ¿Deseas vaciarla para cargar esta cuenta del historial?")) {
             return;
@@ -692,6 +702,10 @@ async function handleEditSale(timestamp) {
     }
 
     triggerHaptic(15);
+
+    if (wasPaid) {
+        logActivity("Corrección de Venta Cerrada", `Cuenta del horario ${new Date(timestamp).toLocaleTimeString()} reabierta para corrección (monto original: $${matchingSales.reduce((s, x) => s + x.price, 0).toFixed(2)}). Vuelve a estar pendiente de pago.`);
+    }
 
     // 1. Group matching sales by product_id to reconstruct the cart
     const cartReconstructed = [];

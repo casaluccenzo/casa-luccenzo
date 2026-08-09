@@ -2729,10 +2729,10 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 <button class="btn-action-small btn-share-client" title="Compartir Ticket" style="height: 36px; width: 38px; justify-content: center; font-size: 0.75rem;">
                     <i class="fa-brands fa-whatsapp"></i>
                 </button>
+                <button class="btn-action-small btn-modify-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: ${group.isPaid ? 'var(--color-warning)' : 'var(--color-gold)'}; color: var(--color-bg-navy); font-size: 0.75rem;" title="${group.isPaid ? 'Corregir una venta ya cobrada (la cuenta vuelve a quedar pendiente de pago para registrar el cobro correcto)' : 'Agregar más cosas'}">
+                    <i class="fa-solid fa-pen-to-square"></i> ${group.isPaid ? 'Corregir' : 'Modificar'}
+                </button>
                 ${!group.isPaid ? `
-                    <button class="btn-action-small btn-modify-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-gold); color: var(--color-bg-navy); font-size: 0.75rem;" title="Agregar más cosas">
-                        <i class="fa-solid fa-pen-to-square"></i> Modificar
-                    </button>
                     <button class="btn-action-small btn-pay-client" style="flex: 1.5; height: 36px; justify-content: center; background-color: var(--color-success); color: var(--color-bg-navy); font-size: 0.75rem; font-weight: 800;" title="Marcar como pagada y registrar cobro">
                         <i class="fa-solid fa-circle-check"></i> Registrar Pago
                     </button>
@@ -2769,10 +2769,10 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
         });
 
+        card.querySelector('.btn-modify-client').addEventListener('click', () => {
+            if (onEdit) onEdit(group.timestamp);
+        });
         if (!group.isPaid) {
-            card.querySelector('.btn-modify-client').addEventListener('click', () => {
-                if (onEdit) onEdit(group.timestamp);
-            });
             card.querySelector('.btn-pay-client').addEventListener('click', () => {
                 showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
                     if (onPay) onPay(group.timestamp, method, name, rif);

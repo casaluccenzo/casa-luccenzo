@@ -3,9 +3,9 @@
 // plain static page and isn't part of this PWA/offline experience.
 // Must match the ?v= query string used by sistema/index.html. The cache is keyed
 // by the full request URL, so precaching '/js/app.js' while the page asks for
-// '/js/app.js?v=265' would store two unrelated entries and never serve the
+// '/js/app.js?v=NNN' (mismatched) would store two unrelated entries and never serve the
 // precached one. Bump both together on every release.
-const APP_VERSION = '265';
+const APP_VERSION = '266';
 const CACHE_NAME = `casa-lucenzo-v${APP_VERSION}`;
 
 // Every script sistema/index.html loads, in the same order, with the same ?v=.

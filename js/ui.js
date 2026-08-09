@@ -2745,9 +2745,26 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
         // Bind event listeners
         card.querySelector('.btn-pos-ticket-client').addEventListener('click', () => {
-            showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
-                if (onPay) onPay(group.timestamp, method, name, rif);
-            });
+            if (group.isPaid) {
+                // Already collected: just reprint the ticket, read-only. Routing this
+                // through showPaymentMethodModal (below) would surface its "CONFIRMAR Y
+                // REGISTRAR PAGO" button, which silently overwrites the recorded
+                // payment method if a cashier taps it out of habit while just trying
+                // to view/reprint a closed sale's receipt.
+                showPosReceiptModal({
+                    cart: group.items,
+                    clientName: group.clientName,
+                    clientRif: group.clientRif,
+                    timestamp: group.timestamp,
+                    facNo: (group.timestamp.replace(/\D/g, '') + '0000').substring(0, 16),
+                    isAlreadyPaid: true,
+                    payMethod: group.paymentMethod || 'Efectivo'
+                });
+            } else {
+                showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
+                    if (onPay) onPay(group.timestamp, method, name, rif);
+                });
+            }
         });
 
         card.querySelector('.btn-share-client').addEventListener('click', () => {

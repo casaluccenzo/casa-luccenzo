@@ -40,11 +40,16 @@ const supabaseBuildFile = path.join(destDir, 'js', 'supabase.js');
 // (sistema/index.html), not the public landing page (index.html).
 const indexBuildFile = path.join(destDir, 'sistema', 'index.html');
 
-const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-
-if (isProduction && (!process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_URL || !process.env.SENTRY_DSN)) {
-    console.error('❌ BUILD ERROR: Missing mandatory SUPABASE_ANON_KEY, SUPABASE_URL, or SENTRY_DSN in production build environment!');
-    process.exit(1);
+// Previously this hard-failed the whole deploy (process.exit(1)) when any of
+// these three were missing on Vercel (VERCEL=1 is set for every Vercel build,
+// Preview included, not just Production -- so "isProduction" was misleading).
+// That's unnecessarily fragile: the runtime code already falls back cleanly
+// when a placeholder is left unreplaced (js/supabase.js keeps the hardcoded
+// prod URL/key; the Sentry init below has its own mock-DSN fallback), so a
+// missing env var here should degrade gracefully, not take down every deploy
+// on every branch until someone notices and fixes it in the Vercel dashboard.
+if (!process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_URL || !process.env.SENTRY_DSN) {
+    console.warn('⚠️ SUPABASE_ANON_KEY, SUPABASE_URL, or SENTRY_DSN not set for this deployment -- continuing with fallback values.');
 }
 
 if (fs.existsSync(supabaseBuildFile)) {

@@ -34,7 +34,16 @@ const crypto = require('crypto');
 const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
-const { getWeekdayPattern, compareVsWeekdayAverage, getFlavorRanking, getDailyPrepRecommendation } = require('../js/analytics');
+const {
+    WEEKDAY_LABELS,
+    getWeekdayPattern,
+    compareVsWeekdayAverage,
+    getFlavorRanking,
+    getDailyPrepRecommendation,
+    getRecentTrend,
+    getUpcomingProjection,
+    buildPerformanceInsights
+} = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
 process.env.WHATSAPP_BOT_ENABLED = 'true';
@@ -207,6 +216,45 @@ function runAnalyticsUnitTests() {
     const comparison = compareVsWeekdayAverage(tuesdayBucket.avgTotal * 1.5, pattern, TUESDAY);
     assert.ok(comparison.pctChange > 0, "REAL AnalyticsManager.compareVsWeekdayAverage: A total 50% above average should report a positive % change");
     console.log("✅ TEST PASSED: REAL AnalyticsManager.compareVsWeekdayAverage: Reports positive % change above the historical Tuesday average");
+
+    // getRecentTrend: 14 days at $10/day vs. the prior 14 days at $8/day -> +25%
+    const trendSales = [];
+    for (let i = 0; i < 14; i++) {
+        const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i);
+        trendSales.push(saleAt(d, 'mechada', 10));
+    }
+    for (let i = 14; i < 28; i++) {
+        const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i);
+        trendSales.push(saleAt(d, 'mechada', 8));
+    }
+    const trend = getRecentTrend(trendSales, 2);
+    assert.strictEqual(trend.recentAvg, 10, "REAL AnalyticsManager.getRecentTrend: Recent 14-day average should be $10");
+    assert.strictEqual(trend.priorAvg, 8, "REAL AnalyticsManager.getRecentTrend: Prior 14-day average should be $8");
+    assert.strictEqual(trend.pctChange, 25, "REAL AnalyticsManager.getRecentTrend: % change from $8 to $10 should be +25%");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getRecentTrend: Detects a +25% trend between two comparable 14-day periods");
+
+    // getUpcomingProjection: each projected day should mirror its weekday's historical bucket
+    const fakePattern = Array.from({ length: 7 }, (_, weekday) => ({
+        weekday,
+        label: WEEKDAY_LABELS[weekday],
+        avgTotal: (weekday + 1) * 10,
+        avgCount: weekday + 1,
+        sampleSize: weekday === 2 ? 1 : 5
+    }));
+    const projection = getUpcomingProjection(fakePattern, 7);
+    assert.strictEqual(projection.length, 7, "REAL AnalyticsManager.getUpcomingProjection: Should project exactly 7 upcoming days");
+    projection.forEach(p => {
+        const expectedBucket = fakePattern[p.weekday];
+        assert.strictEqual(p.projectedTotal, expectedBucket.avgTotal, `REAL AnalyticsManager.getUpcomingProjection: Projected total for weekday ${p.weekday} should match its historical average`);
+        assert.strictEqual(p.lowConfidence, expectedBucket.sampleSize < 3, `REAL AnalyticsManager.getUpcomingProjection: lowConfidence flag should reflect sample size for weekday ${p.weekday}`);
+    });
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getUpcomingProjection: Projects 7 upcoming days using each weekday's historical average");
+
+    // buildPerformanceInsights: should weave the real numbers into readable Spanish sentences
+    const insights = buildPerformanceInsights({ weekdayPattern: pattern, flavorRanking: ranking, trend, todayComparison: comparison });
+    assert.ok(Array.isArray(insights) && insights.length > 0, "REAL AnalyticsManager.buildPerformanceInsights: Should return at least one insight");
+    assert.ok(insights.some(t => t.includes('Mechada')), "REAL AnalyticsManager.buildPerformanceInsights: Should mention the top-selling flavor (Mechada)");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.buildPerformanceInsights: Generates data-driven insight sentences mentioning the top flavor");
 }
 
 // Security Regression Test: Reject all legacy credentials

@@ -169,23 +169,153 @@ function getDailyPrepRecommendation(sales = [], products = [], targetWeekday, op
         .sort((a, b) => b.suggested - a.suggested);
 }
 
+/**
+ * Compares the average daily total of the most recent `weeksToCompare`
+ * weeks against the equivalent period right before it, to catch whether
+ * the business is trending up or down (not just "today vs. this weekday").
+ * Anchored on the real current date, not the latest sale, so it always
+ * answers "how are the last N weeks going" from today's point of view.
+ */
+function getRecentTrend(sales = [], weeksToCompare = 2) {
+    const days = aggregateSalesByDay(sales);
+    const spanDays = weeksToCompare * 7;
+
+    const now = new Date();
+    const recentStart = new Date(now);
+    recentStart.setDate(now.getDate() - spanDays + 1);
+    const priorStart = new Date(now);
+    priorStart.setDate(now.getDate() - (spanDays * 2) + 1);
+    const priorEnd = new Date(now);
+    priorEnd.setDate(now.getDate() - spanDays);
+
+    const recentStartKey = dateKey(recentStart);
+    const priorStartKey = dateKey(priorStart);
+    const priorEndKey = dateKey(priorEnd);
+
+    const recentDays = days.filter(d => d.dateStr >= recentStartKey);
+    const priorDays = days.filter(d => d.dateStr >= priorStartKey && d.dateStr <= priorEndKey);
+
+    const avg = arr => (arr.length > 0 ? arr.reduce((sum, d) => sum + d.total, 0) / arr.length : 0);
+    const recentAvg = Number(avg(recentDays).toFixed(2));
+    const priorAvg = Number(avg(priorDays).toFixed(2));
+
+    const pctChange = (recentDays.length > 0 && priorDays.length > 0 && priorAvg > 0)
+        ? Number((((recentAvg - priorAvg) / priorAvg) * 100).toFixed(1))
+        : null;
+
+    return {
+        recentAvg,
+        priorAvg,
+        pctChange,
+        recentSampleDays: recentDays.length,
+        priorSampleDays: priorDays.length
+    };
+}
+
+/**
+ * Projects the next `daysAhead` calendar days using the historical average
+ * for whatever weekday each one falls on (from getWeekdayPattern) -- a
+ * simple, transparent forecast rather than a black-box model.
+ */
+function getUpcomingProjection(weekdayPattern = [], daysAhead = 7, fromDate = new Date(), opts = {}) {
+    const { minSamples = 3 } = opts;
+    const projections = [];
+    for (let i = 1; i <= daysAhead; i++) {
+        const d = new Date(fromDate);
+        d.setDate(fromDate.getDate() + i);
+        const weekday = d.getDay();
+        const bucket = weekdayPattern.find(w => w.weekday === weekday);
+        projections.push({
+            dateStr: dateKey(d),
+            weekday,
+            label: (bucket && bucket.label) || WEEKDAY_LABELS[weekday],
+            projectedTotal: bucket ? bucket.avgTotal : 0,
+            projectedCount: bucket ? bucket.avgCount : 0,
+            sampleSize: bucket ? bucket.sampleSize : 0,
+            lowConfidence: !bucket || bucket.sampleSize < minSamples
+        });
+    }
+    return projections;
+}
+
+/**
+ * Turns the numbers above into a handful of short Spanish sentences --
+ * the "reseñas" shown in the PDF report and sent by the WhatsApp monitor.
+ * Every sentence is derived from real computed values, not canned copy
+ * picked by a lookup table (unlike the old getConsultantInsights in
+ * js/ui.js, which chose from fixed paragraphs based on peak hour).
+ * @param {Object} params
+ * @param {Array} params.weekdayPattern From getWeekdayPattern(sales)
+ * @param {Array} params.flavorRanking The FULL ranking (call
+ *   getFlavorRanking with { limit: null }) so the "% share" math isn't
+ *   skewed by an already-truncated top-N list
+ * @param {Object|null} params.trend From getRecentTrend(sales)
+ * @param {Object|null} params.todayComparison From compareVsWeekdayAverage(...)
+ * @returns {Array<string>}
+ */
+function buildPerformanceInsights({ weekdayPattern = [], flavorRanking = [], trend = null, todayComparison = null } = {}) {
+    const insights = [];
+
+    const activeBuckets = weekdayPattern.filter(w => w.sampleSize > 0 && w.avgTotal > 0);
+    if (activeBuckets.length >= 2) {
+        const best = activeBuckets.reduce((a, b) => (b.avgTotal > a.avgTotal ? b : a));
+        const worst = activeBuckets.reduce((a, b) => (b.avgTotal < a.avgTotal ? b : a));
+        if (best.weekday !== worst.weekday) {
+            insights.push(`📅 Tu día más fuerte es ${best.label} (promedio $${best.avgTotal.toFixed(2)}), y el más flojo es ${worst.label} (promedio $${worst.avgTotal.toFixed(2)}).`);
+        }
+    }
+
+    if (flavorRanking.length > 0) {
+        const totalQty = flavorRanking.reduce((sum, f) => sum + f.quantity, 0);
+        const top = flavorRanking[0];
+        const pct = totalQty > 0 ? (top.quantity / totalQty) * 100 : 0;
+        insights.push(`🏆 ${top.name} es tu sabor estrella: representa el ${pct.toFixed(0)}% de las unidades vendidas en este período (${top.quantity} unidades).`);
+    }
+
+    if (trend && trend.pctChange !== null) {
+        const arrow = trend.pctChange >= 0 ? '📈' : '📉';
+        const direction = trend.pctChange >= 0 ? 'más' : 'menos';
+        insights.push(`${arrow} En los últimos días vendiste en promedio ${Math.abs(trend.pctChange).toFixed(1)}% ${direction} que en el período previo comparable.`);
+    }
+
+    if (todayComparison && todayComparison.pctChange !== null) {
+        const arrow = todayComparison.pctChange >= 0 ? '✅' : '⚠️';
+        const direction = todayComparison.pctChange >= 0 ? 'por encima' : 'por debajo';
+        insights.push(`${arrow} Hoy vas ${direction} de lo habitual: ${todayComparison.label}.`);
+    }
+
+    if (insights.length === 0) {
+        insights.push('Todavía no hay suficiente historial de ventas para generar reseñas útiles. Volvé a mirar esto en unas semanas.');
+    }
+
+    return insights;
+}
+
 const AnalyticsManager = {
     WEEKDAY_LABELS,
+    parseTimestamp,
     aggregateSalesByDay,
     getWeekdayPattern,
     compareVsWeekdayAverage,
     getFlavorRanking,
-    getDailyPrepRecommendation
+    getDailyPrepRecommendation,
+    getRecentTrend,
+    getUpcomingProjection,
+    buildPerformanceInsights
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         WEEKDAY_LABELS,
+        parseTimestamp,
         aggregateSalesByDay,
         getWeekdayPattern,
         compareVsWeekdayAverage,
         getFlavorRanking,
         getDailyPrepRecommendation,
+        getRecentTrend,
+        getUpcomingProjection,
+        buildPerformanceInsights,
         AnalyticsManager
     };
 }

@@ -4903,6 +4903,215 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
     printWindow.document.close();
 }
 
+/**
+ * Generates the detailed sales analytics report (print-to-PDF, same
+ * pattern as exportDayCloseToPDF/exportHourlyStatsToPDF above): period
+ * KPIs, the weekday sales pattern, the flavor ranking, a 7-day projection,
+ * and a "reseñas" box with data-driven insight sentences. All the number
+ * crunching comes from window.AnalyticsManager (js/analytics.js) -- this
+ * function only lays it out as printable HTML.
+ * @param {Array} salesHistory Sales rows for the analytics lookback range
+ * @param {Array} products Product catalog
+ * @param {string} rangeLabel Human label for the lookback range, e.g. "Últimos 60 días"
+ */
+function exportSalesAnalyticsToPDF(salesHistory = [], products = [], rangeLabel = '') {
+    const AM = window.AnalyticsManager;
+    if (!AM) {
+        alert("No se pudo cargar el módulo de análisis.");
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Por favor, permite las ventanas emergentes para poder generar el PDF.");
+        return;
+    }
+
+    const dailyTotals = AM.aggregateSalesByDay(salesHistory);
+    const weekdayPattern = AM.getWeekdayPattern(salesHistory);
+    const flavorRankingFull = AM.getFlavorRanking(salesHistory, products, { limit: null });
+    const trend = AM.getRecentTrend(salesHistory, 2);
+    const projection = AM.getUpcomingProjection(weekdayPattern, 7, new Date());
+
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayEntry = dailyTotals.find(d => d.dateStr === todayKey);
+    const todayComparison = AM.compareVsWeekdayAverage(todayEntry ? todayEntry.total : 0, weekdayPattern, now.getDay());
+
+    const insights = AM.buildPerformanceInsights({ weekdayPattern, flavorRanking: flavorRankingFull, trend, todayComparison });
+
+    const periodTotal = dailyTotals.reduce((sum, d) => sum + d.total, 0);
+    const periodDays = dailyTotals.length;
+    const avgDaily = periodDays > 0 ? periodTotal / periodDays : 0;
+    const bestDay = periodDays > 0 ? dailyTotals.reduce((a, b) => (b.total > a.total ? b : a)) : null;
+    const worstDay = periodDays > 0 ? dailyTotals.reduce((a, b) => (b.total < a.total ? b : a)) : null;
+    const fmtDayLabel = dateStr => new Date(dateStr + 'T00:00:00').toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'short' });
+
+    const css = `
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Playfair+Display:wght@700;900&display=swap');
+        body { font-family: 'Outfit', sans-serif; color: #0f172a; padding: 2.5rem; margin: 0; background-color: #ffffff; line-height: 1.5; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 1.5rem; margin-bottom: 2rem; }
+        .logo-area { display: flex; align-items: center; gap: 1rem; }
+        .logo-circle { width: 60px; height: 60px; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2px solid #f3c63f; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .logo-text h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0; color: #0b1329; font-weight: 900; letter-spacing: -0.02em; }
+        .logo-text p { font-size: 0.85rem; margin: 0; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; }
+        .report-meta { text-align: right; }
+        .report-meta h2 { font-size: 1.25rem; margin: 0; color: #d97706; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 900; }
+        .report-meta p { font-size: 0.85rem; margin: 0.25rem 0 0; color: #475569; }
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+        .kpi-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .kpi-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; }
+        .kpi-val { font-size: 1.5rem; font-weight: 900; color: #0b1329; margin-top: 0.35rem; }
+        .kpi-subval { font-size: 0.8rem; color: #475569; font-weight: 600; margin-top: 0.2rem; }
+        .section-title { font-size: 1rem; text-transform: uppercase; font-weight: 900; color: #0b1329; margin-top: 2rem; margin-bottom: 1rem; letter-spacing: 0.08em; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        th { background-color: #f8fafc; color: #475569; font-size: 0.85rem; text-transform: uppercase; font-weight: 800; text-align: left; padding: 0.85rem; border-bottom: 2px solid #cbd5e1; letter-spacing: 0.02em; }
+        td { padding: 0.85rem; font-size: 0.88rem; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        tr:nth-child(even) { background-color: #fcfdfe; }
+        .low-confidence { color: #b45309; font-size: 0.75rem; font-weight: 700; }
+        .footer { margin-top: 3.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.25rem; text-align: center; font-size: 0.7rem; color: #94a3b8; }
+        .btn-print-action { background-color: #0b1329; color: #ffffff; border: 1px solid #f3c63f; padding: 0.6rem 1.75rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: all 0.2s; }
+        .btn-print-action:hover { background-color: #172242; color: #f3c63f; }
+        .consultant-box { background-color: #fdfbf7; border: 1.5px solid #f3c63f; border-left: 5px solid #d97706; border-radius: 8px; padding: 1.5rem; margin-top: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.02); page-break-inside: avoid; }
+        .consultant-title { font-size: 1.05rem; font-weight: 900; color: #0b1329; margin-top: 0; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .consultant-badge { background-color: #f3c63f; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; }
+        .consultant-points { margin-top: 0.75rem; padding-left: 1.25rem; font-size: 0.9rem; color: #334155; }
+        .consultant-points li { margin-bottom: 0.6rem; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    `;
+
+    const weekdayRowsHtml = [1, 2, 3, 4, 5, 6, 0].map(w => weekdayPattern[w]).map(b => `
+        <tr>
+            <td>${escapeHtml(b.label)}</td>
+            <td>$${b.avgTotal.toFixed(2)}</td>
+            <td>${b.avgCount} uds. prom.</td>
+            <td>${b.sampleSize} semana(s) muestreadas</td>
+        </tr>
+    `).join('');
+
+    const flavorTotalQty = flavorRankingFull.reduce((sum, f) => sum + f.quantity, 0);
+    const flavorRowsHtml = flavorRankingFull.length > 0 ? flavorRankingFull.slice(0, 10).map((f, i) => {
+        const pct = flavorTotalQty > 0 ? (f.quantity / flavorTotalQty) * 100 : 0;
+        return `
+            <tr>
+                <td>#${i + 1} ${escapeHtml(f.name)}</td>
+                <td>${escapeHtml(ANALYTICS_CATEGORY_LABELS[f.category] || f.category)}</td>
+                <td>${f.quantity} uds. (${pct.toFixed(0)}%)</td>
+                <td>$${f.amount.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('') : '<tr><td colspan="4" style="text-align: center; color: #64748b;">Sin ventas registradas en este período.</td></tr>';
+
+    const projectionRowsHtml = projection.map(p => `
+        <tr>
+            <td>${escapeHtml(fmtDayLabel(p.dateStr))}</td>
+            <td>$${p.projectedTotal.toFixed(2)}</td>
+            <td>${p.projectedCount} uds. prom.</td>
+            <td>${p.lowConfidence ? '<span class="low-confidence">Dato preliminar</span>' : `${p.sampleSize} semana(s)`}</td>
+        </tr>
+    `).join('');
+
+    const insightsHtml = insights.map(text => `<li>${escapeHtml(text)}</li>`).join('');
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Informe Detallado de Ventas - Casa Lucenzo</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo-area">
+                    <div class="logo-circle"></div>
+                    <div class="logo-text">
+                        <h1>CASA LUCENZO</h1>
+                        <p>Pastelería & Bebidas</p>
+                    </div>
+                </div>
+                <div class="report-meta">
+                    <h2>Informe Detallado de Ventas</h2>
+                    <p><strong>Período analizado:</strong> ${escapeHtml(rangeLabel || `${periodDays} día(s)`)}</p>
+                    <p><strong>Generado:</strong> ${new Date().toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-label">Vendido en el período</div>
+                    <div class="kpi-val">$${periodTotal.toFixed(2)}</div>
+                    <div class="kpi-subval">${periodDays} día(s) con ventas</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Promedio diario</div>
+                    <div class="kpi-val">$${avgDaily.toFixed(2)}</div>
+                    <div class="kpi-subval">por día con actividad</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Mejor día</div>
+                    <div class="kpi-val">$${bestDay ? bestDay.total.toFixed(2) : '0.00'}</div>
+                    <div class="kpi-subval">${bestDay ? escapeHtml(fmtDayLabel(bestDay.dateStr)) : 'sin datos'}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Día más flojo</div>
+                    <div class="kpi-val">$${worstDay ? worstDay.total.toFixed(2) : '0.00'}</div>
+                    <div class="kpi-subval">${worstDay ? escapeHtml(fmtDayLabel(worstDay.dateStr)) : 'sin datos'}</div>
+                </div>
+            </div>
+
+            <div class="section-title"><span>📅 Ventas por Día de la Semana</span></div>
+            <table>
+                <thead><tr><th>Día</th><th>Promedio ($)</th><th>Unidades</th><th>Muestras</th></tr></thead>
+                <tbody>${weekdayRowsHtml}</tbody>
+            </table>
+
+            <div class="section-title"><span>🏆 Sabores Más Vendidos</span></div>
+            <table>
+                <thead><tr><th>Producto</th><th>Categoría</th><th>Unidades</th><th>Monto</th></tr></thead>
+                <tbody>${flavorRowsHtml}</tbody>
+            </table>
+
+            <div class="section-title"><span>🔮 Proyección Próximos 7 Días</span></div>
+            <table>
+                <thead><tr><th>Día</th><th>Venta Estimada</th><th>Unidades Estimadas</th><th>Confianza</th></tr></thead>
+                <tbody>${projectionRowsHtml}</tbody>
+            </table>
+
+            <div class="consultant-box">
+                <div class="consultant-title">
+                    <span class="consultant-badge">RESEÑAS</span>
+                    <span>Lectura del Rendimiento</span>
+                </div>
+                <ul class="consultant-points">${insightsHtml}</ul>
+            </div>
+
+            <div class="footer">
+                <p>Informe de análisis de ventas - Generado por el Sistema Casa Lucenzo.</p>
+                <p class="no-print" style="margin-top: 1.75rem;">
+                    <button class="btn-print-action" onclick="window.print()">
+                        📥 Imprimir / Guardar PDF
+                    </button>
+                </p>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 400);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
 // Expose to window namespace
 /**
  * Opens a quick numeric quantity selector modal for Vitrina
@@ -5320,6 +5529,7 @@ window.UIManager = {
     renderPaymentAndCategoryStats,
     renderSalesAnalytics,
     exportDayCloseToPDF,
+    exportSalesAnalyticsToPDF,
     renderCostCalculator,
     renderCostFinancialResults,
     renderUsersManagement

@@ -3908,6 +3908,17 @@ function initAdminDashboardListeners() {
         });
     }
 
+    const btnAnalyticsPdf = document.getElementById('btn-analytics-pdf');
+    if (btnAnalyticsPdf) {
+        btnAnalyticsPdf.addEventListener('click', async () => {
+            triggerHaptic(10);
+            await loadAndRenderAnalytics();
+            const salesHistory = analyticsSalesCache[analyticsRangeDays] || [];
+            const rangeLabels = { 30: 'Últimos 30 días', 60: 'Últimos 60 días', 90: 'Últimos 90 días', 0: 'Todo el historial' };
+            window.UIManager.exportSalesAnalyticsToPDF(salesHistory, products, rangeLabels[analyticsRangeDays] || '');
+        });
+    }
+
     const analyticsRangeBtns = {
         30: document.getElementById('btn-analytics-range-30'),
         60: document.getElementById('btn-analytics-range-60'),

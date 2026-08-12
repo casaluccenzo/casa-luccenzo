@@ -42,7 +42,8 @@ let hourlyActiveMode = 'today';
 let adminStatsSales = [];
 
 // Analytics tab state: cached sales history keyed by lookback range (days),
-// so switching 30/60/90 or the hoy/mañana toggle doesn't always refetch.
+// so switching 30/60/90/Todo or the hoy/mañana toggle doesn't always refetch.
+// 0 means "sin recorte de fecha" -- fetch the full sales history.
 let analyticsRangeDays = 60;
 let analyticsPrepMode = 'today'; // 'today' | 'tomorrow'
 const analyticsSalesCache = {};
@@ -3910,7 +3911,8 @@ function initAdminDashboardListeners() {
     const analyticsRangeBtns = {
         30: document.getElementById('btn-analytics-range-30'),
         60: document.getElementById('btn-analytics-range-60'),
-        90: document.getElementById('btn-analytics-range-90')
+        90: document.getElementById('btn-analytics-range-90'),
+        0: document.getElementById('btn-analytics-range-all') // 0 = sin recorte de fecha (todo el historial)
     };
     Object.entries(analyticsRangeBtns).forEach(([days, btn]) => {
         if (!btn) return;

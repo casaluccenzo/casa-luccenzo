@@ -211,7 +211,26 @@ function renderPendingDispatches(replenishments, onConfirm) {
         </div>
     `;
 
-    document.getElementById('btn-confirm-receipt').addEventListener('click', onConfirm);
+    const confirmBtn = document.getElementById('btn-confirm-receipt');
+    confirmBtn.addEventListener('click', async () => {
+        // One batch, one load. Lock the button for the whole round trip so an
+        // impatient double tap cannot put the same mercancía in twice.
+        if (confirmBtn.disabled) return;
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.6';
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONFIRMANDO...';
+        try {
+            await onConfirm();
+        } finally {
+            // The list re-renders on success; only a failure leaves this node
+            // on screen, and then it must be usable again.
+            if (document.body.contains(confirmBtn)) {
+                confirmBtn.disabled = false;
+                confirmBtn.style.opacity = '';
+                confirmBtn.innerHTML = '<i class="fa-solid fa-square-check"></i> ¡YA LLEGÓ! CONFIRMAR RECIBIDO';
+            }
+        }
+    });
 }
 
 /**

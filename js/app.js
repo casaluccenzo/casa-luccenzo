@@ -17,6 +17,9 @@ let categoryStatsFilter = 'day';
 
 let lastCloseTime = null;
 
+// Re-entrancy guard so a double tap on "¡Ya llegó!" cannot load a batch twice
+let isConfirmingReceipt = false;
+
 // Quick-access PINs for role switching (never declared before — was relying on
 // implicit globals, which throws ReferenceError in strict mode and is undefined
 // until the first assignment ever runs, e.g. before fetchAppConfig() resolves)
@@ -234,6 +237,64 @@ function handleSearchChange(query) {
 }
 
 /**
+ * Vitrina capacity for a product ("X / max" and the "falta cocinar" figure).
+ * Never below what is physically on the shelf, and never grows on its own --
+ * the old `max = max + diff` accumulated across days and told the kitchen to
+ * cook batches that nobody had loaded.
+ * @param {Object} product Product to measure
+ * @returns {number} Capacity to store in `max`
+ */
+function resolveVitrinaCapacity(product) {
+    return Math.max(product.max || 0, product.stock || 0);
+}
+
+/**
+ * Single source of truth for putting stock INTO the vitrina.
+ *
+ * `initial_stock` is the day's baseline: everything the vitrina received since
+ * the last cierre de jornada. Every "vendidos reales" figure in the app is
+ * `initial_stock - stock`, so a path that raises `stock` without raising the
+ * baseline by the same amount silently zeroes out the day's numbers. Route
+ * every load through here so the two can never drift apart.
+ *
+ * @param {Object} product Product to replenish (mutated in place)
+ * @param {number} amountToAdd Pieces entering the vitrina (must be > 0)
+ * @returns {boolean} True when the load was applied
+ */
+function applyStockLoad(product, amountToAdd) {
+    const amount = parseInt(amountToAdd, 10);
+    if (!product || isNaN(amount) || amount <= 0) return false;
+
+    product.stock = (product.stock || 0) + amount;
+    product.initial_stock = (product.initial_stock || 0) + amount;
+    product.max = resolveVitrinaCapacity(product);
+    return true;
+}
+
+/**
+ * Set a product's physical count to an absolute value (a recount from the
+ * edit modal, or a "fijar stock" order from the bot). Raising it is a load, so
+ * the day's baseline follows it; lowering it is a physical correction, so the
+ * baseline stays put and the missing pieces surface in the Conciliación
+ * instead of quietly disappearing from the day's totals.
+ * @param {Object} product Product to adjust (mutated in place)
+ * @param {number} targetStock Absolute count now on the shelf
+ */
+function applyStockCount(product, targetStock) {
+    if (!product) return;
+    const target = Math.max(0, parseInt(targetStock, 10) || 0);
+    const current = product.stock || 0;
+
+    if (target > current) {
+        applyStockLoad(product, target - current);
+        return;
+    }
+
+    product.stock = target;
+    product.max = resolveVitrinaCapacity(product);
+}
+
+/**
  * Handle stock adjustments, records transactions, triggers vibrations and floating numbers
  * @param {string} id Product identifier
  * @param {number} amount Change amount (+1 or -1)
@@ -297,23 +358,13 @@ function adjustStock(id, amount, event) {
         }
     } else if (amount === 1) {
         // Restocking vitrina (standard + button)
-        const originalStock = product.stock;
-        const newStock = originalStock >= product.max ? originalStock + 1 : Math.min(product.max, originalStock + 1);
-
-        if (newStock === product.stock) {
-            triggerHaptic(30);
-            return;
-        }
-
         if (event && event.clientX !== undefined) {
             window.UIManager.spawnFloatingIndicator(event.clientX, event.clientY, `+1`, 'float-plus');
         }
 
         triggerHaptic(15);
 
-        const diff = newStock - originalStock;
-        product.stock = newStock;
-        product.initial_stock = (product.initial_stock !== undefined && product.initial_stock !== null) ? (product.initial_stock + diff) : newStock;
+        applyStockLoad(product, 1);
         window.StorageManager.saveProducts(products);
 
         if (window.SupabaseManager.isConfigured()) {
@@ -1015,19 +1066,12 @@ async function updateProductStockDirect(id, newStock) {
     if (!product) return;
 
     triggerHaptic(15);
-    const oldStock = product.stock || 0;
-    const targetStock = Math.max(0, newStock);
-    const addedDiff = targetStock > oldStock ? (targetStock - oldStock) : 0;
-
-    product.stock = targetStock;
-    if (addedDiff > 0) {
-        product.max = (product.max || 0) + addedDiff;
-    }
+    applyStockCount(product, newStock);
     window.StorageManager.saveProducts(products);
 
     if (window.SupabaseManager.isConfigured()) {
         try {
-            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
         } catch (e) {
             console.error("Failed to update product stock and max in Supabase", e);
         }
@@ -1048,17 +1092,13 @@ async function addProductStockDirect(id, amountToAdd) {
     if (amountToAdd <= 0) return;
 
     triggerHaptic(15);
-    product.stock = (product.stock || 0) + amountToAdd;
-
-    const defProd = window.StorageManager.DEFAULT_PRODUCTS ? window.StorageManager.DEFAULT_PRODUCTS.find(d => d.id === product.id) : null;
-    const baseMax = defProd ? defProd.max : (product.max || 20);
-    product.max = Math.max(baseMax, product.stock);
+    applyStockLoad(product, amountToAdd);
 
     window.StorageManager.saveProducts(products);
 
     if (window.SupabaseManager.isConfigured()) {
         try {
-            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+            await window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
         } catch (e) {
             console.error("Failed to add product stock and max in Supabase", e);
         }
@@ -1071,57 +1111,74 @@ window.addProductStockDirect = addProductStockDirect;
 
 
 /**
- * Local trigger: Mark all pending dispatches as received, replenishing stocks
+ * Local trigger: Mark all pending dispatches as received, replenishing stocks.
+ *
+ * Idempotent on purpose: each batch may only ever be added to the vitrina
+ * once. The uuids are burned into localStorage *before* any stock moves, so a
+ * double tap, a realtime echo, or the 45s background re-sync landing before
+ * the Supabase DELETE commits can no longer resurrect the card and add the
+ * same pieces a second time.
  */
-function confirmReceipt() {
-    const pending = replenishments.filter(r => r.status === 'en_camino');
-    if (pending.length === 0) return;
+async function confirmReceipt() {
+    if (isConfirmingReceipt) return;
 
+    const consumed = new Set(window.StorageManager.loadConsumedReplenishmentUuids());
+    const pending = replenishments.filter(r => r.status === 'en_camino' && !consumed.has(r.uuid));
+    if (pending.length === 0) {
+        // Nothing genuinely new: drop any stale card left over from a re-sync.
+        replenishments = replenishments.filter(r => !consumed.has(r.uuid));
+        window.StorageManager.saveReplenishments(replenishments);
+        window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
+        return;
+    }
+
+    isConfirmingReceipt = true;
     triggerHaptic(15);
 
-    pending.forEach(dispatch => {
-        const product = products.find(p => p.id === dispatch.productId);
-        if (product) {
-            const added = dispatch.amount || 0;
-            product.stock = (product.stock || 0) + added;
+    // Claim the batch first -- everything below is now safe to retry.
+    window.StorageManager.addConsumedReplenishmentUuids(pending.map(d => d.uuid));
 
-            const defProd = window.StorageManager.DEFAULT_PRODUCTS ? window.StorageManager.DEFAULT_PRODUCTS.find(d => d.id === product.id) : null;
-            const baseMax = defProd ? defProd.max : (product.max || 20);
-            product.max = Math.max(baseMax, product.stock);
-
-            if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(product.id, product.stock, product.max);
+    try {
+        pending.forEach(dispatch => {
+            const product = products.find(p => p.id === dispatch.productId);
+            if (product && applyStockLoad(product, dispatch.amount)) {
+                if (window.SupabaseManager.isConfigured()) {
+                    window.SupabaseManager.updateProductStock(product.id, product.stock, product.max, product.initial_stock);
+                }
+                logActivity("Recepción Vitrina", `Recibidos ${dispatch.amount} ${product.unit || 'unid.'} de ${product.name} en vitrina. Stock actual: ${product.stock}/${product.max}`);
             }
-            logActivity("Recepción Vitrina", `Recibidos ${added} ${product.unit || 'unid.'} de ${product.name} en vitrina. Stock actual: ${product.stock}/${product.max}`);
-        }
-        dispatch.status = 'recibido';
-        
+            dispatch.status = 'recibido';
+        });
+
+        replenishments = replenishments.filter(r => r.status !== 'recibido' && !consumed.has(r.uuid));
+        window.StorageManager.saveReplenishments(replenishments);
+        window.StorageManager.saveProducts(products);
+
+        // Refresh views
+        window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
+        window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
+
+        window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina actualizada.", "fa-solid fa-circle-check");
+
+        // Await the deletes so the next background sync cannot re-read them.
         if (window.SupabaseManager.isConfigured()) {
-            window.SupabaseManager.deleteReplenishment(dispatch.uuid);
+            await Promise.all(pending.map(d => window.SupabaseManager.deleteReplenishment(d.uuid)));
         }
-    });
-
-    replenishments = replenishments.filter(r => r.status !== 'recibido');
-    window.StorageManager.saveReplenishments(replenishments);
-    window.StorageManager.saveProducts(products);
-
-    // Refresh views
-    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-    window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
-    window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
-
-    window.UIManager.showToast("✨ ¡Mercancía recibida! Vitrina actualizada.", "fa-solid fa-circle-check");
+    } finally {
+        isConfirmingReceipt = false;
+    }
 }
 
 function resetToMax() {
     triggerHaptic(15);
     products.forEach(p => {
         const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
-        if (cat === 'pastelitos') {
-            p.stock = p.max;
-            p.initial_stock = p.max;
+        // Topping the shelf back up to capacity is a load like any other: only
+        // the missing pieces enter, and the day's baseline grows by that much.
+        if (cat === 'pastelitos' && applyStockLoad(p, (p.max || 0) - (p.stock || 0))) {
             if (window.SupabaseManager.isConfigured()) {
-                window.SupabaseManager.updateProductStock(p.id, p.max, p.max, p.max);
+                window.SupabaseManager.updateProductStock(p.id, p.stock, p.max, p.initial_stock);
             }
         }
     });
@@ -1658,14 +1715,22 @@ async function closeDayAndResetLogs() {
         window.StorageManager.clearSalesLog();
         window.StorageManager.clearExpenses();
 
+        // 3b. A new day starts with no dispatches owed, so the guard list that
+        // protects yesterday's batches from being re-loaded can start empty too.
+        window.StorageManager.clearConsumedReplenishmentUuids();
+
         // 4. Reset showcase products' stock: Pastelitos reset to 0, Packaged items (bebidas, dulces) keep their actual remaining stock
         products.forEach(p => {
             const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
             if (cat === 'pastelitos' || cat === 'empanadas') {
                 p.stock = 0;
                 p.initial_stock = 0;
+                // Capacity is "what got loaded today", so it resets with the day.
+                // Left standing it accumulated, and Cocina kept asking for
+                // batches nobody had loaded.
+                p.max = 0;
                 if (window.SupabaseManager.isConfigured()) {
-                    window.SupabaseManager.updateProductStock(p.id, 0, p.max, 0);
+                    window.SupabaseManager.updateProductStock(p.id, 0, 0, 0);
                 }
             } else {
                 // Keep actual remaining stock for drinks/sweets
@@ -1960,8 +2025,11 @@ async function loadAllDataFromSupabase() {
     let missingDefaultProds = [];
     window.StorageManager.DEFAULT_PRODUCTS.forEach(defProd => {
         if (!products.some(p => p.id === defProd.id)) {
-            products.push({ ...defProd });
-            missingDefaultProds.push(defProd);
+            // Seeded stock counts as loaded, so the baseline starts level with
+            // it -- otherwise the product reads as fully sold from minute one.
+            const seeded = { ...defProd, initial_stock: defProd.stock };
+            products.push(seeded);
+            missingDefaultProds.push(seeded);
         }
     });
 
@@ -1969,7 +2037,7 @@ async function loadAllDataFromSupabase() {
         console.log(`Auto-added ${missingDefaultProds.length} missing default products to stock.`);
         if (window.SupabaseManager.isConfigured()) {
             missingDefaultProds.forEach(p => {
-                window.SupabaseManager.updateProductStock(p.id, p.stock);
+                window.SupabaseManager.updateProductStock(p.id, p.stock, p.max, p.initial_stock);
             });
         }
     }
@@ -2028,12 +2096,14 @@ async function loadAllDataFromSupabase() {
         debts = window.StorageManager.loadDebts();
     }
 
-    // Save and load replenishments
+    // Save and load replenishments (never resurrect a batch already loaded into
+    // the vitrina -- its DELETE may not have committed before this fetch ran)
+    const consumedRepls = new Set(window.StorageManager.loadConsumedReplenishmentUuids());
     if (supRepls) {
-        replenishments = supRepls;
+        replenishments = supRepls.filter(r => !consumedRepls.has(r.uuid));
         window.StorageManager.saveReplenishments(replenishments);
     } else {
-        replenishments = window.StorageManager.loadReplenishments();
+        replenishments = window.StorageManager.loadReplenishments().filter(r => !consumedRepls.has(r.uuid));
     }
 
     // Save and load raw ingredients
@@ -2406,7 +2476,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
     } else if (tableName === 'replenishments') {
         if (eventType === 'DELETE') {
             replenishments = replenishments.filter(r => r.uuid !== oldRow.uuid);
-        } else {
+        } else if (!window.StorageManager.loadConsumedReplenishmentUuids().includes(newRow.uuid)) {
             const idx = replenishments.findIndex(r => r.uuid === newRow.uuid);
             const formatted = {
                 uuid: newRow.uuid,
@@ -2578,7 +2648,8 @@ async function performFullFetch(tableName) {
     } else if (tableName === 'replenishments') {
         const data = await window.SupabaseManager.fetchReplenishments();
         if (data) {
-            replenishments = data;
+            const consumed = new Set(window.StorageManager.loadConsumedReplenishmentUuids());
+            replenishments = data.filter(r => !consumed.has(r.uuid));
             window.StorageManager.saveReplenishments(replenishments);
             window.UIManager.renderPendingDispatches(replenishments, confirmReceipt);
             window.UIManager.renderCocina(products, deliverProduct, replenishments, salesLog);
@@ -4226,21 +4297,22 @@ function initAdminDashboardListeners() {
                 return;
             }
 
-            const oldStock = product.stock || 0;
             const oldMax = product.max || 0;
-            const stockDiff = stockVal > oldStock ? (stockVal - oldStock) : 0;
 
             product.name = newName;
             product.price = newPrice;
             product.category = newCategory;
-            product.stock = stockVal;
             product.min = minVal;
 
-            if (maxVal !== oldMax) {
-                product.max = maxVal;
-            } else if (stockDiff > 0) {
-                product.max = oldMax + stockDiff;
-            }
+            // Typing a higher stock here is how the day's batch gets loaded, so
+            // it has to move the baseline exactly like any other load -- this
+            // was the path that left `initial_stock` at 0 all day.
+            applyStockCount(product, stockVal);
+
+            // An explicitly retyped max wins; otherwise capacity just follows
+            // the shelf (it used to be incremented on every edit and grew
+            // without bound across days).
+            product.max = (maxVal !== oldMax) ? Math.max(maxVal, product.stock) : resolveVitrinaCapacity(product);
 
             window.StorageManager.saveProducts(products);
 
@@ -4473,6 +4545,9 @@ if (typeof module !== 'undefined' && module.exports) {
         handleUserLogin,
         calculateTotals: (sales, expenses) => (typeof window !== 'undefined' && window.SalesManager ? window.SalesManager.calculateTotals(sales, expenses) : require('./sales.js').calculateTotals(sales, expenses)),
         validateStockAdjustment: (stock, delta) => (typeof window !== 'undefined' && window.InventoryManager ? window.InventoryManager.validateStockAdjustment(stock, delta) : require('./inventory.js').validateStockAdjustment(stock, delta)),
-        checkRolePermission: (role, action) => (typeof window !== 'undefined' && window.AuthManager ? window.AuthManager.checkRolePermission(role, action) : require('./auth.js').checkRolePermission(role, action))
+        checkRolePermission: (role, action) => (typeof window !== 'undefined' && window.AuthManager ? window.AuthManager.checkRolePermission(role, action) : require('./auth.js').checkRolePermission(role, action)),
+        applyStockLoad,
+        applyStockCount,
+        resolveVitrinaCapacity
     };
 }

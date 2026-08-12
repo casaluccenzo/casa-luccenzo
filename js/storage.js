@@ -335,6 +335,39 @@ function addDeletedSalesUuids(uuids) {
     }
 }
 
+const CONSUMED_REPLENISHMENTS_KEY = 'casa_lucenzo_consumed_replenishment_uuids';
+
+/**
+ * Dispatches whose stock has already been added to the vitrina. Kept so a
+ * background re-sync landing before the Supabase DELETE commits cannot bring
+ * the "¡Ya llegó!" card back and let the same batch be counted twice.
+ */
+function loadConsumedReplenishmentUuids() {
+    try {
+        const saved = localStorage.getItem(CONSUMED_REPLENISHMENTS_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addConsumedReplenishmentUuids(uuids) {
+    if (!uuids) return;
+    const list = (Array.isArray(uuids) ? uuids : [uuids]).filter(Boolean);
+    if (list.length === 0) return;
+    try {
+        const set = new Set([...loadConsumedReplenishmentUuids(), ...list]);
+        // Bounded: a dispatch only needs protection until its DELETE settles.
+        localStorage.setItem(CONSUMED_REPLENISHMENTS_KEY, JSON.stringify(Array.from(set).slice(-200)));
+    } catch (e) {
+        console.error("Failed to save consumed replenishment uuids", e);
+    }
+}
+
+function clearConsumedReplenishmentUuids() {
+    localStorage.removeItem(CONSUMED_REPLENISHMENTS_KEY);
+}
+
 function loadUsers() {
     try {
         const saved = localStorage.getItem(USERS_KEY);
@@ -386,6 +419,9 @@ window.StorageManager = {
     loadReplenishments,
     saveReplenishments,
     clearReplenishments,
+    loadConsumedReplenishmentUuids,
+    addConsumedReplenishmentUuids,
+    clearConsumedReplenishmentUuids,
     loadIngredients,
     saveIngredients,
     loadUsers,

@@ -289,9 +289,13 @@ async function fetchProducts() {
     try {
         const { data, error } = await client.from('products').select('*').order('name');
         if (error) throw error;
+        // `initial_stock` is the day's load baseline and 0 is a legitimate
+        // value (nothing loaded yet). The old fallback treated 0 as "missing"
+        // and substituted the current stock, which silently rewrote the
+        // baseline on every background sync and made the day's totals drift.
         return data.map(p => ({
             ...p,
-            initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined && p.initial_stock > 0) ? p.initial_stock : p.stock
+            initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined) ? p.initial_stock : p.stock
         }));
     } catch (e) {
         console.error("Error fetching products from Supabase:", e);
@@ -394,7 +398,7 @@ async function upsertProduct(product) {
         unit: product.unit,
         price: product.price,
         category: product.category,
-        initial_stock: product.initial_stock !== undefined ? product.initial_stock : product.stock,
+        initial_stock: (product.initial_stock !== undefined && product.initial_stock !== null) ? product.initial_stock : (product.stock || 0),
         updated_at: new Date().toISOString()
     };
     try {

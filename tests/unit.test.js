@@ -31,7 +31,7 @@ if (typeof global.localStorage === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -138,6 +138,48 @@ function runCoreUnitTests() {
     assert.strictEqual(adjFail.allowed, false, "REAL validateStockAdjustment: Decreasing 0 stock should be blocked");
     console.log("✅ TEST PASSED: REAL validateStockAdjustment: Adding stock to 5 by 1 should result in 6");
     console.log("✅ TEST PASSED: REAL validateStockAdjustment: Selling item with 0 stock should be blocked");
+
+    // 2b. Daily stock load: `initial_stock` is the day's baseline and every
+    // "vendidos reales" figure is `initial_stock - stock`, so a load must move
+    // both or the day's totals silently collapse to zero.
+    const fresh = { id: 'mechada', stock: 0, max: 0, initial_stock: 0, price: 1.98 };
+
+    applyStockLoad(fresh, 20);
+    assert.strictEqual(fresh.stock, 20, "REAL applyStockLoad: Loading 20 into an empty vitrina leaves 20 on the shelf");
+    assert.strictEqual(fresh.initial_stock, 20, "REAL applyStockLoad: Loading 20 raises the day's baseline to 20");
+    assert.strictEqual(fresh.max, 20, "REAL applyStockLoad: Capacity follows the load");
+
+    // Sell 8, then load a second batch of 10 mid-morning.
+    fresh.stock -= 8;
+    applyStockLoad(fresh, 10);
+    assert.strictEqual(fresh.initial_stock, 30, "REAL applyStockLoad: A second batch adds to the baseline instead of replacing it");
+    assert.strictEqual(fresh.initial_stock - fresh.stock, 8, "REAL applyStockLoad: Reported sales survive a mid-day reload (8 sold)");
+
+    // Capacity must never accumulate on its own -- that is what kept telling
+    // Cocina to cook batches nobody had loaded.
+    // 8 were already sold when the second batch arrived, so the shelf never
+    // held all 30 at once: capacity is the high-water mark (22), not the total.
+    assert.strictEqual(resolveVitrinaCapacity(fresh), 22, "REAL resolveVitrinaCapacity: Capacity is the shelf high-water mark, not the day's total");
+    applyStockLoad(fresh, 0);
+    assert.strictEqual(fresh.max, 22, "REAL applyStockLoad: A zero load is a no-op, not a capacity bump");
+    assert.strictEqual(applyStockLoad(fresh, -5), false, "REAL applyStockLoad: A negative load is rejected outright");
+
+    // A recount downward is a physical correction: the baseline holds so the
+    // missing pieces surface in the Conciliación instead of vanishing.
+    const recount = { id: 'queso', stock: 10, max: 10, initial_stock: 10 };
+    applyStockCount(recount, 6);
+    assert.strictEqual(recount.stock, 6, "REAL applyStockCount: Recounting down sets the physical stock");
+    assert.strictEqual(recount.initial_stock, 10, "REAL applyStockCount: Recounting down leaves the day's baseline intact");
+    assert.strictEqual(recount.initial_stock - recount.stock, 4, "REAL applyStockCount: The 4 unaccounted pieces stay visible as sales/faltantes");
+
+    // Typing a higher number into the edit modal is how a batch gets loaded.
+    applyStockCount(recount, 16);
+    assert.strictEqual(recount.initial_stock, 20, "REAL applyStockCount: Recounting up loads the difference into the baseline");
+    console.log("✅ TEST PASSED: REAL applyStockLoad: Daily stock load keeps stock and baseline in sync");
+    console.log("✅ TEST PASSED: REAL applyStockLoad: Mid-day reload preserves the day's real sales figure");
+    console.log("✅ TEST PASSED: REAL applyStockLoad: Vitrina capacity never accumulates on its own");
+    console.log("✅ TEST PASSED: REAL applyStockCount: Downward recount keeps missing pieces visible");
+    console.log("✅ TEST PASSED: REAL applyStockCount: Upward recount is treated as a load");
 
     // 3. RBAC Role-Based Access Control Tests
     assert.strictEqual(checkRolePermission('admin', 'day_close'), true, "REAL checkRolePermission: Admin should have permission for Day Close");

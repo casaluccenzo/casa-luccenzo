@@ -83,7 +83,7 @@ module.exports = async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
 
         const [sales, products] = await Promise.all([
-            db.rawGet(`sales?select=product_id,price,timestamp&timestamp=gte.${encodeURIComponent(startDate.toISOString())}&order=timestamp.asc`),
+            db.rawGetAll(`sales?select=product_id,price,timestamp&timestamp=gte.${encodeURIComponent(startDate.toISOString())}&order=timestamp.asc`),
             db.rawGet('products?select=id,name,category')
         ]);
 

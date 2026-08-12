@@ -284,6 +284,30 @@ async function upsertSales(sales) {
 
 // ================= DATA FETCHERS =================
 
+// PostgREST caps every response at 1000 rows. A query that orders ascending and
+// reads in one shot therefore loses its NEWEST rows once the table passes that
+// mark -- silently, with no error. On 2026-08-11 that made a $18.02 day report
+// as $7.38. Any unbounded sales read has to page.
+const POSTGREST_PAGE_SIZE = 1000;
+const POSTGREST_MAX_PAGES = 100;
+
+/**
+ * Read every row of a query by walking fixed-size pages.
+ * @param {Function} buildQuery Receives the row offset, returns a PostgREST query
+ * @returns {Promise<Array>} Every row, in query order
+ */
+async function fetchAllPages(buildQuery) {
+    const rows = [];
+    for (let page = 0; page < POSTGREST_MAX_PAGES; page++) {
+        const { data, error } = await buildQuery(page * POSTGREST_PAGE_SIZE);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < POSTGREST_PAGE_SIZE) break;
+    }
+    return rows;
+}
+
 async function fetchProducts() {
     if (!client) return null;
     try {
@@ -1002,19 +1026,19 @@ async function fetchStatsData() {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         sevenDaysAgo.setHours(0, 0, 0, 0);
 
-        // Fetch sales and expenses in parallel
-        const [salesRes, expensesRes] = await Promise.all([
-            client.from('sales').select('*').gte('timestamp', sevenDaysAgo.toISOString()),
-            client.from('expenses').select('*').gte('timestamp', sevenDaysAgo.toISOString())
+        // Fetch sales and expenses in parallel. A week of sales sits well under
+        // the 1000-row cap today, but this read has no ordering at all, so
+        // crossing it would drop an arbitrary slice rather than a known end.
+        const [sales, expenses] = await Promise.all([
+            fetchAllPages(offset => client.from('sales').select('*')
+                .gte('timestamp', sevenDaysAgo.toISOString())
+                .order('timestamp', { ascending: true })
+                .range(offset, offset + POSTGREST_PAGE_SIZE - 1)),
+            fetchAllPages(offset => client.from('expenses').select('*')
+                .gte('timestamp', sevenDaysAgo.toISOString())
+                .order('timestamp', { ascending: true })
+                .range(offset, offset + POSTGREST_PAGE_SIZE - 1))
         ]);
-
-        const sales = salesRes.data;
-        const salesError = salesRes.error;
-        const expenses = expensesRes.data;
-        const expensesError = expensesRes.error;
-
-        if (salesError) throw salesError;
-        if (expensesError) throw expensesError;
 
         return {
             sales: sales.map(s => ({ ...s, productId: s.product_id })),
@@ -1129,21 +1153,24 @@ async function fetchReportDays(days = 14) {
 async function fetchSalesHistory(days) {
     if (!client) return [];
     try {
-        let query = client.from('sales')
-            .select('product_id, name, price, timestamp')
-            .order('timestamp', { ascending: true });
-
+        let startIso = null;
         if (days) {
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - days);
             startDate.setHours(0, 0, 0, 0);
-            query = query.gte('timestamp', startDate.toISOString());
+            startIso = startDate.toISOString();
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        const rows = await fetchAllPages(offset => {
+            let query = client.from('sales')
+                .select('product_id, name, price, timestamp')
+                .order('timestamp', { ascending: true })
+                .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
+            if (startIso) query = query.gte('timestamp', startIso);
+            return query;
+        });
 
-        return (data || []).map(s => ({ ...s, productId: s.product_id }));
+        return rows.map(s => ({ ...s, productId: s.product_id }));
     } catch (e) {
         console.error("Error fetching sales history from Supabase:", e);
         return [];

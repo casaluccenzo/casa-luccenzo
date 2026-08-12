@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=267">
+    <link rel="stylesheet" href="/css/main.css?v=268">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,21 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=267"></script>
-    <script src="/js/storage.js?v=267"></script>
-    <script src="/js/supabase.js?v=267"></script>
-    <script src="/js/exchange-rate.js?v=267"></script>
-    <script src="/js/export.js?v=267"></script>
-    <script src="/js/auth.js?v=267"></script>
-    <script src="/js/sales.js?v=267"></script>
-    <script src="/js/inventory.js?v=267"></script>
-    <script src="/js/pin-management.js?v=267"></script>
-    <script src="/js/recipes.js?v=267"></script>
-    <script src="/js/audio.js?v=267"></script>
-    <script src="/js/share.js?v=267"></script>
-    <script src="/js/agent.js?v=267"></script>
-    <script src="/js/ui.js?v=267"></script>
-    <script src="/js/app.js?v=267"></script>
+    <script src="/js/ui/shared.js?v=268"></script>
+    <script src="/js/storage.js?v=268"></script>
+    <script src="/js/supabase.js?v=268"></script>
+    <script src="/js/exchange-rate.js?v=268"></script>
+    <script src="/js/export.js?v=268"></script>
+    <script src="/js/auth.js?v=268"></script>
+    <script src="/js/sales.js?v=268"></script>
+    <script src="/js/analytics.js?v=268"></script>
+    <script src="/js/inventory.js?v=268"></script>
+    <script src="/js/pin-management.js?v=268"></script>
+    <script src="/js/recipes.js?v=268"></script>
+    <script src="/js/audio.js?v=268"></script>
+    <script src="/js/share.js?v=268"></script>
+    <script src="/js/agent.js?v=268"></script>
+    <script src="/js/ui.js?v=268"></script>
+    <script src="/js/app.js?v=268"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -561,6 +562,10 @@
                         <i class="fa-solid fa-chart-line"></i>
                         <span>📊 Resumen</span>
                     </button>
+                    <button id="admin-tab-btn-analytics" class="admin-tab-btn">
+                        <i class="fa-solid fa-chart-column"></i>
+                        <span>📈 Análisis</span>
+                    </button>
                     <button id="admin-tab-btn-products" class="admin-tab-btn">
                         <i class="fa-solid fa-box"></i>
                         <span>📦 Productos</span>
@@ -738,6 +743,37 @@
                                     <!-- Injected by js/ui.js -->
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 1.5: SALES ANALYTICS & DAILY PREP RECOMMENDATION -->
+                <div id="admin-panel-analytics" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                            Análisis de Ventas
+                        </h3>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button id="btn-refresh-analytics" class="btn-action-small" style="font-size: 10px; padding: 2px 8px;">
+                                <i class="fa-solid fa-rotate"></i> Refrescar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                <button id="btn-analytics-range-30" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">30 días</button>
+                                <button id="btn-analytics-range-60" class="btn-analytics-range active" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">60 días</button>
+                                <button id="btn-analytics-range-90" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">90 días</button>
+                                <button id="btn-analytics-range-all" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Todo el historial</button>
+                            </div>
+                            <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                <button id="btn-analytics-prep-today" class="btn-analytics-prep active" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Preparar hoy</button>
+                                <button id="btn-analytics-prep-tomorrow" class="btn-analytics-prep" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Preparar mañana</button>
+                            </div>
+                        </div>
+                        <div id="admin-analytics-container">
+                            <div style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center; padding: 1.5rem 0;">Cargando historial de ventas...</div>
                         </div>
                     </div>
                 </div>

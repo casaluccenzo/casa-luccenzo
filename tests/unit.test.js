@@ -34,6 +34,7 @@ const crypto = require('crypto');
 const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
+const { getWeekdayPattern, compareVsWeekdayAverage, getFlavorRanking, getDailyPrepRecommendation } = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
 process.env.WHATSAPP_BOT_ENABLED = 'true';
@@ -138,6 +139,76 @@ function runCoreUnitTests() {
     console.log("✅ TEST PASSED: REAL checkRolePermission: Cocina should NOT have permission for POS register");
 }
 
+// Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation
+function runAnalyticsUnitTests() {
+    // Finds the most recent occurrence of `weekday` (0=Domingo..6=Sábado) that
+    // is `weeksAgo` weeks before today, so the fixture dates are always valid
+    // regardless of when the test suite runs.
+    function pastWeekday(weekday, weeksAgo) {
+        const d = new Date();
+        d.setHours(12, 0, 0, 0);
+        const diff = (d.getDay() - weekday + 7) % 7;
+        d.setDate(d.getDate() - diff - (weeksAgo * 7));
+        return d;
+    }
+
+    function saleAt(date, productId, price = 1.50) {
+        return { productId, product_id: productId, name: productId, price, timestamp: date.toISOString() };
+    }
+
+    const TUESDAY = 2;
+    const WEDNESDAY = 3;
+
+    const sales = [];
+    // 4 Tuesdays of "mechada" sales: 10, 12, 8, 14 units -> average 11/day
+    [10, 12, 8, 14].forEach((qty, weeksAgo) => {
+        const d = pastWeekday(TUESDAY, weeksAgo);
+        for (let n = 0; n < qty; n++) sales.push(saleAt(d, 'mechada'));
+    });
+    // Same 4 Tuesdays, much lower "pollo" volume
+    [2, 3, 1, 2].forEach((qty, weeksAgo) => {
+        const d = pastWeekday(TUESDAY, weeksAgo);
+        for (let n = 0; n < qty; n++) sales.push(saleAt(d, 'pollo'));
+    });
+    // Only 2 Wednesdays of "queso" sales -> too few samples for confidence
+    [4, 6].forEach((qty, weeksAgo) => {
+        const d = pastWeekday(WEDNESDAY, weeksAgo);
+        for (let n = 0; n < qty; n++) sales.push(saleAt(d, 'queso'));
+    });
+
+    const products = [
+        { id: 'mechada', name: 'Carne Mechada', category: 'pastelitos', max: 20 },
+        { id: 'pollo', name: 'Pollo', category: 'pastelitos', max: 20 },
+        { id: 'queso', name: 'Queso', category: 'pastelitos', max: 20 }
+    ];
+
+    const pattern = getWeekdayPattern(sales);
+    const tuesdayBucket = pattern.find(p => p.weekday === TUESDAY);
+    assert.strictEqual(tuesdayBucket.sampleSize, 4, "REAL AnalyticsManager.getWeekdayPattern: Tuesday should have 4 sampled days");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getWeekdayPattern: Tuesday sample size is 4");
+
+    const ranking = getFlavorRanking(sales, products);
+    assert.strictEqual(ranking[0].productId, 'mechada', "REAL AnalyticsManager.getFlavorRanking: Mechada should be the top seller");
+    assert.strictEqual(ranking[0].quantity, 44, "REAL AnalyticsManager.getFlavorRanking: Mechada total units sold should be 44");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getFlavorRanking: Ranks Mechada as the top seller with 44 units");
+
+    const tuesdayRec = getDailyPrepRecommendation(sales, products, TUESDAY);
+    const mechadaRec = tuesdayRec.find(r => r.productId === 'mechada');
+    assert.strictEqual(mechadaRec.avg, 11, "REAL AnalyticsManager.getDailyPrepRecommendation: Mechada average for Tuesday should be 11");
+    assert.strictEqual(mechadaRec.suggested, 13, "REAL AnalyticsManager.getDailyPrepRecommendation: Mechada suggested prep should round up avg*1.10 to 13");
+    assert.strictEqual(mechadaRec.lowConfidence, false, "REAL AnalyticsManager.getDailyPrepRecommendation: 4 sampled Tuesdays should not be flagged low-confidence");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getDailyPrepRecommendation: Mechada suggested prep for Tuesday is 13 units (avg 11 + margin)");
+
+    const wednesdayRec = getDailyPrepRecommendation(sales, products, WEDNESDAY);
+    const quesoRec = wednesdayRec.find(r => r.productId === 'queso');
+    assert.strictEqual(quesoRec.lowConfidence, true, "REAL AnalyticsManager.getDailyPrepRecommendation: Only 2 sampled Wednesdays should be flagged low-confidence");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.getDailyPrepRecommendation: Flags low-confidence when fewer than 3 historical samples");
+
+    const comparison = compareVsWeekdayAverage(tuesdayBucket.avgTotal * 1.5, pattern, TUESDAY);
+    assert.ok(comparison.pctChange > 0, "REAL AnalyticsManager.compareVsWeekdayAverage: A total 50% above average should report a positive % change");
+    console.log("✅ TEST PASSED: REAL AnalyticsManager.compareVsWeekdayAverage: Reports positive % change above the historical Tuesday average");
+}
+
 // Security Regression Test: Reject all legacy credentials
 async function verifyLegacyLoginRejections() {
     const legacyPasses = ['070821', 'Lucenzo2026!', '1111', 'Ventas2026!', '2222', 'Cocina2026!'];
@@ -219,6 +290,7 @@ async function verifyTelegramBot() {
 }
 
 runCoreUnitTests();
+runAnalyticsUnitTests();
 verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => verifyTelegramBot()).then(() => {
     console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
     process.exit(0);

@@ -3714,6 +3714,165 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
     categoryContainer.innerHTML = catHtml;
 }
 
+const ANALYTICS_CATEGORY_FILL = {
+    pastelitos: 'fill-category-1',
+    empanadas: 'fill-category-3',
+    tortas: 'fill-category-4',
+    bebidas: 'fill-category-2',
+    dulces: 'fill-category-5'
+};
+const ANALYTICS_CATEGORY_LABELS = {
+    pastelitos: '🥐 Pastelitos',
+    empanadas: '🥟 Empanadas',
+    tortas: '🍰 Tortas',
+    bebidas: '🥤 Bebidas',
+    dulces: '🍬 Dulces',
+    otros: '📦 Otros'
+};
+
+/**
+ * Render the "Análisis" admin tab: day-over-day comparison, recent-days
+ * bar list, weekday sales pattern, flavor ranking, and the daily prep
+ * recommendation. All calculations come from window.AnalyticsManager
+ * (js/analytics.js); this function only turns that data into HTML using
+ * the same .progress-widget-bar-bg/fill pattern as renderPaymentAndCategoryStats.
+ * @param {Array} salesHistory Sales rows for the selected lookback range
+ * @param {Array} products Product catalog (for names/categories/max stock)
+ * @param {number} targetWeekday Day (0=Domingo..6=Sábado) to build the prep recommendation for
+ * @param {string} targetLabel Human label for that day, e.g. "Hoy" or "Mañana"
+ */
+function renderSalesAnalytics(salesHistory = [], products = [], targetWeekday = new Date().getDay(), targetLabel = 'Hoy') {
+    const container = document.getElementById('admin-analytics-container');
+    if (!container) return;
+
+    const AM = window.AnalyticsManager;
+    if (!AM) {
+        container.innerHTML = `<div style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">No se pudo cargar el módulo de análisis.</div>`;
+        return;
+    }
+
+    const dailyTotals = AM.aggregateSalesByDay(salesHistory);
+    if (dailyTotals.length === 0) {
+        container.innerHTML = `<div style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center; padding: 1.5rem 0;">Todavía no hay suficiente historial de ventas para analizar. Volvé a mirar esta pestaña en unos días.</div>`;
+        return;
+    }
+
+    const weekdayPattern = AM.getWeekdayPattern(salesHistory);
+    const flavorRanking = AM.getFlavorRanking(salesHistory, products, { limit: 10 });
+    const recommendation = AM.getDailyPrepRecommendation(salesHistory, products, targetWeekday);
+
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayEntry = dailyTotals.find(d => d.dateStr === todayKey);
+    const todayTotal = todayEntry ? todayEntry.total : 0;
+    const comparison = AM.compareVsWeekdayAverage(todayTotal, weekdayPattern, now.getDay());
+    const comparisonColor = comparison.pctChange === null ? 'var(--color-text-muted)' : (comparison.pctChange >= 0 ? '#34D399' : '#F87171');
+
+    // Últimos días (más recientes primero)
+    const recentDays = dailyTotals.slice(-14).reverse();
+    const maxDayTotal = Math.max(...recentDays.map(d => d.total), 0.01);
+    const dayListHtml = recentDays.map(d => {
+        const pct = (d.total / maxDayTotal) * 100;
+        const label = new Date(d.dateStr + 'T00:00:00').toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
+        return `
+            <div>
+                <div class="progress-widget-row">
+                    <span class="progress-widget-label">${escapeHtml(label)}</span>
+                    <span class="progress-widget-value">$${d.total.toFixed(2)} (${d.count} vtas)</span>
+                </div>
+                <div class="progress-widget-bar-bg">
+                    <div class="progress-widget-bar-fill fill-usd" style="width: ${pct}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Patrón semanal, ordenado Lunes..Domingo
+    const orderedWeekdays = [1, 2, 3, 4, 5, 6, 0].map(w => weekdayPattern[w]);
+    const maxWeekdayAvg = Math.max(...orderedWeekdays.map(w => w.avgTotal), 0.01);
+    const weekdayHtml = orderedWeekdays.map(w => {
+        const pct = (w.avgTotal / maxWeekdayAvg) * 100;
+        return `
+            <div>
+                <div class="progress-widget-row">
+                    <span class="progress-widget-label">${w.label}</span>
+                    <span class="progress-widget-value">$${w.avgTotal.toFixed(2)} prom. (${w.sampleSize} sem.)</span>
+                </div>
+                <div class="progress-widget-bar-bg">
+                    <div class="progress-widget-bar-fill fill-pm" style="width: ${pct}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Ranking de sabores
+    const maxQty = Math.max(...flavorRanking.map(f => f.quantity), 1);
+    const rankingHtml = flavorRanking.length > 0 ? flavorRanking.map((f, i) => {
+        const pct = (f.quantity / maxQty) * 100;
+        const fillClass = ANALYTICS_CATEGORY_FILL[f.category] || 'fill-usd';
+        return `
+            <div>
+                <div class="progress-widget-row">
+                    <span class="progress-widget-label">#${i + 1} ${escapeHtml(f.name)}</span>
+                    <span class="progress-widget-value">${f.quantity} uds &bull; $${f.amount.toFixed(2)}</span>
+                </div>
+                <div class="progress-widget-bar-bg">
+                    <div class="progress-widget-bar-fill ${fillClass}" style="width: ${pct}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('') : `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin ventas registradas en este rango.</div>`;
+
+    // Recomendación de preparación, agrupada por categoría
+    const groupedRec = {};
+    recommendation.forEach(r => {
+        if (!groupedRec[r.category]) groupedRec[r.category] = [];
+        groupedRec[r.category].push(r);
+    });
+    const recHtml = Object.keys(groupedRec).length > 0 ? Object.entries(groupedRec).map(([cat, items]) => `
+        <div style="margin-bottom: 0.75rem;">
+            <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+                ${ANALYTICS_CATEGORY_LABELS[cat] || cat}
+            </div>
+            ${items.map(r => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 0.3rem;">
+                    <span style="font-size: 0.8rem; color: var(--color-white); font-weight: 700;">
+                        ${escapeHtml(r.name)}${r.lowConfidence ? ' <span style="color: #FBBF24; font-size: 9px; font-weight: 800;">(dato preliminar)</span>' : ''}
+                    </span>
+                    <span style="font-family: monospace; font-weight: 900; color: var(--color-gold); font-size: 0.95rem;">${r.suggested} unid.</span>
+                </div>
+            `).join('')}
+        </div>
+    `).join('') : `<div style="font-size: 11px; color: var(--color-text-muted); text-align: center; padding: 1rem 0;">Sin historial suficiente para ese día todavía.</div>`;
+
+    container.innerHTML = `
+        <div style="background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
+            <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em;">HOY VS. PROMEDIO HISTÓRICO</div>
+            <div style="font-size: 1.6rem; font-weight: 900; color: #FFFFFF; font-family: monospace; margin-top: 0.25rem;">$${todayTotal.toFixed(2)}</div>
+            <div style="font-size: 0.8rem; color: ${comparisonColor}; font-weight: 700; margin-top: 0.15rem;">${comparison.label}</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+            <div style="background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">📅 Últimos días</div>
+                ${dayListHtml}
+            </div>
+            <div style="background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">📈 Patrón semanal (promedio)</div>
+                ${weekdayHtml}
+            </div>
+            <div style="background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">🏆 Sabores más vendidos</div>
+                ${rankingHtml}
+            </div>
+            <div style="background: rgba(10, 20, 38, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">👨‍🍳 Preparar para ${escapeHtml(targetLabel)}</div>
+                ${recHtml}
+            </div>
+        </div>
+    `;
+}
+
 /**
  * Export daily box close report to PDF
  * @param {Array} salesLog 
@@ -5159,6 +5318,7 @@ window.UIManager = {
     exportHourlyStatsToPDF,
     renderCriticalStockAlerts,
     renderPaymentAndCategoryStats,
+    renderSalesAnalytics,
     exportDayCloseToPDF,
     renderCostCalculator,
     renderCostFinancialResults,

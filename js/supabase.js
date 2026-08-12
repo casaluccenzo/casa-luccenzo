@@ -1112,6 +1112,36 @@ async function fetchReportDays(days = 14) {
 }
 
 /**
+ * Fetch raw sales history for the last N days, for analytics (day-over-day
+ * comparisons, weekday patterns, flavor ranking, prep recommendations).
+ * Only pulls the columns analytics actually needs -- lighter than
+ * fetchStatsData()'s `select('*')` since this range is much wider (default
+ * 90 days vs. 7).
+ * @param {number} days How many days back to fetch (default 90)
+ * @returns {Array} Sale rows with productId normalized from product_id
+ */
+async function fetchSalesHistory(days = 90) {
+    if (!client) return [];
+    try {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        startDate.setHours(0, 0, 0, 0);
+
+        const { data, error } = await client.from('sales')
+            .select('product_id, name, price, timestamp')
+            .gte('timestamp', startDate.toISOString())
+            .order('timestamp', { ascending: true });
+
+        if (error) throw error;
+
+        return (data || []).map(s => ({ ...s, productId: s.product_id }));
+    } catch (e) {
+        console.error("Error fetching sales history from Supabase:", e);
+        return [];
+    }
+}
+
+/**
  * Fetch all active sessions
  * @returns {Array} List of session rows
  */
@@ -1373,6 +1403,7 @@ window.SupabaseManager = {
     fetchStatsData,
     fetchDayReport,
     fetchReportDays,
+    fetchSalesHistory,
     fetchActiveSessions,
     registerSession,
     deleteSession,

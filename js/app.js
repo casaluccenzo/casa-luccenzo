@@ -41,6 +41,22 @@ let currentReportData = { sales: [], expenses: [] };
 let hourlyActiveMode = 'today';
 let adminStatsSales = [];
 
+// Analytics tab state: cached sales history keyed by lookback range (days),
+// so switching 30/60/90 or the hoy/mañana toggle doesn't always refetch.
+let analyticsRangeDays = 60;
+let analyticsPrepMode = 'today'; // 'today' | 'tomorrow'
+const analyticsSalesCache = {};
+
+function getAnalyticsPrepWeekday() {
+    const now = new Date();
+    if (analyticsPrepMode === 'tomorrow') {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        return tomorrow.getDay();
+    }
+    return now.getDay();
+}
+
 // Unique device identifier for active session management
 let myDeviceId = localStorage.getItem('casa_lucenzo_device_id');
 if (!myDeviceId) {
@@ -2094,6 +2110,44 @@ async function loadAndRenderAdminStats() {
     window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
 }
 
+/**
+ * Load (or reuse the cached) sales history for the "Análisis" tab and
+ * render it. Fetches lazily -- only when the tab is first opened, the
+ * range toggle changes to an uncached value, or the user hits Refrescar --
+ * to avoid pulling months of sales on every dashboard load.
+ * @param {boolean} forceRefetch Bypass the cache for the current range
+ */
+async function loadAndRenderAnalytics(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+
+    const container = document.getElementById('admin-analytics-container');
+    const hasCached = Array.isArray(analyticsSalesCache[analyticsRangeDays]);
+
+    if (forceRefetch) delete analyticsSalesCache[analyticsRangeDays];
+
+    if (!hasCached || forceRefetch) {
+        if (container) {
+            container.innerHTML = `<div style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center; padding: 1.5rem 0;">Cargando historial de ventas...</div>`;
+        }
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            try {
+                analyticsSalesCache[analyticsRangeDays] = await window.SupabaseManager.fetchSalesHistory(analyticsRangeDays);
+            } catch (e) {
+                console.error("Failed to load sales history for analytics", e);
+                analyticsSalesCache[analyticsRangeDays] = [];
+            }
+        } else {
+            // Offline / not configured: fall back to whatever is already in memory
+            analyticsSalesCache[analyticsRangeDays] = salesLog;
+        }
+    }
+
+    const salesHistory = analyticsSalesCache[analyticsRangeDays] || [];
+    const targetWeekday = getAnalyticsPrepWeekday();
+    const targetLabel = analyticsPrepMode === 'tomorrow' ? 'Mañana' : 'Hoy';
+    window.UIManager.renderSalesAnalytics(salesHistory, products, targetWeekday, targetLabel);
+}
+
 async function loadAndRenderUsersManagement() {
     systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
     
@@ -3803,6 +3857,7 @@ function handleDeleteCostInsumo(id) {
  */
 function initAdminDashboardListeners() {
     const tabSummaryBtn = document.getElementById('admin-tab-btn-summary');
+    const tabAnalyticsBtn = document.getElementById('admin-tab-btn-analytics');
     const tabProductsBtn = document.getElementById('admin-tab-btn-products');
     const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
@@ -3811,6 +3866,7 @@ function initAdminDashboardListeners() {
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
     const panelSummary = document.getElementById('admin-panel-summary');
+    const panelAnalytics = document.getElementById('admin-panel-analytics');
     const panelProducts = document.getElementById('admin-panel-products');
     const panelDevices = document.getElementById('admin-panel-devices');
     const panelLogs = document.getElementById('admin-panel-logs');
@@ -3820,8 +3876,8 @@ function initAdminDashboardListeners() {
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
 
     function activateTab(btn, panel) {
         triggerHaptic(10);
@@ -3835,6 +3891,68 @@ function initAdminDashboardListeners() {
         activateTab(tabSummaryBtn, panelSummary);
         loadAndRenderAdminStats();
     });
+
+    if (tabAnalyticsBtn && panelAnalytics) {
+        tabAnalyticsBtn.addEventListener('click', () => {
+            activateTab(tabAnalyticsBtn, panelAnalytics);
+            loadAndRenderAnalytics();
+        });
+    }
+
+    const btnRefreshAnalytics = document.getElementById('btn-refresh-analytics');
+    if (btnRefreshAnalytics) {
+        btnRefreshAnalytics.addEventListener('click', () => {
+            triggerHaptic(10);
+            loadAndRenderAnalytics(true);
+        });
+    }
+
+    const analyticsRangeBtns = {
+        30: document.getElementById('btn-analytics-range-30'),
+        60: document.getElementById('btn-analytics-range-60'),
+        90: document.getElementById('btn-analytics-range-90')
+    };
+    Object.entries(analyticsRangeBtns).forEach(([days, btn]) => {
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            triggerHaptic(10);
+            analyticsRangeDays = Number(days);
+            Object.values(analyticsRangeBtns).forEach(b => {
+                if (!b) return;
+                const isActive = b === btn;
+                b.classList.toggle('active', isActive);
+                b.style.background = isActive ? 'var(--color-gold)' : 'transparent';
+                b.style.color = isActive ? '#0A1426' : 'var(--color-text-muted)';
+            });
+            loadAndRenderAnalytics();
+        });
+    });
+
+    const btnPrepToday = document.getElementById('btn-analytics-prep-today');
+    const btnPrepTomorrow = document.getElementById('btn-analytics-prep-tomorrow');
+    if (btnPrepToday && btnPrepTomorrow) {
+        const updatePrepToggleUI = (mode) => {
+            const todayActive = mode === 'today';
+            btnPrepToday.classList.toggle('active', todayActive);
+            btnPrepToday.style.background = todayActive ? 'var(--color-gold)' : 'transparent';
+            btnPrepToday.style.color = todayActive ? '#0A1426' : 'var(--color-text-muted)';
+            btnPrepTomorrow.classList.toggle('active', !todayActive);
+            btnPrepTomorrow.style.background = !todayActive ? 'var(--color-gold)' : 'transparent';
+            btnPrepTomorrow.style.color = !todayActive ? '#0A1426' : 'var(--color-text-muted)';
+        };
+        btnPrepToday.addEventListener('click', () => {
+            triggerHaptic(10);
+            analyticsPrepMode = 'today';
+            updatePrepToggleUI('today');
+            loadAndRenderAnalytics();
+        });
+        btnPrepTomorrow.addEventListener('click', () => {
+            triggerHaptic(10);
+            analyticsPrepMode = 'tomorrow';
+            updatePrepToggleUI('tomorrow');
+            loadAndRenderAnalytics();
+        });
+    }
 
     tabProductsBtn.addEventListener('click', () => {
         activateTab(tabProductsBtn, panelProducts);

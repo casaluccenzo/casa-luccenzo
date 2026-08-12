@@ -2332,6 +2332,15 @@ input[type="number"] {
 .fill-category-2 {
     background: linear-gradient(90deg, #38BDF8, #0EA5E9); /* Light Blue for Drinks */
 }
+.fill-category-3 {
+    background: linear-gradient(90deg, #2DD4BF, #0D9488); /* Teal for Empanadas */
+}
+.fill-category-4 {
+    background: linear-gradient(90deg, #FB923C, #EA580C); /* Orange for Tortas */
+}
+.fill-category-5 {
+    background: linear-gradient(90deg, #C084FC, #9333EA); /* Violet for Dulces */
+}
 
 /* Critical Stock Alert widget */
 .critical-stock-card {

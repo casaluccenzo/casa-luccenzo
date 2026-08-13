@@ -65,8 +65,13 @@ module.exports = async (req, res) => {
     }
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !anonKey) {
+    // `sales` is readable only by an authenticated admin/venta/cocina profile --
+    // there is deliberately no anon SELECT policy on it (migration 010). This
+    // cron has no user session, so it reads with the service role. Same
+    // precedence the WhatsApp/Telegram webhooks already use.
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey = serviceKey || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
         return res.status(500).json({ error: 'Supabase not configured' });
     }
 
@@ -77,7 +82,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const db = new SupabaseRest(supabaseUrl, anonKey);
+        const db = new SupabaseRest(supabaseUrl, supabaseKey);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - LOOKBACK_DAYS);
         startDate.setHours(0, 0, 0, 0);
@@ -89,6 +94,18 @@ module.exports = async (req, res) => {
 
         if (!sales) {
             return res.status(502).json({ ok: false, error: 'Could not fetch sales from Supabase' });
+        }
+
+        // Without the service role, RLS filters `sales` down to nothing and
+        // PostgREST answers 200 with `[]` -- indistinguishable from a genuinely
+        // quiet day. Sending "$0.00" on a misconfiguration is exactly the kind
+        // of confidently-wrong report this endpoint exists to avoid, so bail
+        // out loudly instead and leave a diagnosable error in the cron log.
+        if (!serviceKey && sales.length === 0) {
+            return res.status(500).json({
+                ok: false,
+                error: 'SUPABASE_SERVICE_ROLE_KEY no está configurada y `sales` no es legible con la anon key (RLS, migración 010). Se aborta el reporte en vez de enviar $0.00.'
+            });
         }
 
         const salesHistory = sales.map(s => ({ ...s, productId: s.product_id }));

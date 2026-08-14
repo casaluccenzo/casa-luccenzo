@@ -2964,6 +2964,7 @@ function applyUserRole(role) {
     if (adminTab) adminTab.classList.add('hidden');
     document.getElementById('btn-local').classList.remove('hidden');
     document.getElementById('btn-clientes').classList.remove('hidden');
+    document.getElementById('btn-resumen').classList.remove('hidden');
     document.getElementById('btn-cocina').classList.remove('hidden');
     document.getElementById('btn-fiados').classList.remove('hidden');
     document.getElementById('btn-cambio').classList.remove('hidden');
@@ -3003,14 +3004,16 @@ function applyUserRole(role) {
         // Dynamic numbering for local role
         const localSpan = document.querySelector('#btn-local .nav-label');
         const clientesSpan = document.querySelector('#btn-clientes .nav-label');
+        const resumenSpanLocal = document.querySelector('#btn-resumen .nav-label');
         const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
         const cambioSpan = document.querySelector('#btn-cambio .nav-label');
         const pedidosSpanLocal = document.querySelector('#btn-pedidos .nav-label');
         if (localSpan) localSpan.textContent = '1. LOCAL';
         if (clientesSpan) clientesSpan.textContent = '2. CLIENTES';
-        if (fiadosSpan) fiadosSpan.textContent = '3. CRÉDITOS';
-        if (cambioSpan) cambioSpan.textContent = '4. CAMBIO';
-        if (pedidosSpanLocal) pedidosSpanLocal.textContent = '5. PEDIDOS';
+        if (resumenSpanLocal) resumenSpanLocal.textContent = '3. RESUMEN';
+        if (fiadosSpan) fiadosSpan.textContent = '4. CRÉDITOS';
+        if (cambioSpan) cambioSpan.textContent = '5. CAMBIO';
+        if (pedidosSpanLocal) pedidosSpanLocal.textContent = '6. PEDIDOS';
 
         window.UIManager.switchView('local');
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -3034,6 +3037,7 @@ function applyUserRole(role) {
         const adminSpan = document.querySelector('#btn-admin-dashboard .nav-label');
         const localSpan = document.querySelector('#btn-local .nav-label');
         const clientesSpan = document.querySelector('#btn-clientes .nav-label');
+        const resumenSpanAdmin = document.querySelector('#btn-resumen .nav-label');
         const cocinaSpan = document.querySelector('#btn-cocina .nav-label');
         const fiadosSpan = document.querySelector('#btn-fiados .nav-label');
         const cambioSpan = document.querySelector('#btn-cambio .nav-label');
@@ -3041,10 +3045,11 @@ function applyUserRole(role) {
         if (adminSpan) adminSpan.textContent = '1. CONTROL';
         if (localSpan) localSpan.textContent = '2. VITRINA';
         if (clientesSpan) clientesSpan.textContent = '3. CLIENTES';
-        if (cocinaSpan) cocinaSpan.textContent = '4. COCINA';
-        if (fiadosSpan) fiadosSpan.textContent = '5. CRÉDITOS';
-        if (cambioSpan) cambioSpan.textContent = '6. CAMBIO';
-        if (pedidosSpanAdmin) pedidosSpanAdmin.textContent = '7. PEDIDOS';
+        if (resumenSpanAdmin) resumenSpanAdmin.textContent = '4. RESUMEN';
+        if (cocinaSpan) cocinaSpan.textContent = '5. COCINA';
+        if (fiadosSpan) fiadosSpan.textContent = '6. CRÉDITOS';
+        if (cambioSpan) cambioSpan.textContent = '7. CAMBIO';
+        if (pedidosSpanAdmin) pedidosSpanAdmin.textContent = '8. PEDIDOS';
 
         window.UIManager.switchView('admin-dashboard');
         updateAdminDashboard();
@@ -3629,6 +3634,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.switchView('clientes');
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
     });
+
+    const btnResumenNav = document.getElementById('btn-resumen');
+    if (btnResumenNav) {
+        btnResumenNav.addEventListener('click', () => {
+            window.UIManager.switchView('resumen');
+            window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+        });
+    }
 
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');

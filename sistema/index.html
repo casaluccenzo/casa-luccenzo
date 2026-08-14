@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=275">
+    <link rel="stylesheet" href="/css/main.css?v=276">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=275"></script>
-    <script src="/js/storage.js?v=275"></script>
-    <script src="/js/supabase.js?v=275"></script>
-    <script src="/js/exchange-rate.js?v=275"></script>
-    <script src="/js/export.js?v=275"></script>
-    <script src="/js/auth.js?v=275"></script>
-    <script src="/js/sales.js?v=275"></script>
-    <script src="/js/analytics.js?v=275"></script>
-    <script src="/js/inventory.js?v=275"></script>
-    <script src="/js/pin-management.js?v=275"></script>
-    <script src="/js/recipes.js?v=275"></script>
-    <script src="/js/audio.js?v=275"></script>
-    <script src="/js/share.js?v=275"></script>
-    <script src="/js/agent.js?v=275"></script>
-    <script src="/js/ui.js?v=275"></script>
-    <script src="/js/app.js?v=275"></script>
+    <script src="/js/ui/shared.js?v=276"></script>
+    <script src="/js/storage.js?v=276"></script>
+    <script src="/js/supabase.js?v=276"></script>
+    <script src="/js/exchange-rate.js?v=276"></script>
+    <script src="/js/export.js?v=276"></script>
+    <script src="/js/auth.js?v=276"></script>
+    <script src="/js/sales.js?v=276"></script>
+    <script src="/js/analytics.js?v=276"></script>
+    <script src="/js/inventory.js?v=276"></script>
+    <script src="/js/pin-management.js?v=276"></script>
+    <script src="/js/recipes.js?v=276"></script>
+    <script src="/js/audio.js?v=276"></script>
+    <script src="/js/share.js?v=276"></script>
+    <script src="/js/agent.js?v=276"></script>
+    <script src="/js/ui.js?v=276"></script>
+    <script src="/js/app.js?v=276"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -149,6 +149,10 @@
                 <button id="btn-clientes" class="inactive" role="tab" aria-selected="false" aria-controls="view-clientes">
                     <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
                     <span class="nav-label">2. CLIENTES</span>
+                </button>
+                <button id="btn-resumen" class="inactive" role="tab" aria-selected="false" aria-controls="view-resumen">
+                    <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="nav-label">3. RESUMEN</span>
                 </button>
                 <button id="btn-cocina" class="inactive" role="tab" aria-selected="false" aria-controls="view-cocina">
                     <span class="nav-icon" style="display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
@@ -281,8 +285,10 @@
                 </div>
             </section>
 
-            <!-- ================= VIEW 5: CLIENTS AND TABLES ================= -->
-            <section id="view-clientes" class="view-section hidden">
+            <!-- ================= VIEW: RESUMEN (LIVE STATS + CONCILIACIÓN) ================= -->
+            <!-- Split out of Clientes so that tab stays focused purely on account
+                 management (Mesas/Cuentas/Historial). -->
+            <section id="view-resumen" class="view-section hidden">
                 <!-- Live statistics summary card -->
                 <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-gold);">
                     <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
@@ -316,7 +322,10 @@
                 <div id="inventory-match-section" class="card-pantry hidden" style="padding: 1.25rem; margin-bottom: 1rem; border-color: var(--color-success-border); background-color: rgba(16, 185, 129, 0.02);">
                     <!-- Dynamic reconciliation UI injected by js/ui.js -->
                 </div>
+            </section>
 
+            <!-- ================= VIEW 5: CLIENTS AND TABLES ================= -->
+            <section id="view-clientes" class="view-section hidden">
                 <!-- Sub-view switcher for Mesas vs Cuentas Activas vs Historial -->
                 <div class="sub-switch-nav" id="clientes-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
                     <button id="btn-sub-mesas" class="active" role="tab" aria-selected="true" aria-controls="sub-view-mesas" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">

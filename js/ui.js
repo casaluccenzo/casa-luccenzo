@@ -24,6 +24,7 @@ function switchView(view) {
     const btnAdminDashboard = document.getElementById('btn-admin-dashboard');
     const btnLocal = document.getElementById('btn-local');
     const btnClientes = document.getElementById('btn-clientes');
+    const btnResumen = document.getElementById('btn-resumen');
     const btnCocina = document.getElementById('btn-cocina');
     const btnFiados = document.getElementById('btn-fiados');
     const btnCambio = document.getElementById('btn-cambio');
@@ -32,6 +33,7 @@ function switchView(view) {
     const viewAdminDashboard = document.getElementById('view-admin-dashboard');
     const viewLocal = document.getElementById('view-local');
     const viewClientes = document.getElementById('view-clientes');
+    const viewResumen = document.getElementById('view-resumen');
     const viewCocina = document.getElementById('view-cocina');
     const viewFiados = document.getElementById('view-fiados');
     const viewCambio = document.getElementById('view-cambio');
@@ -51,6 +53,12 @@ function switchView(view) {
         btnClientes.classList.remove('active');
         btnClientes.classList.add('inactive');
         btnClientes.setAttribute('aria-selected', 'false');
+    }
+
+    if (btnResumen) {
+        btnResumen.classList.remove('active');
+        btnResumen.classList.add('inactive');
+        btnResumen.setAttribute('aria-selected', 'false');
     }
 
     btnCocina.classList.remove('active');
@@ -76,6 +84,7 @@ function switchView(view) {
     if (viewAdminDashboard) viewAdminDashboard.classList.add('hidden');
     viewLocal.classList.add('hidden');
     if (viewClientes) viewClientes.classList.add('hidden');
+    if (viewResumen) viewResumen.classList.add('hidden');
     viewCocina.classList.add('hidden');
     viewFiados.classList.add('hidden');
     if (viewCambio) viewCambio.classList.add('hidden');
@@ -100,6 +109,13 @@ function switchView(view) {
             btnClientes.setAttribute('aria-selected', 'true');
         }
         if (viewClientes) viewClientes.classList.remove('hidden');
+    } else if (view === 'resumen') {
+        if (btnResumen) {
+            btnResumen.classList.add('active');
+            btnResumen.classList.remove('inactive');
+            btnResumen.setAttribute('aria-selected', 'true');
+        }
+        if (viewResumen) viewResumen.classList.remove('hidden');
     } else if (view === 'cocina') {
         btnCocina.classList.add('active');
         btnCocina.classList.remove('inactive');

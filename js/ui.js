@@ -2825,7 +2825,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     activosContainer.innerHTML = '';
     pagadosContainer.innerHTML = '';
     activosContainer.style.display = 'grid';
-    activosContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+    activosContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(135px, 1fr))';
     activosContainer.style.gap = '0.5rem';
 
 
@@ -2919,15 +2919,17 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             tile.setAttribute('data-client-timestamp', group.timestamp);
             tile.style.background = 'rgba(212,175,55,0.06)';
             tile.style.border = '1px solid var(--color-gold)';
-            tile.style.borderRadius = '8px';
-            tile.style.padding = '0.7rem 0.5rem';
+            tile.style.borderRadius = '10px';
+            tile.style.padding = '0.9rem 0.65rem';
             tile.style.textAlign = 'center';
             tile.style.cursor = 'pointer';
 
+            const totalVES = group.total * (window.bcvRate || 1);
             tile.innerHTML = `
-                <div style="font-size: 11px; font-weight: 800; color: var(--color-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(group.clientName)}</div>
-                <div style="font-size: 12px; font-weight: 900; color: var(--color-white); margin-top: 0.2rem;">$${group.total.toFixed(2)}</div>
-                <div style="font-size: 8px; color: var(--color-gold); margin-top: 0.15rem; font-weight: 800;">${timeStr}</div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--color-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(group.clientName)}</div>
+                <div style="font-size: 15px; font-weight: 900; color: var(--color-white); margin-top: 0.3rem;">$${group.total.toFixed(2)}</div>
+                <div style="font-size: 10px; font-weight: 700; color: var(--color-text-muted); margin-top: 0.1rem;">Bs. ${totalVES.toFixed(2)}</div>
+                <div style="font-size: 9px; color: var(--color-gold); margin-top: 0.25rem; font-weight: 800;">${timeStr}</div>
             `;
 
             tile.addEventListener('click', () => {

@@ -540,16 +540,18 @@ async function handleClearCart() {
             }
         });
 
-        // Delete old sales from Supabase if we were editing an existing account
+        // Delete old sales from Supabase if we were editing an existing account.
+        // Same timestamp-keyed delete as handleCheckoutCart -- a stale uuid list
+        // could otherwise leave the account undeleted while the screen clears
+        // locally, so it silently reappears in Cuentas Activas on the next sync.
         const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
-        if (editingSalesStr) {
-            try {
-                const editingSales = JSON.parse(editingSalesStr);
-                if (window.SupabaseManager.isConfigured()) {
-                    await window.SupabaseManager.deleteSales(editingSales.map(sale => sale.uuid));
+        const editingTimestampForClear = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
+        if (editingSalesStr && editingTimestampForClear) {
+            if (window.SupabaseManager.isConfigured()) {
+                const deleted = await window.SupabaseManager.deleteSalesByTimestamp(editingTimestampForClear);
+                if (!deleted) {
+                    window.UIManager.showToast("⚠️ No se pudo confirmar el vaciado por falta de conexión. La cuenta podría reaparecer -- revisala en Cuentas Activas.", "fa-solid fa-triangle-exclamation");
                 }
-            } catch (e) {
-                console.error("Failed to delete old sales on clear cart:", e);
             }
             sessionStorage.removeItem('casa_lucenzo_editing_sales');
             sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
@@ -590,22 +592,28 @@ async function handleCheckoutCart() {
     const timestamp = editingTimestamp || new Date().toISOString();
 
     if (editingSalesStr && editingTimestamp) {
-        try {
-            const editingSales = JSON.parse(editingSalesStr);
-            if (window.SupabaseManager.isConfigured()) {
-                await window.SupabaseManager.deleteSales(editingSales.map(sale => sale.uuid));
+        // Delete by timestamp (the account's real identity key), not by a
+        // uuid list captured back when "Modificar" was pressed -- that list
+        // can go stale, which used to leave the old rows behind forever
+        // while the corrected set was inserted right on top of them,
+        // silently doubling that account's sales. If the delete can't be
+        // confirmed right now, stop here instead of inserting a replacement
+        // on top of rows that might still be there.
+        if (window.SupabaseManager.isConfigured()) {
+            const deleted = await window.SupabaseManager.deleteSalesByTimestamp(editingTimestamp);
+            if (!deleted) {
+                window.UIManager.showToast("⚠️ No se pudo confirmar la corrección por falta de conexión. Probá de nuevo en unos segundos -- no se guardó nada todavía.", "fa-solid fa-triangle-exclamation");
+                return;
             }
-        } catch (e) {
-            console.error("Failed to delete old sales during checkout modification:", e);
         }
         // Remove old entries from local memory log
         salesLog = salesLog.filter(s => s.timestamp !== editingTimestamp);
-        
+
         sessionStorage.removeItem('casa_lucenzo_editing_sales');
         sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
     }
     sessionStorage.removeItem('casa_lucenzo_editing_client_name');
-    
+
     // Create sales log items for each cart product (as open active account)
     const newSales = [];
     currentCart.forEach(cartItem => {

@@ -563,6 +563,43 @@ async function deleteSales(uuids) {
     }
 }
 
+/**
+ * Deletes every sales row for a given account (grouped by timestamp, the
+ * same identity key used everywhere else -- Cuentas Activas, Historial,
+ * handleEditSale) right before that account is replaced with a corrected
+ * set. Deletes by timestamp instead of a caller-supplied uuid list so a
+ * stale/incomplete list (the account changed since it was last loaded
+ * locally) can never leave old rows behind under the new set.
+ *
+ * Deliberately does NOT enqueue for later offline retry like deleteSales
+ * does: a queued "delete everything under this timestamp" would still match
+ * -- and silently wipe out -- the correct replacement rows once they're
+ * inserted under that same timestamp. Returns false so the caller can abort
+ * the edit outright and have the cashier retry once back online, instead of
+ * risking either a duplicate (delete never lands) or a future data loss
+ * (delete lands later, after the timestamp has valid new rows again).
+ * @param {string} timestamp Account identity (ISO timestamp all its sale rows share)
+ * @returns {Promise<boolean>} true only if the delete is confirmed to have run now
+ */
+async function deleteSalesByTimestamp(timestamp) {
+    if (!client) return false;
+    if (!timestamp) return false;
+    if (!navigator.onLine) return false;
+    try {
+        // .select() forces Postgres to hand back the rows it actually removed.
+        // Without it, an RLS policy that silently filters the DELETE out
+        // (wrong role, expired session) still comes back as { error: null } --
+        // a "success" that deleted zero rows is exactly how the original bug
+        // happened, so it must count as a failure here too, not a pass-through.
+        const { data, error } = await client.from('sales').delete().eq('timestamp', timestamp).select('uuid');
+        if (error) throw error;
+        return Array.isArray(data) && data.length > 0;
+    } catch (e) {
+        console.error("Supabase deleteSalesByTimestamp failed:", e);
+        return false;
+    }
+}
+
 async function insertExpense(expense) {
     if (!client) return;
     const payload = {
@@ -1423,6 +1460,7 @@ window.SupabaseManager = {
     upsertSales,
     deleteSale,
     deleteSales,
+    deleteSalesByTimestamp,
     insertExpense,
     deleteExpense,
     deleteExpenses,

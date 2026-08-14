@@ -34,12 +34,19 @@ function verifyMetaSignature(rawBodyBuffer, signatureHeader, appSecret) {
 /**
  * Main Vercel Serverless Function Endpoint: /api/whatsapp-webhook
  */
+// Manual kill switch -- paused 2026-08-14 at the owner's request while
+// investigating an unrelated data-integrity incident (duplicate sales rows).
+// Not a fix for that incident -- this bot never wrote to `sales` -- just
+// honoring "turn it off for now". Flip back to false to let
+// WHATSAPP_BOT_ENABLED govern it alone again.
+const WHATSAPP_BOT_MANUALLY_PAUSED = true;
+
 const handler = async (req, res) => {
     // ----------------------------------------------------
     // 0. Safety Check: Bot Disabled by Default (HTTP 503)
     // ----------------------------------------------------
-    if (process.env.WHATSAPP_BOT_ENABLED !== 'true') {
-        return res.status(503).json({ error: 'WhatsApp Bot is currently disabled (WHATSAPP_BOT_ENABLED !== true)' });
+    if (WHATSAPP_BOT_MANUALLY_PAUSED || process.env.WHATSAPP_BOT_ENABLED !== 'true') {
+        return res.status(503).json({ error: 'WhatsApp Bot is currently disabled.' });
     }
 
     // ----------------------------------------------------

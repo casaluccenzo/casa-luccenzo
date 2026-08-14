@@ -130,6 +130,90 @@ async function processOfflineQueue() {
     if (typeof updateOfflineStatusUI === 'function') updateOfflineStatusUI();
 }
 
+/**
+ * Manual "Sincronizar y Limpiar" action for the apertura/cierre routine.
+ * Forces a real sync attempt on both offline queues first -- never clears
+ * blindly -- and only after that attempt still leaves something stuck does
+ * it offer to discard it, showing exactly what and asking to confirm. This
+ * is how the "La guaira" account kept resurrecting on 2026-08-14: a device
+ * had an old queued write that nothing ever forced to either sync or clear,
+ * so it kept replaying itself. Finishes by dropping this device's cached
+ * app code so it's always running what's actually deployed.
+ */
+async function handleCleanOfflineCache() {
+    const btn = document.getElementById('btn-clean-offline-cache');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    triggerHaptic(15);
+
+    try {
+        if (!navigator.onLine) {
+            window.UIManager.showToast("📡 Sin conexión: conectate a internet antes de sincronizar.", "fa-solid fa-wifi-slash");
+            return;
+        }
+
+        window.UIManager.showToast("⏳ Sincronizando pendientes...", "fa-solid fa-hourglass-half");
+
+        // Sequential, not parallel -- running both at once is the exact race
+        // that let mismatched-format items clobber each other in the first
+        // place (fixed separately, but no reason to still race them here).
+        if (window.SupabaseManager.isConfigured()) {
+            await window.SupabaseManager.syncOfflineQueue();
+        }
+        await processOfflineQueue();
+
+        const stuckQueue = getOfflineQueue();
+        const deadLetterRaw = localStorage.getItem('casa_lucenzo_offline_queue_failed');
+        const deadLetter = deadLetterRaw ? JSON.parse(deadLetterRaw) : [];
+
+        if (stuckQueue.length === 0 && deadLetter.length === 0) {
+            window.UIManager.showToast("✅ Todo sincronizado. No había nada pendiente.", "fa-solid fa-circle-check");
+        } else {
+            const totalStuck = stuckQueue.length + deadLetter.length;
+            const summary = [...stuckQueue, ...deadLetter].reduce((acc, item) => {
+                const label = item.table || item.actionType || 'desconocido';
+                acc[label] = (acc[label] || 0) + 1;
+                return acc;
+            }, {});
+            const summaryText = Object.entries(summary).map(([k, v]) => `${v} de "${k}"`).join(', ');
+
+            const confirmMsg = `⚠️ Hay ${totalStuck} operación(es) que NO se pudieron sincronizar incluso después de reintentar ahora mismo (${summaryText}).\n\n` +
+                `Esto casi siempre es una venta o ajuste viejo que quedó atascado en ESTE dispositivo y se reintenta solo. Si ya revisaste que el sistema tiene los datos correctos, es seguro descartarlo.\n\n` +
+                `¿Descartar estas ${totalStuck} operación(es) pendientes de este dispositivo?`;
+
+            if (confirm(confirmMsg)) {
+                localStorage.removeItem(OFFLINE_QUEUE_KEY);
+                localStorage.removeItem('casa_lucenzo_offline_queue_failed');
+                logActivity("Limpieza Manual de Caché Offline", `Se descartaron ${totalStuck} operación(es) pendientes atascadas en este dispositivo (${summaryText}), confirmado a mano desde "Sincronizar y Limpiar este Dispositivo".`);
+                window.UIManager.showToast(`🧹 Se descartaron ${totalStuck} operación(es) atascadas.`, "fa-solid fa-broom");
+            } else {
+                window.UIManager.showToast("Cancelado -- no se borró nada.", "fa-solid fa-circle-info");
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+                return;
+            }
+        }
+
+        // Drop this device's cached app code so it's always running what's
+        // actually deployed -- an old cached service worker is exactly how
+        // a device keeps running a version with a bug already fixed server-side.
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const reg of regs) await reg.unregister();
+        }
+        if (window.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+
+        window.UIManager.showToast("🔄 Recargando con la última versión...", "fa-solid fa-rotate");
+        setTimeout(() => window.location.reload(), 1200);
+    } catch (e) {
+        console.error("Error en limpieza manual de caché offline:", e);
+        window.UIManager.showToast("❌ Error al sincronizar/limpiar. Revisá la consola.", "fa-solid fa-circle-xmark");
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    }
+}
+window.handleCleanOfflineCache = handleCleanOfflineCache;
+
 function sanitizeDataIntegrity(log) {
     if (!Array.isArray(log)) return [];
     const seenUuids = new Set();
@@ -3886,6 +3970,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 15. Bind Day Close triggers
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
+    document.getElementById('btn-clean-offline-cache').addEventListener('click', handleCleanOfflineCache);
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
         // Send WhatsApp using whatever data is currently displayed in the modal
         const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();

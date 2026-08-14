@@ -2245,6 +2245,169 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
 }
 
 /**
+ * Shows the full detail + actions modal for a single active (unpaid) client
+ * account, opened by tapping its compact tile in Cuentas Activas. Mirrors
+ * showTableOptionsModal's look and close-before-act pattern.
+ * @param {Object} group Grouped sale {timestamp, clientName, clientRif, items, total}
+ * @param {Function} onUndo Undo sale callback
+ * @param {Function} onEdit Edit sale callback
+ * @param {Function} onPay Pay/Close sale callback
+ */
+function showClientAccountModal(group, onUndo, onEdit, onPay) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.background = 'rgba(10, 15, 30, 0.8)';
+    overlay.style.backdropFilter = 'blur(6px)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '3000';
+    overlay.style.padding = '1rem';
+    overlay.style.boxSizing = 'border-box';
+
+    const rate = window.bcvRate || 1;
+
+    const itemsListHtml = `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 0.875rem; border-radius: 8px; margin: 1rem 0; font-size: 0.8rem; text-align: left; max-height: 150px; overflow-y: auto;">
+            <strong style="color: var(--color-gold); display: block; margin-bottom: 0.5rem; font-size: 0.85rem; border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 0.25rem;">
+                <i class="fa-solid fa-receipt"></i> Consumo:
+            </strong>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; line-height: 1.4;">
+                ${group.items.map(it => `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--color-white); opacity: 0.9;">${it.quantity}x ${escapeHtml(it.name)}</span>
+                        <span style="font-weight: 700; color: var(--color-gold);">$${getItemTotalUSD(it).toFixed(2)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="margin-top: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.85rem; color: var(--color-white);">
+                    <span>Total USD:</span>
+                    <span style="color: var(--color-success); font-size: 0.95rem;">$${group.total.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.15rem;">
+                    <span>Total Bs:</span>
+                    <span>Bs. ${(group.total * rate).toFixed(2)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const modalBody = document.createElement('div');
+    modalBody.className = 'card-pantry';
+    modalBody.style.width = '100%';
+    modalBody.style.maxWidth = '360px';
+    modalBody.style.padding = '1.5rem';
+    modalBody.style.borderRadius = '12px';
+    modalBody.style.boxSizing = 'border-box';
+    modalBody.style.border = '1px solid var(--color-gold)';
+    modalBody.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.15)';
+
+    modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem; margin-bottom: 0.5rem;">
+            <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <i class="fa-solid fa-user-tag"></i> ${escapeHtml(group.clientName)}
+            </h3>
+            <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 4px; background: rgba(212,175,55,0.15); border: 1px solid var(--color-gold); color: var(--color-gold); flex-shrink: 0;">
+                Consumiendo
+            </span>
+        </div>
+        ${group.clientRif ? `<div style="font-size: 11px; color: var(--color-text-muted); margin-top: -0.25rem;">Cédula/RIF: ${escapeHtml(group.clientRif)}</div>` : ''}
+
+        ${itemsListHtml}
+
+        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <button class="btn-modal-pos" style="height: 40px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.78rem; font-weight: 800; border-radius: 6px; border: 1px solid rgba(212,175,55,0.4); cursor: pointer; background-color: rgba(212,175,55,0.15); color: var(--color-gold); width: 100%;">
+                <i class="fa-solid fa-receipt"></i> Factura POS
+            </button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <button class="btn-modal-modify" style="height: 40px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 800; border-radius: 6px; border: none; cursor: pointer; background-color: var(--color-gold); color: var(--color-bg-navy);">
+                    <i class="fa-solid fa-pen-to-square"></i> Modificar
+                </button>
+                <button class="btn-modal-pay" style="height: 40px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 800; border-radius: 6px; border: none; cursor: pointer; background-color: var(--color-success); color: var(--color-bg-navy);">
+                    <i class="fa-solid fa-circle-check"></i> Registrar Pago
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <button class="btn-modal-share" style="height: 36px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; background-color: transparent; color: var(--color-text-muted);">
+                    <i class="fa-brands fa-whatsapp"></i> Compartir
+                </button>
+                <button class="btn-modal-undo" style="height: 36px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; background-color: var(--color-danger); color: var(--color-white);">
+                    <i class="fa-solid fa-rotate-left"></i> Deshacer
+                </button>
+            </div>
+            <button class="btn-modal-close" style="height: 36px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; background-color: transparent; color: var(--color-text-muted); width: 100%;">
+                Cerrar
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modalBody);
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    };
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+    });
+
+    modalBody.querySelector('.btn-modal-close').addEventListener('click', closeModal);
+
+    modalBody.querySelector('.btn-modal-pos').addEventListener('click', () => {
+        closeModal();
+        showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
+            if (onPay) onPay(group.timestamp, method, name, rif);
+        });
+    });
+
+    modalBody.querySelector('.btn-modal-modify').addEventListener('click', () => {
+        closeModal();
+        if (onEdit) onEdit(group.timestamp);
+    });
+
+    modalBody.querySelector('.btn-modal-pay').addEventListener('click', () => {
+        closeModal();
+        showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
+            if (onPay) onPay(group.timestamp, method, name, rif);
+        });
+    });
+
+    modalBody.querySelector('.btn-modal-share').addEventListener('click', () => {
+        closeModal();
+        let msg = `*CASA LUCCENZO* 🥖\n`;
+        msg += `*Ticket de Consumo* 🧾\n`;
+        msg += group.clientRif ? `👤 *Cliente:* ${group.clientName} (${group.clientRif})\n` : `👤 *Cliente:* ${group.clientName}\n`;
+        msg += `--------------------------------------\n`;
+        group.items.forEach(it => {
+            msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;
+        });
+        msg += `--------------------------------------\n`;
+        msg += `💵 *Total a Pagar:* *$${group.total.toFixed(2)} USD*\n`;
+        msg += `💵 *Tasa BCV:* ${rate.toFixed(2)} Bs.\n`;
+        msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(group.total * rate).toFixed(2)} VES*\n`;
+        msg += `--------------------------------------\n`;
+        msg += `¡Muchas gracias por su compra! 🌟`;
+
+        const encoded = encodeURIComponent(msg);
+        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    });
+
+    modalBody.querySelector('.btn-modal-undo').addEventListener('click', () => {
+        closeModal();
+        if (onUndo) onUndo(group.timestamp);
+    });
+}
+
+/**
  * Render the dedicated Clientes view
  * @param {Array} salesLog Today's sales log
  * @param {Function} onUndo Undo sale callback
@@ -2669,6 +2832,9 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
     activosContainer.innerHTML = '';
     pagadosContainer.innerHTML = '';
+    activosContainer.style.display = 'grid';
+    activosContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+    activosContainer.style.gap = '0.5rem';
 
 
 
@@ -2744,14 +2910,6 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     let paidCount = 0;
 
     groupedList.forEach(group => {
-        const card = document.createElement('div');
-        card.className = 'history-item';
-        card.setAttribute('data-client-timestamp', group.timestamp);
-        card.style.flexDirection = 'column';
-        card.style.alignItems = 'stretch';
-        card.style.gap = '0.5rem';
-        card.style.padding = '0.75rem';
-
         let timeStr;
         try {
             const date = parseUTCTimestamp(group.timestamp);
@@ -2760,11 +2918,50 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             timeStr = 'Ahora';
         }
 
+        // Active (unpaid) accounts: compact tile -- tap to open the full detail
+        // + actions in showClientAccountModal, so several accounts fit on
+        // screen at once instead of one full card each.
+        if (!group.isPaid) {
+            const tile = document.createElement('div');
+            tile.className = 'client-tile';
+            tile.setAttribute('data-client-timestamp', group.timestamp);
+            tile.style.background = 'rgba(212,175,55,0.06)';
+            tile.style.border = '1px solid var(--color-gold)';
+            tile.style.borderRadius = '8px';
+            tile.style.padding = '0.7rem 0.5rem';
+            tile.style.textAlign = 'center';
+            tile.style.cursor = 'pointer';
+
+            tile.innerHTML = `
+                <div style="font-size: 11px; font-weight: 800; color: var(--color-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(group.clientName)}</div>
+                <div style="font-size: 12px; font-weight: 900; color: var(--color-white); margin-top: 0.2rem;">$${group.total.toFixed(2)}</div>
+                <div style="font-size: 8px; color: var(--color-gold); margin-top: 0.15rem; font-weight: 800;">${timeStr}</div>
+            `;
+
+            tile.addEventListener('click', () => {
+                showClientAccountModal(group, onUndo, onEdit, onPay);
+            });
+
+            activosContainer.appendChild(tile);
+            activeCount++;
+            return;
+        }
+
+        // Paid/closed accounts (Historial): unchanged full card
+        const isTodayPaid = parseUTCTimestamp(group.timestamp) >= startOfToday;
+        if (!isTodayPaid) return;
+
+        const card = document.createElement('div');
+        card.className = 'history-item';
+        card.setAttribute('data-client-timestamp', group.timestamp);
+        card.style.flexDirection = 'column';
+        card.style.alignItems = 'stretch';
+        card.style.gap = '0.5rem';
+        card.style.padding = '0.75rem';
+
         const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
 
-        const statusBadge = group.isPaid 
-            ? `<span class="client-status-badge paid">Pagado (${group.paymentMethod || 'Efectivo'})</span>` 
-            : `<span class="client-status-badge active">Consumiendo</span>`;
+        const statusBadge = `<span class="client-status-badge paid">Pagado (${group.paymentMethod || 'Efectivo'})</span>`;
 
         card.innerHTML = `
             <!-- Header: Name, Status -->
@@ -2855,29 +3052,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         card.querySelector('.btn-modify-client').addEventListener('click', () => {
             if (onEdit) onEdit(group.timestamp);
         });
-        if (!group.isPaid) {
-            card.querySelector('.btn-pay-client').addEventListener('click', () => {
-                showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
-                    if (onPay) onPay(group.timestamp, method, name, rif);
-                });
-            });
-        }
 
         card.querySelector('.btn-undo-client').addEventListener('click', () => {
             if (onUndo) onUndo(group.timestamp);
         });
 
-        // Split into containers
-        if (group.isPaid) {
-            const isTodayPaid = parseUTCTimestamp(group.timestamp) >= startOfToday;
-            if (isTodayPaid) {
-                pagadosContainer.appendChild(card);
-                paidCount++;
-            }
-        } else {
-            activosContainer.appendChild(card);
-            activeCount++;
-        }
+        pagadosContainer.appendChild(card);
+        paidCount++;
     });
 
     if (activeCount === 0) {

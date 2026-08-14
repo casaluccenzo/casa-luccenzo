@@ -1954,6 +1954,33 @@ function restoreDefaultProducts() {
 
 // ================= DATA SYNCHRONIZATION FROM CLOUD =================
 
+// Tracks the last time data was actually confirmed fresh from Supabase (a
+// full poll or a live realtime message), shown in Resumen so a stale device
+// (screen locked/backgrounded, browser throttles its timers) is visibly
+// distinguishable from a live one instead of silently showing an old number.
+let lastSyncAt = null;
+
+function markSyncFresh() {
+    lastSyncAt = new Date();
+    updateSyncFreshnessDisplay();
+}
+
+function updateSyncFreshnessDisplay() {
+    const el = document.getElementById('resumen-last-sync');
+    if (!el || !lastSyncAt) return;
+    const seconds = Math.max(0, Math.floor((Date.now() - lastSyncAt.getTime()) / 1000));
+    let text;
+    if (seconds < 5) {
+        text = 'justo ahora';
+    } else if (seconds < 60) {
+        text = `hace ${seconds}s`;
+    } else {
+        const minutes = Math.floor(seconds / 60);
+        text = `hace ${minutes} min`;
+    }
+    el.innerHTML = `<i class="fa-solid fa-rotate"></i> Actualizado ${text}`;
+}
+
 /**
  * Loads today's records and stocks from Supabase database
  */
@@ -2123,6 +2150,7 @@ async function loadAllDataFromSupabase() {
     }
 
     renderAllViews();
+    markSyncFresh();
 }
 
 /**
@@ -2341,7 +2369,8 @@ function renderAllViews() {
  */
 async function handleRealtimeDbUpdate(tableName, payload) {
     console.log(`Realtime postgres update detected for table: ${tableName}`, payload);
-    
+    markSyncFresh();
+
     // Fallback: If no payload is supplied, perform standard full fetch
     if (!payload || !payload.eventType) {
         performFullFetch(tableName);
@@ -3919,6 +3948,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadAllDataFromSupabase();
         }
     }, 45000);
+
+    // Ticks the "Actualizado hace X" freshness label in Resumen
+    setInterval(updateSyncFreshnessDisplay, 3000);
 
     initAdminDashboardListeners();
     initAgentListeners();

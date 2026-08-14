@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=277">
+    <link rel="stylesheet" href="/css/main.css?v=278">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=277"></script>
-    <script src="/js/storage.js?v=277"></script>
-    <script src="/js/supabase.js?v=277"></script>
-    <script src="/js/exchange-rate.js?v=277"></script>
-    <script src="/js/export.js?v=277"></script>
-    <script src="/js/auth.js?v=277"></script>
-    <script src="/js/sales.js?v=277"></script>
-    <script src="/js/analytics.js?v=277"></script>
-    <script src="/js/inventory.js?v=277"></script>
-    <script src="/js/pin-management.js?v=277"></script>
-    <script src="/js/recipes.js?v=277"></script>
-    <script src="/js/audio.js?v=277"></script>
-    <script src="/js/share.js?v=277"></script>
-    <script src="/js/agent.js?v=277"></script>
-    <script src="/js/ui.js?v=277"></script>
-    <script src="/js/app.js?v=277"></script>
+    <script src="/js/ui/shared.js?v=278"></script>
+    <script src="/js/storage.js?v=278"></script>
+    <script src="/js/supabase.js?v=278"></script>
+    <script src="/js/exchange-rate.js?v=278"></script>
+    <script src="/js/export.js?v=278"></script>
+    <script src="/js/auth.js?v=278"></script>
+    <script src="/js/sales.js?v=278"></script>
+    <script src="/js/analytics.js?v=278"></script>
+    <script src="/js/inventory.js?v=278"></script>
+    <script src="/js/pin-management.js?v=278"></script>
+    <script src="/js/recipes.js?v=278"></script>
+    <script src="/js/audio.js?v=278"></script>
+    <script src="/js/share.js?v=278"></script>
+    <script src="/js/agent.js?v=278"></script>
+    <script src="/js/ui.js?v=278"></script>
+    <script src="/js/app.js?v=278"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -294,6 +294,9 @@
                     <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
                         <i class="fa-solid fa-chart-line animate-pulse"></i> RESUMEN EN VIVO (HOY)
                     </h4>
+                    <div id="resumen-last-sync" style="font-size: 9px; color: var(--color-text-muted); margin-top: -0.5rem; margin-bottom: 0.6rem;">
+                        <i class="fa-solid fa-rotate"></i> Sincronizando...
+                    </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem;">
                         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
                             <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">En Vitrina</div>

@@ -128,6 +128,29 @@ function switchView(view) {
 }
 
 /**
+ * Show the persistent "editing account" banner (visible on every tab, since the
+ * header it sits under is outside the tab-toggled view sections) so a client
+ * account pulled out of Cuentas Activas for modification is never silently lost
+ * from view while jumping between tabs to handle other accounts.
+ * @param {string} clientName Name of the client account being edited
+ */
+function showEditingBanner(clientName) {
+    const banner = document.getElementById('editing-account-banner');
+    const nameEl = document.getElementById('editing-account-banner-name');
+    if (!banner || !nameEl) return;
+    nameEl.textContent = clientName || 'Cliente';
+    banner.classList.remove('hidden');
+}
+
+/**
+ * Hide the persistent "editing account" banner
+ */
+function hideEditingBanner() {
+    const banner = document.getElementById('editing-account-banner');
+    if (banner) banner.classList.add('hidden');
+}
+
+/**
  * Render search input bar
  * @param {Function} onSearchChange Callback when search query changes
  */
@@ -2215,6 +2238,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
             closeModal();
             sessionStorage.setItem('casa_lucenzo_editing_client_name', tableName);
             switchView('local');
+            showEditingBanner(tableName);
             showToast(`📝 Cuenta iniciada para ${tableName}. ¡Agrega pastelitos!`, 'fa-solid fa-pen-to-square');
         });
     }
@@ -5534,6 +5558,8 @@ function renderUsersManagement(users, onEdit, onDelete) {
 
 window.UIManager = {
     switchView,
+    showEditingBanner,
+    hideEditingBanner,
     renderSearchBar,
     renderCategoryFilterBar,
     renderPendingDispatches,

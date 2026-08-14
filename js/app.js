@@ -553,8 +553,8 @@ async function handleClearCart() {
             }
             sessionStorage.removeItem('casa_lucenzo_editing_sales');
             sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
-            sessionStorage.removeItem('casa_lucenzo_editing_client_name');
         }
+        sessionStorage.removeItem('casa_lucenzo_editing_client_name');
 
         currentCart = [];
         localStorage.removeItem('casa_lucenzo_current_cart');
@@ -562,6 +562,7 @@ async function handleClearCart() {
 
         window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+        window.UIManager.hideEditingBanner();
         window.UIManager.showToast("🧹 Cuenta del cliente vaciada.", "fa-solid fa-trash-can");
     }
 }
@@ -574,6 +575,7 @@ async function handleCheckoutCart() {
 
     triggerHaptic(15);
     const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
+    const cameFromClientes = !!defaultName;
     const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
@@ -643,12 +645,20 @@ async function handleCheckoutCart() {
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
     window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+    window.UIManager.hideEditingBanner();
 
     if (currentRole === 'admin') {
         loadAndRenderAdminStats();
     }
 
     window.UIManager.showToast(`📝 Cuenta de "${clientName}" creada en Cuentas Activas (Consumiendo).`, "fa-solid fa-user-clock");
+
+    // Return straight to Cuentas Activas when this checkout came from Clientes
+    // (editing an existing account, or starting a new one from there) -- avoids
+    // having to manually re-click the tab while juggling several accounts.
+    if (cameFromClientes) {
+        window.UIManager.switchView('clientes');
+    }
 }
 
 /**
@@ -819,6 +829,7 @@ async function handleEditSale(timestamp) {
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
     window.UIManager.renderCashRegister(salesLog, expenses);
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+    window.UIManager.showEditingBanner(clientName);
 
     if (currentRole === 'admin') {
         window.UIManager.renderStats(salesLog, expenses);
@@ -826,6 +837,75 @@ async function handleEditSale(timestamp) {
 
     window.UIManager.showToast(`✏️ Cuenta de "${clientName}" cargada para modificar.`, "fa-solid fa-pen-to-square");
 }
+
+/**
+ * Cancels an in-progress account edit (started via handleEditSale or the "Cuenta
+ * Nueva" flow from Clientes), restoring the account exactly as it was without
+ * completing a checkout. Only the stock delta between what was originally sold
+ * and whatever is currently in the cart is adjusted -- items untouched since
+ * "Modificar" was pressed don't move stock at all.
+ */
+async function handleCancelEditingAccount() {
+    const editingClientName = sessionStorage.getItem('casa_lucenzo_editing_client_name');
+    if (!editingClientName) return;
+
+    if (!confirm(`¿Cancelar la edición de "${editingClientName}"? La cuenta volverá a quedar exactamente como estaba antes de modificarla.`)) {
+        return;
+    }
+
+    triggerHaptic(20);
+
+    const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
+    const editingTimestamp = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
+    const editingSales = (editingSalesStr && editingTimestamp) ? JSON.parse(editingSalesStr) : [];
+
+    // Only the net change vs. the original account needs a stock correction:
+    // items added during this edit get returned to stock, items removed
+    // (already returned live by handleRemoveFromCart) get re-deducted so the
+    // restored original sale matches the stock it actually came from. A brand
+    // new account (no original sale, e.g. "Cuenta Nueva" from Clientes) has an
+    // empty original quantity, so everything currently in the cart is returned.
+    const originalQtyByProduct = {};
+    editingSales.forEach(sale => {
+        originalQtyByProduct[sale.productId] = (originalQtyByProduct[sale.productId] || 0) + 1;
+    });
+    const currentQtyByProduct = {};
+    currentCart.forEach(item => {
+        currentQtyByProduct[item.productId] = (currentQtyByProduct[item.productId] || 0) + item.quantity;
+    });
+
+    new Set([...Object.keys(originalQtyByProduct), ...Object.keys(currentQtyByProduct)]).forEach(productId => {
+        const stockChange = (currentQtyByProduct[productId] || 0) - (originalQtyByProduct[productId] || 0);
+        if (stockChange === 0) return;
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+        product.stock = Math.max(0, product.stock + stockChange);
+        if (window.SupabaseManager.isConfigured()) {
+            window.SupabaseManager.updateProductStock(product.id, product.stock);
+        }
+    });
+    window.StorageManager.saveProducts(products);
+
+    if (editingSales.length > 0) {
+        salesLog.push(...editingSales);
+        window.StorageManager.saveSalesLog(salesLog);
+    }
+
+    currentCart = [];
+    localStorage.removeItem('casa_lucenzo_current_cart');
+    sessionStorage.removeItem('casa_lucenzo_editing_sales');
+    sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
+    sessionStorage.removeItem('casa_lucenzo_editing_client_name');
+
+    window.UIManager.hideEditingBanner();
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
+    window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+    window.UIManager.switchView('clientes');
+    window.UIManager.showToast(`↩️ Edición cancelada. "${editingClientName}" quedó como estaba.`, "fa-solid fa-rotate-left");
+}
+window.handleCancelEditingAccount = handleCancelEditingAccount;
 
 /**
  * Marks a sales transaction as paid, updating Supabase and memory (changing suffix to include (Pagado))
@@ -3369,7 +3449,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    
+    // Restore the "editing account" banner if the page was reloaded mid-edit
+    const editingClientNameOnLoad = sessionStorage.getItem('casa_lucenzo_editing_client_name');
+    if (editingClientNameOnLoad) {
+        window.UIManager.showEditingBanner(editingClientNameOnLoad);
+    }
+
+
     // Initialize BCV Exchange Rate
     const bcvPrefs = window.StorageManager.loadBcvPreferences();
     bcvRate = bcvPrefs.bcvRate || 732.48;
@@ -3622,6 +3708,21 @@ document.addEventListener('DOMContentLoaded', () => {
         window.UIManager.switchView('clientes');
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
     });
+
+    const btnEditingGotoClientes = document.getElementById('btn-editing-goto-clientes');
+    if (btnEditingGotoClientes) {
+        btnEditingGotoClientes.addEventListener('click', () => {
+            window.UIManager.switchView('clientes');
+            window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+        });
+    }
+
+    const btnEditingCancel = document.getElementById('btn-editing-cancel');
+    if (btnEditingCancel) {
+        btnEditingCancel.addEventListener('click', () => {
+            handleCancelEditingAccount();
+        });
+    }
 
     document.getElementById('btn-cocina').addEventListener('click', () => {
         window.UIManager.switchView('cocina');

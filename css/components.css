@@ -1568,6 +1568,58 @@ input:checked + .slider:before {
     animation: alertPulse 2s infinite ease-in-out;
 }
 
+.editing-account-banner {
+    position: sticky;
+    top: 116px;
+    z-index: 40;
+    background-color: rgba(243, 198, 63, 0.14);
+    border-bottom: 1px solid var(--color-gold);
+    padding: 0.6rem 1rem;
+    color: var(--color-gold);
+    font-size: 0.8rem;
+    font-weight: 800;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+.editing-account-banner-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.editing-account-banner-text strong {
+    color: #FFF;
+}
+
+.editing-account-banner-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.editing-account-banner-actions button {
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.4rem 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#btn-editing-goto-clientes {
+    background-color: var(--color-gold);
+    color: #1A1207;
+}
+
+#btn-editing-cancel {
+    background-color: rgba(239, 68, 68, 0.18);
+    border: 1px solid var(--color-danger);
+    color: #FCA5A5;
+}
+
 @keyframes alertPulse {
     0%, 100% { opacity: 0.85; border-color: rgba(239, 68, 68, 0.4); }
     50% { opacity: 1; border-color: var(--color-danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }

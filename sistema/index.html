@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=272">
+    <link rel="stylesheet" href="/css/main.css?v=273">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=272"></script>
-    <script src="/js/storage.js?v=272"></script>
-    <script src="/js/supabase.js?v=272"></script>
-    <script src="/js/exchange-rate.js?v=272"></script>
-    <script src="/js/export.js?v=272"></script>
-    <script src="/js/auth.js?v=272"></script>
-    <script src="/js/sales.js?v=272"></script>
-    <script src="/js/analytics.js?v=272"></script>
-    <script src="/js/inventory.js?v=272"></script>
-    <script src="/js/pin-management.js?v=272"></script>
-    <script src="/js/recipes.js?v=272"></script>
-    <script src="/js/audio.js?v=272"></script>
-    <script src="/js/share.js?v=272"></script>
-    <script src="/js/agent.js?v=272"></script>
-    <script src="/js/ui.js?v=272"></script>
-    <script src="/js/app.js?v=272"></script>
+    <script src="/js/ui/shared.js?v=273"></script>
+    <script src="/js/storage.js?v=273"></script>
+    <script src="/js/supabase.js?v=273"></script>
+    <script src="/js/exchange-rate.js?v=273"></script>
+    <script src="/js/export.js?v=273"></script>
+    <script src="/js/auth.js?v=273"></script>
+    <script src="/js/sales.js?v=273"></script>
+    <script src="/js/analytics.js?v=273"></script>
+    <script src="/js/inventory.js?v=273"></script>
+    <script src="/js/pin-management.js?v=273"></script>
+    <script src="/js/recipes.js?v=273"></script>
+    <script src="/js/audio.js?v=273"></script>
+    <script src="/js/share.js?v=273"></script>
+    <script src="/js/agent.js?v=273"></script>
+    <script src="/js/ui.js?v=273"></script>
+    <script src="/js/app.js?v=273"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -180,6 +180,21 @@
 
         </div>
     </header>
+
+    <!-- Persistent banner: shown while a client account from "Clientes" is loaded
+         into the cart for editing, so it's never invisible/forgotten while jumping
+         between tabs to handle other accounts. Visible on every tab (sits outside
+         the tab-toggled view sections). -->
+    <div id="editing-account-banner" class="editing-account-banner hidden">
+        <div class="editing-account-banner-text">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Editando cuenta de <strong id="editing-account-banner-name"></strong></span>
+        </div>
+        <div class="editing-account-banner-actions">
+            <button type="button" id="btn-editing-goto-clientes">Volver a Clientes</button>
+            <button type="button" id="btn-editing-cancel">Cancelar edición</button>
+        </div>
+    </div>
 
     <!-- Main dynamic interface -->
     <main class="container-md">

@@ -229,13 +229,20 @@ async function syncOfflineQueue() {
     // 3. Process remaining non-batchable operations
     for (const op of nonBatchable) {
         try {
-            let error = null;
             if (op.action === 'update_stock') {
-                const res = await client.from(op.table).update(op.data).eq(op.key, op.keyValue);
-                error = res.error;
-            }
-            if (error) {
-                console.error(`Error syncing non-batchable operation for ${op.table}:`, error.message);
+                const { error } = await client.from(op.table).update(op.data).eq(op.key, op.keyValue);
+                if (error) {
+                    console.error(`Error syncing non-batchable operation for ${op.table}:`, error.message);
+                    failedOps.push(op);
+                }
+            } else {
+                // Not one of this queue's own shapes ({table, action, data, ...})
+                // -- most likely an item queued by addToOfflineQueue() in
+                // js/app.js, which shares this exact localStorage key under
+                // a different schema ({actionType, payload, ...}). Keep it
+                // instead of silently dropping it: this loop used to
+                // overwrite the whole key with only what it recognized,
+                // wiping out that other queue's still-pending items.
                 failedOps.push(op);
             }
         } catch (e) {

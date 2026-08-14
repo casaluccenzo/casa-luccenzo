@@ -109,6 +109,17 @@ async function processOfflineQueue() {
                 await window.SupabaseManager.deleteSales(item.payload);
             } else if (item.actionType === 'updateStock') {
                 await window.SupabaseManager.updateProductStock(item.payload.id, item.payload.stock);
+            } else {
+                // Not one of this queue's own shapes -- most likely an item
+                // queued by enqueueOfflineOp() in js/supabase.js, which
+                // shares this exact localStorage key under a different
+                // schema ({table, action, data, ...} vs. this queue's
+                // {actionType, payload, ...}). Keep it instead of silently
+                // dropping it: this loop used to overwrite the whole key
+                // with only what it recognized, wiping out that other
+                // queue's still-pending (and possibly not-yet-synced) items
+                // every time this ran.
+                remaining.push(item);
             }
         } catch(e) {
             console.warn("Self-Healing Queue item retry deferred:", item, e);
@@ -574,6 +585,21 @@ async function handleClearCart() {
 async function handleCheckoutCart() {
     if (currentCart.length === 0) return;
 
+    // A double-tap on "Cobrar" (or a stray duplicate click while the previous
+    // checkout is still awaiting Supabase) used to run this whole function
+    // twice concurrently. On a "Modificar" edit, both copies delete-then-
+    // insert the same account under the same timestamp -- if the second
+    // delete lands after the first insert, it wipes the first copy's rows
+    // and both copies insert on top, stacking duplicate rows silently
+    // (no error, no extra activity log entry). This flag makes a second
+    // call while one is already in flight a no-op instead of a second run.
+    if (handleCheckoutCart._inProgress) {
+        window.UIManager.showToast("⏳ Ya se está procesando esta cuenta, esperá un momento.", "fa-solid fa-hourglass-half");
+        return;
+    }
+    handleCheckoutCart._inProgress = true;
+    try {
+
     triggerHaptic(15);
     const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
     const cameFromClientes = !!defaultName;
@@ -664,6 +690,10 @@ async function handleCheckoutCart() {
     // having to manually re-click the tab while juggling several accounts.
     if (cameFromClientes) {
         window.UIManager.switchView('clientes');
+    }
+
+    } finally {
+        handleCheckoutCart._inProgress = false;
     }
 }
 

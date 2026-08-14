@@ -165,6 +165,27 @@ async function handleCleanOfflineCache() {
         const deadLetterRaw = localStorage.getItem('casa_lucenzo_offline_queue_failed');
         const deadLetter = deadLetterRaw ? JSON.parse(deadLetterRaw) : [];
 
+        // Sales this device set aside because the server no longer had them and
+        // nothing explained why. Surfaced here rather than left to rot: it is
+        // the one place someone looks at sync health on purpose.
+        const quarantined = window.StorageManager.loadQuarantinedSales();
+        if (quarantined.length > 0) {
+            const total = quarantined.reduce((sum, q) => sum + ((q.sale && q.sale.price) || 0), 0);
+            const detail = quarantined.slice(0, 8)
+                .map(q => `• ${q.sale && q.sale.name ? q.sale.name : '(sin nombre)'} — $${((q.sale && q.sale.price) || 0).toFixed(2)}`)
+                .join('\n');
+            const more = quarantined.length > 8 ? `\n…y ${quarantined.length - 8} más.` : '';
+            const keep = confirm(
+                `📋 Este dispositivo apartó ${quarantined.length} venta(s) por $${total.toFixed(2)} que ya no estaban en el servidor:\n\n${detail}${more}\n\n` +
+                `Se apartaron en vez de borrarse, por si alguna era real y nunca llegó a guardarse. Si ya revisaste el sistema y los números están bien, se pueden descartar.\n\n` +
+                `¿Descartarlas definitivamente?  (Aceptar = descartar · Cancelar = conservarlas)`
+            );
+            if (keep) {
+                logActivity("Descarte de Ventas en Cuarentena", `Se descartaron ${quarantined.length} venta(s) apartadas por $${total.toFixed(2)} tras revisión manual del administrador.`);
+                window.StorageManager.clearQuarantinedSales();
+            }
+        }
+
         if (stuckQueue.length === 0 && deadLetter.length === 0) {
             window.UIManager.showToast("✅ Todo sincronizado. No había nada pendiente.", "fa-solid fa-circle-check");
         } else {
@@ -1819,13 +1840,25 @@ async function openReportHistoryModal() {
  * Clear daily sales and expenses logs locally and sync to Supabase, and refill vitrina stock to max for tomorrow
  */
 async function closeDayAndResetLogs() {
+    // The day close zeroes the register and the vitrina. Running it twice --
+    // a double-tap on "confirmar", or two admins closing at once -- files a
+    // second close, re-zeroes stock and fires a second WhatsApp report. Same
+    // re-entrancy guard as handleCheckoutCart, on a heavier operation.
+    if (closeDayAndResetLogs._inProgress) {
+        window.UIManager.showToast("⏳ El cierre ya se está procesando, esperá un momento.", "fa-solid fa-hourglass-half");
+        return;
+    }
+    closeDayAndResetLogs._inProgress = true;
+
     try {
         window.UIManager.showToast("⏳ Cerrando jornada y preparando vitrina...", "fa-solid fa-hourglass-start");
-        
-        const nowStr = new Date().toISOString();
-        window.StorageManager.saveLastCloseTime(nowStr);
 
-        // 1. Sync close time to Supabase or delete active sales if old DB schema
+        const nowStr = new Date().toISOString();
+
+        // 1. Record the close on the server FIRST. Writing it locally up front
+        // meant a failed server write still advanced this device's cutoff: the
+        // day's sales dropped out of its view while every other device -- and
+        // the database -- still had the day open.
         if (window.SupabaseManager.isConfigured()) {
             if (window.SupabaseManager.getDbSupportsLastClose()) {
                 console.log("Saving last day close timestamp to Supabase app_config...");
@@ -1836,6 +1869,7 @@ async function closeDayAndResetLogs() {
                 await window.SupabaseManager.deleteExpenses(expenses.map(e => e.uuid));
             }
         }
+        window.StorageManager.saveLastCloseTime(nowStr);
 
         // 2. Clear local arrays
         salesLog = [];
@@ -1870,9 +1904,18 @@ async function closeDayAndResetLogs() {
                 }
             }
         });
-        // 4.5. Ensure BCV automatic exchange connector is active and refreshed for the next day
+        // 4.5. Ensure BCV automatic exchange connector is active and refreshed
+        // for the next day. Isolated on purpose: the close itself is already
+        // committed by this point, so a BCV provider being down must not throw
+        // us into the catch below and report a completed close as failed --
+        // that reads as "it didn't work" and invites closing a second time.
         useAutoBcv = true;
-        await fetchBcvRate(true);
+        try {
+            await fetchBcvRate(true);
+        } catch (e) {
+            console.warn("Day close committed, but refreshing the BCV rate failed. Rate stays at its current value.", e);
+            window.UIManager.showToast("⚠️ Jornada cerrada, pero no se pudo actualizar la tasa BCV. Revisala mañana antes de vender.", "fa-solid fa-triangle-exclamation");
+        }
 
         // 5. Re-render UI
         window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -1887,7 +1930,9 @@ async function closeDayAndResetLogs() {
         window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
     } catch (e) {
         console.error("Failed to reset logs during day close", e);
-        window.UIManager.showToast("❌ Error al cerrar la jornada.", "fa-solid fa-circle-xmark");
+        window.UIManager.showToast("❌ Error al cerrar la jornada. No se cerró -- revisá la conexión y probá de nuevo.", "fa-solid fa-circle-xmark");
+    } finally {
+        closeDayAndResetLogs._inProgress = false;
     }
 }
 
@@ -2232,18 +2277,29 @@ async function loadAllDataFromSupabase() {
         // any device that still had the old data cached, no matter how many
         // times it got cleaned up on the server (2026-08-14, "La guaira").
         // Only restore what this device can actually corroborate as still
-        // genuinely pending -- i.e. it's also sitting in one of its own
-        // offline retry queues -- instead of trusting the full local mirror
-        // forever.
+        // genuinely pending -- i.e. it's still sitting in its offline retry
+        // queue -- instead of trusting the full local mirror forever.
+        //
+        // Both offline queues share one localStorage key under two different
+        // item shapes ({actionType, payload} from app.js, {table, action,
+        // data} from supabase.js), so one read covers both; the dead-letter
+        // store is separate and has to be read on its own.
         const pendingUuids = new Set();
-        try {
-            (JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')).forEach(op => {
+        const collectUuids = (raw) => {
+            (JSON.parse(raw || '[]')).forEach(op => {
+                if (!op) return;
                 if (Array.isArray(op.payload)) op.payload.forEach(p => p && p.uuid && pendingUuids.add(p.uuid));
                 else if (op.payload && op.payload.uuid) pendingUuids.add(op.payload.uuid);
-            });
-            (JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]')).forEach(op => {
                 if (op.data && op.data.uuid) pendingUuids.add(op.data.uuid);
             });
+        };
+        try {
+            collectUuids(localStorage.getItem(OFFLINE_QUEUE_KEY));
+            // Dead-lettered writes gave up retrying after 48h, but "gave up
+            // retrying" is not "was deleted on purpose" -- without this the
+            // sale below is treated as a server-side removal and thrown away
+            // even though it never reached the server at all.
+            collectUuids(localStorage.getItem('casa_lucenzo_offline_queue_failed'));
         } catch (e) { /* malformed queue -- treat as no corroboration */ }
 
         const corroboratedMissing = missingLocal.filter(s => pendingUuids.has(s.uuid));
@@ -2256,11 +2312,16 @@ async function loadAllDataFromSupabase() {
             window.SupabaseManager.insertSales(corroboratedMissing);
         }
         if (uncorroboratedMissing.length > 0) {
-            // Not backed by any retry queue -- most likely removed
-            // server-side on purpose. Don't push it back; drop it from this
-            // device's own cache too so it stops disagreeing with the
-            // server on every future sync instead of re-litigating it.
-            console.warn(`${uncorroboratedMissing.length} local sale(s) are missing from the server and not in any retry queue -- treating as a deliberate server-side removal, not restoring.`, uncorroboratedMissing.map(s => s.uuid));
+            // Nothing explains the gap: most likely a deliberate server-side
+            // correction, but possibly a write this device lost track of.
+            // Pull it out of the active log so it stops being re-inserted on
+            // every sync, but quarantine rather than delete -- silently
+            // destroying what might be a real sale is the worse failure.
+            window.StorageManager.addQuarantinedSales(
+                uncorroboratedMissing,
+                'Faltaba en el servidor y no había ningún reintento pendiente que lo explicara'
+            );
+            console.warn(`${uncorroboratedMissing.length} local sale(s) missing from the server with no pending retry -- moved to quarantine, not restored.`, uncorroboratedMissing.map(s => s.uuid));
         }
         window.StorageManager.saveSalesLog(salesLog);
     } else if (localSales.length > 0) {
@@ -4007,20 +4068,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
     document.getElementById('btn-clean-offline-cache').addEventListener('click', handleCleanOfflineCache);
-    document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async () => {
-        // Send WhatsApp using whatever data is currently displayed in the modal
-        const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
-        const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
-        const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
-        const encodedMessage = encodeURIComponent(message);
-        window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
-        
-        // Actually perform the day close database and state reset (ONLY if active day close, NOT historical inspection)
-        if (!currentReportData.isHistory) {
-            await closeDayAndResetLogs();
+    document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async (ev) => {
+        const confirmBtn = ev.currentTarget;
+        if (confirmBtn.disabled) return;
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.6';
+
+        try {
+            // Build the report from whatever data the modal is currently showing.
+            const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
+            const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
+            const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
+
+            // Close first, share second. Opening WhatsApp up front announced a
+            // closed day before the database had agreed to it -- if the close
+            // then failed, the report was already sent and the day was still open.
+            if (!currentReportData.isHistory) {
+                await closeDayAndResetLogs();
+            }
+
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
+            closeDayCloseModal();
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.style.opacity = '';
         }
-        
-        closeDayCloseModal();
     });
     
     document.getElementById('btn-cierre-dia-pdf').addEventListener('click', () => {

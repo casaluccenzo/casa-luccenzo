@@ -18,7 +18,10 @@ const escapeHtmlSafe = (typeof window !== 'undefined' && window.escapeHtml)
 function calculateTotals(sales = [], expenses = []) {
     const totalSales = (sales || []).reduce((sum, s) => sum + (parseFloat(s.price || s.total) || 0), 0);
     const totalExpenses = (expenses || []).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-    const netCash = Math.max(0, totalSales - totalExpenses);
+    // Not clamped at zero: a day where expenses beat sales is a real result the
+    // owner needs to see. Flooring it showed $0.00 for a loss, which reads as
+    // "nothing happened" instead of "we went backwards today".
+    const netCash = totalSales - totalExpenses;
     return {
         totalSales: Number(totalSales.toFixed(2)),
         totalExpenses: Number(totalExpenses.toFixed(2)),
@@ -31,7 +34,10 @@ function addToCart(cart = [], product) {
     const newCart = [...cart];
     const index = newCart.findIndex(item => item.id === product.id || item.productId === product.id);
     if (index >= 0) {
-        newCart[index] = { ...newCart[index], qty: (newCart[index].qty || newCart[index].quantity || 1) + 1 };
+        // Both fields must move together: checkout counts rows off `quantity`,
+        // so bumping only `qty` billed one unit no matter how many were added.
+        const next = (newCart[index].qty || newCart[index].quantity || 1) + 1;
+        newCart[index] = { ...newCart[index], qty: next, quantity: next };
     } else {
         newCart.push({ ...product, productId: product.id, qty: 1, quantity: 1 });
     }

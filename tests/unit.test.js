@@ -130,6 +130,24 @@ function runCoreUnitTests() {
     console.log("✅ TEST PASSED: REAL calculateTotals: Total expenses calculation should equal $1.20");
     console.log("✅ TEST PASSED: REAL calculateTotals: Net cash calculation should equal $6.00");
 
+    // 1b. A day that spent more than it sold must report the loss, not $0.00.
+    const lossTotals = calculateTotals([{ price: 10.00 }], [{ amount: 25.50 }]);
+    assert.strictEqual(lossTotals.netCash, -15.50, "REAL calculateTotals: A loss day must report negative net cash, not be floored at 0");
+    console.log("✅ TEST PASSED: REAL calculateTotals: A loss day must report negative net cash, not be floored at 0");
+
+    // 1c. Adding the same product repeatedly must bill every unit. `quantity`
+    // is what checkout counts rows off, so it has to track `qty`.
+    const { addToCart } = require('../js/sales');
+    let cart = addToCart([], { id: 'pollo', name: 'Pollo', price: 1.98 });
+    cart = addToCart(cart, { id: 'pollo', name: 'Pollo', price: 1.98 });
+    cart = addToCart(cart, { id: 'pollo', name: 'Pollo', price: 1.98 });
+    assert.strictEqual(cart.length, 1, "REAL addToCart: Repeated adds of one product stay a single cart line");
+    assert.strictEqual(cart[0].quantity, 3, "REAL addToCart: `quantity` must reach 3 -- checkout bills off this field");
+    assert.strictEqual(cart[0].qty, 3, "REAL addToCart: `qty` must stay in step with `quantity`");
+    console.log("✅ TEST PASSED: REAL addToCart: Repeated adds of one product stay a single cart line");
+    console.log("✅ TEST PASSED: REAL addToCart: `quantity` must reach 3 -- checkout bills off this field");
+    console.log("✅ TEST PASSED: REAL addToCart: `qty` must stay in step with `quantity`");
+
     // 2. Inventory Stock Validation Tests
     const adjPass = validateStockAdjustment(5, 1);
     assert.strictEqual(adjPass.allowed, true, "REAL validateStockAdjustment: Adding stock to 5 by 1 should be allowed");

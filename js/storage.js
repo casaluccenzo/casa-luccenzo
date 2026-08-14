@@ -335,6 +335,49 @@ function addDeletedSalesUuids(uuids) {
     }
 }
 
+const SALES_QUARANTINE_KEY = 'casa_lucenzo_sales_quarantine';
+const SALES_QUARANTINE_MAX = 500;
+
+/**
+ * Sales this device still had locally but the server no longer has, with no
+ * pending retry to explain the gap. They are pulled out of the active log so
+ * they stop being re-inserted on every sync, but they are NEVER destroyed:
+ * losing a real sale silently is worse than carrying a stale one, and only a
+ * human can tell a deliberate server-side correction apart from a write that
+ * genuinely never landed. Kept for review; capped so localStorage can't grow
+ * without bound.
+ */
+function loadQuarantinedSales() {
+    try {
+        const saved = localStorage.getItem(SALES_QUARANTINE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addQuarantinedSales(sales, reason) {
+    const list = (Array.isArray(sales) ? sales : [sales]).filter(Boolean);
+    if (list.length === 0) return;
+    try {
+        const existing = loadQuarantinedSales();
+        const seen = new Set(existing.map(q => q.sale && q.sale.uuid).filter(Boolean));
+        const additions = list
+            .filter(s => s.uuid && !seen.has(s.uuid))
+            .map(s => ({ sale: s, reason: reason || 'sin motivo registrado', quarantinedAt: new Date().toISOString() }));
+        if (additions.length === 0) return;
+        // Keep the most recent entries when the cap is hit.
+        const merged = [...existing, ...additions].slice(-SALES_QUARANTINE_MAX);
+        localStorage.setItem(SALES_QUARANTINE_KEY, JSON.stringify(merged));
+    } catch (e) {
+        console.error("Failed to quarantine sales", e);
+    }
+}
+
+function clearQuarantinedSales() {
+    localStorage.removeItem(SALES_QUARANTINE_KEY);
+}
+
 const CONSUMED_REPLENISHMENTS_KEY = 'casa_lucenzo_consumed_replenishment_uuids';
 
 /**
@@ -410,6 +453,9 @@ window.StorageManager = {
     clearSalesLog,
     loadDeletedSalesUuids,
     addDeletedSalesUuids,
+    loadQuarantinedSales,
+    addQuarantinedSales,
+    clearQuarantinedSales,
     loadExpenses,
     saveExpenses,
     clearExpenses,

@@ -342,9 +342,19 @@ async function fetchSales() {
 
         const filterTime = supabaseLastCloseTime ? supabaseLastCloseTime : todayStart.toISOString();
 
-        const { data, error } = await client.from('sales').select('*').gte('timestamp', filterTime);
-        if (error) throw error;
-        return data.map(s => ({ ...s, productId: s.product_id }));
+        // Must page like every other unbounded sales read (see the note above
+        // fetchAllPages). A single day normally sits far under the 1000-row
+        // cap, but it is not guaranteed: a long stretch without a day close
+        // widens this window, and a runaway duplication can add hundreds of
+        // rows to one account by itself (2026-08-14). Truncating here is
+        // especially costly now that loadAllDataFromSupabase treats a sale
+        // absent from this result as removed server-side.
+        const rows = await fetchAllPages(offset => client.from('sales').select('*')
+            .gte('timestamp', filterTime)
+            .order('timestamp', { ascending: true })
+            .order('uuid', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
+        return rows.map(s => ({ ...s, productId: s.product_id }));
     } catch (e) {
         console.error("Error fetching sales from Supabase:", e);
         return null;
@@ -359,9 +369,12 @@ async function fetchExpenses() {
 
         const filterTime = supabaseLastCloseTime ? supabaseLastCloseTime : todayStart.toISOString();
 
-        const { data, error } = await client.from('expenses').select('*').gte('timestamp', filterTime);
-        if (error) throw error;
-        return data;
+        // Paged for the same reason as fetchSales above.
+        return await fetchAllPages(offset => client.from('expenses').select('*')
+            .gte('timestamp', filterTime)
+            .order('timestamp', { ascending: true })
+            .order('uuid', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
     } catch (e) {
         console.error("Error fetching expenses from Supabase:", e);
         return null;

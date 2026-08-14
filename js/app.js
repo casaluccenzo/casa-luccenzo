@@ -2221,10 +2221,46 @@ async function loadAllDataFromSupabase() {
         const cleanSupSales = supSales.filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
         const supUuids = new Set(cleanSupSales.map(s => s.uuid));
         const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid));
-        salesLog = [...cleanSupSales, ...missingLocal];
-        if (missingLocal.length > 0) {
-            console.log(`Restored ${missingLocal.length} un-synced local sales to Supabase.`);
-            window.SupabaseManager.insertSales(missingLocal);
+
+        // A sale sitting in THIS device's cache but missing from the server
+        // isn't always a failed offline write -- it can also be a row an
+        // admin deliberately deleted server-side (a data correction). This
+        // device has no local record of that: the delete tombstone above is
+        // only written by handleUndoSale() on the SAME device that did the
+        // undo. Blindly re-inserting every "missing" local row used to
+        // resurrect a corrected/deleted account on its own every ~45s, on
+        // any device that still had the old data cached, no matter how many
+        // times it got cleaned up on the server (2026-08-14, "La guaira").
+        // Only restore what this device can actually corroborate as still
+        // genuinely pending -- i.e. it's also sitting in one of its own
+        // offline retry queues -- instead of trusting the full local mirror
+        // forever.
+        const pendingUuids = new Set();
+        try {
+            (JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')).forEach(op => {
+                if (Array.isArray(op.payload)) op.payload.forEach(p => p && p.uuid && pendingUuids.add(p.uuid));
+                else if (op.payload && op.payload.uuid) pendingUuids.add(op.payload.uuid);
+            });
+            (JSON.parse(localStorage.getItem('casa_lucenzo_offline_queue') || '[]')).forEach(op => {
+                if (op.data && op.data.uuid) pendingUuids.add(op.data.uuid);
+            });
+        } catch (e) { /* malformed queue -- treat as no corroboration */ }
+
+        const corroboratedMissing = missingLocal.filter(s => pendingUuids.has(s.uuid));
+        const uncorroboratedMissing = missingLocal.filter(s => !pendingUuids.has(s.uuid));
+
+        salesLog = [...cleanSupSales, ...corroboratedMissing];
+
+        if (corroboratedMissing.length > 0) {
+            console.log(`Restored ${corroboratedMissing.length} un-synced local sales to Supabase (corroborated by an offline retry queue).`);
+            window.SupabaseManager.insertSales(corroboratedMissing);
+        }
+        if (uncorroboratedMissing.length > 0) {
+            // Not backed by any retry queue -- most likely removed
+            // server-side on purpose. Don't push it back; drop it from this
+            // device's own cache too so it stops disagreeing with the
+            // server on every future sync instead of re-litigating it.
+            console.warn(`${uncorroboratedMissing.length} local sale(s) are missing from the server and not in any retry queue -- treating as a deliberate server-side removal, not restoring.`, uncorroboratedMissing.map(s => s.uuid));
         }
         window.StorageManager.saveSalesLog(salesLog);
     } else if (localSales.length > 0) {

@@ -159,11 +159,10 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange) {
     const container = document.getElementById('category-filter-container');
     if (!container) return;
 
+    // Empanadas/Tortas temporalmente ocultas -- no se están vendiendo por ahora.
     const categories = [
         { id: 'todos', name: 'Todo' },
         { id: 'pastelitos', name: 'Pastelitos' },
-        { id: 'empanadas', name: 'Empanadas' },
-        { id: 'tortas', name: 'Tortas' },
         { id: 'bebidas', name: 'Bebidas' },
         { id: 'dulces', name: 'Dulces' }
     ];
@@ -243,6 +242,14 @@ function renderPendingDispatches(replenishments, onConfirm) {
 function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuery = '') {
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
+
+    // Empanadas/Tortas temporalmente ocultas de la venta -- no se están vendiendo por ahora.
+    products = products.filter(p => {
+        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
+            ? window.StorageManager.getProductCategory(p)
+            : (p.category || 'pastelitos');
+        return cat !== 'empanadas' && cat !== 'tortas';
+    });
 
     // Render POS Quick Access Bar (Productos Frecuentes)
     const quickBarContainer = document.getElementById('pos-quick-items-list');
@@ -472,6 +479,14 @@ function updateKitchenBadge(products) {
 function renderCocina(products, deliverProduct, replenishments = [], salesLog = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
+
+    // Empanadas/Tortas temporalmente ocultas de cocina -- no se están vendiendo por ahora.
+    products = products.filter(p => {
+        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
+            ? window.StorageManager.getProductCategory(p)
+            : (p.category || 'pastelitos');
+        return cat !== 'empanadas' && cat !== 'tortas';
+    });
 
     const alertBanner = document.getElementById('kitchen-alert-banner');
     if (alertBanner) {
@@ -1422,6 +1437,14 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
     if (!container) return;
 
     container.innerHTML = '';
+
+    // Empanadas/Tortas temporalmente ocultas de Configurar Productos -- no se están vendiendo por ahora.
+    products = products.filter(p => {
+        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
+            ? window.StorageManager.getProductCategory(p)
+            : (p.category || 'pastelitos');
+        return cat !== 'empanadas' && cat !== 'tortas';
+    });
 
     products.forEach(p => {
         const item = document.createElement('div');

@@ -6,8 +6,15 @@
 --      Verificable abriendo el sistema en cada uno y confirmando `?v=` en el
 --      código fuente, o tocando "Sincronizar y Limpiar este Dispositivo".
 --
---   2. La consulta de abajo no devuelve bloqueos recientes. Si devuelve algo,
---      todavía queda un equipo con código viejo y 012 tiene que seguir puesto:
+--      NO usar `active_sessions` como inventario de equipos: lockSession()
+--      borra la fila al cerrar sesión, así que la tabla solo lista lo que está
+--      conectado en este instante. Un equipo ausente de esa lista no está
+--      actualizado -- está apagado, y puede volver mañana con la caché vieja.
+--
+--   2. La consulta de abajo no devuelve bloqueos recientes, Y hubo una jornada
+--      real de operación con los equipos conectados desde que se aplicó 012.
+--      Cero bloqueos durante horas en que nadie estuvo conectado no prueba
+--      nada; es silencio de una sala vacía.
 --
 --        SELECT timestamp, details
 --        FROM activity_logs

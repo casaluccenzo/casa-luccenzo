@@ -336,6 +336,26 @@ async function verifyWhatsAppBot() {
     console.log("✅ TEST PASSED: REAL WhatsApp Bot: Disabled flag returns 503 Service Unavailable");
     process.env.WHATSAPP_BOT_ENABLED = 'true';
 
+    // The owner paused the bot outright (WHATSAPP_BOT_MANUALLY_PAUSED in
+    // api/whatsapp-webhook.js). Every request short-circuits to 503 before it
+    // reaches the handshake, so the assertions below cannot run -- and failing
+    // on them would just report the pause as a broken bot, on every run, until
+    // someone un-pauses it. Assert the pause is airtight instead, and let the
+    // full suite come back automatically when the flag flips.
+    if (waWebhookHandler.WHATSAPP_BOT_MANUALLY_PAUSED) {
+        const { req: rPaused, res: resPaused } = createMockReqRes('GET', { 'hub.mode': 'subscribe', 'hub.verify_token': 'test_verify_token', 'hub.challenge': '5551212' });
+        await waWebhookHandler(rPaused, resPaused);
+        assert.strictEqual(resPaused.getStatusCode(), 503, "REAL WhatsApp Bot: Manual pause must override a valid handshake too");
+
+        const { req: rPausedPost, res: resPausedPost } = createMockReqRes('POST', {}, { entry: [{ changes: [{ value: { messages: [{ from: '584141234567', type: 'text', text: { body: 'hola' } }] } }] }] });
+        await waWebhookHandler(rPausedPost, resPausedPost);
+        assert.strictEqual(resPausedPost.getStatusCode(), 503, "REAL WhatsApp Bot: Manual pause must reject authorized POSTs too");
+
+        console.log("✅ TEST PASSED: REAL WhatsApp Bot: Manual pause returns 503 for every method (handshake + authorized POST)");
+        console.log("⏭️  SKIPPED: 4 WhatsApp routing assertions -- bot manually paused by the owner. They run again when WHATSAPP_BOT_MANUALLY_PAUSED is set to false.");
+        return;
+    }
+
     // 1. Handshake verification
     const { req: r1, res: res1 } = createMockReqRes('GET', { 'hub.mode': 'subscribe', 'hub.verify_token': 'test_verify_token', 'hub.challenge': '5551212' });
     await waWebhookHandler(r1, res1);
@@ -397,12 +417,36 @@ async function verifyTelegramBot() {
     console.log("✅ TEST PASSED: REAL Telegram Bot: Authorized admin id (TELEGRAM_ADMIN_ID) can chat");
 }
 
-runCoreUnitTests();
-runAnalyticsUnitTests();
-verifyLegacyLoginRejections().then(() => verifyWhatsAppBot()).then(() => verifyTelegramBot()).then(() => {
-    console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
-    process.exit(0);
-}).catch(err => {
-    console.error("❌ Test runner error:", err);
+// Every suite runs, even when an earlier one fails. The previous runner was a
+// single .then() chain with one .catch(): the first failed assertion aborted
+// everything after it, so a red WhatsApp test silently took the entire Telegram
+// suite with it and nobody could tell the difference between "5 tests passed"
+// and "5 tests never ran".
+const SUITES = [
+    ['Core', runCoreUnitTests],
+    ['Analytics', runAnalyticsUnitTests],
+    ['Legacy credentials', verifyLegacyLoginRejections],
+    ['WhatsApp bot', verifyWhatsAppBot],
+    ['Telegram bot', verifyTelegramBot]
+];
+
+(async () => {
+    const failures = [];
+
+    for (const [name, suite] of SUITES) {
+        try {
+            await suite();
+        } catch (err) {
+            failures.push({ name, err });
+            console.error(`\n❌ SUITE FAILED: ${name}\n${err && err.message ? err.message : err}\n`);
+        }
+    }
+
+    if (failures.length === 0) {
+        console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
+        process.exit(0);
+    }
+
+    console.error(`\n💥 ${failures.length} of ${SUITES.length} suite(s) failed: ${failures.map(f => f.name).join(', ')}`);
     process.exit(1);
-});
+})();

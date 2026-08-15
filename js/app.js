@@ -2507,11 +2507,11 @@ async function loadAndRenderUsersManagement() {
         const displayUsers = (supabaseProfiles && supabaseProfiles.length > 0) ? supabaseProfiles : systemUsers;
         if (displayUsers && displayUsers.length > 0) {
             userSelect.innerHTML = displayUsers.map(u => {
+                // Label the role the user actually has, not one guessed from
+                // their username -- mislabelling here is how an admin picks
+                // the wrong account when assigning a PIN.
                 const roleKey = (u.role || '').toLowerCase();
-                const userKey = (u.username || '').toLowerCase();
-                const isAdmin = roleKey === 'admin' || userKey.includes('admin');
-                const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
-                const roleLabel = isAdmin ? 'Admin' : (isCocina ? 'Cocina' : 'Ventas');
+                const roleLabel = roleKey === 'admin' ? 'Admin' : (roleKey === 'cocina' ? 'Cocina' : 'Ventas');
                 const displayName = u.name || u.username;
                 return `<option value="${u.id}">${displayName} (${roleLabel})</option>`;
             }).join('');
@@ -2863,6 +2863,17 @@ async function handleRealtimeDbUpdate(tableName, payload) {
  * Fallback full-fetch logic if real-time payloads fail or sync starts
  */
 async function performFullFetch(tableName) {
+    // subscribeToChanges() calls onDbChange('all', null) after it re-establishes
+    // a dropped realtime channel, to resync whatever was missed while the socket
+    // was down. There was no 'all' branch, so that resync silently did nothing
+    // and the device stayed stale until the next 45s poll. Route it through the
+    // same loader the startup path uses -- it already merges safely against the
+    // offline queues rather than clobbering local state.
+    if (tableName === 'all') {
+        await loadAllDataFromSupabase();
+        return;
+    }
+
     if (tableName === 'products') {
         const data = await window.SupabaseManager.fetchProducts();
         if (data) {
@@ -3160,12 +3171,14 @@ async function handleQuickPINInput(pin) {
     if (isValid) {
         failedPinAttempts = 0;
         currentUser = activeUser;
+        // Strictly the stored role -- same mapping handleUserLogin() uses.
+        // This used to also grant admin to any username *containing* "admin"
+        // (`userKey.includes('admin')`), so an account like "administracion"
+        // with role `venta` unlocked straight into the admin interface. RLS
+        // still refused its writes, but it had no business seeing the panel.
         const roleKey = (activeUser.role || '').toLowerCase();
-        const userKey = (activeUser.username || '').toLowerCase();
-        const isAdmin = roleKey === 'admin' || userKey.includes('admin');
-        const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
-        const mappedRole = isAdmin ? 'admin' : (isCocina ? 'cocina' : 'local');
-        
+        const mappedRole = roleKey === 'admin' ? 'admin' : (roleKey === 'cocina' ? 'cocina' : 'local');
+
         applyUserRole(mappedRole);
         if (window.UIManager) window.UIManager.showToast(`🔓 Sesión reactivada (${activeUser.name})`, "fa-solid fa-user-check");
         logActivity("Desbloqueo PIN", `Reactivación de sesión de ${activeUser.name} vía PIN rápido`);
@@ -3618,6 +3631,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Load preferences and inputs configuration
     preferences = window.StorageManager.loadPreferences();
+
+    // One-time cleanup: devices that opened Ajustes before v284 had the legacy
+    // JWT anon key pre-filled into the credentials field, so any change in that
+    // panel silently persisted it -- and a saved preference outranks the key
+    // injected at build time. Drop it so those devices go back to whatever the
+    // deployment actually configures. Only clears these exact legacy values;
+    // a deliberate override to another project is left alone.
+    const LEGACY_PINNED_KEY_PREFIX = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1';
+    const LEGACY_PINNED_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+    if ((preferences.supabaseKey || '').startsWith(LEGACY_PINNED_KEY_PREFIX) || preferences.supabaseUrl === LEGACY_PINNED_URL) {
+        console.log('Clearing legacy pinned Supabase credentials from this device; falling back to the deployed configuration.');
+        preferences.supabaseKey = '';
+        preferences.supabaseUrl = '';
+        window.StorageManager.savePreferences(preferences);
+    }
     costInsumos = window.StorageManager.loadCostInsumos();
     
     // Load active cart if stored
@@ -3710,8 +3738,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('pref-sound').checked = preferences.sound !== false;
     document.getElementById('pref-vibrate').checked = preferences.vibration !== false;
-    document.getElementById('pref-supabase-url').value = preferences.supabaseUrl || 'https://xttpaqokeyywjaajvjyu.supabase.co';
-    document.getElementById('pref-supabase-key').value = preferences.supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dHBhcW9rZXl5d2phYWp2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNDQ2NDcsImV4cCI6MjA5OTgyMDY0N30.GUREG-_krI5l3cowwuGZv1774q3AaWEjbmwrWLqhXDE';
+    // Left blank unless this device has a genuine override saved. These two
+    // fields used to be pre-filled with the project URL and a hardcoded legacy
+    // JWT anon key, which meant simply toggling Sonido or Vibración in this
+    // panel wrote both into preferences -- and getSupabaseConfig() prefers a
+    // saved preference over the build-injected value. One unrelated tap and the
+    // device was pinned forever to a key nobody could rotate. The placeholders
+    // show what the app falls back to without persisting anything.
+    const prefUrlInput = document.getElementById('pref-supabase-url');
+    const prefKeyInput = document.getElementById('pref-supabase-key');
+    prefUrlInput.value = preferences.supabaseUrl || '';
+    prefUrlInput.placeholder = 'Por defecto: el proyecto configurado en el despliegue';
+    prefKeyInput.value = preferences.supabaseKey || '';
+    prefKeyInput.placeholder = 'Por defecto: la llave pública del despliegue';
 
     const pinLocalInput = document.getElementById('pref-pin-local');
     const pinCocinaInput = document.getElementById('pref-pin-cocina');
@@ -4144,16 +4183,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 18. Bind online/offline, visibility & focus auto-reconnect listeners
-    const autoSyncAndReconnect = () => {
-        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
-            window.UIManager.updateConnectionStatus('online');
-            window.SupabaseManager.syncOfflineQueue();
-            window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
-            loadAllDataFromSupabase();
-        }
+    // Returning to the tab fires visibilitychange AND focus in most browsers,
+    // and both used to run the full routine: two realtime channel teardowns
+    // plus two rounds of the eight-query loader, every single time the cashier
+    // glanced at the phone. Collapse bursts into one run.
+    let lastAutoSyncAt = 0;
+    const AUTO_SYNC_MIN_GAP_MS = 3000;
+
+    const autoSyncAndReconnect = ({ force = false } = {}) => {
+        if (!window.SupabaseManager.isConfigured() || !navigator.onLine) return;
+
+        const now = Date.now();
+        if (!force && now - lastAutoSyncAt < AUTO_SYNC_MIN_GAP_MS) return;
+        lastAutoSyncAt = now;
+
+        window.UIManager.updateConnectionStatus('online');
+        window.SupabaseManager.syncOfflineQueue();
+        window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
+        loadAllDataFromSupabase();
     };
 
-    window.addEventListener('online', autoSyncAndReconnect);
+    // A real offline->online transition always resyncs; it is exactly the
+    // moment the queued writes need to go out, so it skips the debounce.
+    window.addEventListener('online', () => autoSyncAndReconnect({ force: true }));
     window.addEventListener('offline', () => {
         if (window.SupabaseManager.isConfigured()) {
             window.UIManager.updateConnectionStatus('offline');
@@ -4172,6 +4224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             autoSyncAndReconnect();
         }
     });
+
 
     // Periodic silent background heartbeat (every 45s) to guarantee zero missing updates
     setInterval(() => {

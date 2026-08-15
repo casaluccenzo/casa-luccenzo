@@ -175,6 +175,11 @@ module.exports.config = {
         bodyParser: false
     }
 };
+// Exposed so tests can tell "the bot is off because the owner paused it"
+// apart from "the bot is broken". While this is true every request short-
+// circuits to 503, so the handshake/signature/authorization assertions below
+// it are unreachable by construction, not failing.
+module.exports.WHATSAPP_BOT_MANUALLY_PAUSED = WHATSAPP_BOT_MANUALLY_PAUSED;
 
 /**
  * Transcribe Audio Voice Notes using Gemini 2.5 Flash Multimodal

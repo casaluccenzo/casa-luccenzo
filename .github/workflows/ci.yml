@@ -1,10 +1,14 @@
 name: CI
 
+# `main` is the default branch and the one Vercel deploys. This used to say
+# `master`, a branch abandoned back at v256 -- so CI had not run on anything
+# that reached production since, including the four "La guaira" hotfixes
+# (v280-v283) that went out during a live data-integrity incident.
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   test-and-build:

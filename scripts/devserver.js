@@ -1,15 +1,21 @@
 /**
  * Local dev server for Casa Lucenzo.
  *
- * Mirrors production exactly: vercel.json declares a no-op build with
- * `outputDirectory: "."`, so the repo root IS the deployed site. Serving the
- * root here means what you test locally is what gets served.
+ * Serves the repo root, which is the SOURCE, not the deployed output. That
+ * used to be the same thing, back when vercel.json declared a no-op build with
+ * `outputDirectory: "."`. It no longer is: vercel.json now runs
+ * `node scripts/build.js` and deploys `www/`, where the build substitutes
+ * SUPABASE_URL / SUPABASE_ANON_KEY / SENTRY_DSN for their placeholders.
+ *
+ * So locally the placeholders stay unreplaced and js/supabase.js takes its
+ * hardcoded fallback branch. Anything that depends on those injected values
+ * has to be checked on the real domain, not here.
  *
  *   npm run dev   ->   http://localhost:4173
  *
  * Node core only, no dependencies.
  *
- * Heads up: js/supabase.js falls back to the real project URL + publishable key,
+ * Heads up: that fallback points at the real project URL + publishable key,
  * so this talks to the production database. Read freely, write carefully.
  */
 const http = require('http');

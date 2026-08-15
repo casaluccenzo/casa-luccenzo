@@ -810,20 +810,29 @@ async function signInUser(usernameOrEmail, password) {
         const user = data.user;
 
         const emailPrefix = cleanUser.split('@')[0];
-        const derivedRole = (emailPrefix.includes('admin') || cleanUser.includes('admin')) ? 'admin' : ((emailPrefix.includes('cocina') || cleanUser.includes('cocina')) ? 'cocina' : 'venta');
+
+        // Only used to seed a profile that does not exist yet (a brand-new
+        // account signing in for the first time). It is a guess made from the
+        // login string, so it must never be allowed to overwrite a role that
+        // already exists: `profiles.role` is the authority -- it is what every
+        // RLS policy checks via get_user_role(), and what an admin edits from
+        // the Usuarios panel.
+        //
+        // This used to also run as an `else if (profile.role !== derivedRole)`
+        // branch that wrote the guess back on EVERY login. Promoting someone
+        // from the panel therefore lasted exactly until their next sign-in,
+        // when their username silently demoted them again.
+        const seedRole = (emailPrefix.includes('admin') || cleanUser.includes('admin')) ? 'admin' : ((emailPrefix.includes('cocina') || cleanUser.includes('cocina')) ? 'cocina' : 'venta');
 
         let profile = await getUserProfile(user.id);
         if (!profile) {
             profile = {
                 id: user.id,
                 username: emailPrefix,
-                name: user.user_metadata?.name || (derivedRole === 'admin' ? 'Enzo (Administrador)' : (derivedRole === 'cocina' ? 'Equipo de Cocina' : 'Vendedora POS')),
-                role: derivedRole,
+                name: user.user_metadata?.name || (seedRole === 'admin' ? 'Enzo (Administrador)' : (seedRole === 'cocina' ? 'Equipo de Cocina' : 'Vendedora POS')),
+                role: seedRole,
                 active: true
             };
-            await upsertProfile(profile);
-        } else if (profile.role !== derivedRole) {
-            profile.role = derivedRole;
             await upsertProfile(profile);
         }
 
@@ -1175,12 +1184,16 @@ async function fetchReportDays(days = 14) {
         startDate.setDate(startDate.getDate() - days);
         startDate.setHours(0, 0, 0, 0);
 
-        const { data, error } = await client.from('sales')
+        // Pages like every other unbounded sales read (see fetchAllPages).
+        // Ordered descending and capped at 1000, this silently dropped the
+        // OLDEST days of the window once the range crossed the cap -- the
+        // report history would just stop listing days that plainly had sales.
+        const data = await fetchAllPages(offset => client.from('sales')
             .select('timestamp')
             .gte('timestamp', startDate.toISOString())
-            .order('timestamp', { ascending: false });
-
-        if (error) throw error;
+            .order('timestamp', { ascending: false })
+            .order('uuid', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
 
         // Extract unique dates
         const uniqueDays = new Set();

@@ -69,10 +69,40 @@ if (fs.existsSync(supabaseBuildFile)) {
 
 if (fs.existsSync(indexBuildFile)) {
     let indexContent = fs.readFileSync(indexBuildFile, 'utf8');
-    const sentryDsn = process.env.SENTRY_DSN || 'https://mock-sentry-dsn@o0.ingest.sentry.io/0';
-    indexContent = indexContent.replace('__SENTRY_DSN__', sentryDsn);
-    fs.writeFileSync(indexBuildFile, indexContent, 'utf8');
-    console.log('🛡️ SENTRY_DSN injected into www/sistema/index.html');
+    const sentryDsn = process.env.SENTRY_DSN;
+
+    // `__SENTRY_DSN__` appears three times in that file: in a comment, in the
+    // assignment, and in the fallback comparison. Neither naive form works:
+    //
+    //   .replace()    -- substitutes only the FIRST occurrence, which is the
+    //                    COMMENT. The real `var sentryDsn` kept the placeholder,
+    //                    so setting SENTRY_DSN in Vercel did nothing at all,
+    //                    while the build still printed "injected".
+    //   .replaceAll() -- also rewrites the comparison, so the guard becomes
+    //                    `if (dsn === dsn)`, which is always true and clobbers
+    //                    the injected value with the hardcoded fallback.
+    //
+    // Anchoring on the whole assignment statement hits exactly one place and
+    // leaves the comparison intact, so the fallback keeps working when unset.
+    const SENTRY_ASSIGNMENT = "var sentryDsn = '__SENTRY_DSN__';";
+    if (sentryDsn) {
+        if (!indexContent.includes(SENTRY_ASSIGNMENT)) {
+            // Fail loudly: a silent no-op here is how this broke the first time.
+            console.error(`❌ SENTRY_DSN is set but the anchor was not found in ${indexBuildFile}. Did the Sentry init in sistema/index.html change? Leaving the file untouched.`);
+        } else {
+            indexContent = indexContent.replace(SENTRY_ASSIGNMENT, `var sentryDsn = '${sentryDsn}';`);
+            fs.writeFileSync(indexBuildFile, indexContent, 'utf8');
+            console.log('🛡️ SENTRY_DSN injected into www/sistema/index.html');
+        }
+    } else {
+        // Deliberately NOT substituting a placeholder DSN here. This used to
+        // fall back to 'https://mock-sentry-dsn@o0.ingest.sentry.io/0', which
+        // would initialise Sentry against a project that does not exist --
+        // error reporting silently dead, exactly when you need it most. Left
+        // unreplaced, the page's own `if (sentryDsn === '__SENTRY_DSN__')`
+        // branch takes over and uses the real hardcoded DSN.
+        console.warn('⚠️ SENTRY_DSN not set -- leaving the placeholder so the page falls back to its hardcoded DSN.');
+    }
 }
 
 console.log('✨ Build completed successfully! All assets are ready in www/ folder.');

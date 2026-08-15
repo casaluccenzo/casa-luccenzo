@@ -1,15 +1,17 @@
 /**
  * Local dev server for Casa Lucenzo.
  *
- * Serves the repo root, which is the SOURCE, not the deployed output. That
- * used to be the same thing, back when vercel.json declared a no-op build with
- * `outputDirectory: "."`. It no longer is: vercel.json now runs
- * `node scripts/build.js` and deploys `www/`, where the build substitutes
- * SUPABASE_URL / SUPABASE_ANON_KEY / SENTRY_DSN for their placeholders.
+ * Serves the repo root, which is the SOURCE. vercel.json declares
+ * `buildCommand: node scripts/build.js` + `outputDirectory: www`, so in theory
+ * production serves a built copy with SUPABASE_URL / SUPABASE_ANON_KEY /
+ * SENTRY_DSN substituted for their placeholders.
  *
- * So locally the placeholders stay unreplaced and js/supabase.js takes its
- * hardcoded fallback branch. Anything that depends on those injected values
- * has to be checked on the real domain, not here.
+ * In practice it does not: as of 2026-08-15 https://www.luccenzo.com/sistema/
+ * still ships `var sentryDsn = '__SENTRY_DSN__'` and js/supabase.js still ships
+ * `"__SUPABASE_URL__"`, i.e. the build is NOT running and the deployed site is
+ * this same unbuilt source. Both run on their hardcoded fallbacks. So local and
+ * production currently match -- but by accident, not by design. Check the
+ * placeholders on the real domain before trusting either.
  *
  *   npm run dev   ->   http://localhost:4173
  *

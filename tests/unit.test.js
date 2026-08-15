@@ -28,6 +28,14 @@ if (typeof global.localStorage === 'undefined') {
         removeItem: () => {}
     };
 }
+// Node exposes a global `navigator` from v21 on, but CI pins Node 20, where it
+// does not exist -- so app code that reads it (triggerHaptic does `'vibrate' in
+// navigator`, and handleUserLogin calls it on the failed-login path) threw
+// "navigator is not defined" only on CI. Mock it like the other browser globals
+// above instead of relying on whatever the local Node version happens to have.
+if (typeof global.navigator === 'undefined') {
+    global.navigator = { onLine: true };
+}
 
 const assert = require('assert');
 const crypto = require('crypto');

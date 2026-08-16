@@ -2026,7 +2026,7 @@ function renderActivityLogs(logs) {
 
         tr.innerHTML = `
             <td><span class="${badgeClass}">${badgeLabel}</span></td>
-            <td style="font-weight: 700; color: var(--color-white);">${escapeHtml(log.action)}</td>
+            <td style="font-weight: 700; color: var(--color-white);">${escapeHtml(log.action)}${log.actor_name ? ' · ' + escapeHtml(log.actor_name) : ''}</td>
             <td style="color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(log.details || '')}">${escapeHtml(log.details || '')}</td>
             <td style="text-align: right; color: var(--color-text-muted); font-size: 10px;">${timeStr}</td>
         `;
@@ -2098,7 +2098,7 @@ function renderRecentActivity(logs) {
             <div class="admin-activity-item">
                 <div class="admin-activity-icon ${cls}"><i class="fa-solid ${icon}"></i></div>
                 <div class="admin-activity-text">
-                    <span class="admin-activity-action">${escapeHtml(log.action)}</span>
+                    <span class="admin-activity-action">${escapeHtml(log.action)}${log.actor_name ? ` · ${escapeHtml(log.actor_name)}` : ''}</span>
                     ${log.details ? `<span class="admin-activity-details" title="${escapeHtml(log.details)}">${escapeHtml(log.details)}</span>` : ''}
                     <span class="admin-activity-time">${formatRecentActivityTime(date)}</span>
                 </div>

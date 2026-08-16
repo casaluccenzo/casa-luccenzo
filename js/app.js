@@ -3034,8 +3034,9 @@ async function performFullFetch(tableName) {
  */
 function logActivity(action, details) {
     const role = currentRole || 'local';
+    const actorName = currentUser ? currentUser.name : null;
     if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.insertActivityLog(role, action, details);
+        window.SupabaseManager.insertActivityLog(role, action, details, actorName);
     } else {
         // Just save locally
         try {
@@ -3044,6 +3045,7 @@ function logActivity(action, details) {
                 role: role,
                 action: action,
                 details: details || '',
+                actor_name: actorName,
                 timestamp: new Date().toISOString()
             });
             if (localLogs.length > 100) localLogs.shift();

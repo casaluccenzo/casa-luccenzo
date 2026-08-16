@@ -1348,7 +1348,7 @@ async function trustSession(deviceId, isTrusted) {
  * @param {string} action Action description
  * @param {string} details JSON or details string
  */
-async function insertActivityLog(role, action, details) {
+async function insertActivityLog(role, action, details, actorName) {
     // Also save locally for offline fallback
     try {
         const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
@@ -1356,6 +1356,7 @@ async function insertActivityLog(role, action, details) {
             role: role || 'unknown',
             action: action || '',
             details: details || '',
+            actor_name: actorName || null,
             timestamp: new Date().toISOString()
         });
         // Limit to 100 logs locally
@@ -1370,6 +1371,7 @@ async function insertActivityLog(role, action, details) {
         role: role || 'unknown',
         action: action || '',
         details: details || '',
+        actor_name: actorName || null,
         timestamp: new Date().toISOString()
     };
     try {

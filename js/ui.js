@@ -4112,15 +4112,63 @@ function renderHourlyStats(salesLog, mode = 'today') {
 
 
 /**
- * Render Critical Stock Warnings inside admin view summary
- * @param {Array} products 
- * @param {Function} requestReplenishmentCallback 
+ * Renders the "Stock Crítico" banner on the Admin Dashboard: every product at
+ * or below its minimum, plus a quick "Reponer" action per item and a link to
+ * the full Productos tab. Uses the same stock<=min criteria as the header
+ * badge (InventoryManager.getLowStockItems) so the two never disagree.
+ * @param {Array} products Full product list
+ * @param {Function} requestReplenishmentCallback (productId, productName, unit) => void
  */
 function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) {
     const container = document.getElementById('admin-critical-stock-container');
     if (!container) return;
-    container.classList.add('hidden');
-    container.innerHTML = '';
+
+    const critical = (window.InventoryManager && window.InventoryManager.getLowStockItems)
+        ? window.InventoryManager.getLowStockItems(products)
+        : [];
+
+    if (critical.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="admin-critical-stock-banner">
+            <div class="admin-critical-stock-items">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span class="admin-critical-stock-label">Stock Crítico</span>
+                ${critical.map(p => `
+                    <span class="admin-critical-stock-chip">
+                        ${escapeHtml(p.name)} · <b>${p.stock}</b>
+                        <button type="button" class="admin-critical-stock-replenish" data-id="${p.id}" title="Solicitar reposición">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </button>
+                    </span>
+                `).join('')}
+            </div>
+            <button type="button" id="btn-critical-stock-goto-inventory" class="btn-action-small">Ir a Inventario</button>
+        </div>
+    `;
+
+    if (typeof requestReplenishmentCallback === 'function') {
+        container.querySelectorAll('.admin-critical-stock-replenish').forEach(btn => {
+            const product = critical.find(p => String(p.id) === btn.dataset.id);
+            if (!product) return;
+            btn.addEventListener('click', () => {
+                requestReplenishmentCallback(product.id, product.name, product.unit || 'unid.');
+            });
+        });
+    }
+
+    const gotoBtn = document.getElementById('btn-critical-stock-goto-inventory');
+    if (gotoBtn) {
+        gotoBtn.addEventListener('click', () => {
+            const productsTab = document.getElementById('admin-tab-btn-products');
+            if (productsTab) productsTab.click();
+        });
+    }
 }
 
 /**

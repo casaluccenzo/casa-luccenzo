@@ -2749,7 +2749,15 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderExpenses(expenses, deleteExpense);
         if (currentRole === 'admin') {
-            window.UIManager.renderStats(salesLog, expenses, products);
+            // Mismo patrón que la rama `sales` de este handler: sin `opts`, un
+            // evento de gasto en tiempo real ocultaba los chips de delta (recién
+            // agregados) y volvía a los totales locales del turno en vez del
+            // cache semanal, haciendo que las cifras "parpadearan" según qué
+            // tabla disparó el último evento.
+            window.UIManager.renderStats(adminStatsSales, expenses, products, {
+                fullHistory: adminStatsFullHistory,
+                deltaExpenses: adminStatsExpenses
+            });
         }
     } else if (tableName === 'debts') {
         if (eventType === 'DELETE') {

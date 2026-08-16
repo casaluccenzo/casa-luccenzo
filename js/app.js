@@ -43,6 +43,13 @@ let currentReportData = { sales: [], expenses: [] };
 // Global cache for admin statistics and hourly chart mode
 let hourlyActiveMode = 'today';
 let adminStatsSales = [];
+// Gastos de los 7 días, cacheados junto a `adminStatsSales` para que el
+// handler de realtime pueda calcular el delta de gastos con el dataset bueno.
+let adminStatsExpenses = [];
+// ¿`adminStatsSales`/`adminStatsExpenses` traen de verdad la semana completa?
+// Solo es cierto si `fetchStatsData()` respondió. Sin conexión ambos caen al
+// dato local del turno, y ahí los deltas mentirían.
+let adminStatsFullHistory = false;
 
 // Analytics tab state: cached sales history keyed by lookback range (days),
 // so switching 30/60/90/Todo or the hoy/mañana toggle doesn't always refetch.
@@ -2398,11 +2405,25 @@ function loadAllDataFromLocalStorage() {
 
 async function loadAndRenderAdminStats() {
     if (currentRole !== 'admin') return;
-    
+
+    // Se dispara ya mismo, en paralelo con todo lo demás: fetchActivityLogs()
+    // ya trae su propio fallback a localStorage si no hay Supabase configurado
+    // o si la red falla, así que no depende de la rama online de abajo y no
+    // vale la pena bloquear el resto del render esperándolo.
+    const recentActivityPromise = window.SupabaseManager.fetchActivityLogs();
+
     let statsSales = salesLog;
     let statsExpenses = expenses;
     let devCount = 1;
-    
+    // Arranca en false y solo sube si el fetch responde: offline, `statsSales`
+    // sigue siendo el turno local y los deltas quedan ocultos en vez de mentir.
+    let gotFullHistory = false;
+    // Gastos de la semana tal como llegaron de Supabase. Se guarda aparte de
+    // `statsExpenses` porque abajo ese puede quedarse con el dato local si la
+    // semana no tuvo gastos, y para el delta necesitamos saber la diferencia
+    // entre "no hubo gastos" y "no tengo el historial".
+    let weekExpenses = null;
+
     if (window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
             const data = await window.SupabaseManager.fetchStatsData();
@@ -2411,10 +2432,14 @@ async function loadAndRenderAdminStats() {
                 const supUuids = new Set(data.sales.map(s => s.uuid));
                 const localUnsynced = salesLog.filter(s => s.uuid && !supUuids.has(s.uuid));
                 statsSales = [...data.sales, ...localUnsynced];
-                if (data.expenses && data.expenses.length > 0) {
+                gotFullHistory = true;
+                if (Array.isArray(data.expenses)) {
                     const supExpUuids = new Set(data.expenses.map(e => e.uuid));
                     const localExpUnsynced = expenses.filter(e => e.uuid && !supExpUuids.has(e.uuid));
-                    statsExpenses = [...data.expenses, ...localExpUnsynced];
+                    weekExpenses = [...data.expenses, ...localExpUnsynced];
+                }
+                if (data.expenses && data.expenses.length > 0) {
+                    statsExpenses = weekExpenses;
                 }
             }
             const sessions = await window.SupabaseManager.fetchActiveSessions();
@@ -2423,17 +2448,28 @@ async function loadAndRenderAdminStats() {
             console.error("Failed to load historical stats from Supabase", e);
         }
     }
-    
+
     const devKpi = document.getElementById('admin-kpi-devices');
     if (devKpi) devKpi.textContent = devCount;
 
     // Cache statsSales globally for toggle rendering
     adminStatsSales = statsSales;
+    adminStatsExpenses = weekExpenses || statsExpenses;
+    adminStatsFullHistory = gotFullHistory;
     loadAndRenderUsersManagement();
-    window.UIManager.renderStats(statsSales, statsExpenses, products);
+    window.UIManager.renderStats(statsSales, statsExpenses, products, {
+        fullHistory: gotFullHistory,
+        deltaExpenses: adminStatsExpenses
+    });
     window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
     window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
     window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
+
+    try {
+        window.UIManager.renderRecentActivity(await recentActivityPromise);
+    } catch (e) {
+        console.error("Failed to load recent activity for Resumen", e);
+    }
 }
 
 /**
@@ -2675,7 +2711,13 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             } else if (eventType === 'DELETE') {
                 adminStatsSales = adminStatsSales.filter(s => s.uuid !== oldRow.uuid && s.timestamp !== oldRow.timestamp);
             }
-            window.UIManager.renderStats(adminStatsSales, expenses, products);
+            // `expenses` (turno actual) se mantiene como tercer argumento para
+            // no alterar los totales que ya pintaba; el delta usa el cache de
+            // la semana vía `deltaExpenses`.
+            window.UIManager.renderStats(adminStatsSales, expenses, products, {
+                fullHistory: adminStatsFullHistory,
+                deltaExpenses: adminStatsExpenses
+            });
             window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
             window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
         }
@@ -4388,6 +4430,13 @@ function initAdminDashboardListeners() {
         activateTab(tabLogsBtn, panelLogs);
         await refreshActivityLogsView();
     });
+
+    const btnRecentActivityVerTodo = document.getElementById('btn-recent-activity-ver-todo');
+    if (btnRecentActivityVerTodo) {
+        // Reusa el mismo botón de pestaña -- no duplica la lógica de
+        // activar tab + cargar logs, solo la dispara desde otro lugar.
+        btnRecentActivityVerTodo.addEventListener('click', () => tabLogsBtn.click());
+    }
 
     if (tabCostsBtn && panelCosts) {
         tabCostsBtn.addEventListener('click', () => {

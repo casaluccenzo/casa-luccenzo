@@ -1667,13 +1667,98 @@ function renderIngredientsPantry(ingredients, onAddStock) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses list
  */
+// Días en español, fijos a propósito: `toLocaleDateString` depende del locale
+// del navegador y este texto es visible ("vs. viernes pasado").
+const KPI_WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/**
+ * Suma un conjunto de filas para el MISMO día de la semana pasada, recortado
+ * al mismo instante del día que ya transcurrió hoy.
+ *
+ * El recorte no es un detalle: comparar el día parcial de hoy (9am) contra el
+ * viernes pasado COMPLETO daría un desplome falso cada mañana ("-85%") que se
+ * iría corrigiendo solo con las horas. Recortando la ventana, la comparación
+ * es real desde el primer minuto del día.
+ *
+ * @param {Array} rows Filas con `timestamp`
+ * @param {string} amountKey Campo con el monto (`price` en ventas, `amount` en gastos)
+ * @returns {number} Total del mismo tramo horario, hace 7 días
+ */
+function sumSameWeekdayLastWeek(rows, amountKey) {
+    const now = new Date();
+
+    const windowStart = new Date(now);
+    windowStart.setDate(windowStart.getDate() - 7);
+    windowStart.setHours(0, 0, 0, 0);
+
+    const windowEnd = new Date(windowStart);
+    windowEnd.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+    return (rows || []).reduce((sum, row) => {
+        const d = parseUTCTimestamp(row.timestamp);
+        if (d >= windowStart && d <= windowEnd) {
+            return sum + (row[amountKey] || 0);
+        }
+        return sum;
+    }, 0);
+}
+
+/**
+ * Pinta el chip de variación dentro de una tarjeta KPI.
+ *
+ * @param {HTMLElement} el Contenedor del chip
+ * @param {number} current Valor de hoy
+ * @param {number} previous Valor del mismo día la semana pasada
+ * @param {boolean} lowerIsBetter `true` en gastos: subir es malo, y pintarlo
+ *        de verde como si fuera un logro sería justo al revés de la realidad.
+ */
+function renderKpiDelta(el, current, previous, lowerIsBetter) {
+    if (!el) return;
+
+    const dayName = KPI_WEEKDAYS_ES[new Date().getDay()];
+    let cls = 'flat';
+    let icon = 'fa-minus';
+    let head;
+
+    if (previous <= 0) {
+        // Sin base no se inventa un porcentaje (dividir entre cero da Infinity
+        // y "+∞%" no le dice nada a nadie).
+        head = 'sin registro';
+    } else {
+        const pct = ((current - previous) / previous) * 100;
+        const improved = lowerIsBetter ? pct < 0 : pct > 0;
+
+        if (Math.abs(pct) < 0.05) {
+            head = 'igual';
+        } else {
+            cls = improved ? 'up' : 'down';
+            icon = pct > 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+            head = `${Math.abs(pct).toFixed(1)}%`;
+        }
+    }
+
+    el.className = `admin-kpi-delta ${cls}`;
+    el.innerHTML = `<i class="fa-solid ${icon}"></i> ${head} <span class="admin-kpi-delta-ref">vs. ${dayName} pasado</span>`;
+}
+
 /**
  * Render historical sales charts and metrics inside admin stats panel
  * @param {Array} salesLog Sales history
  * @param {Array} expenses Expenses history
  * @param {Array} products Products list for favorites resolving
+ * @param {Object} [opts] Opciones
+ * @param {boolean} [opts.fullHistory=false] El dataset abarca los 7 días
+ *        completos (lo que devuelve `fetchStatsData`). Solo entonces se
+ *        calculan los deltas: la mayoría de las llamadas pasan el `salesLog`
+ *        local, que se vacía en cada cierre de caja y solo tiene el turno
+ *        actual -- comparar contra eso daría "-100%" todos los días.
+ * @param {Array} [opts.deltaExpenses] Gastos de los 7 días, SOLO para el
+ *        delta. Existe porque el handler de realtime pasa el `expenses` local
+ *        (turno actual) como tercer argumento y cambiarlo alteraría los
+ *        totales semanales que ya pinta esta función. Así el delta recibe el
+ *        dataset correcto sin tocar nada de lo que ya funcionaba.
  */
-function renderStats(salesLog, expenses = [], products = []) {
+function renderStats(salesLog, expenses = [], products = [], opts = {}) {
     const container = document.getElementById('stats-chart-content');
     if (!container) return;
 
@@ -1765,6 +1850,41 @@ function renderStats(salesLog, expenses = [], products = []) {
     if (cajaKpiEl) cajaKpiEl.textContent = `$${todayCaja.toFixed(2)}`;
     if (ventasKpiEl) ventasKpiEl.textContent = `$${todaySalesTotal.toFixed(2)}`;
     if (gastosKpiEl) gastosKpiEl.textContent = `$${todayExpensesTotal.toFixed(2)}`;
+
+    // --- Segunda moneda (Bs) -------------------------------------------------
+    // Segura en cualquier llamada: es una conversión del valor que ya se acaba
+    // de pintar arriba, no un cálculo nuevo sobre el historial.
+    const rate = window.bcvRate || 1;
+    const bsTargets = [
+        ['admin-kpi-caja-bs', todayCaja],
+        ['admin-kpi-ventas-bs', todaySalesTotal],
+        ['admin-kpi-gastos-bs', todayExpensesTotal]
+    ];
+    bsTargets.forEach(([id, usd]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = `Bs. ${(usd * rate).toFixed(2)}`;
+        el.classList.remove('hidden');
+    });
+
+    // --- Variación vs. el mismo día la semana pasada -------------------------
+    // Solo con historial completo. Ver el jsdoc de `opts.fullHistory`.
+    const ventasDeltaEl = document.getElementById('admin-kpi-ventas-delta');
+    const gastosDeltaEl = document.getElementById('admin-kpi-gastos-delta');
+
+    if (opts.fullHistory) {
+        const expensesForDelta = Array.isArray(opts.deltaExpenses) ? opts.deltaExpenses : expenses;
+        renderKpiDelta(ventasDeltaEl, todaySalesTotal, sumSameWeekdayLastWeek(salesLog, 'price'), false);
+        renderKpiDelta(gastosDeltaEl, todayExpensesTotal, sumSameWeekdayLastWeek(expensesForDelta, 'amount'), true);
+        if (ventasDeltaEl) ventasDeltaEl.classList.remove('hidden');
+        if (gastosDeltaEl) gastosDeltaEl.classList.remove('hidden');
+    } else {
+        // Ocultar explícitamente: si una llamada con historial completo dejó un
+        // delta pintado y luego entra una parcial (p. ej. el refresco tras una
+        // venta), quedaría un dato viejo sin forma de saber que lo es.
+        if (ventasDeltaEl) ventasDeltaEl.classList.add('hidden');
+        if (gastosDeltaEl) gastosDeltaEl.classList.add('hidden');
+    }
 
     // Update active summary time display
     const timeDisplayEl = document.getElementById('admin-summary-time-display');
@@ -1895,6 +2015,79 @@ function renderActivityLogs(logs) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// Categoriza una entrada de activity_logs por su texto de `action` para
+// elegir ícono y color en el riel compacto de Resumen. Es puramente
+// cosmético: una acción que no matchea ningún patrón cae en el ícono
+// genérico, nunca se oculta ni rompe el render.
+const RECENT_ACTIVITY_ICON_RULES = [
+    { test: /anulaci[oó]n|reversi[oó]n|descarte|eliminad|rechazad/i, icon: 'fa-ban', cls: 'danger' },
+    { test: /alerta|fallido/i, icon: 'fa-triangle-exclamation', cls: 'danger' },
+    { test: /venta|abono|pedido/i, icon: 'fa-receipt', cls: 'success' },
+    { test: /sesi[oó]n|pin/i, icon: 'fa-key', cls: 'info' },
+    { test: /producto|reposici[oó]n|despacho|recepci[oó]n|stock|insumo/i, icon: 'fa-boxes-stacked', cls: 'warning' },
+    { test: /gasto|costo|precio/i, icon: 'fa-wallet', cls: 'danger' }
+];
+
+function getRecentActivityIcon(action) {
+    const rule = RECENT_ACTIVITY_ICON_RULES.find(r => r.test.test(action || ''));
+    return rule || { icon: 'fa-circle-info', cls: 'info' };
+}
+
+// "Hace 4 minutos" / "Hoy 6:02am" / "Ayer 9:14pm" / fecha corta si es más
+// vieja. Deliberadamente simple: esto es un vistazo rápido en Resumen, la
+// hora exacta con segundos ya vive en la tabla completa de "Registros".
+function formatRecentActivityTime(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return 'Justo ahora';
+    if (diffMin < 60) return `Hace ${diffMin} minuto${diffMin === 1 ? '' : 's'}`;
+
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    const startOfYesterday = new Date(startOfToday); startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (date >= startOfToday) return `Hoy ${timeStr}`;
+    if (date >= startOfYesterday) return `Ayer ${timeStr}`;
+    return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ' ' + timeStr;
+}
+
+/**
+ * Render a compact preview (last 5) of activity_logs directly in the Resumen
+ * tab, so the admin doesn't have to open "Registros" to see what just
+ * happened. Same data source as renderActivityLogs (fetchActivityLogs),
+ * just fewer rows and a denser layout.
+ * @param {Array} logs Activity logs, most recent first (as returned by
+ *        SupabaseManager.fetchActivityLogs)
+ */
+function renderRecentActivity(logs) {
+    const container = document.getElementById('admin-recent-activity-content');
+    if (!container) return;
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = `<div style="font-size: 10px; color: var(--color-text-muted); text-align: center; padding: 0.75rem 0;">Sin actividad registrada todavía.</div>`;
+        return;
+    }
+
+    const recent = logs.slice(0, 5);
+
+    container.innerHTML = recent.map(log => {
+        const { icon, cls } = getRecentActivityIcon(log.action);
+        const date = parseUTCTimestamp(log.timestamp);
+        return `
+            <div class="admin-activity-item">
+                <div class="admin-activity-icon ${cls}"><i class="fa-solid ${icon}"></i></div>
+                <div class="admin-activity-text">
+                    <span class="admin-activity-action">${escapeHtml(log.action)}</span>
+                    ${log.details ? `<span class="admin-activity-details" title="${escapeHtml(log.details)}">${escapeHtml(log.details)}</span>` : ''}
+                    <span class="admin-activity-time">${formatRecentActivityTime(date)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 /**
@@ -5764,6 +5957,7 @@ window.UIManager = {
     updateOverlayStatusSuccess,
     renderActiveDevices,
     renderActivityLogs,
+    renderRecentActivity,
     renderHourlyStats,
     exportHourlyStatsToPDF,
     renderCriticalStockAlerts,

@@ -1924,7 +1924,11 @@ input[type="number"] {
 /* KPI GRID & CARDS */
 .admin-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* minmax(0, 1fr) y no 1fr: `1fr` equivale a minmax(auto, 1fr), así que el
+       chip de variación estiraba las tarjetas de Ventas y Gastos y dejaba las
+       cuatro con anchos distintos. Con minmax(0, ...) vuelven a repartirse
+       parejo y el contenido se adapta. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.75rem;
     margin-bottom: 1.25rem;
 }
@@ -1975,6 +1979,12 @@ input[type="number"] {
 .admin-kpi-info {
     display: flex;
     flex-direction: column;
+    /* Un hijo flex nunca se encoge por debajo del ancho de su propio
+       contenido salvo que se le diga explícitamente -- sin esto, un monto en
+       Bs de varias cifras empujaba toda la tarjeta más allá del viewport en
+       vez de ajustarse o partirse en dos líneas. */
+    min-width: 0;
+    flex: 1;
 }
 
 .admin-kpi-label {
@@ -1990,6 +2000,62 @@ input[type="number"] {
     font-weight: 900;
     color: var(--color-white);
     margin-top: 0.1rem;
+    overflow-wrap: break-word;
+}
+
+/* Segunda moneda (Bs). Deliberadamente por debajo del dólar en tamaño y
+   color: el negocio se lee en USD y el bolívar es la referencia de apoyo.
+   Si los dos pesaran igual, ninguno se leería de un vistazo. */
+.admin-kpi-bs {
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(148, 163, 184, 0.85);
+    margin-top: 1px;
+    line-height: 1.3;
+    /* Un número largo sin espacios (el monto) es un solo token: sin esto no
+       tiene dónde partirse y sigue empujando la tarjeta aunque el padre ya
+       pueda encogerse. Venezuela + montos grandes hace esto real, no teórico. */
+    overflow-wrap: break-word;
+}
+
+/* Delta contra el mismo día de la semana pasada. Solo se muestra cuando
+   renderStats() recibe el historial completo -- ver js/ui.js. */
+.admin-kpi-delta {
+    display: inline-flex;
+    align-items: center;
+    /* flex-wrap, no nowrap: en tarjetas angostas (móvil, 2 columnas) "vs.
+       sábado pasado" no cabe junto al porcentaje. Envolver dentro del chip
+       agranda la tarjeta verticalmente -- lo cual el grid ya soporta -- en
+       vez de empujarla más allá del viewport horizontalmente. */
+    flex-wrap: wrap;
+    gap: 3px;
+    align-self: flex-start;
+    max-width: 100%;
+    font-size: 9px;
+    font-weight: 800;
+    margin-top: 0.3rem;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+}
+
+.admin-kpi-delta.up {
+    color: var(--color-success);
+    background-color: rgba(16, 185, 129, 0.12);
+}
+
+.admin-kpi-delta.down {
+    color: var(--color-danger);
+    background-color: rgba(239, 68, 68, 0.12);
+}
+
+.admin-kpi-delta.flat {
+    color: var(--color-text-muted);
+    background-color: rgba(148, 163, 184, 0.12);
+}
+
+.admin-kpi-delta .admin-kpi-delta-ref {
+    color: rgba(148, 163, 184, 0.8);
+    font-weight: 600;
 }
 
 /* DASHBOARD LAYOUT */
@@ -2050,6 +2116,71 @@ input[type="number"] {
 
 .admin-favorite-bar-fill.weekly {
     background-color: #3B82F6;
+}
+
+/* RECENT ACTIVITY FEED (Resumen tab) -- compact preview of the same
+   activity_logs shown in full in .audit-log-table below. */
+.admin-activity-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-activity-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.admin-activity-item:first-child {
+    padding-top: 0;
+}
+
+.admin-activity-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+}
+
+.admin-activity-icon.success { background-color: rgba(16, 185, 129, 0.12); color: var(--color-success); }
+.admin-activity-icon.danger { background-color: rgba(239, 68, 68, 0.12); color: var(--color-danger); }
+.admin-activity-icon.warning { background-color: rgba(245, 158, 11, 0.12); color: var(--color-warning); }
+.admin-activity-icon.info { background-color: rgba(59, 130, 246, 0.12); color: #3B82F6; }
+
+.admin-activity-text {
+    display: flex;
+    flex-direction: column;
+    /* Mismo motivo que .admin-kpi-info: sin min-width:0 un `details` largo
+       (son texto libre, sin límite) estira la fila más allá de la tarjeta
+       en vez de truncarse con el ellipsis de abajo. */
+    min-width: 0;
+    flex: 1;
+    font-size: 10.5px;
+}
+
+.admin-activity-action {
+    color: var(--color-white);
+    font-weight: 800;
+}
+
+.admin-activity-details {
+    color: var(--color-text-muted);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-activity-time {
+    font-size: 9px;
+    color: rgba(148, 163, 184, 0.65);
+    font-weight: 700;
+    margin-top: 2px;
 }
 
 /* AUDIT LOG TABLE */
@@ -2164,7 +2295,10 @@ input[type="number"] {
     }
     
     .admin-kpi-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
+        /* minmax(0, ...) por el mismo motivo que en la regla base: con `1fr`
+           el chip de variación empujaba las dos columnas más allá del ancho
+           de la pantalla y aparecía scroll horizontal en el teléfono. */
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
     
     .admin-dashboard-row {

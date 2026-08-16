@@ -11,8 +11,15 @@ const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
 
 /**
  * Resolve the effective Supabase URL/key from user prefs, the build-injected
- * defaults, or (since Vercel currently serves this repo as static source without
- * running scripts/build.js -- see vercel.json) this hardcoded production fallback.
+ * defaults, or this hardcoded production fallback.
+ *
+ * On Vercel the build DOES run (verified 2026-08-15: www.luccenzo.com serves
+ * this file with both constants substituted), so the fallback is what you get
+ * locally via `npm run dev`, which serves the unbuilt source. Note the two are
+ * not identical: Vercel currently injects a legacy JWT anon key while the
+ * fallback below is the newer `sb_publishable_...` key. Same project, but worth
+ * knowing when local and prod behave differently.
+ *
  * The key here is the public anon/publishable key, meant to be client-visible and
  * protected by RLS, not a secret.
  */

@@ -1851,6 +1851,23 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
     if (ventasKpiEl) ventasKpiEl.textContent = `$${todaySalesTotal.toFixed(2)}`;
     if (gastosKpiEl) gastosKpiEl.textContent = `$${todayExpensesTotal.toFixed(2)}`;
 
+    const ticketKpiEl = document.getElementById('admin-kpi-ticket');
+    const ticketCountEl = document.getElementById('admin-kpi-ticket-count');
+    // Cada línea de `todaySales` es una unidad vendida, no una transacción --
+    // varias líneas comparten el mismo timestamp cuando salen del mismo
+    // checkout (ver js/app.js, newSales). Contamos timestamps distintos.
+    const ticketCount = new Set(todaySales.map(s => s.timestamp)).size;
+    if (ticketKpiEl) {
+        ticketKpiEl.textContent = ticketCount > 0
+            ? `$${(todaySalesTotal / ticketCount).toFixed(2)}`
+            : '—';
+    }
+    if (ticketCountEl) {
+        ticketCountEl.textContent = ticketCount > 0
+            ? `${ticketCount} operación${ticketCount === 1 ? '' : 'es'} hoy`
+            : 'sin operaciones hoy';
+    }
+
     // --- Segunda moneda (Bs) -------------------------------------------------
     // Segura en cualquier llamada: es una conversión del valor que ya se acaba
     // de pintar arriba, no un cálculo nuevo sobre el historial.

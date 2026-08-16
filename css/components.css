@@ -1927,8 +1927,9 @@ input[type="number"] {
     /* minmax(0, 1fr) y no 1fr: `1fr` equivale a minmax(auto, 1fr), así que el
        chip de variación estiraba las tarjetas de Ventas y Gastos y dejaba las
        cuatro con anchos distintos. Con minmax(0, ...) vuelven a repartirse
-       parejo y el contenido se adapta. */
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+       parejo y el contenido se adapta. Ahora 5 columnas (se sumó Ticket
+       Promedio); el breakpoint de 768px sigue en 2 columnas sin cambios. */
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.75rem;
     margin-bottom: 1.25rem;
 }

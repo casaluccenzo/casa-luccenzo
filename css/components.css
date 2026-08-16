@@ -103,7 +103,7 @@
     font-weight: 700;
     padding: 0.375rem 0.75rem;
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(243, 198, 63, 0.4);
+    border: 1px solid rgba(201, 162, 74, 0.4);
     background-color: var(--color-card-navy);
     color: var(--color-gold);
     cursor: pointer;
@@ -184,7 +184,7 @@
 }
 
 .product-card:hover {
-    border-color: rgba(243, 198, 63, 0.3);
+    border-color: rgba(201, 162, 74, 0.3);
     box-shadow: var(--shadow-md), var(--shadow-gold);
 }
 
@@ -560,7 +560,7 @@ details.settings-group summary {
 
 /* Cash Register Card */
 .cash-card {
-    background: linear-gradient(135deg, #012852 0%, #10233A 100%);
+    background: linear-gradient(135deg, #012852 0%, #0F2137 100%);
     border: 2px solid var(--color-gold);
     border-radius: var(--radius-lg);
     padding: 1rem;
@@ -857,7 +857,7 @@ details.settings-group summary {
 
 /* Dispatch notifications card */
 .dispatch-card {
-    background: linear-gradient(135deg, #022c22 0%, #10233A 100%);
+    background: linear-gradient(135deg, #022c22 0%, #0F2137 100%);
     border: 2px solid var(--color-success);
     border-radius: var(--radius-lg);
     padding: 1rem;
@@ -1257,7 +1257,7 @@ input:checked + .slider:before {
     font-weight: 800;
     padding: 0.25rem 0.5rem;
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(243, 198, 63, 0.3);
+    border: 1px solid rgba(201, 162, 74, 0.3);
     background-color: transparent;
     color: var(--color-gold);
     cursor: pointer;
@@ -1265,7 +1265,7 @@ input:checked + .slider:before {
 }
 
 .btn-add-stock:hover {
-    background-color: rgba(243, 198, 63, 0.1);
+    background-color: rgba(201, 162, 74, 0.1);
 }
 
 /* ================= ACTIVE CART STYLES (CUENTA DEL CLIENTE) ================= */
@@ -1276,18 +1276,18 @@ input:checked + .slider:before {
     padding: 1.25rem;
     margin-top: 1rem;
     margin-bottom: 1.25rem;
-    box-shadow: var(--shadow-lg), 0 0 15px rgba(243, 198, 63, 0.15);
+    box-shadow: var(--shadow-lg), 0 0 15px rgba(201, 162, 74, 0.15);
     animation: borderGoldPulse 3s infinite ease-in-out;
 }
 
 @keyframes borderGoldPulse {
     0%, 100% {
         border-color: var(--color-gold);
-        box-shadow: var(--shadow-lg), 0 0 15px rgba(243, 198, 63, 0.15);
+        box-shadow: var(--shadow-lg), 0 0 15px rgba(201, 162, 74, 0.15);
     }
     50% {
-        border-color: rgba(243, 198, 63, 0.5);
-        box-shadow: var(--shadow-lg), 0 0 5px rgba(243, 198, 63, 0.05);
+        border-color: rgba(201, 162, 74, 0.5);
+        box-shadow: var(--shadow-lg), 0 0 5px rgba(201, 162, 74, 0.05);
     }
 }
 
@@ -1295,7 +1295,7 @@ input:checked + .slider:before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px dashed rgba(243, 198, 63, 0.3);
+    border-bottom: 1px dashed rgba(201, 162, 74, 0.3);
     padding-bottom: 0.625rem;
     margin-bottom: 0.875rem;
 }
@@ -1803,7 +1803,7 @@ input[type="number"] {
     background-color: var(--color-bg-navy);
     border: 2px solid var(--color-gold);
     border-radius: var(--radius-xl);
-    box-shadow: 0 0 35px rgba(243, 198, 63, 0.2);
+    box-shadow: 0 0 35px rgba(201, 162, 74, 0.2);
     overflow: hidden;
     width: 95vw !important;
 }
@@ -1864,10 +1864,10 @@ input[type="number"] {
 }
 
 .admin-tab-btn.active {
-    background-color: rgba(243, 198, 63, 0.12);
-    border: 1px solid rgba(243, 198, 63, 0.3);
+    background-color: rgba(201, 162, 74, 0.12);
+    border: 1px solid rgba(201, 162, 74, 0.3);
     color: var(--color-gold);
-    text-shadow: 0 0 8px rgba(243, 198, 63, 0.25);
+    text-shadow: 0 0 8px rgba(201, 162, 74, 0.25);
 }
 
 .admin-tab-btn.close-btn {
@@ -1942,7 +1942,7 @@ input[type="number"] {
 
 .admin-kpi-card:hover {
     transform: translateY(-1px);
-    border-color: rgba(243, 198, 63, 0.25);
+    border-color: rgba(201, 162, 74, 0.25);
 }
 
 .admin-kpi-icon {
@@ -1961,7 +1961,7 @@ input[type="number"] {
 }
 .admin-kpi-card.ventas .admin-kpi-icon {
     color: var(--color-gold);
-    background-color: rgba(243, 198, 63, 0.1);
+    background-color: rgba(201, 162, 74, 0.1);
 }
 .admin-kpi-card.gastos .admin-kpi-icon {
     color: var(--color-danger);
@@ -2099,9 +2099,9 @@ input[type="number"] {
 }
 
 .role-badge.admin {
-    background-color: rgba(243, 198, 63, 0.08);
+    background-color: rgba(201, 162, 74, 0.08);
     color: var(--color-gold);
-    border: 1px solid rgba(243, 198, 63, 0.2);
+    border: 1px solid rgba(201, 162, 74, 0.2);
 }
 
 /* RESPONSIVE LAYOUT BREAKPOINT */
@@ -2181,7 +2181,7 @@ input[type="number"] {
     background-color: var(--color-bg-navy);
     border: 2px solid var(--color-gold);
     border-radius: var(--radius-xl);
-    box-shadow: 0 0 35px rgba(243, 198, 63, 0.25);
+    box-shadow: 0 0 35px rgba(201, 162, 74, 0.25);
     overflow: hidden;
     margin-bottom: 1.5rem;
 }
@@ -2265,7 +2265,7 @@ input[type="number"] {
 /* Peak Hour Highlight styling */
 .hourly-column.peak-hour .hourly-bar-fill {
     background: linear-gradient(180deg, var(--color-gold), #D97706) !important;
-    box-shadow: 0 0 12px rgba(243, 198, 63, 0.5);
+    box-shadow: 0 0 12px rgba(201, 162, 74, 0.5);
 }
 
 .hourly-column.peak-hour .hourly-label {
@@ -2389,7 +2389,7 @@ input[type="number"] {
 }
 
 .btn-replenish-quick {
-    background: rgba(243, 198, 63, 0.12);
+    background: rgba(201, 162, 74, 0.12);
     border: 1px solid var(--color-gold);
     color: var(--color-gold);
     border-radius: 4px;
@@ -2411,7 +2411,7 @@ input[type="number"] {
     flex-direction: column;
     height: 480px;
     background: rgba(10, 15, 29, 0.6);
-    border: 1px solid rgba(243, 198, 63, 0.2);
+    border: 1px solid rgba(201, 162, 74, 0.2);
     border-radius: var(--radius-lg);
     overflow: hidden;
     backdrop-filter: blur(10px);
@@ -2425,7 +2425,7 @@ input[type="number"] {
     flex-direction: column;
     gap: 0.85rem;
     scrollbar-width: thin;
-    scrollbar-color: rgba(243, 198, 63, 0.2) transparent;
+    scrollbar-color: rgba(201, 162, 74, 0.2) transparent;
 }
 
 .agent-msg {
@@ -2454,18 +2454,18 @@ input[type="number"] {
 
 .agent-msg.agent .agent-msg-bubble {
     background: rgba(26, 35, 50, 0.95);
-    border: 1px solid rgba(243, 198, 63, 0.25);
+    border: 1px solid rgba(201, 162, 74, 0.25);
     color: var(--color-white);
     border-top-left-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .agent-msg.user .agent-msg-bubble {
-    background: linear-gradient(135deg, #F3C63F 0%, #D4AF37 100%);
+    background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
     color: #000000;
     font-weight: 600;
     border-top-right-radius: 4px;
-    box-shadow: 0 4px 12px rgba(243, 198, 63, 0.2);
+    box-shadow: 0 4px 12px rgba(201, 162, 74, 0.2);
 }
 
 .agent-quick-chips {
@@ -2484,8 +2484,8 @@ input[type="number"] {
 
 .agent-chip {
     white-space: nowrap;
-    background: rgba(243, 198, 63, 0.08);
-    border: 1px solid rgba(243, 198, 63, 0.25);
+    background: rgba(201, 162, 74, 0.08);
+    border: 1px solid rgba(201, 162, 74, 0.25);
     color: var(--color-gold);
     border-radius: var(--radius-full);
     padding: 0.3rem 0.75rem;
@@ -2531,14 +2531,14 @@ input[type="number"] {
     height: 38px;
     border-radius: var(--radius-md);
     border: none;
-    background: linear-gradient(135deg, #F3C63F 0%, #D4AF37 100%);
+    background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
     color: #000000;
     font-size: 0.9rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(243, 198, 63, 0.3);
+    box-shadow: 0 2px 8px rgba(201, 162, 74, 0.3);
     transition: transform 0.15s ease;
 }
 

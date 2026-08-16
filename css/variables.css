@@ -1,16 +1,16 @@
 /* Design tokens and variables */
 :root {
-    /* Color Palette */
-    --color-bg-navy: #10233A;
-    --color-bg-header: #0A1826;
-    --color-card-navy: #1C3A54;
-    --color-card-navy-hover: #274A68;
-    
-    --color-gold: #F3C63F;
-    --color-gold-dark: #D4AF37;
-    --color-gold-light: #fbe69e;
-    
-    --color-white: #FFFFFF;
+    /* Color Palette (paleta Stitch) */
+    --color-bg-navy: #0F2137;
+    --color-bg-header: #0A1624;
+    --color-card-navy: #142A44;
+    --color-card-navy-hover: #273C53;
+
+    --color-gold: #C9A24A;
+    --color-gold-dark: #B08E41;
+    --color-gold-light: #E8D7B2;
+
+    --color-white: #F6F1E4;
     --color-text-muted: #94A3B8;
     
     --color-danger: #EF4444;
@@ -41,7 +41,7 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
-    --shadow-gold: 0 0 15px rgba(243, 198, 63, 0.2);
+    --shadow-gold: 0 0 15px rgba(201, 162, 74, 0.2);
 
     /* Transitions */
     --transition-fast: 0.15s ease;

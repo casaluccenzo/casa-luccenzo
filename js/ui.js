@@ -2108,6 +2108,120 @@ function renderRecentActivity(logs) {
 }
 
 /**
+ * Opens a new window with a printable one-page KPI snapshot of the admin
+ * Dashboard and triggers the browser print dialog. Reads values already
+ * rendered by renderStats() rather than recomputing them -- this is a
+ * snapshot of what's on screen, not a fresh report.
+ */
+function exportDashboardSummaryToPDF() {
+    const get = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.textContent.trim() : '—';
+    };
+
+    const caja = get('admin-kpi-caja');
+    const ventas = get('admin-kpi-ventas');
+    const gastos = get('admin-kpi-gastos');
+    const ticket = get('admin-kpi-ticket');
+    const ticketCount = get('admin-kpi-ticket-count');
+    const devices = get('admin-kpi-devices');
+    const fecha = new Date().toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Por favor, permite las ventanas emergentes para poder generar el PDF.");
+        return;
+    }
+
+    const css = `
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Playfair+Display:wght@700;900&display=swap');
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: #0f172a;
+            padding: 2.5rem;
+            margin: 0;
+            background-color: #ffffff;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .logo-area { display: flex; align-items: center; gap: 1rem; }
+        .logo-circle {
+            width: 60px; height: 60px; border-radius: 50%;
+            background-image: url('/img/logo-192.png');
+            background-size: 108% 108%; background-position: center; background-repeat: no-repeat;
+            border: 2px solid #C9A24A;
+        }
+        .logo-text h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0; color: #0b1329; font-weight: 900; }
+        .logo-text p { font-size: 0.85rem; margin: 0; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+        .date { font-size: 0.9rem; color: #64748b; text-transform: capitalize; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .kpi-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; }
+        .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; }
+        .kpi-value { font-size: 1.4rem; font-weight: 900; color: #0b1329; margin-top: 0.25rem; }
+        .kpi-sub { font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem; }
+        .footer { margin-top: 2rem; font-size: 0.75rem; color: #94a3b8; text-align: center; }
+    `;
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Reporte Dashboard - Casa Lucenzo</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo-area">
+                    <div class="logo-circle"></div>
+                    <div class="logo-text">
+                        <h1>Casa Lucenzo</h1>
+                        <p>Reporte de Dashboard Administrativo</p>
+                    </div>
+                </div>
+                <div class="date">${fecha}</div>
+            </div>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Caja (Estimado)</div>
+                    <div class="kpi-value">${caja}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Ventas Hoy</div>
+                    <div class="kpi-value">${ventas}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Gastos Hoy</div>
+                    <div class="kpi-value">${gastos}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Ticket Promedio</div>
+                    <div class="kpi-value">${ticket}</div>
+                    <div class="kpi-sub">${ticketCount}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Dispositivos Conectados</div>
+                    <div class="kpi-value">${devices}</div>
+                </div>
+            </div>
+            <div class="footer">Generado por el Sistema Casa Lucenzo el ${new Date().toLocaleString('es-VE')}</div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { window.print(); }, 400);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+/**
  * Render quick conversion table for common bills
  */
 function renderQuickConversionTable() {
@@ -5975,6 +6089,7 @@ window.UIManager = {
     renderActiveDevices,
     renderActivityLogs,
     renderRecentActivity,
+    exportDashboardSummaryToPDF,
     renderHourlyStats,
     exportHourlyStatsToPDF,
     renderCriticalStockAlerts,

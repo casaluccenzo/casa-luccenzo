@@ -4446,6 +4446,11 @@ function initAdminDashboardListeners() {
         btnRecentActivityVerTodo.addEventListener('click', () => tabLogsBtn.click());
     }
 
+    const btnDashboardPdf = document.getElementById('btn-dashboard-pdf');
+    if (btnDashboardPdf) {
+        btnDashboardPdf.addEventListener('click', () => window.UIManager.exportDashboardSummaryToPDF());
+    }
+
     if (tabCostsBtn && panelCosts) {
         tabCostsBtn.addEventListener('click', () => {
             activateTab(tabCostsBtn, panelCosts);

@@ -2414,7 +2414,6 @@ async function loadAndRenderAdminStats() {
 
     let statsSales = salesLog;
     let statsExpenses = expenses;
-    let devCount = 1;
     // Arranca en false y solo sube si el fetch responde: offline, `statsSales`
     // sigue siendo el turno local y los deltas quedan ocultos en vez de mentir.
     let gotFullHistory = false;
@@ -2442,15 +2441,10 @@ async function loadAndRenderAdminStats() {
                     statsExpenses = weekExpenses;
                 }
             }
-            const sessions = await window.SupabaseManager.fetchActiveSessions();
-            devCount = sessions ? sessions.length : 0;
         } catch(e) {
             console.error("Failed to load historical stats from Supabase", e);
         }
     }
-
-    const devKpi = document.getElementById('admin-kpi-devices');
-    if (devKpi) devKpi.textContent = devCount;
 
     // Cache statsSales globally for toggle rendering
     adminStatsSales = statsSales;
@@ -2879,14 +2873,6 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         const listDiv = document.getElementById('settings-devices-list');
         if (listDiv && !document.getElementById('view-admin-dashboard').classList.contains('hidden')) {
             loadAndRenderActiveDevices();
-        }
-
-        // Also update the active devices KPI card in real-time
-        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
-            window.SupabaseManager.fetchActiveSessions().then(sessions => {
-                const devKpi = document.getElementById('admin-kpi-devices');
-                if (devKpi) devKpi.textContent = sessions ? sessions.length : 0;
-            }).catch(err => console.error("Error fetching sessions in realtime update:", err));
         }
     } else if (tableName === 'pedidos_online') {
         if (eventType === 'DELETE') {

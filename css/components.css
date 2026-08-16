@@ -1941,9 +1941,14 @@ input[type="number"] {
     /* minmax(0, 1fr) y no 1fr: `1fr` equivale a minmax(auto, 1fr), así que el
        chip de variación estiraba las tarjetas de Ventas y Gastos y dejaba las
        cuatro con anchos distintos. Con minmax(0, ...) vuelven a repartirse
-       parejo y el contenido se adapta. Ahora 5 columnas (se sumó Ticket
-       Promedio); el breakpoint de 768px sigue en 2 columnas sin cambios. */
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+       parejo y el contenido se adapta.
+
+       auto-fit y no un número fijo de columnas: Ticket Promedio se oculta
+       por completo cuando no hay operaciones hoy (ver renderStats() en
+       js/ui.js), así que la cantidad de tarjetas visibles varía entre 3 y 4.
+       Con auto-fit se reparten parejo sin importar cuántas haya, sin dejar
+       una columna vacía. El breakpoint de 768px sigue en 2 columnas fijas. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
     margin-bottom: 1.25rem;
 }
@@ -1985,10 +1990,6 @@ input[type="number"] {
 .admin-kpi-card.gastos .admin-kpi-icon {
     color: var(--color-danger);
     background-color: rgba(239, 68, 68, 0.1);
-}
-.admin-kpi-card.dispositivos .admin-kpi-icon {
-    color: #3B82F6;
-    background-color: rgba(59, 130, 246, 0.1);
 }
 
 .admin-kpi-info {

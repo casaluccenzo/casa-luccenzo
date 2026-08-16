@@ -1851,21 +1851,21 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
     if (ventasKpiEl) ventasKpiEl.textContent = `$${todaySalesTotal.toFixed(2)}`;
     if (gastosKpiEl) gastosKpiEl.textContent = `$${todayExpensesTotal.toFixed(2)}`;
 
+    const ticketCardEl = document.getElementById('admin-kpi-card-ticket');
     const ticketKpiEl = document.getElementById('admin-kpi-ticket');
     const ticketCountEl = document.getElementById('admin-kpi-ticket-count');
     // Cada línea de `todaySales` es una unidad vendida, no una transacción --
     // varias líneas comparten el mismo timestamp cuando salen del mismo
     // checkout (ver js/app.js, newSales). Contamos timestamps distintos.
     const ticketCount = new Set(todaySales.map(s => s.timestamp)).size;
-    if (ticketKpiEl) {
-        ticketKpiEl.textContent = ticketCount > 0
-            ? `$${(todaySalesTotal / ticketCount).toFixed(2)}`
-            : '—';
+    // Sin operaciones hoy, la tarjeta entera se oculta en vez de mostrar un
+    // "—" vacío -- un placeholder sin dato real es ruido visual, no info.
+    if (ticketCardEl) ticketCardEl.classList.toggle('hidden', ticketCount === 0);
+    if (ticketKpiEl && ticketCount > 0) {
+        ticketKpiEl.textContent = `$${(todaySalesTotal / ticketCount).toFixed(2)}`;
     }
-    if (ticketCountEl) {
-        ticketCountEl.textContent = ticketCount > 0
-            ? `${ticketCount} operación${ticketCount === 1 ? '' : 'es'} hoy`
-            : 'sin operaciones hoy';
+    if (ticketCountEl && ticketCount > 0) {
+        ticketCountEl.textContent = `${ticketCount} operación${ticketCount === 1 ? '' : 'es'} hoy`;
     }
 
     // --- Segunda moneda (Bs) -------------------------------------------------
@@ -2124,7 +2124,6 @@ function exportDashboardSummaryToPDF() {
     const gastos = get('admin-kpi-gastos');
     const ticket = get('admin-kpi-ticket');
     const ticketCount = get('admin-kpi-ticket-count');
-    const devices = get('admin-kpi-devices');
     const fecha = new Date().toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     const printWindow = window.open('', '_blank');
@@ -2203,10 +2202,6 @@ function exportDashboardSummaryToPDF() {
                     <div class="kpi-label">Ticket Promedio</div>
                     <div class="kpi-value">${ticket}</div>
                     <div class="kpi-sub">${ticketCount}</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Dispositivos Conectados</div>
-                    <div class="kpi-value">${devices}</div>
                 </div>
             </div>
             <div class="footer">Generado por el Sistema Casa Lucenzo el ${new Date().toLocaleString('es-VE')}</div>
@@ -4123,9 +4118,15 @@ function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) 
     const container = document.getElementById('admin-critical-stock-container');
     if (!container) return;
 
-    const critical = (window.InventoryManager && window.InventoryManager.getLowStockItems)
+    const lowStock = (window.InventoryManager && window.InventoryManager.getLowStockItems)
         ? window.InventoryManager.getLowStockItems(products)
         : [];
+    // getLowStockItems() usa stock<=min, y trata un mínimo sin configurar (0)
+    // como si "0" fuera el umbral real -- así que cualquier producto agotado
+    // que nunca tuvo mínimo asignado se cuela como "crítico" sin serlo. Ese
+    // ruido queda para el header/cocina (no lo tocamos, otros consumidores
+    // dependen de él); acá exigimos un mínimo real configurado.
+    const critical = lowStock.filter(p => (parseInt(p.min || p.stock_min) || 0) > 0);
 
     if (critical.length === 0) {
         container.classList.add('hidden');

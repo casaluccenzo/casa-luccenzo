@@ -1,7 +1,26 @@
 # Admin Dashboard: Sidebar Redesign + Employee Attribution
 
-**Status:** Approved by user, ready for implementation planning
+**Status:** Superseded by verification — see correction below
 **Date:** 2026-08-16
+
+## Correction (post-approval verification)
+
+Everything in "Approach" and "Design §1" below assumes the admin settings
+sub-nav is a horizontal icon-only row that needs to become a sidebar. Before
+starting implementation, live-testing at desktop width (1280px) showed **the
+vertical sidebar already exists and is already live**: `.admin-sidebar`
+(`css/components.css:1811`, `width: 210px`, `flex-direction: column`) with
+labeled buttons ("Resumen", "Análisis", "Productos", etc.), and its own
+`768px` breakpoint (`css/components.css:2245`) that correctly collapses it to
+the icon-only row. What looked like "the old horizontal nav" during
+brainstorming was this same sidebar rendering in its mobile mode — the
+browser pane used for verification was 722px wide, under the breakpoint.
+
+**Net effect: the "Approach" and "Design §1" sections below do not need to be
+built.** The only parts of this spec that still apply are §2 (content
+inventory, minus the sidebar-existence claim), §3 (employee attribution),
+and the naming fix. See the implementation plan for the corrected, much
+smaller scope.
 
 ## Context
 

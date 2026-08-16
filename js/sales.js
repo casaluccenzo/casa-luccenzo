@@ -144,7 +144,7 @@ function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = nul
             </div>
 
             <!-- Total Sales Card -->
-            <div style="background: rgba(243, 198, 63, 0.1); border: 1px solid var(--color-gold); border-radius: 12px; padding: 1rem;">
+            <div style="background: rgba(201, 162, 74, 0.1); border: 1px solid var(--color-gold); border-radius: 12px; padding: 1rem;">
                 <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
                     <span>VENTAS TOTALES</span>
                     <i class="fa-solid fa-cart-shopping"></i>

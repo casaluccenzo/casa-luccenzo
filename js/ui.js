@@ -273,7 +273,7 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         const quickProducts = window.SalesManager.getQuickProductsList(products);
         if (quickProducts && quickProducts.length > 0) {
             quickBarContainer.innerHTML = quickProducts.map(p => `
-                <button class="btn-quick-pos-item" data-id="${p.id}" style="padding: 0.35rem 0.65rem; border-radius: 8px; border: 1px solid var(--color-gold); background: rgba(243, 198, 63, 0.15); color: #FFF; font-weight: 800; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                <button class="btn-quick-pos-item" data-id="${p.id}" style="padding: 0.35rem 0.65rem; border-radius: 8px; border: 1px solid var(--color-gold); background: rgba(201, 162, 74, 0.15); color: #FFF; font-weight: 800; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
                     <i class="fa-solid fa-plus-circle" style="color: var(--color-gold);"></i> ${escapeHtml(p.name)} ($${(p.price || 0).toFixed(2)})
                 </button>
             `).join('');
@@ -1172,7 +1172,7 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
     });
 
     const statusMeta = {
-        pendiente: { label: 'Pendiente', bg: 'rgba(243, 198, 63, 0.14)', border: 'rgba(243, 198, 63, 0.35)', color: 'var(--color-gold)' },
+        pendiente: { label: 'Pendiente', bg: 'rgba(201, 162, 74, 0.14)', border: 'rgba(201, 162, 74, 0.35)', color: 'var(--color-gold)' },
         confirmado: { label: 'Confirmado', bg: 'rgba(52, 211, 153, 0.12)', border: 'rgba(52, 211, 153, 0.3)', color: 'var(--color-success)' },
         rechazado: { label: 'Rechazado', bg: 'rgba(248, 113, 113, 0.12)', border: 'rgba(248, 113, 113, 0.3)', color: '#F87171' }
     };
@@ -1341,7 +1341,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
         const items = Object.entries(catData.sales);
         if (items.length > 0) {
             salesHtml += `
-                <div style="margin-top: 0.85rem; margin-bottom: 0.35rem; padding: 0.15rem 0.25rem; background: rgba(243, 198, 63, 0.07); border-left: 3.5px solid var(--color-gold); font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+                <div style="margin-top: 0.85rem; margin-bottom: 0.35rem; padding: 0.15rem 0.25rem; background: rgba(201, 162, 74, 0.07); border-left: 3.5px solid var(--color-gold); font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
                     <span>${catData.label}</span>
                     <span style="opacity: 0.8; font-size: 9px;">$${items.reduce((sum, [, d]) => sum + d.total, 0).toFixed(2)}</span>
                 </div>
@@ -1382,7 +1382,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
     modalBody.innerHTML = `
-        <div style="background: rgba(243, 198, 63, 0.08); border: 1px solid rgba(243, 198, 63, 0.25); border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="background: rgba(201, 162, 74, 0.08); border: 1px solid rgba(201, 162, 74, 0.25); border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
                 <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> Fecha del Cierre:</span>
                 <span style="color: var(--color-gold); font-weight: 900; font-family: monospace; margin-left: 0.25rem;">${reportDateText}</span>
@@ -3790,7 +3790,7 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
     sessions.forEach(sess => {
         const isMe = sess.device_id === currentDeviceId;
         const isTrusted = sess.is_trusted === true;
-        const meBadge = isMe ? '<span style="font-size: 8px; background: rgba(243, 198, 63, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">ESTE DISPOSITIVO</span>' : '';
+        const meBadge = isMe ? '<span style="font-size: 8px; background: rgba(201, 162, 74, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">ESTE DISPOSITIVO</span>' : '';
         const trustBadge = isTrusted ? '<span style="font-size: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--color-success); color: #34D399; padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">CONFIABLE</span>' : '';
         const roleName = sess.role === 'admin' ? 'Administrador' : sess.role === 'cocina' ? 'Cocina' : 'Ventas (Local)';
         const dateObj = new Date(sess.last_active_at);
@@ -4416,7 +4416,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
             background-size: 108% 108%;
             background-position: center;
             background-repeat: no-repeat;
-            border: 2px solid #f3c63f;
+            border: 2px solid #C9A24A;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .logo-text h1 {
@@ -4549,7 +4549,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         .btn-print-action {
             background-color: #0b1329;
             color: #ffffff;
-            border: 1px solid #f3c63f;
+            border: 1px solid #C9A24A;
             padding: 0.6rem 1.75rem;
             font-size: 0.8rem;
             border-radius: 6px;
@@ -4562,7 +4562,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         }
         .btn-print-action:hover {
             background-color: #172242;
-            color: #f3c63f;
+            color: #C9A24A;
         }
         @media print {
             body {
@@ -4692,7 +4692,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
                     <div class="kpi-val" style="color: #dc2626;">-$${totalExpenses.toFixed(2)}</div>
                     <div class="kpi-subval" style="color: #dc2626;">Bs. ${(totalExpenses * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
                 </div>
-                <div class="kpi-card" style="border-color: #f3c63f; background-color: rgba(243,198,63,0.02);">
+                <div class="kpi-card" style="border-color: #C9A24A; background-color: rgba(243,198,63,0.02);">
                     <div class="kpi-label" style="color: #b45309;">Balance Neto (Caja Estimado)</div>
                     <div class="kpi-val" style="color: #b45309;">$${netCash.toFixed(2)}</div>
                     <div class="kpi-subval" style="color: #b45309;">Bs. ${(netCash * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
@@ -4947,7 +4947,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             background-size: 108% 108%;
             background-position: center;
             background-repeat: no-repeat;
-            border: 2px solid #f3c63f;
+            border: 2px solid #C9A24A;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .logo-text h1 {
@@ -5056,7 +5056,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             min-height: 2px;
         }
         .chart-col.peak .chart-fill {
-            background: linear-gradient(180deg, #f3c63f, #d97706) !important;
+            background: linear-gradient(180deg, #C9A24A, #d97706) !important;
         }
         .chart-col-val {
             font-size: 9.5px;
@@ -5108,7 +5108,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
         .btn-print-action {
             background-color: #0b1329;
             color: #ffffff;
-            border: 1px solid #f3c63f;
+            border: 1px solid #C9A24A;
             padding: 0.6rem 1.75rem;
             font-size: 0.8rem;
             border-radius: 6px;
@@ -5121,11 +5121,11 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
         }
         .btn-print-action:hover {
             background-color: #172242;
-            color: #f3c63f;
+            color: #C9A24A;
         }
         .consultant-box {
             background-color: #fdfbf7;
-            border: 1.5px solid #f3c63f;
+            border: 1.5px solid #C9A24A;
             border-left: 5px solid #d97706;
             border-radius: 8px;
             padding: 1.5rem;
@@ -5147,7 +5147,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
             letter-spacing: 0.05em;
         }
         .consultant-badge {
-            background-color: #f3c63f;
+            background-color: #C9A24A;
             color: #000;
             padding: 2px 8px;
             border-radius: 4px;
@@ -5279,7 +5279,7 @@ function exportHourlyStatsToPDF(salesLog, mode = 'today') {
                     <div class="kpi-val">${totalSalesQty} unids.</div>
                     <div class="kpi-subval">Tasa Oficial: ${rate.toFixed(2)} Bs.</div>
                 </div>
-                <div class="kpi-card" style="border-color: #f3c63f; background-color: rgba(243,198,63,0.02);">
+                <div class="kpi-card" style="border-color: #C9A24A; background-color: rgba(243,198,63,0.02);">
                     <div class="kpi-label" style="color: #b45309;">Hora Pico (6am-3pm)</div>
                     <div class="kpi-val" style="color: #b45309;">${peakHourLabel}</div>
                     <div class="kpi-subval" style="color: #b45309; font-weight: 700;">
@@ -5386,7 +5386,7 @@ function exportSalesAnalyticsToPDF(salesHistory = [], products = [], rangeLabel 
         body { font-family: 'Outfit', sans-serif; color: #0f172a; padding: 2.5rem; margin: 0; background-color: #ffffff; line-height: 1.5; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 1.5rem; margin-bottom: 2rem; }
         .logo-area { display: flex; align-items: center; gap: 1rem; }
-        .logo-circle { width: 60px; height: 60px; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2px solid #f3c63f; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .logo-circle { width: 60px; height: 60px; border-radius: 50%; background-image: url('img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 2px solid #C9A24A; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .logo-text h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0; color: #0b1329; font-weight: 900; letter-spacing: -0.02em; }
         .logo-text p { font-size: 0.85rem; margin: 0; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; }
         .report-meta { text-align: right; }
@@ -5404,11 +5404,11 @@ function exportSalesAnalyticsToPDF(salesHistory = [], products = [], rangeLabel 
         tr:nth-child(even) { background-color: #fcfdfe; }
         .low-confidence { color: #b45309; font-size: 0.75rem; font-weight: 700; }
         .footer { margin-top: 3.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.25rem; text-align: center; font-size: 0.7rem; color: #94a3b8; }
-        .btn-print-action { background-color: #0b1329; color: #ffffff; border: 1px solid #f3c63f; padding: 0.6rem 1.75rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: all 0.2s; }
-        .btn-print-action:hover { background-color: #172242; color: #f3c63f; }
-        .consultant-box { background-color: #fdfbf7; border: 1.5px solid #f3c63f; border-left: 5px solid #d97706; border-radius: 8px; padding: 1.5rem; margin-top: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.02); page-break-inside: avoid; }
+        .btn-print-action { background-color: #0b1329; color: #ffffff; border: 1px solid #C9A24A; padding: 0.6rem 1.75rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: all 0.2s; }
+        .btn-print-action:hover { background-color: #172242; color: #C9A24A; }
+        .consultant-box { background-color: #fdfbf7; border: 1.5px solid #C9A24A; border-left: 5px solid #d97706; border-radius: 8px; padding: 1.5rem; margin-top: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.02); page-break-inside: avoid; }
         .consultant-title { font-size: 1.05rem; font-weight: 900; color: #0b1329; margin-top: 0; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        .consultant-badge { background-color: #f3c63f; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; }
+        .consultant-badge { background-color: #C9A24A; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; }
         .consultant-points { margin-top: 0.75rem; padding-left: 1.25rem; font-size: 0.9rem; color: #334155; }
         .consultant-points li { margin-bottom: 0.6rem; }
         @media print {
@@ -5657,7 +5657,7 @@ function renderCostCalculator(products, costInsumos, onDeleteInsumo) {
                     typeBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60A5FA; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 800;">LÍQUIDO</span>`;
                     detailText = `$${unitPrice.toFixed(2)} / L • <b style="color: var(--color-gold);">$${pricePerMl.toFixed(4)} / ml</b>`;
                 } else {
-                    typeBadge = `<span style="background: rgba(243, 198, 63, 0.15); color: var(--color-gold); padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 800;">UNIDAD</span>`;
+                    typeBadge = `<span style="background: rgba(201, 162, 74, 0.15); color: var(--color-gold); padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 800;">UNIDAD</span>`;
                     detailText = `$${unitPrice.toFixed(2)} / unidad`;
                 }
 
@@ -5820,7 +5820,7 @@ function renderCostFinancialResults(products, costInsumos) {
                 </div>
 
                 <!-- Margin % Card -->
-                <div style="background: rgba(243, 198, 63, 0.1); border: 1.5px solid rgba(243, 198, 63, 0.35); border-radius: var(--radius-lg); padding: 0.6rem; text-align: center;">
+                <div style="background: rgba(201, 162, 74, 0.1); border: 1.5px solid rgba(201, 162, 74, 0.35); border-radius: var(--radius-lg); padding: 0.6rem; text-align: center;">
                     <div style="font-size: 9px; font-weight: 800; color: var(--color-gold); text-transform: uppercase;">Rendimiento</div>
                     <div style="font-size: 1.15rem; font-weight: 900; color: var(--color-gold); margin-top: 2px; font-family: var(--font-mono);">${profitMarginPct.toFixed(0)}%</div>
                     <div style="font-size: 9px; color: var(--color-text-muted);">Margen sobre costo</div>

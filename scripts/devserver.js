@@ -6,19 +6,26 @@
  * production serves a built copy with SUPABASE_URL / SUPABASE_ANON_KEY /
  * SENTRY_DSN substituted for their placeholders.
  *
- * In practice it does not: as of 2026-08-15 https://www.luccenzo.com/sistema/
- * still ships `var sentryDsn = '__SENTRY_DSN__'` and js/supabase.js still ships
- * `"__SUPABASE_URL__"`, i.e. the build is NOT running and the deployed site is
- * this same unbuilt source. Both run on their hardcoded fallbacks. So local and
- * production currently match -- but by accident, not by design. Check the
- * placeholders on the real domain before trusting either.
+ * That is now what actually happens. Verified 2026-08-15 against
+ * https://www.luccenzo.com/: js/supabase.js ships the real URL/key and
+ * sistema/index.html ships the real Sentry DSN -- no placeholders left. (This
+ * comment previously said the build was NOT running, which was true until the
+ * SENTRY_DSN injection fix; don't trust either claim without re-checking the
+ * real domain.)
+ *
+ * So local and production are NOT the same thing: this server hands you the
+ * unbuilt source, which falls back to the hardcoded values in js/supabase.js,
+ * while production uses whatever is set in the Vercel dashboard. As of the same
+ * check those differ -- Vercel injects a legacy JWT anon key, the fallback here
+ * is the newer `sb_publishable_...` one. Same project either way, but if you are
+ * debugging an auth/RLS difference between local and prod, start there.
  *
  *   npm run dev   ->   http://localhost:4173
  *
  * Node core only, no dependencies.
  *
- * Heads up: that fallback points at the real project URL + publishable key,
- * so this talks to the production database. Read freely, write carefully.
+ * Heads up: that fallback points at the real production project, so this talks
+ * to the production database. Read freely, write carefully.
  */
 const http = require('http');
 const fs = require('fs');

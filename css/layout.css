@@ -138,6 +138,83 @@ header .container-md {
     }
 }
 
+/* Phone-only compact mode: shrinks the header + tab bar so every tab label
+   fits without truncation at 1x zoom, matching the density users were
+   getting by pinch-zooming out manually. Scoped to max-width so tablet/
+   desktop (which use the min-width: 768px+ rules above) are untouched. */
+@media (max-width: 767px) {
+    header {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .header-logo-badge {
+        width: 2rem !important;
+        height: 2rem !important;
+    }
+
+    .brand-title {
+        font-size: 1rem;
+    }
+
+    .logo-container {
+        gap: 0.5rem;
+    }
+
+    .header-actions {
+        gap: 0.375rem;
+    }
+
+    .btn-lock {
+        font-size: 1rem;
+        padding: 0.25rem 0.375rem;
+    }
+
+    #btn-settings-toggle {
+        width: 2rem !important;
+        height: 2rem !important;
+    }
+
+    #header-bcv-rate-input {
+        width: 4.5rem !important;
+        height: 20px !important;
+        font-size: 10px !important;
+    }
+
+    #header-cash-badge,
+    #header-offline-badge,
+    #header-lowstock-badge {
+        height: 20px !important;
+        font-size: 10px !important;
+        padding: 1px 6px !important;
+        gap: 0.25rem !important;
+    }
+
+    #header-cash-badge i,
+    #header-offline-badge i,
+    #header-lowstock-badge i {
+        font-size: 9px !important;
+    }
+
+    .switch-nav {
+        gap: 0.25rem;
+        padding: 0.375rem;
+    }
+
+    .switch-nav button {
+        padding: 0.5rem 0;
+    }
+
+    .nav-icon {
+        font-size: 1rem;
+        margin-bottom: 0.0625rem;
+    }
+
+    .nav-label {
+        font-size: 8px;
+    }
+}
+
 /* Main Area and section views */
 main {
     flex-grow: 1;

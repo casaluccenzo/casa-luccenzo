@@ -1747,7 +1747,7 @@ async function openReportHistoryModal() {
         return;
     }
 
-    const days = await window.SupabaseManager.fetchReportDays(14);
+    const days = await window.SupabaseManager.fetchReportDays(30);
 
     if (!days || days.length === 0) {
         body.innerHTML = `

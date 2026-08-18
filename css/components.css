@@ -417,7 +417,7 @@ details.settings-group summary {
 
 .form-grid-3 {
     display: grid;
-    grid-template-cols: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 0.5rem;
     margin-top: 0.75rem;
 }
@@ -751,7 +751,7 @@ details.settings-group summary {
 
 .recipe-grid {
     display: grid;
-    grid-template-cols: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
 }
 

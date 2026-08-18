@@ -1381,6 +1381,41 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     // Total items sold count
     const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
+    // Closed client accounts for this day, so an admin can pull up any
+    // client's line items and reprint/share their invoice days after
+    // checkout -- not just for today (see groupSalesByClientAccounts).
+    const clientAccounts = groupSalesByClientAccounts(salesLog).filter(g => g.isPaid);
+    let clientsHtml = '';
+    clientAccounts.forEach((group, idx) => {
+        let timeStr = '';
+        try {
+            timeStr = parseUTCTimestamp(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {}
+        const itemsSummary = group.items.map(it => `${it.quantity}x ${escapeHtml(it.name)}`).join(', ');
+        clientsHtml += `
+            <div class="summary-row" style="flex-direction: column; align-items: stretch; gap: 0.35rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8125rem; font-weight: 800; color: var(--color-gold);">
+                        <i class="fa-solid fa-user-tag" style="font-size: 11px; opacity: 0.8; margin-right: 0.25rem;"></i>${escapeHtml(group.clientName)}${group.clientRif ? ` <span style="color: var(--color-text-muted); font-weight: 700; font-size: 10px;">(${escapeHtml(group.clientRif)})</span>` : ''}
+                    </span>
+                    <span style="font-size: 10px; color: var(--color-text-muted);">${timeStr}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--color-white); opacity: 0.85;"><strong>Lleva:</strong> ${itemsSummary}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8125rem; font-weight: 700; color: var(--color-white); font-family: monospace;">$${group.total.toFixed(2)} <span style="font-size: 9px; font-weight: 500; color: var(--color-text-muted);">(Bs. ${(group.total * rate).toFixed(2)})</span></span>
+                    <div style="display: flex; gap: 0.35rem;">
+                        <button class="btn-day-client-invoice" data-idx="${idx}" title="Ver / Imprimir Factura POS SENIAT" style="height: 30px; padding: 0 0.6rem; font-size: 0.7rem; background-color: rgba(212,175,55,0.18); color: var(--color-gold); border: 1px solid rgba(212,175,55,0.4); font-weight: 800; border-radius: 6px; cursor: pointer;">
+                            <i class="fa-solid fa-receipt"></i> Factura
+                        </button>
+                        <button class="btn-day-client-whatsapp" data-idx="${idx}" title="Compartir Ticket" style="height: 30px; width: 32px; font-size: 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--color-success); cursor: pointer;">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
     modalBody.innerHTML = `
         <div style="background: rgba(201, 162, 74, 0.08); border: 1px solid rgba(201, 162, 74, 0.25); border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
@@ -1400,6 +1435,14 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 <span style="font-size: 10px; color: var(--color-gold); font-weight: 700;">${totalItemsSold} unid. vendidas</span>
             </div>
             ${salesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hubo ventas hoy.</div>'}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Ventas por Cliente</h4>
+                <span style="font-size: 10px; color: var(--color-gold); font-weight: 700;">${clientAccounts.length} cuenta${clientAccounts.length === 1 ? '' : 's'} cerrada${clientAccounts.length === 1 ? '' : 's'}</span>
+            </div>
+            ${clientsHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hay cuentas de clientes cerradas ese día.</div>'}
         </div>
 
         <div style="margin-bottom: 1.25rem;">
@@ -1440,6 +1483,48 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             }
         });
     }
+
+    // Bind per-client "Factura POS" / WhatsApp share buttons. These reuse
+    // the same read-only receipt modal and message builder as the live
+    // Clientes historial (see renderClientesView's btn-pos-ticket-client),
+    // so a closed account from any past day prints/shares identically to
+    // one closed today.
+    modalBody.querySelectorAll('.btn-day-client-invoice').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const group = clientAccounts[parseInt(e.currentTarget.dataset.idx, 10)];
+            if (!group) return;
+            showPosReceiptModal({
+                cart: group.items,
+                clientName: group.clientName,
+                clientRif: group.clientRif,
+                timestamp: group.timestamp,
+                facNo: (group.timestamp.replace(/\D/g, '') + '0000').substring(0, 16),
+                isAlreadyPaid: true,
+                payMethod: group.paymentMethod || 'Efectivo'
+            });
+        });
+    });
+
+    modalBody.querySelectorAll('.btn-day-client-whatsapp').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const group = clientAccounts[parseInt(e.currentTarget.dataset.idx, 10)];
+            if (!group) return;
+            let msg = `*CASA LUCCENZO* 🥖\n`;
+            msg += `*Ticket de Consumo* 🧾\n`;
+            msg += group.clientRif ? `👤 *Cliente:* ${group.clientName} (${group.clientRif})\n` : `👤 *Cliente:* ${group.clientName}\n`;
+            msg += `--------------------------------------\n`;
+            group.items.forEach(it => {
+                msg += `• ${it.quantity}x ${it.name} - $${(it.price * it.quantity).toFixed(2)}\n`;
+            });
+            msg += `--------------------------------------\n`;
+            msg += `💵 *Total a Pagar:* *$${group.total.toFixed(2)} USD*\n`;
+            msg += `💵 *Tasa BCV:* ${rate.toFixed(2)} Bs.\n`;
+            msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(group.total * rate).toFixed(2)} VES*\n`;
+            msg += `--------------------------------------\n`;
+            msg += `¡Muchas gracias por su compra! 🌟`;
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        });
+    });
 }
 
 /**
@@ -2719,6 +2804,85 @@ function showClientAccountModal(group, onUndo, onEdit, onPay) {
 }
 
 /**
+ * Groups a raw sales log into per-account (per-client) transactions by
+ * parsing the "[ClientName]" / "(Pagado - Method)" tags baked into the sale
+ * name at checkout (see handleCheckoutCart / markTransactionAsPaid in
+ * app.js -- there is no client_id column, this string tag is the only link
+ * between a sale row and the account it belongs to). Shared by the live
+ * Clientes historial and the day-close report's "Ventas por Cliente" view
+ * so both read the same account boundaries from any day's raw sales.
+ * @param {Array} salesLog Raw sale rows (any day, not just today)
+ * @returns {Array} Account groups sorted newest-first
+ */
+function groupSalesByClientAccounts(salesLog) {
+    const groups = {};
+    salesLog.forEach(sale => {
+        let productName = sale.name;
+        let clientName;
+        let isPaid = false;
+        let paymentMethod = '';
+
+        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
+        if (match) {
+            productName = match[1];
+            clientName = match[2];
+            isPaid = !!match[3];
+            if (isPaid && match[3]) {
+                const methodMatch = match[3].match(/\(Pagado\s*-\s*(.*?)\)/);
+                paymentMethod = methodMatch ? methodMatch[1] : 'Efectivo';
+            }
+        } else {
+            productName = sale.name;
+            clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
+        }
+
+        let clientRif = '';
+        let rawClientStr = clientName;
+        if (clientName.includes(' - ')) {
+            const parts = clientName.split(/\s+-\s+/);
+            rawClientStr = parts[0].trim();
+            clientRif = parts[1].trim();
+        }
+
+        const key = sale.timestamp;
+        if (!groups[key]) {
+            groups[key] = {
+                timestamp: sale.timestamp,
+                clientName: rawClientStr,
+                clientRif: clientRif,
+                isPaid: isPaid,
+                paymentMethod: paymentMethod,
+                items: [],
+                total: 0
+            };
+        } else {
+            if (isPaid) {
+                groups[key].isPaid = true;
+            }
+            if (paymentMethod && !groups[key].paymentMethod) {
+                groups[key].paymentMethod = paymentMethod;
+            }
+        }
+
+        const existingItem = groups[key].items.find(item => item.name === productName);
+        if (existingItem) {
+            existingItem.quantity += 1;
+            existingItem.totalPrice += sale.price;
+        } else {
+            groups[key].items.push({
+                name: productName,
+                price: sale.price,
+                quantity: 1,
+                totalPrice: sale.price
+            });
+        }
+        groups[key].total += sale.price;
+    });
+
+    return Object.values(groups).sort((a, b) => parseUTCTimestamp(b.timestamp) - parseUTCTimestamp(a.timestamp));
+}
+
+/**
  * Render the dedicated Clientes view
  * @param {Array} salesLog Today's sales log
  * @param {Function} onUndo Undo sale callback
@@ -3150,72 +3314,9 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
 
 
-    // Group salesLog by timestamp
-    const groups = {};
-    salesLog.forEach(sale => {
-        let productName = sale.name;
-        let clientName;
-        let isPaid = false;
-        let paymentMethod = '';
-        
-        const match = sale.name.match(/^(.*)\s+\[(.*)\](\s*\(Pagado(?: - .*?)?\))?$/);
-        if (match) {
-            productName = match[1];
-            clientName = match[2];
-            isPaid = !!match[3];
-            if (isPaid && match[3]) {
-                const methodMatch = match[3].match(/\(Pagado\s*-\s*(.*?)\)/);
-                paymentMethod = methodMatch ? methodMatch[1] : 'Efectivo';
-            }
-        } else {
-            productName = sale.name;
-            clientName = sale.productId === 'abono' ? 'Abono Deuda' : 'Cliente';
-        }
-
-        let clientRif = '';
-        let rawClientStr = clientName;
-        if (clientName.includes(' - ')) {
-            const parts = clientName.split(/\s+-\s+/);
-            rawClientStr = parts[0].trim();
-            clientRif = parts[1].trim();
-        }
-        
-        const key = sale.timestamp;
-        if (!groups[key]) {
-            groups[key] = {
-                timestamp: sale.timestamp,
-                clientName: rawClientStr,
-                clientRif: clientRif,
-                isPaid: isPaid,
-                paymentMethod: paymentMethod,
-                items: [],
-                total: 0
-            };
-        } else {
-            if (isPaid) {
-                groups[key].isPaid = true;
-            }
-            if (paymentMethod && !groups[key].paymentMethod) {
-                groups[key].paymentMethod = paymentMethod;
-            }
-        }
-        
-        const existingItem = groups[key].items.find(item => item.name === productName);
-        if (existingItem) {
-            existingItem.quantity += 1;
-            existingItem.totalPrice += sale.price;
-        } else {
-            groups[key].items.push({
-                name: productName,
-                price: sale.price,
-                quantity: 1,
-                totalPrice: sale.price
-            });
-        }
-        groups[key].total += sale.price;
-    });
-
-    const groupedList = Object.values(groups).sort((a, b) => parseUTCTimestamp(b.timestamp) - parseUTCTimestamp(a.timestamp));
+    // Group salesLog by client account (shared with the day-close report's
+    // "Ventas por Cliente" view -- see groupSalesByClientAccounts).
+    const groupedList = groupSalesByClientAccounts(salesLog);
 
     let activeCount = 0;
     let paidCount = 0;

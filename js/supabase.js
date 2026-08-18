@@ -1181,10 +1181,10 @@ async function fetchDayReport(dateStr) {
 
 /**
  * Fetch list of unique days with sales activity in the last N days
- * @param {number} days Number of days to look back (default 14)
+ * @param {number} days Number of days to look back (default 30)
  * @returns {Array} Array of date strings with activity
  */
-async function fetchReportDays(days = 14) {
+async function fetchReportDays(days = 30) {
     if (!client) return [];
     try {
         const startDate = new Date();

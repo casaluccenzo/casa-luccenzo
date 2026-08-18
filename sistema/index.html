@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=291">
+    <link rel="stylesheet" href="/css/main.css?v=292">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=291"></script>
-    <script src="/js/storage.js?v=291"></script>
-    <script src="/js/supabase.js?v=291"></script>
-    <script src="/js/exchange-rate.js?v=291"></script>
-    <script src="/js/export.js?v=291"></script>
-    <script src="/js/auth.js?v=291"></script>
-    <script src="/js/sales.js?v=291"></script>
-    <script src="/js/analytics.js?v=291"></script>
-    <script src="/js/inventory.js?v=291"></script>
-    <script src="/js/pin-management.js?v=291"></script>
-    <script src="/js/recipes.js?v=291"></script>
-    <script src="/js/audio.js?v=291"></script>
-    <script src="/js/share.js?v=291"></script>
-    <script src="/js/agent.js?v=291"></script>
-    <script src="/js/ui.js?v=291"></script>
-    <script src="/js/app.js?v=291"></script>
+    <script src="/js/ui/shared.js?v=292"></script>
+    <script src="/js/storage.js?v=292"></script>
+    <script src="/js/supabase.js?v=292"></script>
+    <script src="/js/exchange-rate.js?v=292"></script>
+    <script src="/js/export.js?v=292"></script>
+    <script src="/js/auth.js?v=292"></script>
+    <script src="/js/sales.js?v=292"></script>
+    <script src="/js/analytics.js?v=292"></script>
+    <script src="/js/inventory.js?v=292"></script>
+    <script src="/js/pin-management.js?v=292"></script>
+    <script src="/js/recipes.js?v=292"></script>
+    <script src="/js/audio.js?v=292"></script>
+    <script src="/js/share.js?v=292"></script>
+    <script src="/js/agent.js?v=292"></script>
+    <script src="/js/ui.js?v=292"></script>
+    <script src="/js/app.js?v=292"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -562,9 +562,17 @@
         <!-- ================= VIEW: ADMIN DASHBOARD (CONTROL) ================= -->
         <section id="view-admin-dashboard" class="view-section hidden">
             <div class="admin-dashboard-container">
-            
+
+            <!-- Mobile-only: opens the sidebar as a slide-out drawer. Hidden on
+                 desktop/tablet where the sidebar is always visible. -->
+            <button id="btn-admin-sidebar-toggle" class="admin-sidebar-toggle" aria-label="Abrir menú de administración" aria-expanded="false" aria-controls="admin-sidebar">
+                <i class="fa-solid fa-bars"></i>
+                <span>Menú</span>
+            </button>
+            <div id="admin-sidebar-backdrop" class="admin-sidebar-backdrop"></div>
+
             <!-- Sidebar Navigation -->
-            <div class="admin-sidebar">
+            <div class="admin-sidebar" id="admin-sidebar">
                 <div class="admin-sidebar-logo">
                     <div style="width: 2.25rem; height: 2.25rem; border-radius: 50%; background-image: url('/img/logo-192.png'); background-size: 108% 108%; background-position: center; background-repeat: no-repeat; border: 1.5px solid var(--color-gold);"></div>
                     <div style="display: flex; flex-direction: column;">

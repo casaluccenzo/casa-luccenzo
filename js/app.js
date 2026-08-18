@@ -4112,6 +4112,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSettingsCancel = document.getElementById('btn-settings-cancel');
     if (btnSettingsCancel) {
         btnSettingsCancel.addEventListener('click', () => {
+            // Reset the mobile drawer so it doesn't reopen already-expanded
+            // next time the admin dashboard is entered.
+            document.getElementById('admin-sidebar')?.classList.remove('open');
+            document.getElementById('admin-sidebar-backdrop')?.classList.remove('open');
+            document.getElementById('btn-admin-sidebar-toggle')?.setAttribute('aria-expanded', 'false');
             window.UIManager.switchView('local');
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
             window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
@@ -4325,12 +4330,35 @@ function initAdminDashboardListeners() {
     const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
     const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
 
+    // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
+    // permanently visible -- these elements are simply display:none there).
+    const adminSidebar = document.getElementById('admin-sidebar');
+    const adminSidebarToggle = document.getElementById('btn-admin-sidebar-toggle');
+    const adminSidebarBackdrop = document.getElementById('admin-sidebar-backdrop');
+
+    function closeAdminSidebarDrawer() {
+        if (adminSidebar) adminSidebar.classList.remove('open');
+        if (adminSidebarBackdrop) adminSidebarBackdrop.classList.remove('open');
+        if (adminSidebarToggle) adminSidebarToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    if (adminSidebarToggle && adminSidebar && adminSidebarBackdrop) {
+        adminSidebarToggle.addEventListener('click', () => {
+            triggerHaptic(10);
+            const isOpen = adminSidebar.classList.toggle('open');
+            adminSidebarBackdrop.classList.toggle('open', isOpen);
+            adminSidebarToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+        adminSidebarBackdrop.addEventListener('click', closeAdminSidebarDrawer);
+    }
+
     function activateTab(btn, panel) {
         triggerHaptic(10);
         allTabBtns.forEach(b => b.classList.remove('active'));
         allPanels.forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         panel.classList.add('active');
+        closeAdminSidebarDrawer();
     }
 
     tabSummaryBtn.addEventListener('click', () => {

@@ -3136,6 +3136,7 @@ async function handleUserLogin(username, password) {
     if (matchedUser && matchedUser.active !== false) {
         failedPinAttempts = 0;
         currentUser = matchedUser;
+        if (window.SupabaseManager) window.SupabaseManager.setCurrentLocationId(matchedUser.location_id || null);
         sessionStorage.setItem('casa_lucenzo_active_user', JSON.stringify(currentUser));
         localStorage.setItem('casa_lucenzo_active_user', JSON.stringify(currentUser));
         
@@ -3209,6 +3210,7 @@ async function handleQuickPINInput(pin) {
     if (isValid) {
         failedPinAttempts = 0;
         currentUser = activeUser;
+        if (window.SupabaseManager) window.SupabaseManager.setCurrentLocationId(activeUser.location_id || null);
         // Strictly the stored role -- same mapping handleUserLogin() uses.
         // This used to also grant admin to any username *containing* "admin"
         // (`userKey.includes('admin')`), so an account like "administracion"

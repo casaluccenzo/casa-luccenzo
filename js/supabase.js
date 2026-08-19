@@ -5,6 +5,21 @@ let activeSubscription = null;
 let dbSupportsLastClose = false;
 let supabaseLastCloseTime = null;
 
+// Which location (public.locations.id) the logged-in user belongs to.
+// Set from the profile row after sign-in/PIN unlock (js/app.js) and threaded
+// into every insert/upsert payload below. Left unset (null) is safe: those
+// payloads simply omit location_id and the column's DB-side DEFAULT applies,
+// which is correct as long as there is only one location in play.
+let currentLocationId = null;
+
+function setCurrentLocationId(id) {
+    currentLocationId = id || null;
+}
+
+function getCurrentLocationId() {
+    return currentLocationId;
+}
+
 // Production Build Placeholder Injection (injected via scripts/build.js from process.env)
 const DEFAULT_SUPABASE_URL = "__SUPABASE_URL__";
 const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
@@ -276,7 +291,8 @@ async function upsertSales(sales) {
         product_id: sale.productId,
         name: sale.name,
         price: sale.price,
-        timestamp: sale.timestamp
+        timestamp: sale.timestamp,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     }));
 
     try {
@@ -450,7 +466,8 @@ async function upsertProduct(product) {
         price: product.price,
         category: product.category,
         initial_stock: (product.initial_stock !== undefined && product.initial_stock !== null) ? product.initial_stock : (product.stock || 0),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -515,7 +532,8 @@ async function insertSale(sale) {
         name: sale.name,
         price: sale.price,
         timestamp: sale.timestamp,
-        bcv_rate: sale.bcvRate || window.bcvRate || null
+        bcv_rate: sale.bcvRate || window.bcvRate || null,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -541,7 +559,8 @@ async function insertSales(sales) {
         name: sale.name,
         price: sale.price,
         timestamp: sale.timestamp,
-        bcv_rate: sale.bcvRate || window.bcvRate || null
+        bcv_rate: sale.bcvRate || window.bcvRate || null,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     }));
 
     try {
@@ -633,7 +652,8 @@ async function insertExpense(expense) {
         uuid: expense.uuid,
         description: expense.description,
         amount: expense.amount,
-        timestamp: expense.timestamp
+        timestamp: expense.timestamp,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -687,7 +707,8 @@ async function upsertDebt(debt) {
         client_name: debt.clientName,
         amount: debt.amount,
         description: debt.description,
-        timestamp: debt.timestamp
+        timestamp: debt.timestamp,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -743,7 +764,8 @@ async function upsertReplenishment(repl) {
         amount: repl.amount,
         unit: repl.unit,
         status: repl.status,
-        timestamp: repl.timestamp
+        timestamp: repl.timestamp,
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -781,7 +803,8 @@ async function upsertIngredient(ing) {
         name: ing.name,
         stock: ing.stock,
         unit: ing.unit,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -856,6 +879,8 @@ async function signOutUser() {
         await client.auth.signOut();
     } catch (e) {
         console.warn("Supabase auth.signOut warning:", e);
+    } finally {
+        currentLocationId = null;
     }
 }
 
@@ -984,7 +1009,11 @@ async function upsertProfile(profile) {
             name: profile.name,
             role: profile.role,
             active: profile.active !== false,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            // A profile being edited keeps its own location unless explicitly
+            // changed; a brand-new profile defaults to the location of
+            // whoever is creating it (e.g. an admin adding a staff member).
+            ...(profile.location_id ? { location_id: profile.location_id } : (currentLocationId ? { location_id: currentLocationId } : {}))
         };
         const { error } = await client.from('profiles').upsert(payload);
         if (error) throw error;
@@ -1285,7 +1314,8 @@ async function registerSession(deviceId, deviceName, role) {
             device_name: deviceName,
             role: role || 'local',
             last_active_at: new Date().toISOString(),
-            is_blocked: false
+            is_blocked: false,
+            ...(currentLocationId ? { location_id: currentLocationId } : {})
         };
         const { error } = await client.from('active_sessions').upsert(payload, { onConflict: 'device_id' });
         if (error) throw error;
@@ -1372,7 +1402,8 @@ async function insertActivityLog(role, action, details, actorName) {
         action: action || '',
         details: details || '',
         actor_name: actorName || null,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...(currentLocationId ? { location_id: currentLocationId } : {})
     };
     try {
         if (!navigator.onLine) {
@@ -1474,6 +1505,8 @@ window.SupabaseManager = {
     isConfigured,
     isTestEnvironment,
     init,
+    setCurrentLocationId,
+    getCurrentLocationId,
     signInUser,
     signOutUser,
     getCurrentSession,

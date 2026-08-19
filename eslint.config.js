@@ -102,6 +102,9 @@ module.exports = [
         }
     },
     {
-        ignores: ['www/', 'node_modules/', 'whatsapp-session/', 'supabase/.temp/']
+        // web/ is a self-contained Next.js project with its own eslint.config.mjs,
+        // TypeScript, and lint script -- this root config (vanilla JS, no TS parser)
+        // isn't set up to lint it.
+        ignores: ['www/', 'node_modules/', 'whatsapp-session/', 'supabase/.temp/', 'web/']
     }
 ];

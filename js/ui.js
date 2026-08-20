@@ -1500,7 +1500,8 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 timestamp: group.timestamp,
                 facNo: (group.timestamp.replace(/\D/g, '') + '0000').substring(0, 16),
                 isAlreadyPaid: true,
-                payMethod: group.paymentMethod || 'Efectivo'
+                payMethod: group.paymentMethod || 'Efectivo',
+                rate: group.bcvRate || rate
             });
         });
     });
@@ -2852,6 +2853,10 @@ function groupSalesByClientAccounts(salesLog) {
                 clientRif: clientRif,
                 isPaid: isPaid,
                 paymentMethod: paymentMethod,
+                // The rate this account was actually charged at, so reprinting
+                // its invoice later (any day) shows that rate, not today's --
+                // see showPosReceiptModal.
+                bcvRate: sale.bcvRate || null,
                 items: [],
                 total: 0
             };
@@ -3435,7 +3440,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                     timestamp: group.timestamp,
                     facNo: (group.timestamp.replace(/\D/g, '') + '0000').substring(0, 16),
                     isAlreadyPaid: true,
-                    payMethod: group.paymentMethod || 'Efectivo'
+                    payMethod: group.paymentMethod || 'Efectivo',
+                    rate: group.bcvRate
                 });
             } else {
                 showPaymentMethodModal(group.clientName, group.clientRif, group.items, group.timestamp, (method, name, rif) => {
@@ -3677,7 +3683,8 @@ function showPosReceiptModal({
     timestamp = new Date().toISOString(),
     facNo = '',
     isAlreadyPaid = false,
-    payMethod = ''
+    payMethod = '',
+    rate: rateOverride = null
 }) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-backdrop';
@@ -3696,7 +3703,15 @@ function showPosReceiptModal({
     overlay.style.boxSizing = 'border-box';
     overlay.style.overflowY = 'auto';
 
-    const rate = window.bcvRate || 1;
+    // A closed sale already has the BCV rate it was actually charged at
+    // (see groupSalesByClientAccounts) -- an invoice for a past day must keep
+    // showing that rate, not whatever the dollar happens to be worth right
+    // now, or the Bs. total on a reprinted "Factura POS SENIAT" stops
+    // matching what the client actually paid. Only a not-yet-charged sale
+    // (no rate passed in) falls back to the live rate.
+    const rate = (rateOverride && !isNaN(parseFloat(rateOverride)) && parseFloat(rateOverride) > 0)
+        ? parseFloat(rateOverride)
+        : (window.bcvRate || 1);
     const totalUSD = cart.reduce((sum, item) => sum + getItemTotalUSD(item), 0);
     const totalVES = totalUSD * rate;
 

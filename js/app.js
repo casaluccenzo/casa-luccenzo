@@ -2836,21 +2836,26 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 return;
             }
 
-            bcvRate = parseFloat(newRow.bcv_rate) || 732.48;
+            const incomingBcvRate = parseFloat(newRow.bcv_rate) || 732.48;
+            const bcvRateChanged = incomingBcvRate !== bcvRate;
+            bcvRate = incomingBcvRate;
             useAutoBcv = newRow.use_auto_bcv !== false;
             window.bcvRate = bcvRate;
+            if (bcvRateChanged) {
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
+            }
             window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-            
+
             // Sync DOM components
             const autoCheckbox = document.getElementById('pref-bcv-auto');
             const bcvRateInput = document.getElementById('pref-bcv-rate');
-            const headerBcvInput = document.getElementById('header-bcv-rate-input');
             if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
             if (bcvRateInput) {
                 bcvRateInput.value = bcvRate;
                 bcvRateInput.disabled = useAutoBcv;
             }
-            if (headerBcvInput) headerBcvInput.value = bcvRate;
+            updateBcvHeaderDisplay();
 
             // Re-render all views
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -2968,11 +2973,17 @@ async function performFullFetch(tableName) {
     } else if (tableName === 'app_config') {
         const data = await window.SupabaseManager.fetchAppConfig();
         if (data) {
-            bcvRate = parseFloat(data.bcv_rate) || 732.48;
+            const incomingBcvRate = parseFloat(data.bcv_rate) || 732.48;
+            const bcvRateChanged = incomingBcvRate !== bcvRate;
+            bcvRate = incomingBcvRate;
             useAutoBcv = data.use_auto_bcv !== false;
             window.bcvRate = bcvRate;
+            if (bcvRateChanged) {
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
+            }
             window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-            
+
             // Sync custom security PINs
             if (data.pin_local) {
                 pinLocal = data.pin_local;
@@ -2996,13 +3007,12 @@ async function performFullFetch(tableName) {
             // Sync DOM components
             const autoCheckbox = document.getElementById('pref-bcv-auto');
             const bcvRateInput = document.getElementById('pref-bcv-rate');
-            const headerBcvInput = document.getElementById('header-bcv-rate-input');
             if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
             if (bcvRateInput) {
                 bcvRateInput.value = bcvRate;
                 bcvRateInput.disabled = useAutoBcv;
             }
-            if (headerBcvInput) headerBcvInput.value = bcvRate;
+            updateBcvHeaderDisplay();
 
             // Re-render
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);

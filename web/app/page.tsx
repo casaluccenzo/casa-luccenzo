@@ -41,7 +41,7 @@ export default async function Home() {
 
       <main className="mx-auto flex max-w-3xl flex-1 flex-col gap-16 px-6 py-16">
         <section className="flex flex-col gap-4">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          <p className="font-mono text-xs uppercase tracking-widest text-accent-text">
             {location?.name ?? "Casa Luccenzo"}
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
@@ -66,7 +66,7 @@ export default async function Home() {
 
           {[...menuByCategory.entries()].map(([category, items]) => (
             <div key={category} className="flex flex-col gap-3">
-              <h3 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <h3 className="font-mono text-xs uppercase tracking-widest text-accent-text">
                 {category}
               </h3>
               <div className="grid gap-3 sm:grid-cols-2">

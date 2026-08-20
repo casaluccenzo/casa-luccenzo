@@ -267,6 +267,20 @@ function saveBcvPreferences(rate, auto) {
     }
 }
 
+const BCV_LAST_FETCH_KEY = 'casa_lucenzo_bcv_last_fetch';
+
+function loadBcvLastFetch() {
+    return localStorage.getItem(BCV_LAST_FETCH_KEY);
+}
+
+function saveBcvLastFetch(iso) {
+    try {
+        localStorage.setItem(BCV_LAST_FETCH_KEY, iso || '');
+    } catch(e) {
+        console.error("Failed to save BCV last fetch time", e);
+    }
+}
+
 
 
 const LAST_CLOSE_KEY = 'casa_lucenzo_last_close_time';
@@ -478,6 +492,8 @@ window.StorageManager = {
     savePreferences,
     loadBcvPreferences,
     saveBcvPreferences,
+    loadBcvLastFetch,
+    saveBcvLastFetch,
     loadLastCloseTime,
     saveLastCloseTime
 };

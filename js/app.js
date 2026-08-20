@@ -36,6 +36,7 @@ let currentRole = null;
 // BCV Exchange Rate state
 let bcvRate = 732.48;
 let useAutoBcv = true;
+let bcvLastFetchTime = null;
 
 // Current report data displayed in the day close modal
 let currentReportData = { sales: [], expenses: [] };
@@ -2835,21 +2836,26 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 return;
             }
 
-            bcvRate = parseFloat(newRow.bcv_rate) || 732.48;
+            const incomingBcvRate = parseFloat(newRow.bcv_rate) || 732.48;
+            const bcvRateChanged = incomingBcvRate !== bcvRate;
+            bcvRate = incomingBcvRate;
             useAutoBcv = newRow.use_auto_bcv !== false;
             window.bcvRate = bcvRate;
+            if (bcvRateChanged) {
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
+            }
             window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-            
+
             // Sync DOM components
             const autoCheckbox = document.getElementById('pref-bcv-auto');
             const bcvRateInput = document.getElementById('pref-bcv-rate');
-            const headerBcvInput = document.getElementById('header-bcv-rate-input');
             if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
             if (bcvRateInput) {
                 bcvRateInput.value = bcvRate;
                 bcvRateInput.disabled = useAutoBcv;
             }
-            if (headerBcvInput) headerBcvInput.value = bcvRate;
+            updateBcvHeaderDisplay();
 
             // Re-render all views
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -2967,11 +2973,17 @@ async function performFullFetch(tableName) {
     } else if (tableName === 'app_config') {
         const data = await window.SupabaseManager.fetchAppConfig();
         if (data) {
-            bcvRate = parseFloat(data.bcv_rate) || 732.48;
+            const incomingBcvRate = parseFloat(data.bcv_rate) || 732.48;
+            const bcvRateChanged = incomingBcvRate !== bcvRate;
+            bcvRate = incomingBcvRate;
             useAutoBcv = data.use_auto_bcv !== false;
             window.bcvRate = bcvRate;
+            if (bcvRateChanged) {
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
+            }
             window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
-            
+
             // Sync custom security PINs
             if (data.pin_local) {
                 pinLocal = data.pin_local;
@@ -2995,13 +3007,12 @@ async function performFullFetch(tableName) {
             // Sync DOM components
             const autoCheckbox = document.getElementById('pref-bcv-auto');
             const bcvRateInput = document.getElementById('pref-bcv-rate');
-            const headerBcvInput = document.getElementById('header-bcv-rate-input');
             if (autoCheckbox) autoCheckbox.checked = useAutoBcv;
             if (bcvRateInput) {
                 bcvRateInput.value = bcvRate;
                 bcvRateInput.disabled = useAutoBcv;
             }
-            if (headerBcvInput) headerBcvInput.value = bcvRate;
+            updateBcvHeaderDisplay();
 
             // Re-render
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -3513,12 +3524,25 @@ function saveAndSyncBcvConfig() {
 }
 
 /**
- * Update the header exchange rate text
+ * Update the header exchange rate text, flagging it visually when the rate
+ * hasn't been refreshed in over 24h (e.g. the app was left open across days
+ * without a day close, so the BCV rate stopped tracking today's dollar).
  */
 function updateBcvHeaderDisplay() {
     const el = document.getElementById('header-bcv-rate-input');
-    if (el) {
-        el.value = bcvRate;
+    if (!el) return;
+    el.value = bcvRate;
+
+    const ageHours = bcvLastFetchTime ? (Date.now() - new Date(bcvLastFetchTime).getTime()) / 3600000 : null;
+    const isStale = ageHours === null || ageHours >= 24;
+    el.classList.toggle('bcv-rate-stale', isStale);
+    if (isStale) {
+        const lastLabel = bcvLastFetchTime ? new Date(bcvLastFetchTime).toLocaleString() : 'nunca';
+        el.title = `⚠️ Tasa BCV desactualizada (última actualización: ${lastLabel}). Verifica tu conexión.`;
+    } else if (el.getAttribute('readonly')) {
+        el.title = 'Tasa BCV del día (Solo modificable por Administrador)';
+    } else {
+        el.title = 'Toca para cambiar la tasa manualmente (Modo Administrador)';
     }
 }
 
@@ -3565,6 +3589,8 @@ async function fetchBcvRate(force = false) {
             bcvRate = newRate;
             window.bcvRate = bcvRate;
             useAutoBcv = true;
+            bcvLastFetchTime = new Date().toISOString();
+            window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
             saveAndSyncBcvConfig();
             console.log(`BCV Rate updated successfully to ${bcvRate} Bs.`);
 
@@ -3701,6 +3727,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bcvRate = bcvPrefs.bcvRate || 732.48;
     useAutoBcv = bcvPrefs.useAutoBcv !== false;
     window.bcvRate = bcvRate;
+    bcvLastFetchTime = window.StorageManager.loadBcvLastFetch() || null;
     
     const headerBcvInput = document.getElementById('header-bcv-rate-input');
     const autoBcvCheckbox = document.getElementById('pref-bcv-auto');
@@ -3715,21 +3742,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 bcvRate = val;
                 window.bcvRate = bcvRate;
                 useAutoBcv = false; // Disable automatic sync since they manually set the rate
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
                 saveAndSyncBcvConfig();
-                
+
                 // Sync Settings Modal components
                 if (autoBcvCheckbox) autoBcvCheckbox.checked = false;
                 if (bcvRateInput) {
                     bcvRateInput.value = bcvRate;
                     bcvRateInput.disabled = false;
                 }
-                
+
+                updateBcvHeaderDisplay();
+
                 // Re-render all views
                 window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
                 window.UIManager.renderCashRegister(salesLog, expenses);
                 window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
                 window.UIManager.renderDebts(debts, settleDebtPayment);
-                
+
                 window.UIManager.showToast(`💵 Tasa cambiada a ${bcvRate.toFixed(2)} Bs.`, "fa-solid fa-dollar-sign");
             }
         });
@@ -3755,11 +3786,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (val > 0) {
                 bcvRate = val;
                 window.bcvRate = bcvRate;
+                bcvLastFetchTime = new Date().toISOString();
+                window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
                 saveAndSyncBcvConfig();
-                
+
                 // Sync Header input
-                if (headerBcvInput) headerBcvInput.value = bcvRate;
-                
+                updateBcvHeaderDisplay();
+
                 // Re-render
                 window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
                 window.UIManager.renderCashRegister(salesLog, expenses);
@@ -3768,11 +3801,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     updateBcvHeaderDisplay();
     if (useAutoBcv) {
         fetchBcvRate();
     }
+
+    // The BCV rate otherwise only refreshes on app load or day close, so a
+    // device left open across days (kiosk/tablet) silently keeps selling at
+    // a stale dollar rate. Re-check periodically and whenever the tab
+    // regains focus, same pattern as the service worker update check above.
+    setInterval(() => {
+        if (useAutoBcv) fetchBcvRate();
+        updateBcvHeaderDisplay();
+    }, 6 * 60 * 60 * 1000); // every 6h
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        const ageHours = bcvLastFetchTime ? (Date.now() - new Date(bcvLastFetchTime).getTime()) / 3600000 : Infinity;
+        if (useAutoBcv && ageHours >= 6) fetchBcvRate();
+        updateBcvHeaderDisplay();
+    });
 
     document.getElementById('pref-sound').checked = preferences.sound !== false;
     document.getElementById('pref-vibrate').checked = preferences.vibration !== false;

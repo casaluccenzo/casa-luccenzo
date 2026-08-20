@@ -1573,6 +1573,18 @@ input:checked + .slider:before {
     50% { opacity: 1; border-color: var(--color-danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
 }
 
+/* BCV rate hasn't been refreshed in 24h+ (see updateBcvHeaderDisplay in app.js) */
+#header-bcv-rate-input.bcv-rate-stale {
+    border-color: #F59E0B !important;
+    color: #F59E0B !important;
+    animation: pulseBcvStale 2s infinite ease-in-out;
+}
+
+@keyframes pulseBcvStale {
+    0%, 100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+    50% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+}
+
 .status-free {
     color: var(--color-text-muted);
 }

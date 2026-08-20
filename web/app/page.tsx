@@ -31,7 +31,7 @@ export default async function Home() {
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <span className="font-mono text-sm font-semibold tracking-tight">
-            Casa Luccenzo
+            Casa Lucenzo
           </span>
           <Button asChild size="sm">
             <a href="#menu">Ver menú</a>
@@ -42,13 +42,13 @@ export default async function Home() {
       <main className="mx-auto flex max-w-3xl flex-1 flex-col gap-16 px-6 py-16">
         <section className="flex flex-col gap-4">
           <p className="font-mono text-xs uppercase tracking-widest text-accent-text">
-            {location?.name ?? "Casa Luccenzo"}
+            {location?.name ?? "Casa Lucenzo"}
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             Pastelitos recién hechos, todos los días.
           </h1>
           <p className="max-w-prose text-muted-foreground">
-            Este es el nuevo sitio público de Casa Luccenzo — el menú de
+            Este es el nuevo sitio público de Casa Lucenzo — el menú de
             abajo se lee en vivo de la misma base de datos que usa el sistema
             de caja, así que siempre muestra lo que hay disponible hoy.
           </p>
@@ -89,7 +89,7 @@ export default async function Home() {
       <footer className="border-t px-6 py-8">
         <div className="mx-auto max-w-3xl text-sm text-muted-foreground">
           {/* TODO: reemplazar con datos reales (WhatsApp, dirección, horario) antes de publicar */}
-          Casa Luccenzo · Contacto y horario próximamente.
+          Casa Lucenzo · Contacto y horario próximamente.
         </div>
       </footer>
     </>

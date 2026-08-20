@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Casa Luccenzo",
+  title: "Casa Lucenzo",
   description: "Pastelitos recién hechos, todos los días.",
 };
 

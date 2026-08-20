@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Palette sampled directly from img/logo-512.png (the real Casa Luccenzo
+ * Palette sampled directly from img/logo-512.png (the real Casa Lucenzo
  * badge): navy #0F3355 field, champagne-gold #C9A24A ring and pastelito
  * illustration, warm cream #F9F5F2 paper behind it. Light mode leads with
  * the cream/navy pairing from the badge's outer ring; dark mode inverts to

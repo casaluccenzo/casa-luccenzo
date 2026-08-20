@@ -2,7 +2,7 @@
 --
 -- Adds public.locations and a location_id column across every operational
 -- table, as groundwork for supporting more than the one physical location
--- ("Casa Luccenzo") this schema was built for. Purely additive and
+-- ("Casa Lucenzo") this schema was built for. Purely additive and
 -- backward-compatible on its own: every location_id column gets DEFAULT +
 -- backfill to the existing location's fixed id, so nothing in the current
 -- app (which does not yet send location_id anywhere) breaks.
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.locations (
 );
 
 INSERT INTO public.locations (id, slug, name)
-VALUES ('00000000-0000-0000-0000-000000000001', 'casa-luccenzo', 'Casa Luccenzo')
+VALUES ('00000000-0000-0000-0000-000000000001', 'casa-luccenzo', 'Casa Lucenzo')
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;

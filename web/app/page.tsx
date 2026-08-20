@@ -183,9 +183,15 @@ export default async function Home() {
       </main>
 
       <footer className="border-t px-6 py-8">
-        <div className="mx-auto max-w-3xl text-sm text-muted-foreground">
-          Casa Lucenzo · Abierto todos los días, 6:00 a.m. – 2:00 p.m. ·
-          Dirección próximamente.
+        <div className="mx-auto flex max-w-3xl flex-col gap-2 text-sm text-muted-foreground">
+          <p>
+            Casa Lucenzo · Abierto todos los días, 6:00 a.m. – 2:00 p.m. ·
+            Dirección próximamente.
+          </p>
+          <p className="font-mono text-xs">
+            © {new Date().getFullYear()} Casa Lucenzo. Todos los derechos
+            reservados. HECHO EN VENEZUELA
+          </p>
         </div>
       </footer>
     </>

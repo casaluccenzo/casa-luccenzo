@@ -87,9 +87,34 @@ export default async function Home() {
       </main>
 
       <footer className="border-t px-6 py-8">
-        <div className="mx-auto max-w-3xl text-sm text-muted-foreground">
-          {/* TODO: reemplazar con datos reales (WhatsApp, dirección, horario) antes de publicar */}
-          Casa Lucenzo · Contacto y horario próximamente.
+        <div className="mx-auto flex max-w-3xl flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>Casa Lucenzo · Dirección y horario próximamente.</span>
+          <div className="flex gap-4">
+            <a
+              className="hover:text-accent-text"
+              href="https://wa.me/584120839311?text=%C2%A1Hola%20Casa%20Lucenzo!%20%F0%9F%91%8B%20Quiero%20hacer%20un%20pedido."
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp
+            </a>
+            <a
+              className="hover:text-accent-text"
+              href="https://www.instagram.com/casalucenzo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Instagram
+            </a>
+            <a
+              className="hover:text-accent-text"
+              href="https://www.facebook.com/profile.php?id=61593235718793"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Facebook
+            </a>
+          </div>
         </div>
       </footer>
     </>

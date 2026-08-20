@@ -1134,7 +1134,7 @@ async function fetchDayReport(dateStr) {
         const dayStart = new Date(dateStr + 'T00:00:00');
         const dayEnd = new Date(dateStr + 'T23:59:59.999');
 
-        const [salesRes, expensesRes] = await Promise.all([
+        const [salesRes, expensesRes, rateHistoryRes] = await Promise.all([
             client.from('sales').select('*')
                 .gte('timestamp', dayStart.toISOString())
                 .lte('timestamp', dayEnd.toISOString())
@@ -1142,7 +1142,8 @@ async function fetchDayReport(dateStr) {
             client.from('expenses').select('*')
                 .gte('timestamp', dayStart.toISOString())
                 .lte('timestamp', dayEnd.toISOString())
-                .order('timestamp', { ascending: true })
+                .order('timestamp', { ascending: true }),
+            client.from('bcv_rate_history').select('bcv_rate').eq('rate_date', dateStr).maybeSingle()
         ]);
 
         if (salesRes.error) throw salesRes.error;
@@ -1156,6 +1157,15 @@ async function fetchDayReport(dateStr) {
                 dayBcvRate = r;
                 break;
             }
+        }
+
+        // A day with no sales (or older rows from before sales.bcv_rate
+        // existed) has nothing to infer a rate from -- fall back to that
+        // day's recorded rate in bcv_rate_history, which is kept regardless
+        // of whether anything sold that day (see migration 017).
+        if (!dayBcvRate && !rateHistoryRes.error && rateHistoryRes.data) {
+            const r = parseFloat(rateHistoryRes.data.bcv_rate);
+            if (r && !isNaN(r) && r > 0) dayBcvRate = r;
         }
 
         return {

@@ -417,7 +417,10 @@ details.settings-group summary {
 
 .form-grid-3 {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    /* minmax(0, 1fr) y no 1fr: igual que .admin-kpi-grid, con `1fr` el
+       select de Unidad no podía encoger por debajo de su contenido y las
+       3 columnas se salían del ancho de la tarjeta en el teléfono. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
     margin-top: 0.75rem;
 }
@@ -2184,7 +2187,9 @@ input[type="number"] {
 /* DASHBOARD LAYOUT */
 .admin-dashboard-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr): mismo motivo que .form-grid-3 / .admin-kpi-grid, para
+       que las tarjetas puedan encoger por debajo del ancho de su contenido. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 1rem;
     align-items: start;
 }
@@ -2415,7 +2420,11 @@ input[type="number"] {
     }
 
     .admin-dashboard-row {
-        grid-template-columns: 1fr !important;
+        /* minmax(0, 1fr): sin el 0 explícito, una tarjeta con contenido que no
+           puede envolver (p.ej. el nombre de producto con white-space: nowrap
+           en .settings-product-name) empuja esta columna más allá del ancho
+           de la pantalla y el resto del panel queda cortado/recorrido. */
+        grid-template-columns: minmax(0, 1fr) !important;
     }
 }
 

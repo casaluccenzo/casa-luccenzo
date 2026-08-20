@@ -184,7 +184,8 @@ export default async function Home() {
 
       <footer className="border-t px-6 py-8">
         <div className="mx-auto max-w-3xl text-sm text-muted-foreground">
-          Casa Lucenzo · Dirección y horario próximamente.
+          Casa Lucenzo · Abierto todos los días, 6:00 a.m. – 2:00 p.m. ·
+          Dirección próximamente.
         </div>
       </footer>
     </>

@@ -2426,6 +2426,18 @@ input[type="number"] {
            de la pantalla y el resto del panel queda cortado/recorrido. */
         grid-template-columns: minmax(0, 1fr) !important;
     }
+
+    /* El padding de escritorio (1.5rem panel + 1.25rem tarjeta = 2.75rem por
+       lado) le deja al contenido muy poco ancho útil en un teléfono, entre
+       el borde dorado y los inputs/selects. Se reduce solo en admin para no
+       tocar el padding del menú público que usa el mismo .container-md. */
+    .admin-panel-body {
+        padding: 1rem;
+    }
+
+    .admin-dashboard-card {
+        padding: 0.85rem;
+    }
 }
 
 /* Inline Admin Dashboard view wrapper */

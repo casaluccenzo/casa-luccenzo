@@ -849,7 +849,7 @@
                     </div>
                     <div class="admin-panel-body">
                         <!-- Split: Form left, List right -->
-                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.3fr;">
+                        <div class="admin-dashboard-row" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);">
                             <!-- Add Product Form -->
                             <div class="admin-dashboard-card">
                                 <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
@@ -969,7 +969,7 @@
                     </div>
                     <div class="admin-panel-body" style="padding-top: 0.75rem;">
                         <!-- Two Column Layout: Left Column = Raw Ingredients Purchase Costs (Solid & Liquid), Right Column = Product Recipe Cost & Net Profit Analysis -->
-                        <div class="admin-dashboard-row" style="grid-template-columns: 1fr 1.25fr; gap: 1rem;">
+                        <div class="admin-dashboard-row" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 1rem;">
                             
                             <!-- Left Column: Raw Insumos Costs (Solid & Liquid) -->
                             <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -980,7 +980,7 @@
                                 <!-- Add Insumo Form -->
                                 <form id="form-add-cost-insumo" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
                                     <div style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase;">+ Registrar Compra de Insumo</div>
-                                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.5rem;">
+                                    <div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.5rem;">
                                         <input type="text" id="cost-insumo-name" placeholder="Ej: Aceite, Harina, Queso" required class="form-input" style="height: 32px; font-size: 0.75rem;">
                                         <select id="cost-insumo-type" class="form-input" style="height: 32px; font-size: 0.75rem; background: var(--color-bg-dark); color: white;">
                                             <option value="solid">Sólido (kg)</option>
@@ -988,7 +988,7 @@
                                             <option value="unit">Unidad (unid.)</option>
                                         </select>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                    <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem;">
                                         <div>
                                             <label class="form-label" style="font-size: 8px;">CANTIDAD COMPRADA</label>
                                             <input type="number" id="cost-insumo-qty" step="0.01" min="0.01" required placeholder="Ej: 20 (kg o L)" class="form-input" style="height: 32px; font-size: 0.75rem;">
@@ -1018,7 +1018,7 @@
                                 </h4>
 
                                 <!-- Product Selector & Selling Price Input -->
-                                <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
+                                <div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
                                     <div>
                                         <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">SELECCIONAR PRODUCTO</label>
                                         <select id="cost-calc-product-select" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 700; background: var(--color-bg-dark); color: white;">
@@ -1220,7 +1220,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     </div>
 
                     <!-- Price ($) & Realtime (Bs.) Conversion + Category -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
+                    <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem;">
                         <div class="form-field">
                             <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
                                 <i class="fa-solid fa-dollar-sign" style="color: #10B981;"></i> PRECIO ($)

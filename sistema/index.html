@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=298">
+    <link rel="stylesheet" href="/css/main.css?v=299">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=298"></script>
-    <script src="/js/storage.js?v=298"></script>
-    <script src="/js/supabase.js?v=298"></script>
-    <script src="/js/exchange-rate.js?v=298"></script>
-    <script src="/js/export.js?v=298"></script>
-    <script src="/js/auth.js?v=298"></script>
-    <script src="/js/sales.js?v=298"></script>
-    <script src="/js/analytics.js?v=298"></script>
-    <script src="/js/inventory.js?v=298"></script>
-    <script src="/js/pin-management.js?v=298"></script>
-    <script src="/js/recipes.js?v=298"></script>
-    <script src="/js/audio.js?v=298"></script>
-    <script src="/js/share.js?v=298"></script>
-    <script src="/js/agent.js?v=298"></script>
-    <script src="/js/ui.js?v=298"></script>
-    <script src="/js/app.js?v=298"></script>
+    <script src="/js/ui/shared.js?v=299"></script>
+    <script src="/js/storage.js?v=299"></script>
+    <script src="/js/supabase.js?v=299"></script>
+    <script src="/js/exchange-rate.js?v=299"></script>
+    <script src="/js/export.js?v=299"></script>
+    <script src="/js/auth.js?v=299"></script>
+    <script src="/js/sales.js?v=299"></script>
+    <script src="/js/analytics.js?v=299"></script>
+    <script src="/js/inventory.js?v=299"></script>
+    <script src="/js/pin-management.js?v=299"></script>
+    <script src="/js/recipes.js?v=299"></script>
+    <script src="/js/audio.js?v=299"></script>
+    <script src="/js/share.js?v=299"></script>
+    <script src="/js/agent.js?v=299"></script>
+    <script src="/js/ui.js?v=299"></script>
+    <script src="/js/app.js?v=299"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -1241,8 +1241,11 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             </label>
                             <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
                                 <option value="pastelitos">Pastelitos</option>
-                                <!-- Tortas temporalmente oculto -- no se está vendiendo por ahora. -->
                                 <option value="bebidas">Bebidas</option>
+                                <!-- Tortas sigue oculta de la vitrina de venta -- esta opción existe
+                                     solo para que el <select> no pierda la categoría real al editar
+                                     un producto que ya es 'tortas' (ej. cargarle costo de producción). -->
+                                <option value="tortas">Tortas (oculta en vitrina)</option>
                             </select>
                         </div>
                     </div>

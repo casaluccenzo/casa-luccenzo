@@ -318,9 +318,51 @@
             .staff-fab span { max-width: 8rem; }
         }
         a:focus-visible, button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 3px; }
+
+        .site-nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.9rem 1.5rem;
+            background: rgba(15,33,55,0.55);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(201,162,74,0.14);
+        }
+        .site-nav .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+        .site-nav .brand img { width: 28px; height: 28px; border-radius: 50%; box-shadow: 0 0 0 1px var(--rule); }
+        .site-nav .brand span { font-family: var(--serif); font-weight: 700; color: var(--cream-100); font-size: 0.92rem; letter-spacing: 0.02em; }
+        .site-nav .links { display: flex; gap: 1.6rem; }
+        .site-nav .links a { font-size: 0.8rem; font-weight: 600; color: rgba(246,241,228,0.72); text-decoration: none; transition: color 0.2s ease; }
+        .site-nav .links a:hover { color: var(--gold-300); }
+        @media (max-width: 560px) {
+            .site-nav .brand span { display: none; }
+            .site-nav .links { gap: 1rem; }
+            .site-nav .links a { font-size: 0.72rem; }
+        }
+        section[id] { scroll-margin-top: 4.5rem; }
+
+        .hours-badge {
+            display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;
+            padding: 0.5rem 1rem; border: 1px solid rgba(30,42,51,0.16); border-radius: 999px;
+            background: var(--cream-100); color: var(--navy-900); font-size: 0.82rem; font-weight: 600;
+        }
+        .hours-badge svg { color: var(--gold-700); flex-shrink: 0; }
+        a.hours-badge { transition: border-color 0.25s ease, transform 0.25s ease; }
+        a.hours-badge:hover { border-color: var(--gold-500); transform: translateY(-2px); }
     </style>
 </head>
 <body>
+
+    <nav class="site-nav">
+        <a class="brand" href="#">
+            <img src="/img/logo-192.png" alt="Escudo de Casa Lucenzo">
+            <span>Casa Lucenzo</span>
+        </a>
+        <div class="links">
+            <a href="#historia">Historia</a>
+            <a href="#menu">Menú</a>
+            <a href="#contacto">Contacto</a>
+        </div>
+    </nav>
 
     <main>
     <div class="hero">
@@ -340,7 +382,7 @@
         </div>
     </div>
 
-    <section class="historia">
+    <section class="historia" id="historia">
         <div class="shell reveal">
             <div class="big-number">80<span class="unit">años</span></div>
             <div>
@@ -457,6 +499,16 @@
             <p class="eyebrow" style="color:var(--gold-700)">Encuéntranos</p>
             <h2>Síguenos en nuestras redes</h2>
             <p>O escribinos directo por WhatsApp si preferís coordinar el pedido por chat.</p>
+            <div class="info-badges" style="display:flex; flex-wrap:wrap; justify-content:center; gap:0.6rem;">
+                <div class="hours-badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <span>Todos los días · 6:00 am – 2:00 pm</span>
+                </div>
+                <a class="hours-badge" href="https://www.google.com/maps/search/?api=1&query=El+Tigre+6050%2C+Anzo%C3%A1tegui%2C+Venezuela" target="_blank" rel="noopener noreferrer" style="text-decoration:none; cursor:pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.5" r="2.2" stroke="currentColor" stroke-width="1.6"/></svg>
+                    <span>El Tigre 6050, Anzoátegui</span>
+                </a>
+            </div>
             <div class="social-row">
                 <a class="social-pill" href="https://www.instagram.com/casalucenzo" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Casa Lucenzo">Instagram</a>
                 <a class="social-pill" href="https://www.facebook.com/profile.php?id=61593235718793" target="_blank" rel="noopener noreferrer" aria-label="Facebook de Casa Lucenzo">Facebook</a>

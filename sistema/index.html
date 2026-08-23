@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=307">
+    <link rel="stylesheet" href="/css/main.css?v=308">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=307"></script>
-    <script src="/js/storage.js?v=307"></script>
-    <script src="/js/supabase.js?v=307"></script>
-    <script src="/js/exchange-rate.js?v=307"></script>
-    <script src="/js/export.js?v=307"></script>
-    <script src="/js/auth.js?v=307"></script>
-    <script src="/js/sales.js?v=307"></script>
-    <script src="/js/analytics.js?v=307"></script>
-    <script src="/js/inventory.js?v=307"></script>
-    <script src="/js/pin-management.js?v=307"></script>
-    <script src="/js/recipes.js?v=307"></script>
-    <script src="/js/audio.js?v=307"></script>
-    <script src="/js/share.js?v=307"></script>
-    <script src="/js/agent.js?v=307"></script>
-    <script src="/js/ui.js?v=307"></script>
-    <script src="/js/app.js?v=307"></script>
+    <script src="/js/ui/shared.js?v=308"></script>
+    <script src="/js/storage.js?v=308"></script>
+    <script src="/js/supabase.js?v=308"></script>
+    <script src="/js/exchange-rate.js?v=308"></script>
+    <script src="/js/export.js?v=308"></script>
+    <script src="/js/auth.js?v=308"></script>
+    <script src="/js/sales.js?v=308"></script>
+    <script src="/js/analytics.js?v=308"></script>
+    <script src="/js/inventory.js?v=308"></script>
+    <script src="/js/pin-management.js?v=308"></script>
+    <script src="/js/recipes.js?v=308"></script>
+    <script src="/js/audio.js?v=308"></script>
+    <script src="/js/share.js?v=308"></script>
+    <script src="/js/agent.js?v=308"></script>
+    <script src="/js/ui.js?v=308"></script>
+    <script src="/js/app.js?v=308"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -1425,7 +1425,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
     </div>
 
     <!-- ================= QUICK QUANTITY SELECTOR MODAL ================= -->
-    <div id="qty-selector-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
+    <div id="qty-selector-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: var(--z-modal-top); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
         <div style="background: linear-gradient(135deg, #0A1426 0%, #010F20 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-xl); width: 100%; max-width: 360px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; gap: 1rem;">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
@@ -1462,7 +1462,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
     </div>
 
     <!-- ================= CREATE / EDIT USER MODAL ================= -->
-    <div id="user-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
+    <div id="user-modal" class="modal-overlay hidden" style="position: fixed; inset: 0; z-index: var(--z-modal-top); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
         <div style="background: linear-gradient(135deg, #0A1426 0%, #010F20 100%); border: 1.5px solid var(--color-gold); border-radius: var(--radius-xl); width: 100%; max-width: 380px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
                 <h3 id="user-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--color-gold); margin: 0;">👤 Usuario del Sistema</h3>

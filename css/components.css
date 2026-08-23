@@ -534,7 +534,7 @@ details.settings-group summary {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    z-index: 999999;
+    z-index: var(--z-toast);
     font-size: 0.875rem;
     
     /* Animation and initial state */
@@ -940,7 +940,7 @@ details.settings-group summary {
     font-weight: 900;
     font-size: 1.35rem;
     pointer-events: none;
-    z-index: 9999;
+    z-index: var(--z-indicator);
     animation: floatUpFade 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
@@ -1106,7 +1106,7 @@ input:checked + .slider:before {
     position: fixed;
     inset: 0;
     background-color: var(--color-bg-navy);
-    z-index: 9999999;
+    z-index: var(--z-lockscreen);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1943,7 +1943,7 @@ input[type="number"] {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 90;
+    z-index: var(--z-drawer-backdrop);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--transition-normal);
@@ -2393,7 +2393,7 @@ input[type="number"] {
         width: 80vw;
         max-width: 300px;
         height: 100vh !important;
-        z-index: 95;
+        z-index: var(--z-drawer);
         overflow-y: auto;
         border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-bottom: none !important;

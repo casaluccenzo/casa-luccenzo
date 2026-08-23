@@ -1829,13 +1829,21 @@ async function openReportHistoryModal() {
             const formattedDate = formatReportDateStr(dateStr);
             triggerHaptic(15);
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            // Same Safari/iPadOS quirk as the day-close confirm button: open the
+            // tab before the await below so it stays authorized by the click.
+            const waTab = window.open('', '_blank');
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
                 const reportRate = report.bcvRate || report.sales?.find(s => s.bcvRate)?.bcvRate || window.bcvRate || bcvRate;
                 const message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, reportRate, products);
                 const encodedMessage = encodeURIComponent(message);
-                window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
+                if (waTab) {
+                    waTab.location.href = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+                } else {
+                    window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
+                }
             } else {
+                if (waTab) waTab.close();
                 window.UIManager.showToast("❌ No se pudo cargar el reporte.", "fa-solid fa-circle-xmark");
             }
             btn.innerHTML = '<i class="fa-brands fa-whatsapp" style="font-size: 12px;"></i> Enviar';
@@ -4254,6 +4262,14 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.disabled = true;
         confirmBtn.style.opacity = '0.6';
 
+        // Safari/iPadOS only allows window.open() when it's called synchronously
+        // inside the click handler -- any await before it (closeDayAndResetLogs
+        // below does several) drops the "user just clicked this" flag and the
+        // tab gets silently blocked, no error, nothing to catch. Opening a blank
+        // tab here, before any await, keeps it authorized; we just point it at
+        // the real WhatsApp URL once the report is ready.
+        const waTab = window.open('', '_blank');
+
         try {
             // Build the report from whatever data the modal is currently showing.
             const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
@@ -4267,8 +4283,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 await closeDayAndResetLogs();
             }
 
-            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+            if (waTab) {
+                waTab.location.href = waUrl;
+            } else {
+                // Blocked even as a blank tab (e.g. popups fully disabled) -- try
+                // anyway so desktop/Android, which don't need the pre-open trick,
+                // still get their normal window.open() behavior.
+                window.open(waUrl, '_blank');
+            }
             closeDayCloseModal();
+        } catch (e) {
+            // Don't leave a stray blank tab hanging if something above threw.
+            if (waTab) waTab.close();
+            throw e;
         } finally {
             confirmBtn.disabled = false;
             confirmBtn.style.opacity = '';

@@ -2517,27 +2517,26 @@ async function loadAndRenderUsersManagement() {
     if (window.SupabaseManager && window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
             supabaseProfiles = await window.SupabaseManager.fetchProfiles();
-            if (supabaseProfiles === null) profilesFetchFailed = true;
+            if (supabaseProfiles === null) {
+                profilesFetchFailed = true;
+            } else {
+                // profiles is the real source of truth now (see signUpNewUser /
+                // setProfileActive) -- keep a local cache so the panel still
+                // shows something sensible while offline, instead of whatever
+                // was left over from the old localStorage-only user flow.
+                systemUsers = supabaseProfiles;
+                if (window.StorageManager) window.StorageManager.saveUsers(systemUsers);
+            }
         } catch (e) {
             console.error("Failed to fetch Supabase profiles:", e);
             profilesFetchFailed = true;
         }
     }
 
-    if (supabaseProfiles && Array.isArray(supabaseProfiles) && supabaseProfiles.length > 0) {
-        systemUsers.forEach(u => {
-            const cleanUser = (u.username || '').toLowerCase();
-            const match = supabaseProfiles.find(p => (p.username || '').toLowerCase() === cleanUser);
-            if (match && match.id) {
-                u.id = match.id;
-            }
-        });
-    }
-
     window.UIManager.renderUsersManagement(
         systemUsers,
         (userToEdit) => openUserModal(userToEdit),
-        (userIdToDelete) => deleteUserHandler(userIdToDelete)
+        (userIdToDeactivate) => deactivateUserHandler(userIdToDeactivate)
     );
 
     const userSelect = document.getElementById('select-admin-target-user');
@@ -2572,12 +2571,29 @@ function openUserModal(user = null) {
     const modal = document.getElementById('user-modal');
     if (!modal) return;
 
+    const usernameInput = document.getElementById('user-modal-username');
+    const usernameNote = document.getElementById('user-modal-username-note');
+    const passwordField = document.getElementById('user-modal-password-field');
+    const passwordNote = document.getElementById('user-modal-password-note');
+    const passwordInput = document.getElementById('user-modal-password');
+
     document.getElementById('user-modal-title').textContent = user ? '✏️ Editar Usuario' : '➕ Nuevo Usuario';
     document.getElementById('user-modal-id').value = user ? user.id : '';
     document.getElementById('user-modal-name').value = user ? (user.name || '') : '';
     document.getElementById('user-modal-username').value = user ? (user.username || '') : '';
-    document.getElementById('user-modal-password').value = user ? (user.passwordHash || user.password || '') : '';
     document.getElementById('user-modal-role').value = user ? user.role : 'venta';
+
+    passwordInput.value = '';
+    // A real password can't be shown back (it's never stored anywhere this
+    // app can read it) and can't be changed for an existing account without
+    // a service-role Admin API call, which a browser-only client doesn't
+    // have. Editing is name/role only; creating still needs a password.
+    const isEditing = !!user;
+    usernameInput.readOnly = isEditing;
+    usernameNote.classList.toggle('hidden', !isEditing);
+    passwordField.classList.toggle('hidden', isEditing);
+    passwordInput.required = !isEditing;
+    passwordNote.classList.toggle('hidden', !isEditing);
 
     modal.classList.remove('hidden');
 }
@@ -2587,13 +2603,19 @@ function closeUserModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function deleteUserHandler(id) {
-    systemUsers = systemUsers.filter(u => u.id !== id);
-    window.StorageManager.saveUsers(systemUsers);
-    if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.deleteUser(id);
+async function deactivateUserHandler(id) {
+    if (!confirm("¿Desactivar este usuario? No va a poder iniciar sesión hasta que lo reactives.")) return;
+    if (!window.SupabaseManager.isConfigured()) {
+        window.UIManager.showToast("⚠️ Conexión con Supabase no disponible.", "fa-solid fa-wifi");
+        return;
     }
-    window.UIManager.showToast("🗑️ Usuario eliminado correctamente.", "fa-solid fa-trash");
+    const ok = await window.SupabaseManager.setProfileActive(id, false);
+    if (ok) {
+        window.UIManager.showToast("🚫 Usuario desactivado.", "fa-solid fa-user-slash");
+        logActivity("Usuario Desactivado", `Usuario ${id} desactivado por admin`);
+    } else {
+        window.UIManager.showToast("❌ No se pudo desactivar el usuario.", "fa-solid fa-circle-xmark");
+    }
     loadAndRenderUsersManagement();
 }
 
@@ -3939,52 +3961,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const userForm = document.getElementById('user-form');
     if (userForm) {
-        userForm.addEventListener('submit', (e) => {
+        userForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!window.SupabaseManager || !window.SupabaseManager.isConfigured()) {
+                window.UIManager.showToast("⚠️ Conexión con Supabase no disponible.", "fa-solid fa-wifi");
+                return;
+            }
+
             const id = document.getElementById('user-modal-id').value;
             const name = document.getElementById('user-modal-name').value.trim();
             const username = document.getElementById('user-modal-username').value.trim().toLowerCase();
-            const password = document.getElementById('user-modal-password').value.trim();
+            const password = document.getElementById('user-modal-password').value;
             const role = document.getElementById('user-modal-role').value;
+
+            const submitBtn = userForm.querySelector('button[type="submit"]');
+
+            if (id) {
+                // Editing: name/role only. Username maps to the account's real
+                // Supabase Auth email (username@casalucenzo.com) and can't be
+                // repointed from here; password can't be changed without a
+                // service-role Admin API call, which this client doesn't have.
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    await window.SupabaseManager.upsertProfile({ id, username, name: name || username, role, active: true });
+                    window.UIManager.showToast("✅ Usuario actualizado.", "fa-solid fa-circle-check");
+                    logActivity("Usuario Editado", `Editado: ${name || username} (${role})`);
+                    closeUserModal();
+                    loadAndRenderUsersManagement();
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+                return;
+            }
 
             if (!username || !password) {
                 window.UIManager.showToast("❌ Por favor completa usuario y contraseña.", "fa-solid fa-triangle-exclamation");
                 return;
             }
-
-            systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
-
-            if (id) {
-                const u = systemUsers.find(x => x.id === id);
-                if (u) {
-                    u.name = name || username;
-                    u.username = username;
-                    u.passwordHash = password;
-                    u.role = role;
-                }
-            } else {
-                if (systemUsers.some(x => x.username === username)) {
-                    window.UIManager.showToast("❌ El nombre de usuario ya existe.", "fa-solid fa-circle-xmark");
-                    return;
-                }
-                const newUser = {
-                    id: 'usr_' + Date.now(),
-                    name: name || username,
-                    username,
-                    passwordHash: password,
-                    role,
-                    active: true
-                };
-                systemUsers.push(newUser);
-                if (window.SupabaseManager.isConfigured()) {
-                    window.SupabaseManager.upsertUser(newUser);
-                }
+            if (password.length < 6) {
+                window.UIManager.showToast("❌ La contraseña debe tener al menos 6 caracteres.", "fa-solid fa-triangle-exclamation");
+                return;
             }
 
-            window.StorageManager.saveUsers(systemUsers);
-            window.UIManager.showToast("✅ Usuario guardado con éxito.", "fa-solid fa-circle-check");
-            closeUserModal();
-            loadAndRenderUsersManagement();
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const { success, error } = await window.SupabaseManager.signUpNewUser({ username, name: name || username, role, password });
+                if (success) {
+                    window.UIManager.showToast(`✅ Usuario "${username}" creado con éxito.`, "fa-solid fa-circle-check");
+                    logActivity("Usuario Creado", `Nuevo usuario: ${name || username} (${role})`);
+                    closeUserModal();
+                    loadAndRenderUsersManagement();
+                } else {
+                    const msg = (error && error.message) ? error.message : 'error desconocido';
+                    window.UIManager.showToast(`❌ No se pudo crear el usuario: ${msg}`, "fa-solid fa-circle-xmark");
+                }
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
         });
     }
 

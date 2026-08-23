@@ -1004,50 +1004,58 @@ async function upsertProfile(profile) {
     }
 }
 
-async function fetchUsers() {
-    if (!client) return null;
+async function signUpNewUser({ username, name, role, password }) {
+    if (!client) return { success: false, error: new Error("Supabase no configurado.") };
+    const cleanUser = (username || '').trim().toLowerCase();
+    const email = `${cleanUser}@casalucenzo.com`;
+
+    // signUp() switches the browser's active Supabase Auth session to the
+    // account it just created. Save the admin's current session first and
+    // restore it right after -- otherwise the admin creating a new cashier
+    // account ends up logged in AS that blank new account instead.
+    const { data: sessionData } = await client.auth.getSession();
+    const adminSession = sessionData?.session || null;
+
+    const restoreAdminSession = async () => {
+        if (adminSession) {
+            await client.auth.setSession({
+                access_token: adminSession.access_token,
+                refresh_token: adminSession.refresh_token
+            }).catch(() => {});
+        }
+    };
+
     try {
-        const { data, error } = await client.from('users').select('*').order('username');
+        const { data, error } = await client.auth.signUp({
+            email,
+            password,
+            options: { data: { username: cleanUser, name: name || cleanUser, role } }
+        });
         if (error) throw error;
-        return data.map(u => ({
-            id: u.id,
-            username: u.username,
-            name: u.name,
-            role: u.role,
-            active: u.active !== false
-        }));
+        if (!data.user) throw new Error("No se pudo crear el usuario (respuesta vacía).");
+
+        await restoreAdminSession();
+        // handle_new_user() (migration 001) already created the matching
+        // profiles row from this metadata via the auth.users trigger.
+        return { success: true, profile: { id: data.user.id, username: cleanUser, name: name || cleanUser, role, active: true } };
     } catch (e) {
-        console.warn("Table users in Supabase not ready or offline fallback:", e);
-        return null;
+        await restoreAdminSession();
+        return { success: false, error: e };
     }
 }
 
-async function upsertUser(user) {
-    if (!client) return;
+async function setProfileActive(id, active) {
+    if (!client) return false;
     try {
-        const payload = {
-            id: user.id || ('usr_' + user.username),
-            username: user.username,
-            name: user.name,
-            role: user.role,
-            active: user.active !== false
-        };
-        const { error } = await client.from('users').upsert(payload);
+        const { error } = await client.from('profiles').update({
+            active,
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
         if (error) throw error;
+        return true;
     } catch (e) {
-        console.error("Supabase upsertUser failed:", e);
-    }
-}
-
-async function deleteUser(id) {
-    if (!client) return;
-    try {
-        const { error: profileErr } = await client.from('profiles').delete().eq('id', id);
-        if (profileErr) throw profileErr;
-        const { error: userErr } = await client.from('users').delete().eq('id', id);
-        if (userErr) throw userErr;
-    } catch (e) {
-        console.error("Supabase deleteUser failed:", e);
+        console.error("Supabase setProfileActive failed:", e);
+        return false;
     }
 }
 
@@ -1504,6 +1512,8 @@ window.SupabaseManager = {
     verifyQuickPin,
     fetchProfiles,
     upsertProfile,
+    signUpNewUser,
+    setProfileActive,
     fetchProducts,
     fetchSales,
     fetchExpenses,
@@ -1512,9 +1522,6 @@ window.SupabaseManager = {
     fetchIngredients,
     fetchPedidosOnline,
     updatePedidoStatus,
-    fetchUsers,
-    upsertUser,
-    deleteUser,
     upsertProduct,
     updateProductStock,
     deleteProduct,

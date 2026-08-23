@@ -6064,11 +6064,29 @@ function renderCostFinancialResults(products, costInsumos) {
 
     let unitProductionCost;
     let ingredientBreakdownHtml;
+    let costSourceHtml;
+
+    if (product.cost > 0) {
+        // Real cost the business actually pays (e.g. Bs.800/unit to the
+        // third-party producer, set in Configurar Productos) beats any
+        // ingredient-recipe guess -- using both at once is how this
+        // calculator used to show a $0.26 "cost" and 753% margin on a
+        // pastelito that really costs Bs.800 to have made.
+        unitProductionCost = product.cost / bcv;
+        ingredientBreakdownHtml = `
+            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-md);">
+                • Costo real pagado al productor: Bs. ${product.cost.toFixed(2)} / unidad
+            </div>
+        `;
+        costSourceHtml = `<span style="font-size: 9px; font-weight: 800; color: #34D399; text-transform: uppercase;"><i class="fa-solid fa-check-circle"></i> Costo real (Configurar Productos)</span>`;
+    } else {
 
     // Standard dough cost for 1 pastelito (50g Harina + 5g Margarina + 15ml Fritura)
     const costHarina = 50 * priceHarinaG;
     const costMargarina = 5 * priceMargarinaG;
     const costAceite = 15 * priceAceiteMl;
+
+    costSourceHtml = `<span style="font-size: 9px; font-weight: 800; color: #FBBF24; text-transform: uppercase;"><i class="fa-solid fa-triangle-exclamation"></i> Estimado por receta -- no es el costo real</span>`;
 
     if (product.category === 'pastelitos') {
         let fillingCost;
@@ -6112,6 +6130,8 @@ function renderCostFinancialResults(products, costInsumos) {
         `;
     }
 
+    } // end of the product.cost > 0 / recipe-estimate branch
+
     const netProfitPerUnit = Math.max(0, sellPrice - unitProductionCost);
     const netProfitBs = netProfitPerUnit * bcv;
     const profitMarginPct = unitProductionCost > 0 ? ((netProfitPerUnit / unitProductionCost) * 100) : 0;
@@ -6124,7 +6144,9 @@ function renderCostFinancialResults(products, costInsumos) {
 
     resultsContainer.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-            
+
+            <div style="text-align: center;">${costSourceHtml}</div>
+
             <!-- Main Metrics Cards Grid -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;">
                 <!-- Cost Card -->
@@ -6205,13 +6227,15 @@ function renderUsersManagement(users, onEdit, onDelete) {
         const isCocina = roleKey === 'cocina' || userKey.includes('cocina');
         const roleLabel = isAdmin ? '👑 Admin' : (isCocina ? '👨‍🍳 Cocina' : '🥖 Ventas');
         const roleColor = isAdmin ? 'var(--color-gold)' : (isCocina ? '#F97316' : '#3B82F6');
+        const isActive = u.active !== false;
 
         return `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; opacity: ${isActive ? '1' : '0.55'};">
                 <div>
                     <div style="font-size: 0.78rem; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 0.3rem;">
                         <span>${escapeHtml(u.name || u.username)}</span>
                         <span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(255,255,255,0.1); color: ${roleColor};">${roleLabel}</span>
+                        ${!isActive ? `<span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(239,68,68,0.2); color: #FCA5A5;">DESACTIVADO</span>` : ''}
                     </div>
                     <div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">
                         Usuario: <strong style="color: var(--color-gold);">${escapeHtml(u.username)}</strong> | Autenticación: <span style="color: #34D399;">Supabase Auth (Protegido)</span>
@@ -6221,9 +6245,9 @@ function renderUsersManagement(users, onEdit, onDelete) {
                     <button class="btn-edit-user" data-id="${u.id}" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(59,130,246,0.2); color: #60A5FA; cursor: pointer; font-size: 0.7rem;">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </button>
-                    ${u.username !== 'admin' ? `
-                    <button class="btn-delete-user" data-id="${u.id}" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(239,68,68,0.2); color: #FCA5A5; cursor: pointer; font-size: 0.7rem;">
-                        <i class="fa-solid fa-trash"></i>
+                    ${u.username !== 'admin' && isActive ? `
+                    <button class="btn-delete-user" data-id="${u.id}" title="Desactivar usuario" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(239,68,68,0.2); color: #FCA5A5; cursor: pointer; font-size: 0.7rem;">
+                        <i class="fa-solid fa-user-slash"></i>
                     </button>` : ''}
                 </div>
             </div>

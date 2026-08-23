@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=313">
+    <link rel="stylesheet" href="/css/main.css?v=314">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=313"></script>
-    <script src="/js/storage.js?v=313"></script>
-    <script src="/js/supabase.js?v=313"></script>
-    <script src="/js/exchange-rate.js?v=313"></script>
-    <script src="/js/export.js?v=313"></script>
-    <script src="/js/auth.js?v=313"></script>
-    <script src="/js/sales.js?v=313"></script>
-    <script src="/js/analytics.js?v=313"></script>
-    <script src="/js/inventory.js?v=313"></script>
-    <script src="/js/pin-management.js?v=313"></script>
-    <script src="/js/recipes.js?v=313"></script>
-    <script src="/js/audio.js?v=313"></script>
-    <script src="/js/share.js?v=313"></script>
-    <script src="/js/agent.js?v=313"></script>
-    <script src="/js/ui.js?v=313"></script>
-    <script src="/js/app.js?v=313"></script>
+    <script src="/js/ui/shared.js?v=314"></script>
+    <script src="/js/storage.js?v=314"></script>
+    <script src="/js/supabase.js?v=314"></script>
+    <script src="/js/exchange-rate.js?v=314"></script>
+    <script src="/js/export.js?v=314"></script>
+    <script src="/js/auth.js?v=314"></script>
+    <script src="/js/sales.js?v=314"></script>
+    <script src="/js/analytics.js?v=314"></script>
+    <script src="/js/inventory.js?v=314"></script>
+    <script src="/js/pin-management.js?v=314"></script>
+    <script src="/js/recipes.js?v=314"></script>
+    <script src="/js/audio.js?v=314"></script>
+    <script src="/js/share.js?v=314"></script>
+    <script src="/js/agent.js?v=314"></script>
+    <script src="/js/ui.js?v=314"></script>
+    <script src="/js/app.js?v=314"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -1213,7 +1213,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                 </button>
             </div>
 
-            <form id="edit-product-form">
+            <form id="edit-product-form" style="display: flex; flex-direction: column; min-height: 0; flex: 1;">
                 <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 1.5rem;">
                     <input type="hidden" id="edit-prod-id">
                     

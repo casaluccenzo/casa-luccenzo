@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=305">
+    <link rel="stylesheet" href="/css/main.css?v=306">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=305"></script>
-    <script src="/js/storage.js?v=305"></script>
-    <script src="/js/supabase.js?v=305"></script>
-    <script src="/js/exchange-rate.js?v=305"></script>
-    <script src="/js/export.js?v=305"></script>
-    <script src="/js/auth.js?v=305"></script>
-    <script src="/js/sales.js?v=305"></script>
-    <script src="/js/analytics.js?v=305"></script>
-    <script src="/js/inventory.js?v=305"></script>
-    <script src="/js/pin-management.js?v=305"></script>
-    <script src="/js/recipes.js?v=305"></script>
-    <script src="/js/audio.js?v=305"></script>
-    <script src="/js/share.js?v=305"></script>
-    <script src="/js/agent.js?v=305"></script>
-    <script src="/js/ui.js?v=305"></script>
-    <script src="/js/app.js?v=305"></script>
+    <script src="/js/ui/shared.js?v=306"></script>
+    <script src="/js/storage.js?v=306"></script>
+    <script src="/js/supabase.js?v=306"></script>
+    <script src="/js/exchange-rate.js?v=306"></script>
+    <script src="/js/export.js?v=306"></script>
+    <script src="/js/auth.js?v=306"></script>
+    <script src="/js/sales.js?v=306"></script>
+    <script src="/js/analytics.js?v=306"></script>
+    <script src="/js/inventory.js?v=306"></script>
+    <script src="/js/pin-management.js?v=306"></script>
+    <script src="/js/recipes.js?v=306"></script>
+    <script src="/js/audio.js?v=306"></script>
+    <script src="/js/share.js?v=306"></script>
+    <script src="/js/agent.js?v=306"></script>
+    <script src="/js/ui.js?v=306"></script>
+    <script src="/js/app.js?v=306"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -169,11 +169,7 @@
                     <span class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
                     <span class="nav-label">5. CAMBIO</span>
                 </button>
-                <!-- Pedidos online: temporarily paused for every role while we keep
-                     improving it on the landing page. Remove style="display:none"
-                     to bring it back -- applyUserRole()'s classList.remove('hidden')
-                     doesn't touch this inline style, so it stays hidden regardless of role. -->
-                <button id="btn-pedidos" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-pedidos" style="display:none;">
+                <button id="btn-pedidos" class="inactive hidden" role="tab" aria-selected="false" aria-controls="view-pedidos">
                     <span class="nav-icon" style="display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
                         <i class="fa-solid fa-bag-shopping"></i>
                         <span id="pedidos-badge" class="badge-kitchen-nav hidden">0</span>
@@ -585,36 +581,36 @@
                     <div class="admin-sidebar-section-label">Operación</div>
                     <button id="admin-tab-btn-summary" class="admin-tab-btn active">
                         <i class="fa-solid fa-chart-line"></i>
-                        <span>📊 Dashboard</span>
+                        <span>Dashboard</span>
                     </button>
                     <button id="admin-tab-btn-analytics" class="admin-tab-btn">
                         <i class="fa-solid fa-chart-column"></i>
-                        <span>📈 Análisis</span>
+                        <span>Análisis</span>
                     </button>
                     <button id="admin-tab-btn-products" class="admin-tab-btn">
                         <i class="fa-solid fa-box"></i>
-                        <span>📦 Productos</span>
+                        <span>Productos</span>
                     </button>
                     <button id="admin-tab-btn-costs" class="admin-tab-btn">
                         <i class="fa-solid fa-calculator"></i>
-                        <span>🧮 Costos y Ganancias</span>
+                        <span>Costos y Ganancias</span>
                     </button>
                     <div class="admin-sidebar-section-label">Sistema</div>
                     <button id="admin-tab-btn-devices" class="admin-tab-btn">
                         <i class="fa-solid fa-network-wired"></i>
-                        <span>🔌 Dispositivos</span>
+                        <span>Dispositivos</span>
                     </button>
                     <button id="admin-tab-btn-logs" class="admin-tab-btn">
                         <i class="fa-solid fa-list-check"></i>
-                        <span>📋 Bitácora</span>
+                        <span>Bitácora</span>
                     </button>
                     <button id="admin-tab-btn-agent" class="admin-tab-btn">
                         <i class="fa-solid fa-robot"></i>
-                        <span>🤖 Agente IA</span>
+                        <span>Agente IA</span>
                     </button>
                     <button id="admin-tab-btn-preferences" class="admin-tab-btn">
                         <i class="fa-solid fa-sliders"></i>
-                        <span>⚙️ Ajustes</span>
+                        <span>Ajustes</span>
                     </button>
                 </div>
                 
@@ -872,7 +868,6 @@
                                         <label class="form-label">Categoría</label>
                                         <select id="new-category" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
                                             <option value="pastelitos">Pastelitos</option>
-                                            <!-- Tortas temporalmente oculto -- no se está vendiendo por ahora. -->
                                             <option value="bebidas">Bebidas</option>
                                         </select>
                                     </div>
@@ -1122,15 +1117,6 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     <input type="number" id="pref-bcv-rate" step="0.0001" placeholder="Ej: 732.4787" class="form-input" style="height: 32px; font-size: 0.75rem;">
                                 </div>
 
-                                <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.75rem; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">
-                                    <i class="fa-solid fa-brain"></i> Inteligencia Artificial (Gemini API)
-                                </h5>
-                                <div class="form-field" style="margin-top: 0.25rem;">
-                                    <label class="form-label" style="font-size: 9px;">API KEY DE GOOGLE GEMINI (OPCIONAL)</label>
-                                    <input type="password" id="pref-gemini-key" placeholder="AIzaSy..." class="form-input" style="height: 32px; font-size: 0.75rem;">
-                                    <span style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
-                                </div>
-
                                 <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
                                     <button id="btn-factory-reset" style="width: 100%; min-height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;">
                                         Reiniciar de Fábrica
@@ -1176,14 +1162,26 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     </form>
                                 </div>
 
-                                <!-- Supabase config -->
-                                <div>
-                                    <h5 style="font-size: 9px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.5rem;">Sincronización Supabase (En Vivo)</h5>
+                            </div>
+
+                            <!-- Sensitive credentials: kept in their own visually-marked
+                                 card, separate from cosmetic prefs, so they read as
+                                 credentials and not as just another toggle. -->
+                            <div class="admin-dashboard-card" style="grid-column: 1 / -1; border-color: var(--color-warning-border); background: rgba(245, 158, 11, 0.03);">
+                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(245, 158, 11, 0.25); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Claves y Credenciales
+                                </h4>
+                                <div class="admin-dashboard-row" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap: 0.75rem;">
+                                    <div class="form-field">
+                                        <label class="form-label" style="font-size: 9px;">API KEY DE GOOGLE GEMINI (OPCIONAL)</label>
+                                        <input type="password" id="pref-gemini-key" placeholder="AIzaSy..." class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                        <span style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
+                                    </div>
                                     <div class="form-field">
                                         <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
                                         <input type="text" id="pref-supabase-url" placeholder="https://xxxx.supabase.co" class="form-input" style="height: 32px; font-size: 0.75rem;">
                                     </div>
-                                    <div class="form-field" style="margin-top: 0.5rem;">
+                                    <div class="form-field">
                                         <label class="form-label" style="font-size: 9px;">SUPABASE ANON KEY</label>
                                         <input type="password" id="pref-supabase-key" placeholder="Clave pública anon" class="form-input" style="height: 32px; font-size: 0.75rem;">
                                     </div>
@@ -1192,7 +1190,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                         </div>
                     </div>
                 </div>
-                
+
             </div>
         </div>
     </section>
@@ -1242,15 +1240,11 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
                                 <option value="pastelitos">Pastelitos</option>
                                 <option value="bebidas">Bebidas</option>
-                                <!-- Tortas sigue oculta de la vitrina de venta -- esta opción existe
-                                     solo para que el <select> no pierda la categoría real al editar
-                                     un producto que ya es 'tortas' (ej. cargarle costo de producción). -->
-                                <option value="tortas">Tortas (oculta en vitrina)</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Production Cost (Bs) paid to a third-party producer, e.g. tortas -->
+                    <!-- Production Cost (Bs) paid to a third-party producer -->
                     <div class="form-field">
                         <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
                             <i class="fa-solid fa-hand-holding-dollar" style="color: #F87171;"></i> COSTO PRODUCCIÓN (Bs)
@@ -1384,13 +1378,13 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
 
                 <!-- Fast User Selector Pills -->
                 <div style="display: flex; gap: 0.4rem; justify-content: center; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(212,175,55,0.4); background: rgba(212,175,55,0.1); color: var(--color-gold); cursor: pointer;">
+                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(212,175,55,0.4); background: rgba(212,175,55,0.1); color: var(--color-gold); cursor: pointer;">
                         👑 Admin
                     </button>
-                    <button type="button" class="btn-quick-user-pill" data-user="vendedora" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                    <button type="button" class="btn-quick-user-pill" data-user="vendedora" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
                         🥖 Ventas
                     </button>
-                    <button type="button" class="btn-quick-user-pill" data-user="cocina" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                    <button type="button" class="btn-quick-user-pill" data-user="cocina" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
                         👨‍🍳 Cocina
                     </button>
                 </div>

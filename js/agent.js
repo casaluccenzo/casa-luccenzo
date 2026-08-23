@@ -206,7 +206,7 @@ class AgentManager {
         const totalExpenses = expenses.reduce((s, x) => s + (x.amount || 0), 0);
         const netCash = totalSales - totalExpenses;
 
-        const systemPrompt = `Eres el Agente Virtual de Inteligencia Artificial para el negocio "Casa Lucenzo" (venta de pastelitos, bebidas y tortas). 
+        const systemPrompt = `Eres el Agente Virtual de Inteligencia Artificial para el negocio "Casa Lucenzo" (venta de pastelitos, bebidas y dulces).
 Tu objetivo es responder de forma amable, directa, ejecutiva y formateada en Markdown al dueño/administrador.
 
 DATOS EN TIEMPO REAL DEL NEGOCIO:

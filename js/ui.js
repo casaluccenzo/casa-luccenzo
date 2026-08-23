@@ -175,7 +175,6 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange) {
     const container = document.getElementById('category-filter-container');
     if (!container) return;
 
-    // Empanadas/Tortas temporalmente ocultas -- no se están vendiendo por ahora.
     const categories = [
         { id: 'todos', name: 'Todo' },
         { id: 'pastelitos', name: 'Pastelitos' },
@@ -258,14 +257,6 @@ function renderPendingDispatches(replenishments, onConfirm) {
 function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuery = '') {
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
-
-    // Empanadas/Tortas temporalmente ocultas de la venta -- no se están vendiendo por ahora.
-    products = products.filter(p => {
-        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
-            ? window.StorageManager.getProductCategory(p)
-            : (p.category || 'pastelitos');
-        return cat !== 'empanadas' && cat !== 'tortas';
-    });
 
     // Render POS Quick Access Bar (Productos Frecuentes)
     const quickBarContainer = document.getElementById('pos-quick-items-list');
@@ -496,14 +487,6 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
 
-    // Empanadas/Tortas temporalmente ocultas de cocina -- no se están vendiendo por ahora.
-    products = products.filter(p => {
-        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
-            ? window.StorageManager.getProductCategory(p)
-            : (p.category || 'pastelitos');
-        return cat !== 'empanadas' && cat !== 'tortas';
-    });
-
     const alertBanner = document.getElementById('kitchen-alert-banner');
     if (alertBanner) {
         const hasCritical = products.some(p => p.stock <= p.min);
@@ -532,17 +515,16 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         }
     });
 
-    // 2. Separate Pastelitos, Empanadas, and Other products
-    const getCat = (p) => (window.StorageManager && window.StorageManager.getProductCategory) 
-        ? window.StorageManager.getProductCategory(p) 
+    // 2. Separate Pastelitos and Other products
+    const getCat = (p) => (window.StorageManager && window.StorageManager.getProductCategory)
+        ? window.StorageManager.getProductCategory(p)
         : (p.category || 'pastelitos');
 
     const pastelitoProducts = products.filter(p => getCat(p) === 'pastelitos');
-    const empanadaProducts = products.filter(p => getCat(p) === 'empanadas');
-    const otherProducts = products.filter(p => getCat(p) !== 'pastelitos' && getCat(p) !== 'empanadas');
+    const otherProducts = products.filter(p => getCat(p) !== 'pastelitos');
 
-    // Calculate Top 3 Most Sold Pastelitos & Empanadas
-    const pastelitoSalesList = [...pastelitoProducts, ...empanadaProducts].map(p => ({
+    // Calculate Top 3 Most Sold Pastelitos
+    const pastelitoSalesList = pastelitoProducts.map(p => ({
         ...p,
         soldCount: salesCountByProduct[p.id] || 0
     })).filter(p => p.soldCount > 0)
@@ -598,23 +580,11 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         `;
     }
 
-    let empanadasSectionHtml = '';
-    if (empanadaProducts.length > 0) {
-        empanadasSectionHtml = `
-            <div style="margin-bottom: 1.5rem;">
-                <h3 style="font-size: 0.95rem; font-weight: 900; color: var(--color-gold); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-                    🥟 Monitoreo de Empanadas por Sabor
-                </h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem;" id="kitchen-empanadas-list"></div>
-            </div>
-        `;
-    }
-
-    if (pastelitoProducts.length === 0 && empanadaProducts.length === 0) {
+    if (pastelitoProducts.length === 0) {
         pastelitosSectionHtml = `
             <div class="empty-state">
                 <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
-                <h3 class="empty-state-title">No hay pastelitos ni empanadas registrados</h3>
+                <h3 class="empty-state-title">No hay pastelitos registrados</h3>
             </div>
         `;
     }
@@ -653,7 +623,6 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
     container.innerHTML = `
         ${dispatchesHtml}
         ${pastelitosSectionHtml}
-        ${empanadasSectionHtml}
         ${secondaryContentHtml}
         ${top3Html}
     `;
@@ -773,7 +742,6 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
     };
 
     renderProductionCards('kitchen-pastelitos-list', pastelitoProducts);
-    renderProductionCards('kitchen-empanadas-list', empanadaProducts);
 
     // Recipe calculator (optional at bottom)
     const neededPastelitosList = pastelitoProducts.filter(p => p.stock < p.max);
@@ -1311,10 +1279,6 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
                 sortOrder = 50;
-            } else if (rawCat === 'tortas') {
-                catKey = 'tortas';
-                catLabel = '🍰 Tortas';
-                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = '📦 Otros / Varios';
@@ -1540,22 +1504,12 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
 
     container.innerHTML = '';
 
-    // Empanadas/Tortas siguen ocultas de Configurar Productos -- no se están
-    // vendiendo por ahora.
-    products = products.filter(p => {
-        const cat = (window.StorageManager && window.StorageManager.getProductCategory)
-            ? window.StorageManager.getProductCategory(p)
-            : (p.category || 'pastelitos');
-        return cat !== 'empanadas' && cat !== 'tortas';
-    });
-
     products.forEach(p => {
         const item = document.createElement('div');
         item.className = "settings-product-item";
-        
+
         let catLabel = 'Pastelitos';
         if (p.category === 'bebidas') catLabel = 'Bebidas';
-        if (p.category === 'tortas') catLabel = 'Tortas';
 
         item.innerHTML = `
             <div class="settings-product-info">
@@ -3011,8 +2965,6 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 const nameLower = (s.name || '').toLowerCase();
                 if (nameLower.includes('malta') || nameLower.includes('refresco') || nameLower.includes('agua') || nameLower.includes('jugo')) {
                     rawCat = 'bebidas';
-                } else if (nameLower.includes('torta')) {
-                    rawCat = 'tortas';
                 } else {
                     rawCat = 'pastelitos';
                 }
@@ -3033,13 +2985,6 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 color = '#8BE8CB';
                 unitLabel = 'unid.';
                 sortOrder = 50;
-            } else if (rawCat === 'tortas') {
-                catKey = 'tortas';
-                catLabel = 'Tortas';
-                icon = 'fa-cake-slice';
-                color = '#FFAAA6';
-                unitLabel = 'porc.';
-                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = 'Otros / Varios';
@@ -4415,7 +4360,6 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
     const categories = {
         'pastelitos': { label: '🥐 Pastelitos & Dulces', count: 0, amount: 0, class: 'fill-category-1' },
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
-        'tortas': { label: '🍰 Tortas de Vitrina', count: 0, amount: 0, class: 'fill-category-1' },
         'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
     };
 
@@ -4457,15 +4401,11 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
 
 const ANALYTICS_CATEGORY_FILL = {
     pastelitos: 'fill-category-1',
-    empanadas: 'fill-category-3',
-    tortas: 'fill-category-4',
     bebidas: 'fill-category-2',
     dulces: 'fill-category-5'
 };
 const ANALYTICS_CATEGORY_LABELS = {
     pastelitos: '🥐 Pastelitos',
-    empanadas: '🥟 Empanadas',
-    tortas: '🍰 Tortas',
     bebidas: '🥤 Bebidas',
     dulces: '🍬 Dulces',
     otros: '📦 Otros'
@@ -4628,8 +4568,8 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
     const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) ? parseFloat(customRate) : (window.bcvRate || 1);
-    // Producción pagada a terceros (ej. tortas a Bs.800/unidad), congelada por
-    // venta en cost_at_sale -- no se recalcula con el costo actual del producto.
+    // Costo de producción por venta, congelada en cost_at_sale -- no se
+    // recalcula con el costo actual del producto.
     const totalProductionCostBs = salesLog.reduce((sum, sale) => sum + (sale.cost_at_sale || 0), 0);
     const netMarginBs = (totalSales * rate) - totalProductionCostBs;
 
@@ -4647,7 +4587,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         let category = 'pasteles'; // fallback default
         if (prod && prod.category === 'bebidas') {
             category = 'bebidas';
-        } else if (prod && (prod.category === 'pastelitos' || prod.category === 'tortas')) {
+        } else if (prod && prod.category === 'pastelitos') {
             category = 'pasteles';
         } else {
             // Check if name suggests beverage

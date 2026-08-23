@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Casa Lucenzo — 80 años de historia y tradición</title>
     <meta name="description" content="Casa Lucenzo, panadería y pastelería familiar en Venezuela. 80 años de historia y tradición: pastelitos y más, horneados frescos cada día.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Casa Lucenzo — 80 años de historia y tradición">
+    <meta property="og:description" content="Panadería y pastelería familiar en Venezuela. Pastelitos y más, horneados frescos cada día.">
+    <meta property="og:url" content="https://casalucenzo.com">
+    <meta property="og:image" content="https://casalucenzo.com/img/logo-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Casa Lucenzo — 80 años de historia y tradición">
+    <meta name="twitter:description" content="Panadería y pastelería familiar en Venezuela. Pastelitos y más, horneados frescos cada día.">
+    <meta name="twitter:image" content="https://casalucenzo.com/img/logo-512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
@@ -120,6 +131,8 @@
         .menu-card .icon { color: var(--gold-500); }
         .menu-card h3 { font-size: 1.25rem; font-weight: 700; color: #fff; }
         .menu-card ul { list-style: none; margin: 0; padding: 0; font-size: 0.92rem; color: var(--cream-200); line-height: 1.9; }
+        .menu-card ul li { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+        .menu-card ul li .li-price { color: var(--gold-300); font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
         /* ---- Pedido (order form) ---- */
         /* ===== Order FAB + popup modal ===== */
@@ -199,7 +212,7 @@
         }
         .product-row:last-child { border-bottom: none; }
         .product-row .name { font-size: 0.88rem; color: #fff; font-weight: 600; }
-        .product-row .price { font-size: 0.78rem; color: var(--gold-300); }
+        .product-row .price { font-size: 0.78rem; color: var(--gold-300); font-variant-numeric: tabular-nums; }
         .qty-control { display: flex; align-items: center; gap: 0.5rem; }
         .qty-btn {
             width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(201,162,74,0.4);
@@ -227,7 +240,7 @@
             padding-top: 0.9rem; border-top: 1px dashed rgba(255,255,255,0.15);
         }
         .order-total .label { font-size: 0.8rem; color: var(--cream-200); }
-        .order-total .value { font-size: 1.5rem; font-weight: 800; color: var(--gold-300); font-family: var(--serif); }
+        .order-total .value { font-size: 1.5rem; font-weight: 800; color: var(--gold-300); font-family: var(--serif); font-variant-numeric: tabular-nums; }
         .submit-btn {
             width: 100%; padding: 0.95rem; border-radius: 8px; border: none; cursor: pointer;
             background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); color: var(--navy-950);
@@ -309,6 +322,7 @@
 </head>
 <body>
 
+    <main>
     <div class="hero">
         <canvas id="ember"></canvas>
         <div class="hero-content">
@@ -318,9 +332,7 @@
             <p class="lede">El mismo sabor de siempre, hecho a mano, todos los días. Pastelitos y dulces que acompañan a varias generaciones de familias.</p>
             <div class="hero-actions">
                 <a class="btn btn-gold" href="#menu">Ver el menú</a>
-                <!-- Pedidos online: temporarily paused while we keep improving it.
-                     Remove style="display:none" here and on #btn-open-pedido below to re-enable. -->
-                <button type="button" class="btn btn-outline" id="btn-hero-pedido" style="display:none;">Hacer un pedido</button>
+                <button type="button" class="btn btn-outline" id="btn-hero-pedido">Hacer un pedido</button>
             </div>
         </div>
         <div class="scroll-hint" aria-hidden="true">
@@ -336,7 +348,7 @@
                 <h2>Una receta que pasa de generación en generación</h2>
                 <div class="rule"></div>
                 <p>Casa Lucenzo nació como un pequeño negocio familiar y hoy sigue siendo eso: una casa que amasa, hornea, fríe y sirve todos los días con la misma receta de siempre.</p>
-                <p>Ocho décadas después, seguimos abriendo temprano por las mismas razones de siempre — el pastel recién hecho, la empanada bien dorada, y los clientes que ya son parte de la familia.</p>
+                <p>Ocho décadas después, seguimos abriendo temprano por las mismas razones de siempre — el pastel recién hecho, el café recién colado, y los clientes que ya son parte de la familia.</p>
             </div>
         </div>
     </section>
@@ -347,37 +359,35 @@
             <h2>De la vitrina a tu mesa</h2>
             <p class="menu-intro">Todo se hace fresco en el día — el sabor de la casa, sin atajos.</p>
             <div class="menu-grid">
-                <!-- Empanadas temporalmente oculto -- no se está vendiendo por ahora. Restaurar quitando este comentario.
-                <div class="menu-card">
-                    <div class="icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M2 12C2 8 6 5 12 5s10 3 10 7-4 7-10 7S2 16 2 12Z" stroke="currentColor" stroke-width="1.4"/><path d="M4 12h16M12 5v14" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg></div>
-                    <h3>Empanadas</h3>
-                    <ul><li>De Queso</li><li>De Carne Mechada</li><li>De Carne Molida</li><li>De Pollo</li></ul>
-                </div>
-                -->
                 <div class="menu-card">
                     <div class="icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg></div>
                     <h3>Pastelitos</h3>
-                    <ul><li>De Queso</li><li>De Pollo</li><li>De Carne Mechada</li><li>De Carne Molida</li><li>4 Estaciones (Especial)</li><li>Primavera (Especial)</li><li>Ricota con Tocineta</li><li>Tocineta con Queso</li></ul>
+                    <ul id="menu-list-pastelitos">
+                        <li data-name="Queso"><span>De Queso</span></li>
+                        <li data-name="Pollo"><span>De Pollo</span></li>
+                        <li data-name="Carne Mechada"><span>De Carne Mechada</span></li>
+                        <li data-name="Carne Molida"><span>De Carne Molida</span></li>
+                        <li data-name="4 Estaciones (Especial)"><span>4 Estaciones (Especial)</span></li>
+                        <li data-name="Ricota con Tocineta"><span>Ricota con Tocineta</span></li>
+                        <li data-name="Tocineta con Queso"><span>Tocineta con Queso</span></li>
+                    </ul>
                 </div>
-                <!-- Tortas temporalmente oculto -- no se está vendiendo por ahora. Restaurar quitando este comentario.
-                <div class="menu-card">
-                    <div class="icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 20h14M6 20V9a6 6 0 0 1 12 0v11" stroke="currentColor" stroke-width="1.4"/><path d="M6 13h12" stroke="currentColor" stroke-width="1"/></svg></div>
-                    <h3>Tortas de la Casa</h3>
-                    <ul><li>Por encargo</li><li>Tres Leches</li><li>Para cumpleaños y ocasiones</li></ul>
-                </div>
-                -->
                 <div class="menu-card">
                     <div class="icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M8 2h8l-1 5H9L8 2Z" stroke="currentColor" stroke-width="1.4"/><path d="M7 7h10l-1 15H8L7 7Z" stroke="currentColor" stroke-width="1.4"/></svg></div>
                     <h3>Bebidas &amp; Dulces</h3>
-                    <ul><li>Refrescos y maltas</li><li>Agua mineral</li><li>Jugos naturales</li><li>Papelón con Limón</li><li>Nestea</li><li>Chocolates y golosinas</li></ul>
+                    <ul id="menu-list-bebidas">
+                        <li><span>Refrescos y maltas</span></li>
+                        <li><span>Café y Nefcafé</span></li>
+                        <li><span>Jugos y bebidas naturales</span></li>
+                        <li><span>Chocolates y golosinas</span></li>
+                    </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Order FAB: opens the pedido popup. Stays fixed over every section.
-         Temporarily hidden (see hero button above) -- remove style="display:none" to re-enable. -->
-    <button type="button" class="order-fab" id="btn-open-pedido" aria-haspopup="dialog" aria-controls="pedido-modal" style="display:none;">
+    <!-- Order FAB: opens the pedido popup. Stays fixed over every section. -->
+    <button type="button" class="order-fab" id="btn-open-pedido" aria-haspopup="dialog" aria-controls="pedido-modal">
         🛍️ Hacer Pedido
         <span class="cart-count" id="fab-cart-count">0</span>
     </button>
@@ -396,7 +406,6 @@
                 <div class="filter-row" id="category-filter-row">
                     <div class="filter-pill active" data-cat="todos">Todo</div>
                     <div class="filter-pill" data-cat="pastelitos">Pastelitos</div>
-                    <!-- Empanadas/Tortas temporalmente ocultos del pedido online -- no se está vendiendo por ahora. -->
                     <div class="filter-pill" data-cat="bebidas">Bebidas</div>
                     <div class="filter-pill" data-cat="dulces">Dulces</div>
                 </div>
@@ -455,6 +464,7 @@
             </div>
         </div>
     </section>
+    </main>
 
     <footer>
         <div class="shell">
@@ -753,6 +763,60 @@
             confirmEl.classList.remove('show');
             wrapEl.style.display = 'block';
         });
+    })();
+    </script>
+
+    <!-- Fills real prices into the always-visible menu section (separate from the
+         order modal above). Pastelitos enhances the existing static list in place;
+         Bebidas & Dulces replaces its generic placeholder text with the real,
+         priced catalog. On any failure this just leaves the static fallback text
+         already in the HTML -- same "fail quiet, keep something useful on screen"
+         approach as the order modal's loadMenu(). -->
+    <script>
+    (function () {
+        const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+        const pastelitosList = document.getElementById('menu-list-pastelitos');
+        const bebidasList = document.getElementById('menu-list-bebidas');
+        if (!pastelitosList || !bebidasList || !window.supabase) return;
+
+        function money(n) { return '$' + parseFloat(n).toFixed(2); }
+
+        (async function () {
+            try {
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { data, error } = await client
+                    .from('products')
+                    .select('name, price, category, stock')
+                    .gt('stock', 0)
+                    .order('category')
+                    .order('name');
+                if (error || !data || data.length === 0) return;
+
+                pastelitosList.querySelectorAll('li[data-name]').forEach(li => {
+                    const match = data.find(p => p.category === 'pastelitos' && p.name === li.dataset.name);
+                    if (!match) return;
+                    const priceEl = document.createElement('span');
+                    priceEl.className = 'li-price';
+                    priceEl.textContent = money(match.price);
+                    li.appendChild(priceEl);
+                });
+
+                const bebidasDulces = data.filter(p => p.category === 'bebidas' || p.category === 'dulces');
+                if (bebidasDulces.length > 0) {
+                    bebidasList.innerHTML = '';
+                    bebidasDulces.forEach(p => {
+                        const li = document.createElement('li');
+                        li.innerHTML = '<span></span><span class="li-price"></span>';
+                        li.querySelector('span').textContent = p.name;
+                        li.querySelector('.li-price').textContent = money(p.price);
+                        bebidasList.appendChild(li);
+                    });
+                }
+            } catch (e) {
+                // Static fallback text already in the HTML stays as-is.
+            }
+        })();
     })();
     </script>
 </body>

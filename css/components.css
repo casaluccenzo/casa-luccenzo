@@ -1749,11 +1749,6 @@ input[type="number"] {
     color: #8BE8CB;
     border: 1px solid rgba(139, 232, 203, 0.18);
 }
-.category-qty-badge.tortas {
-    background-color: rgba(255, 170, 166, 0.08);
-    color: #FFAAA6;
-    border: 1px solid rgba(255, 170, 166, 0.18);
-}
 .category-qty-badge.otros {
     background-color: rgba(212, 163, 89, 0.08);
     color: var(--color-gold);
@@ -2595,16 +2590,16 @@ input[type="number"] {
     background: linear-gradient(90deg, #F59E0B, #D97706); /* Amber */
 }
 .fill-category-1 {
-    background: linear-gradient(90deg, #F472B6, #EC4899); /* Pink for Cakes/Tortas */
+    background: linear-gradient(90deg, #F472B6, #EC4899); /* Pink */
 }
 .fill-category-2 {
     background: linear-gradient(90deg, #38BDF8, #0EA5E9); /* Light Blue for Drinks */
 }
 .fill-category-3 {
-    background: linear-gradient(90deg, #2DD4BF, #0D9488); /* Teal for Empanadas */
+    background: linear-gradient(90deg, #2DD4BF, #0D9488); /* Teal */
 }
 .fill-category-4 {
-    background: linear-gradient(90deg, #FB923C, #EA580C); /* Orange for Tortas */
+    background: linear-gradient(90deg, #FB923C, #EA580C); /* Orange */
 }
 .fill-category-5 {
     background: linear-gradient(90deg, #C084FC, #9333EA); /* Violet for Dulces */

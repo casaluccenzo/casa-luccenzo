@@ -1653,10 +1653,6 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
                 sortOrder = 50;
-            } else if (rawCat === 'tortas') {
-                catKey = 'tortas';
-                catLabel = '🍰 Tortas';
-                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = '📦 Otros / Varios';
@@ -1897,7 +1893,7 @@ async function closeDayAndResetLogs() {
         // 4. Reset showcase products' stock: Pastelitos reset to 0, Packaged items (bebidas, dulces) keep their actual remaining stock
         products.forEach(p => {
             const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
-            if (cat === 'pastelitos' || cat === 'empanadas') {
+            if (cat === 'pastelitos') {
                 p.stock = 0;
                 p.initial_stock = 0;
                 // Capacity is "what got loaded today", so it resets with the day.

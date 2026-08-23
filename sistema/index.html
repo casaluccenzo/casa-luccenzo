@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=309">
+    <link rel="stylesheet" href="/css/main.css?v=310">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=309"></script>
-    <script src="/js/storage.js?v=309"></script>
-    <script src="/js/supabase.js?v=309"></script>
-    <script src="/js/exchange-rate.js?v=309"></script>
-    <script src="/js/export.js?v=309"></script>
-    <script src="/js/auth.js?v=309"></script>
-    <script src="/js/sales.js?v=309"></script>
-    <script src="/js/analytics.js?v=309"></script>
-    <script src="/js/inventory.js?v=309"></script>
-    <script src="/js/pin-management.js?v=309"></script>
-    <script src="/js/recipes.js?v=309"></script>
-    <script src="/js/audio.js?v=309"></script>
-    <script src="/js/share.js?v=309"></script>
-    <script src="/js/agent.js?v=309"></script>
-    <script src="/js/ui.js?v=309"></script>
-    <script src="/js/app.js?v=309"></script>
+    <script src="/js/ui/shared.js?v=310"></script>
+    <script src="/js/storage.js?v=310"></script>
+    <script src="/js/supabase.js?v=310"></script>
+    <script src="/js/exchange-rate.js?v=310"></script>
+    <script src="/js/export.js?v=310"></script>
+    <script src="/js/auth.js?v=310"></script>
+    <script src="/js/sales.js?v=310"></script>
+    <script src="/js/analytics.js?v=310"></script>
+    <script src="/js/inventory.js?v=310"></script>
+    <script src="/js/pin-management.js?v=310"></script>
+    <script src="/js/recipes.js?v=310"></script>
+    <script src="/js/audio.js?v=310"></script>
+    <script src="/js/share.js?v=310"></script>
+    <script src="/js/agent.js?v=310"></script>
+    <script src="/js/ui.js?v=310"></script>
+    <script src="/js/app.js?v=310"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -194,8 +194,8 @@
             <section id="view-local" class="view-section">
                 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                     <div>
-                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">¿Qué tenemos en Vitrina?</h2>
-                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        <h2 class="view-title">¿Qué tenemos en Vitrina?</h2>
+                        <p class="section-subtitle">
                             Pulsa <strong style="color: var(--color-danger);">[-] Menos</strong> cuando vendas un pastelito.
                         </p>
                     </div>
@@ -262,8 +262,8 @@
             <section id="view-cocina" class="view-section hidden">
                 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                     <div>
-                        <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Inventario y Cocina</h2>
-                        <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                        <h2 class="view-title">Inventario y Cocina</h2>
+                        <p class="section-subtitle">
                             Carga el stock inicial de hoy o revisa lo que hace falta por cocinar.
                         </p>
                     </div>
@@ -280,7 +280,7 @@
                 </div>
 
                 <!-- Replenishment orders list -->
-                <div id="kitchen-orders-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div id="kitchen-orders-container" class="stack-md">
                     <!-- Dynamic injections from js/ui.js -->
                 </div>
             </section>
@@ -298,16 +298,16 @@
                         <i class="fa-solid fa-rotate"></i> Sincronizando...
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem;">
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">En Vitrina</div>
+                        <div class="mini-stat">
+                            <div class="stat-label">En Vitrina</div>
                             <div id="live-stat-vitrina" style="font-size: 1.125rem; font-weight: 900; color: var(--color-white); margin-top: 0.25rem;">0</div>
                         </div>
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Vendidos Hoy</div>
+                        <div class="mini-stat">
+                            <div class="stat-label">Vendidos Hoy</div>
                             <div id="live-stat-vendidos" style="font-size: 1.125rem; font-weight: 900; color: var(--color-gold); margin-top: 0.25rem;">0</div>
                         </div>
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Total Ventas</div>
+                        <div class="mini-stat">
+                            <div class="stat-label">Total Ventas</div>
                             <div id="live-stat-ventas" style="margin-top: 0.25rem;">$0.00</div>
                         </div>
                         <div id="live-stat-total-real-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 0.5rem; border-radius: 6px; text-align: center;">
@@ -331,13 +331,13 @@
             <section id="view-clientes" class="view-section hidden">
                 <!-- Sub-view switcher for Mesas vs Cuentas Activas vs Historial -->
                 <div class="sub-switch-nav" id="clientes-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
-                    <button id="btn-sub-mesas" class="active" role="tab" aria-selected="true" aria-controls="sub-view-mesas" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                    <button id="btn-sub-mesas" class="active subnav-btn" role="tab" aria-selected="true" aria-controls="sub-view-mesas">
                         <i class="fa-solid fa-table-cells-large"></i> <span>1. MESAS</span>
                     </button>
-                    <button id="btn-sub-cuentas" class="inactive" role="tab" aria-selected="false" aria-controls="sub-view-cuentas" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                    <button id="btn-sub-cuentas" class="inactive subnav-btn" role="tab" aria-selected="false" aria-controls="sub-view-cuentas">
                         <i class="fa-solid fa-utensils"></i> <span>2. CUENTAS</span>
                     </button>
-                    <button id="btn-sub-historial" class="inactive" role="tab" aria-selected="false" aria-controls="sub-view-historial" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.5rem 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: all 0.2s;">
+                    <button id="btn-sub-historial" class="inactive subnav-btn" role="tab" aria-selected="false" aria-controls="sub-view-historial">
                         <i class="fa-solid fa-clock-rotate-left"></i> <span>3. HISTORIAL</span>
                     </button>
                 </div>
@@ -359,10 +359,10 @@
                         <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-utensils"></i> Cuentas Activas (Consumiendo)
                         </h3>
-                        <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                        <p class="card-desc">
                             Clientes y mesas que siguen consumiendo y aún no han pagado.
                         </p>
-                        <div id="clientes-activos-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div id="clientes-activos-container" class="stack-md">
                             <!-- Dynamic active clients -->
                         </div>
                     </div>
@@ -375,10 +375,10 @@
                         <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-success); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-clock-rotate-left"></i> Historial de Cierres por Cliente (Pagados)
                         </h3>
-                        <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                        <p class="card-desc">
                             Cuentas que ya fueron cobradas y cerradas en la jornada de hoy.
                         </p>
-                        <div id="clientes-pagados-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div id="clientes-pagados-container" class="stack-md">
                             <!-- Dynamic paid closures history -->
                         </div>
                     </div>
@@ -388,8 +388,8 @@
             <!-- ================= VIEW 3: DEBTS virtual ledger (CRÉDITOS) ================= -->
             <section id="view-fiados" class="view-section hidden">
                 <div>
-                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Gestión de Créditos</h2>
-                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                    <h2 class="view-title">Gestión de Créditos</h2>
+                    <p class="section-subtitle">
                         Registro de cuentas por cobrar y créditos otorgados a clientes.
                     </p>
                 </div>
@@ -441,7 +441,7 @@
                         <!-- Conversor Inputs Card -->
                         <div class="card-pantry" style="padding: 1.25rem;">
                             <!-- Calculator inputs -->
-                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="stack-lg">
                                 <div class="form-field">
                                     <label class="form-label" style="display: flex; justify-content: space-between;">
                                         <span>Monto en Dólares ($)</span>
@@ -467,7 +467,7 @@
                         <!-- Equivalencias rápidas -->
                         <div class="card-pantry" style="padding: 1.25rem;">
                             <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Tabla de Cambio Rápido</h4>
-                            <div id="conversion-quick-table" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <div id="conversion-quick-table" class="stack-sm">
                                 <!-- Injected dynamically by js/ui.js -->
                             </div>
                         </div>
@@ -535,8 +535,8 @@
             <!-- ================= VIEW: ONLINE ORDERS (PEDIDOS ONLINE) ================= -->
             <section id="view-pedidos" class="view-section hidden">
                 <div>
-                    <h2 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Pedidos Online</h2>
-                    <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.125rem;">
+                    <h2 class="view-title">Pedidos Online</h2>
+                    <p class="section-subtitle">
                         Pedidos enviados por clientes desde la página web. Confirmá o rechazá según el pago recibido por Pago Móvil o Transferencia.
                     </p>
                 </div>
@@ -626,7 +626,7 @@
                 <!-- PANEL 1: SUMMARY / DASHBOARD -->
                 <div id="admin-panel-summary" class="admin-panel active">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Resumen de Operaciones
                         </h3>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -702,7 +702,7 @@
                                     <i class="fa-solid fa-star"></i> Productos Más Consumidos
                                 </h4>
                                 
-                                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div class="stack-lg">
                                     <div>
                                         <div style="font-size: 9px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Favoritos del Día (Hoy)</div>
                                         <div id="admin-favorites-daily" class="admin-favorites-grid">
@@ -754,8 +754,8 @@
                         <div class="admin-dashboard-row" style="margin-top: 1rem;">
                             <!-- Column 1: Payment Methods -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
-                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <h4 class="card-title with-action">
+                                    <span class="flex-row">
                                         <i class="fa-solid fa-credit-card"></i> Métodos de Pago
                                     </span>
                                     <div class="segmented">
@@ -770,8 +770,8 @@
                             
                             <!-- Column 2: Category Performance -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
-                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <h4 class="card-title with-action">
+                                    <span class="flex-row">
                                         <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
                                     </span>
                                     <div class="segmented">
@@ -790,8 +790,8 @@
                              for visibility without leaving Resumen). -->
                         <div class="admin-dashboard-row" style="margin-top: 1rem; grid-template-columns: 1fr;">
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;">
-                                    <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <h4 class="card-title with-action">
+                                    <span class="flex-row">
                                         <i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente
                                     </span>
                                     <button id="btn-recent-activity-ver-todo" class="btn-action-small" style="font-size: 9px; padding: 2px 8px;">Ver todo</button>
@@ -807,7 +807,7 @@
                 <!-- PANEL 1.5: SALES ANALYTICS & DAILY PREP RECOMMENDATION -->
                 <div id="admin-panel-analytics" class="admin-panel">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Análisis de Ventas
                         </h3>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -841,7 +841,7 @@
                 <!-- PANEL 2: PRODUCTS MANAGER -->
                 <div id="admin-panel-products" class="admin-panel">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Gestión de Catálogo y Menú
                         </h3>
                     </div>
@@ -850,7 +850,7 @@
                         <div class="admin-dashboard-row" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);">
                             <!-- Add Product Form -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                <h4 class="card-title">
                                     <i class="fa-solid fa-plus-circle"></i> Nuevo Producto
                                 </h4>
                                 <form id="add-product-form" style="margin-top: 0.5rem;">
@@ -911,19 +911,19 @@
                 <!-- PANEL 3: ACTIVE DEVICES -->
                 <div id="admin-panel-devices" class="admin-panel">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Control de Dispositivos Conectados
                         </h3>
                     </div>
                     <div class="admin-panel-body">
                         <div class="admin-dashboard-card">
-                            <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                            <h4 class="card-title">
                                 <i class="fa-solid fa-network-wired"></i> Navegadores en vivo
                             </h4>
-                            <p style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 1rem;">
+                            <p class="card-desc">
                                 Usa el escudo verde para autorizar de forma permanente un dispositivo de confianza, o la puerta roja para sacarlo de línea al instante.
                             </p>
-                            <div id="settings-devices-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <div id="settings-devices-list" class="stack-sm">
                                 <!-- Injected by js/ui.js -->
                             </div>
                         </div>
@@ -933,7 +933,7 @@
                 <!-- PANEL 4: AUDIT LOG / ACTIVITY LOG -->
                 <div id="admin-panel-logs" class="admin-panel">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Bitácora de Actividades (Auditoría)
                         </h3>
                         <button class="btn-action-small" id="btn-admin-logs-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
@@ -973,7 +973,7 @@
                         <div class="admin-dashboard-row" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 1rem;">
                             
                             <!-- Left Column: Raw Insumos Costs (Solid & Liquid) -->
-                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="admin-dashboard-card stack-md">
                                 <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
                                     <span><i class="fa-solid fa-boxes-stacked"></i> Materia Prima e Insumos</span>
                                 </h4>
@@ -1013,7 +1013,7 @@
                             </div>
 
                             <!-- Right Column: Product Recipe Cost & Net Profit Calculator -->
-                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="admin-dashboard-card stack-md">
                                 <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
                                     <span><i class="fa-solid fa-chart-pie"></i> Análisis de Costo y Ganancia Neta</span>
                                 </h4>
@@ -1080,7 +1080,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                 <!-- PANEL 6: SYSTEM PREFERENCES & PIN MANAGEMENT -->
                 <div id="admin-panel-preferences" class="admin-panel">
                     <div class="admin-panel-header">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0;">
+                        <h3 class="panel-title">
                             Ajustes del Sistema y Seguridad
                         </h3>
                     </div>
@@ -1088,7 +1088,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                         <div class="admin-dashboard-row">
                             <!-- Left Col: App Preferences & Tasa -->
                             <div class="admin-dashboard-card">
-                                <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem;">
+                                <h4 class="card-title">
                                     <i class="fa-solid fa-sliders"></i> Preferencias de la App
                                 </h4>
                                 <div class="switch-setting-row" style="margin-bottom: 0.5rem;">
@@ -1127,7 +1127,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             </div>
 
                             <!-- Right Col: Security PIN & Supabase Configuration -->
-                            <div class="admin-dashboard-card" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="admin-dashboard-card stack-lg">
                                 <!-- User Management Section -->
                                 <div>
                                     <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
@@ -1151,7 +1151,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     <p style="font-size: 10px; color: var(--color-text-muted); margin-bottom: 0.5rem;">
                                         Selecciona un usuario y asígnale su PIN personal de 4 dígitos para reactivar sesión rápidamente.
                                     </p>
-                                    <form id="admin-pin-config-form" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <form id="admin-pin-config-form" class="stack-sm">
                                         <div style="display: flex; gap: 0.5rem; align-items: center;">
                                             <select id="select-admin-target-user" class="form-input" style="height: 34px; font-size: 0.78rem; font-weight: 700; background: rgba(0,0,0,0.4); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); flex: 1;">
                                                 <option value="">Cargando usuarios...</option>
@@ -1177,7 +1177,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     <div class="form-field">
                                         <label class="form-label" style="font-size: 9px;">API KEY DE GOOGLE GEMINI (OPCIONAL)</label>
                                         <input type="password" id="pref-gemini-key" placeholder="AIzaSy..." class="form-input" style="height: 32px; font-size: 0.75rem;">
-                                        <span style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
+                                        <span class="field-hint">Si se deja en blanco, el Agente responderá en modo local/offline.</span>
                                     </div>
                                     <div class="form-field">
                                         <label class="form-label" style="font-size: 9px;">SUPABASE URL</label>
@@ -1217,7 +1217,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     
                     <!-- Product Name -->
                     <div class="form-field">
-                        <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                        <label class="form-label with-icon">
                             <i class="fa-solid fa-tag" style="color: var(--color-gold);"></i> NOMBRE DEL PRODUCTO
                         </label>
                         <input type="text" id="edit-prod-name" required class="form-input" style="height: 40px; font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); color: var(--color-white); padding: 0 0.75rem;">
@@ -1226,7 +1226,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     <!-- Price ($) & Realtime (Bs.) Conversion + Category -->
                     <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem;">
                         <div class="form-field">
-                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                            <label class="form-label with-icon">
                                 <i class="fa-solid fa-dollar-sign" style="color: #10B981;"></i> PRECIO ($)
                             </label>
                             <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
@@ -1236,7 +1236,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                         </div>
                         
                         <div class="form-field">
-                            <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                            <label class="form-label with-icon">
                                 <i class="fa-solid fa-layer-group" style="color: var(--color-gold);"></i> CATEGORÍA
                             </label>
                             <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
@@ -1248,7 +1248,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
 
                     <!-- Production Cost (Bs) paid to a third-party producer -->
                     <div class="form-field">
-                        <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                        <label class="form-label with-icon">
                             <i class="fa-solid fa-hand-holding-dollar" style="color: #F87171;"></i> COSTO PRODUCCIÓN (Bs)
                         </label>
                         <input type="number" id="edit-prod-cost" step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #F87171; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
@@ -1262,9 +1262,9 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                 <div style="font-size: 10px; font-weight: 900; color: #10B981; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
                                     <i class="fa-solid fa-boxes-stacked"></i> CANT. ACTUAL (STOCK)
                                 </div>
-                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Vitrina disponible</div>
+                                <div class="field-hint">Vitrina disponible</div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                            <div class="flex-row">
                                 <button type="button" id="btn-edit-stock-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
                                 <input type="number" id="edit-prod-stock" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #10B981; background: rgba(0,0,0,0.5); border: 1.5px solid #10B981; border-radius: 6px; font-family: var(--font-mono);">
                                 <button type="button" id="btn-edit-stock-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.2); color: #10B981; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
@@ -1277,9 +1277,9 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                 <div style="font-size: 10px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
                                     <i class="fa-solid fa-chart-line"></i> MÁXIMO VITRINA
                                 </div>
-                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Meta / Acumulado diario</div>
+                                <div class="field-hint">Meta / Acumulado diario</div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                            <div class="flex-row">
                                 <button type="button" id="btn-edit-max-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(201, 162, 74, 0.4); background: rgba(201, 162, 74, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
                                 <input type="number" id="edit-prod-max" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: var(--color-gold); background: rgba(0,0,0,0.5); border: 1.5px solid var(--color-gold); border-radius: 6px; font-family: var(--font-mono);">
                                 <button type="button" id="btn-edit-max-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(201, 162, 74, 0.4); background: rgba(201, 162, 74, 0.2); color: var(--color-gold); font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
@@ -1292,9 +1292,9 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                 <div style="font-size: 10px; font-weight: 900; color: #F59E0B; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
                                     <i class="fa-solid fa-bell"></i> ALERTA MÍNIMA
                                 </div>
-                                <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">Aviso de reposición a cocina</div>
+                                <div class="field-hint">Aviso de reposición a cocina</div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                            <div class="flex-row">
                                 <button type="button" id="btn-edit-min-minus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">-</button>
                                 <input type="number" id="edit-prod-min" required min="0" class="form-input" style="width: 55px; height: 34px; font-size: 1.1rem; font-weight: 900; text-align: center; color: #F59E0B; background: rgba(0,0,0,0.5); border: 1.5px solid #F59E0B; border-radius: 6px; font-family: var(--font-mono);">
                                 <button type="button" id="btn-edit-min-plus" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.2); color: #F59E0B; font-weight: 900; font-size: 1rem; cursor: pointer;">+</button>
@@ -1474,21 +1474,21 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
             <form id="user-form" style="display: flex; flex-direction: column; gap: 0.6rem;">
                 <input type="hidden" id="user-modal-id">
                 <div>
-                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE O CARGO A MOSTRAR:</label>
+                    <label class="label-compact">NOMBRE O CARGO A MOSTRAR:</label>
                     <input type="text" id="user-modal-name" required placeholder="Ej: María (Vendedora)" class="form-input" style="height: 36px; font-size: 0.8rem;">
                 </div>
                 <div>
-                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">NOMBRE DE USUARIO (LOGIN):</label>
+                    <label class="label-compact">NOMBRE DE USUARIO (LOGIN):</label>
                     <input type="text" id="user-modal-username" required placeholder="Ej: maria" class="form-input" style="height: 36px; font-size: 0.8rem;">
                     <div id="user-modal-username-note" class="hidden" style="font-size: 9px; color: var(--color-text-muted); margin-top: 0.2rem;">No se puede cambiar el usuario de una cuenta existente.</div>
                 </div>
                 <div id="user-modal-password-field">
-                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">CONTRASEÑA:</label>
+                    <label class="label-compact">CONTRASEÑA:</label>
                     <input type="text" id="user-modal-password" placeholder="Clave de acceso" class="form-input" style="height: 36px; font-size: 0.85rem; font-weight: 800; color: var(--color-gold);">
                 </div>
                 <div id="user-modal-password-note" class="hidden" style="font-size: 9px; color: var(--color-text-muted); margin-top: -0.3rem;">La contraseña de un usuario existente no se puede cambiar desde acá.</div>
                 <div>
-                    <label style="font-size: 10px; font-weight: 800; color: var(--color-text-muted);">ROL DE ACCESO:</label>
+                    <label class="label-compact">ROL DE ACCESO:</label>
                     <select id="user-modal-role" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 800;">
                         <option value="venta">🥖 Ventas (Vitrina, Carrito, Pagos)</option>
                         <option value="cocina">👨‍🍳 Cocina (Comandas y Despachos)</option>

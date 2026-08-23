@@ -2208,24 +2208,22 @@ async function loadAllDataFromSupabase() {
     }
 
     // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
-    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng, supUsers, supPedidos] = await Promise.all([
+    // (fetchUsers() used to run here too -- it always failed against a 'users'
+    // table that doesn't exist (public.profiles replaced it), and its result
+    // was discarded either way since supUsers was never truthy. Removed to
+    // stop the guaranteed PGRST205 warning and wasted round-trip on every load.)
+    const [supProducts, supSales, supExpenses, supDebts, supRepls, supIng, supPedidos] = await Promise.all([
         window.SupabaseManager.fetchProducts(),
         window.SupabaseManager.fetchSales(),
         window.SupabaseManager.fetchExpenses(),
         window.SupabaseManager.fetchDebts(),
         window.SupabaseManager.fetchReplenishments(),
         window.SupabaseManager.fetchIngredients(),
-        window.SupabaseManager.fetchUsers(),
         window.SupabaseManager.fetchPedidosOnline()
     ]);
 
     if (supPedidos) {
         pedidosOnline = supPedidos;
-    }
-
-    if (supUsers && supUsers.length > 0) {
-        systemUsers = supUsers;
-        if (window.StorageManager) window.StorageManager.saveUsers(systemUsers);
     }
 
     // Save and load products (auto-merge missing default products like dulces)
@@ -2515,11 +2513,14 @@ async function loadAndRenderUsersManagement() {
     systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
     
     let supabaseProfiles = null;
+    let profilesFetchFailed = false;
     if (window.SupabaseManager && window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
             supabaseProfiles = await window.SupabaseManager.fetchProfiles();
+            if (supabaseProfiles === null) profilesFetchFailed = true;
         } catch (e) {
             console.error("Failed to fetch Supabase profiles:", e);
+            profilesFetchFailed = true;
         }
     }
 
@@ -2552,6 +2553,15 @@ async function loadAndRenderUsersManagement() {
                 const displayName = u.name || u.username;
                 return `<option value="${u.id}">${displayName} (${roleLabel})</option>`;
             }).join('');
+        } else if (profilesFetchFailed) {
+            // Distinguish "the fetch failed" from "there are genuinely zero
+            // users" -- this used to silently show "No hay usuarios" (or get
+            // stuck on the HTML's "Cargando usuarios..." placeholder) with no
+            // indication that the real problem was a dead/expired session,
+            // not an empty staff list. Re-entering via quick PIN instead of a
+            // full login is the most common way the Supabase Auth session
+            // goes stale mid-shift.
+            userSelect.innerHTML = `<option value="">⚠️ No se pudo cargar -- volvé a iniciar sesión completa</option>`;
         } else {
             userSelect.innerHTML = `<option value="">No hay usuarios</option>`;
         }
@@ -4540,6 +4550,13 @@ function initAdminDashboardListeners() {
 
     tabPreferencesBtn.addEventListener('click', () => {
         activateTab(tabPreferencesBtn, panelPreferences);
+        // "Asignar PIN" only gets populated as a side effect of
+        // loadAndRenderAdminStats(), which otherwise only runs from the
+        // Dashboard tab's click handler. Landing here directly (e.g. via the
+        // gear-icon shortcut, which defaults admins to Productos, not
+        // Dashboard) used to leave the select on the static HTML's
+        // "Cargando usuarios..." placeholder forever.
+        loadAndRenderUsersManagement();
     });
 
     // Form to Add New Cost Insumo

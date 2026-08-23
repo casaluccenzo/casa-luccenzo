@@ -974,7 +974,15 @@ async function fetchProfiles() {
             active: p.active !== false
         }));
     } catch (e) {
-        return await fetchUsers();
+        // Used to fall back to fetchUsers(), which queries a 'users' table
+        // that doesn't exist (public.profiles replaced it -- see migration
+        // 001) and always fails with PGRST205. That fallback masked the real
+        // error here (almost always an expired/missing Supabase Auth session
+        // after re-entering via quick PIN instead of a fresh login) behind a
+        // second, unrelated "table not found" error, and the caller had no
+        // way to tell "no profiles" apart from "the fetch itself failed".
+        console.error("Supabase fetchProfiles failed:", e.message || e);
+        return null;
     }
 }
 

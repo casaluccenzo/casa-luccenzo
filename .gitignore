@@ -40,3 +40,4 @@ whatsapp-session/
 .agents/
 .claude/skills/
 skills-lock.json
+.gstack/

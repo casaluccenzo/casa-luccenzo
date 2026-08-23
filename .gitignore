@@ -41,3 +41,8 @@ whatsapp-session/
 .claude/skills/
 skills-lock.json
 .gstack/
+.codex/
+.github/agents/
+.github/hooks/
+.github/skills/
+.impeccable/

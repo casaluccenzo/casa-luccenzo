@@ -4575,7 +4575,30 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     // Costo de producción por venta, congelada en cost_at_sale -- no se
     // recalcula con el costo actual del producto.
     const totalProductionCostBs = salesLog.reduce((sum, sale) => sum + (sale.cost_at_sale || 0), 0);
-    const netMarginBs = (totalSales * rate) - totalProductionCostBs;
+
+    // Days from before the production-cost feature existed never recorded
+    // cost_at_sale, so it comes back 0 even though real production cost was
+    // owed. For those (and only those) days, estimate what's owed to the
+    // tercero using each product's CURRENT cost -- it's per-unit and flat
+    // (Bs.800 for every pastelito flavor as of writing), not a market price
+    // that drifts sale to sale, so today's rate is a reasonable stand-in for
+    // "what do I need to pay" even though it isn't the exact historical
+    // figure. Clearly labeled as an estimate in the PDF, never silently
+    // written back to cost_at_sale itself.
+    let isEstimatedCost = false;
+    let productionCostBsForDisplay = totalProductionCostBs;
+    if (totalProductionCostBs === 0 && totalSales > 0) {
+        const estimated = salesLog.reduce((sum, sale) => {
+            if (sale.productId === 'abono') return sum;
+            const prod = products.find(p => p.id === sale.productId);
+            return sum + (prod && prod.cost ? parseFloat(prod.cost) : 0);
+        }, 0);
+        if (estimated > 0) {
+            productionCostBsForDisplay = estimated;
+            isEstimatedCost = true;
+        }
+    }
+    const netMarginBs = (totalSales * rate) - productionCostBsForDisplay;
 
     // Group sales by category and product
     const categorySales = {
@@ -4979,14 +5002,16 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
 
             <div class="kpi-row">
                 <div class="kpi-card" style="border-color: #ef4444; background-color: rgba(239,68,68,0.01);">
-                    <div class="kpi-label" style="color: #dc2626;">Costo de Producción (Terceros)</div>
-                    <div class="kpi-val" style="color: #dc2626;">-Bs. ${totalProductionCostBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
-                    ${totalProductionCostBs === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Sin dato de costo para este día -- no es que haya costado $0</div>' : ''}
+                    <div class="kpi-label" style="color: #dc2626;">Costo de Producción (Terceros)${isEstimatedCost ? ' (Estimado)' : ''}</div>
+                    <div class="kpi-val" style="color: #dc2626;">-Bs. ${productionCostBsForDisplay.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                    ${isEstimatedCost ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Estimado con el costo actual por unidad -- no es el dato exacto de ese día</div>' : ''}
+                    ${productionCostBsForDisplay === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Sin dato de costo para este día -- no es que haya costado $0</div>' : ''}
                 </div>
                 <div class="kpi-card" style="border-color: #10b981; background-color: rgba(16,185,129,0.01);">
                     <div class="kpi-label" style="color: #059669;">Margen Real (Ventas - Producción)</div>
                     <div class="kpi-val" style="color: #059669;">Bs. ${netMarginBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
-                    ${totalProductionCostBs === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Estimado sin descontar producción (dato no disponible)</div>' : ''}
+                    ${isEstimatedCost ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Calculado con costo de producción estimado</div>' : ''}
+                    ${productionCostBsForDisplay === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Estimado sin descontar producción (dato no disponible)</div>' : ''}
                 </div>
             </div>
 

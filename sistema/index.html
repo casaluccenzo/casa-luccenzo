@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=310">
+    <link rel="stylesheet" href="/css/main.css?v=311">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=310"></script>
-    <script src="/js/storage.js?v=310"></script>
-    <script src="/js/supabase.js?v=310"></script>
-    <script src="/js/exchange-rate.js?v=310"></script>
-    <script src="/js/export.js?v=310"></script>
-    <script src="/js/auth.js?v=310"></script>
-    <script src="/js/sales.js?v=310"></script>
-    <script src="/js/analytics.js?v=310"></script>
-    <script src="/js/inventory.js?v=310"></script>
-    <script src="/js/pin-management.js?v=310"></script>
-    <script src="/js/recipes.js?v=310"></script>
-    <script src="/js/audio.js?v=310"></script>
-    <script src="/js/share.js?v=310"></script>
-    <script src="/js/agent.js?v=310"></script>
-    <script src="/js/ui.js?v=310"></script>
-    <script src="/js/app.js?v=310"></script>
+    <script src="/js/ui/shared.js?v=311"></script>
+    <script src="/js/storage.js?v=311"></script>
+    <script src="/js/supabase.js?v=311"></script>
+    <script src="/js/exchange-rate.js?v=311"></script>
+    <script src="/js/export.js?v=311"></script>
+    <script src="/js/auth.js?v=311"></script>
+    <script src="/js/sales.js?v=311"></script>
+    <script src="/js/analytics.js?v=311"></script>
+    <script src="/js/inventory.js?v=311"></script>
+    <script src="/js/pin-management.js?v=311"></script>
+    <script src="/js/recipes.js?v=311"></script>
+    <script src="/js/audio.js?v=311"></script>
+    <script src="/js/share.js?v=311"></script>
+    <script src="/js/agent.js?v=311"></script>
+    <script src="/js/ui.js?v=311"></script>
+    <script src="/js/app.js?v=311"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -1047,7 +1047,7 @@
                     <div class="admin-panel-header">
                         <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-robot"></i> Agente Lucenzo IA
-                            <span style="font-size: 9px; padding: 2px 6px; border-radius: 10px; background: rgba(201, 162, 74, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); font-weight: 700; text-transform: uppercase;">Beta</span>
+                            <span style="font-size: 9px; padding: 2px 6px; border-radius: 3px; background: rgba(201, 162, 74, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); font-weight: 700; text-transform: uppercase;">Beta</span>
                         </h3>
                     </div>
                     <div class="admin-panel-body" style="padding: 0.75rem 0.5rem 0.5rem 0.5rem;">
@@ -1380,8 +1380,8 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
 
                 <!-- Fast User Selector Pills -->
                 <div style="display: flex; gap: 0.4rem; justify-content: center; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(212,175,55,0.4); background: rgba(212,175,55,0.1); color: var(--color-gold); cursor: pointer;">
-                        👑 Admin
+                    <button type="button" class="btn-quick-user-pill" data-user="admin" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
+                        Admin
                     </button>
                     <button type="button" class="btn-quick-user-pill" data-user="vendedora" style="font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.6rem; border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #FFF; cursor: pointer;">
                         🥖 Ventas

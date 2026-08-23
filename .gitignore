@@ -35,3 +35,8 @@ whatsapp-session/
 
 # Isolated git worktrees used for subagent-driven-development plan execution.
 .worktrees/
+
+# Claude Code skill tooling (installed locally, not part of the app)
+.agents/
+.claude/skills/
+skills-lock.json

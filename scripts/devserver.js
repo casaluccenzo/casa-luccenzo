@@ -7,7 +7,7 @@
  * SENTRY_DSN substituted for their placeholders.
  *
  * That is now what actually happens. Verified 2026-08-15 against
- * https://www.luccenzo.com/: js/supabase.js ships the real URL/key and
+ * https://www.casalucenzo.com/: js/supabase.js ships the real URL/key and
  * sistema/index.html ships the real Sentry DSN -- no placeholders left. (This
  * comment previously said the build was NOT running, which was true until the
  * SENTRY_DSN injection fix; don't trust either claim without re-checking the

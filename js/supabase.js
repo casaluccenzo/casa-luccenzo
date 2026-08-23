@@ -13,7 +13,7 @@ const DEFAULT_SUPABASE_KEY = "__SUPABASE_ANON_KEY__";
  * Resolve the effective Supabase URL/key from user prefs, the build-injected
  * defaults, or this hardcoded production fallback.
  *
- * On Vercel the build DOES run (verified 2026-08-15: www.luccenzo.com serves
+ * On Vercel the build DOES run (verified 2026-08-15: www.casalucenzo.com serves
  * this file with both constants substituted), so the fallback is what you get
  * locally via `npm run dev`, which serves the unbuilt source. Note the two are
  * not identical: Vercel currently injects a legacy JWT anon key while the

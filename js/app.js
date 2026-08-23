@@ -4531,10 +4531,7 @@ function initAdminDashboardListeners() {
             analyticsRangeDays = Number(days);
             Object.values(analyticsRangeBtns).forEach(b => {
                 if (!b) return;
-                const isActive = b === btn;
-                b.classList.toggle('active', isActive);
-                b.style.background = isActive ? 'var(--color-gold)' : 'transparent';
-                b.style.color = isActive ? '#0A1426' : 'var(--color-text-muted)';
+                b.classList.toggle('active', b === btn);
             });
             loadAndRenderAnalytics();
         });
@@ -4546,11 +4543,7 @@ function initAdminDashboardListeners() {
         const updatePrepToggleUI = (mode) => {
             const todayActive = mode === 'today';
             btnPrepToday.classList.toggle('active', todayActive);
-            btnPrepToday.style.background = todayActive ? 'var(--color-gold)' : 'transparent';
-            btnPrepToday.style.color = todayActive ? '#0A1426' : 'var(--color-text-muted)';
             btnPrepTomorrow.classList.toggle('active', !todayActive);
-            btnPrepTomorrow.style.background = !todayActive ? 'var(--color-gold)' : 'transparent';
-            btnPrepTomorrow.style.color = !todayActive ? '#0A1426' : 'var(--color-text-muted)';
         };
         btnPrepToday.addEventListener('click', () => {
             triggerHaptic(10);

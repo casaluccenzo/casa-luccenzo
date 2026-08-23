@@ -4266,17 +4266,8 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
         const dayBtn = document.getElementById(dayBtnId);
         const weekBtn = document.getElementById(weekBtnId);
         if (dayBtn && weekBtn) {
-            if (activeFilter === 'week') {
-                dayBtn.style.background = 'transparent';
-                dayBtn.style.color = 'var(--color-text-muted)';
-                weekBtn.style.background = 'var(--color-gold)';
-                weekBtn.style.color = '#0A1426';
-            } else {
-                dayBtn.style.background = 'var(--color-gold)';
-                dayBtn.style.color = '#0A1426';
-                weekBtn.style.background = 'transparent';
-                weekBtn.style.color = 'var(--color-text-muted)';
-            }
+            dayBtn.classList.toggle('active', activeFilter !== 'week');
+            weekBtn.classList.toggle('active', activeFilter === 'week');
         }
     };
 

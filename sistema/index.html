@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=308">
+    <link rel="stylesheet" href="/css/main.css?v=309">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=308"></script>
-    <script src="/js/storage.js?v=308"></script>
-    <script src="/js/supabase.js?v=308"></script>
-    <script src="/js/exchange-rate.js?v=308"></script>
-    <script src="/js/export.js?v=308"></script>
-    <script src="/js/auth.js?v=308"></script>
-    <script src="/js/sales.js?v=308"></script>
-    <script src="/js/analytics.js?v=308"></script>
-    <script src="/js/inventory.js?v=308"></script>
-    <script src="/js/pin-management.js?v=308"></script>
-    <script src="/js/recipes.js?v=308"></script>
-    <script src="/js/audio.js?v=308"></script>
-    <script src="/js/share.js?v=308"></script>
-    <script src="/js/agent.js?v=308"></script>
-    <script src="/js/ui.js?v=308"></script>
-    <script src="/js/app.js?v=308"></script>
+    <script src="/js/ui/shared.js?v=309"></script>
+    <script src="/js/storage.js?v=309"></script>
+    <script src="/js/supabase.js?v=309"></script>
+    <script src="/js/exchange-rate.js?v=309"></script>
+    <script src="/js/export.js?v=309"></script>
+    <script src="/js/auth.js?v=309"></script>
+    <script src="/js/sales.js?v=309"></script>
+    <script src="/js/analytics.js?v=309"></script>
+    <script src="/js/inventory.js?v=309"></script>
+    <script src="/js/pin-management.js?v=309"></script>
+    <script src="/js/recipes.js?v=309"></script>
+    <script src="/js/audio.js?v=309"></script>
+    <script src="/js/share.js?v=309"></script>
+    <script src="/js/agent.js?v=309"></script>
+    <script src="/js/ui.js?v=309"></script>
+    <script src="/js/app.js?v=309"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -735,8 +735,10 @@
                                 <h4 style="font-size: 11px; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
                                     <span><i class="fa-solid fa-clock"></i> Distribución de Ventas por Hora</span>
                                     <div style="display: flex; gap: 0.35rem;" id="hourly-toggle-container">
-                                        <button id="btn-hourly-today" class="btn-action-small active" style="padding: 2px 8px; font-size: 9px;">Hoy</button>
-                                        <button id="btn-hourly-weekly" class="btn-action-small" style="padding: 2px 8px; font-size: 9px;">Semana</button>
+                                        <div class="segmented">
+                                            <button id="btn-hourly-today" class="segmented-btn active">Hoy</button>
+                                            <button id="btn-hourly-weekly" class="segmented-btn">Semana</button>
+                                        </div>
                                         <button id="btn-hourly-pdf" class="btn-action-small" style="padding: 2px 8px; font-size: 9px; background: rgba(201, 162, 74, 0.15); border-color: var(--color-gold); color: var(--color-gold);">
                                             <i class="fa-solid fa-file-pdf"></i> Reporte PDF
                                         </button>
@@ -756,9 +758,9 @@
                                     <span style="display: flex; align-items: center; gap: 0.35rem;">
                                         <i class="fa-solid fa-credit-card"></i> Métodos de Pago
                                     </span>
-                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
-                                        <button id="btn-stats-payment-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
-                                        <button id="btn-stats-payment-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    <div class="segmented">
+                                        <button id="btn-stats-payment-day" class="segmented-btn active">Día</button>
+                                        <button id="btn-stats-payment-week" class="segmented-btn">Semana</button>
                                     </div>
                                 </h4>
                                 <div id="payment-methods-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
@@ -772,9 +774,9 @@
                                     <span style="display: flex; align-items: center; gap: 0.35rem;">
                                         <i class="fa-solid fa-chart-pie"></i> Ventas por Categoría
                                     </span>
-                                    <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
-                                        <button id="btn-stats-cat-day" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Día</button>
-                                        <button id="btn-stats-cat-week" style="padding: 2px 7px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Semana</button>
+                                    <div class="segmented">
+                                        <button id="btn-stats-cat-day" class="segmented-btn active">Día</button>
+                                        <button id="btn-stats-cat-week" class="segmented-btn">Semana</button>
                                     </div>
                                 </h4>
                                 <div id="category-performance-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.8rem;">
@@ -819,15 +821,15 @@
                     </div>
                     <div class="admin-panel-body">
                         <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem;">
-                            <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
-                                <button id="btn-analytics-range-30" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">30 días</button>
-                                <button id="btn-analytics-range-60" class="btn-analytics-range active" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">60 días</button>
-                                <button id="btn-analytics-range-90" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">90 días</button>
-                                <button id="btn-analytics-range-all" class="btn-analytics-range" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Todo el historial</button>
+                            <div class="segmented">
+                                <button id="btn-analytics-range-30" class="segmented-btn">30 días</button>
+                                <button id="btn-analytics-range-60" class="segmented-btn active">60 días</button>
+                                <button id="btn-analytics-range-90" class="segmented-btn">90 días</button>
+                                <button id="btn-analytics-range-all" class="segmented-btn">Todo el historial</button>
                             </div>
-                            <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
-                                <button id="btn-analytics-prep-today" class="btn-analytics-prep active" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: var(--color-gold); color: #0A1426; transition: all 0.2s;">Preparar hoy</button>
-                                <button id="btn-analytics-prep-tomorrow" class="btn-analytics-prep" style="padding: 2px 9px; font-size: 9px; font-weight: 800; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: var(--color-text-muted); transition: all 0.2s;">Preparar mañana</button>
+                            <div class="segmented">
+                                <button id="btn-analytics-prep-today" class="segmented-btn active">Preparar hoy</button>
+                                <button id="btn-analytics-prep-tomorrow" class="segmented-btn">Preparar mañana</button>
                             </div>
                         </div>
                         <div id="admin-analytics-container">

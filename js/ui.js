@@ -4981,10 +4981,12 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
                 <div class="kpi-card" style="border-color: #ef4444; background-color: rgba(239,68,68,0.01);">
                     <div class="kpi-label" style="color: #dc2626;">Costo de Producción (Terceros)</div>
                     <div class="kpi-val" style="color: #dc2626;">-Bs. ${totalProductionCostBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                    ${totalProductionCostBs === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Sin dato de costo para este día -- no es que haya costado $0</div>' : ''}
                 </div>
                 <div class="kpi-card" style="border-color: #10b981; background-color: rgba(16,185,129,0.01);">
                     <div class="kpi-label" style="color: #059669;">Margen Real (Ventas - Producción)</div>
                     <div class="kpi-val" style="color: #059669;">Bs. ${netMarginBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                    ${totalProductionCostBs === 0 && totalSales > 0 ? '<div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.2rem; font-style: italic;">Estimado sin descontar producción (dato no disponible)</div>' : ''}
                 </div>
             </div>
 

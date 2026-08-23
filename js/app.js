@@ -1653,6 +1653,10 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
                 sortOrder = 50;
+            } else if (rawCat === 'dulces') {
+                catKey = 'dulces';
+                catLabel = '🍬 Dulces';
+                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = '📦 Otros / Varios';

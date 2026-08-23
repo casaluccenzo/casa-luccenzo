@@ -1279,6 +1279,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
                 sortOrder = 50;
+            } else if (rawCat === 'dulces') {
+                catKey = 'dulces';
+                catLabel = '🍬 Dulces';
+                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = '📦 Otros / Varios';
@@ -1510,6 +1514,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
 
         let catLabel = 'Pastelitos';
         if (p.category === 'bebidas') catLabel = 'Bebidas';
+        if (p.category === 'dulces') catLabel = 'Dulces';
 
         item.innerHTML = `
             <div class="settings-product-info">
@@ -2985,6 +2990,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 color = '#8BE8CB';
                 unitLabel = 'unid.';
                 sortOrder = 50;
+            } else if (rawCat === 'dulces') {
+                catKey = 'dulces';
+                catLabel = 'Dulces';
+                icon = 'fa-candy-cane';
+                color = '#C084FC';
+                unitLabel = 'unid.';
+                sortOrder = 60;
             } else {
                 catKey = 'otros';
                 catLabel = 'Otros / Varios';
@@ -4349,8 +4361,9 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
 
     // 2. Process Categories
     const categories = {
-        'pastelitos': { label: '🥐 Pastelitos & Dulces', count: 0, amount: 0, class: 'fill-category-1' },
+        'pastelitos': { label: '🥐 Pastelitos', count: 0, amount: 0, class: 'fill-category-1' },
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
+        'dulces': { label: '🍬 Dulces', count: 0, amount: 0, class: 'fill-category-5' },
         'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
     };
 
@@ -4567,17 +4580,20 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     // Group sales by category and product
     const categorySales = {
         'pasteles': { label: '🥐 Pasteles y Repostería', items: {} },
-        'bebidas': { label: '🥤 Bebidas', items: {} }
+        'bebidas': { label: '🥤 Bebidas', items: {} },
+        'dulces': { label: '🍬 Dulces', items: {} }
     };
 
     salesLog.forEach(sale => {
         if (sale.productId === 'abono') return;
-        
+
         // Find product category
         const prod = products.find(p => p.id === sale.productId);
         let category = 'pasteles'; // fallback default
         if (prod && prod.category === 'bebidas') {
             category = 'bebidas';
+        } else if (prod && prod.category === 'dulces') {
+            category = 'dulces';
         } else if (prod && prod.category === 'pastelitos') {
             category = 'pasteles';
         } else {
@@ -4862,7 +4878,27 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         });
     }
 
-    if (pastelesItems.length === 0 && bebidasItems.length === 0) {
+    // Render Dulces
+    const dulcesItems = Object.entries(categorySales['dulces'].items);
+    if (dulcesItems.length > 0) {
+        productRowsHtml += `
+            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+                <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">🍬 DULCES</td>
+            </tr>
+        `;
+        dulcesItems.forEach(([name, data]) => {
+            productRowsHtml += `
+                <tr>
+                    <td style="padding-left: 1.5rem;">${name}</td>
+                    <td>${data.count} uds.</td>
+                    <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
+                    <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        });
+    }
+
+    if (pastelesItems.length === 0 && bebidasItems.length === 0 && dulcesItems.length === 0) {
         productRowsHtml = '<tr><td colspan="4" style="text-align: center; color: #64748b;">No hubo ventas registradas hoy.</td></tr>';
     }
 

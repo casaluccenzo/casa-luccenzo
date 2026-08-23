@@ -28,16 +28,28 @@ function updateLowStockUI(products = [], ingredients = [], userRole = '') {
 
     const badge = document.getElementById('header-lowstock-badge');
     const countSpan = document.getElementById('header-lowstock-count');
+    const normalizedRole = (userRole || '').toLowerCase();
+    const canView = normalizedRole === 'admin' || normalizedRole === 'cocina';
 
     if (badge && countSpan) {
-        const normalizedRole = (userRole || '').toLowerCase();
-        const canView = normalizedRole === 'admin' || normalizedRole === 'cocina';
-
         if (canView && totalLowCount > 0) {
             badge.style.display = 'flex';
             countSpan.textContent = `${totalLowCount} bajo`;
         } else {
             badge.style.display = 'none';
+        }
+    }
+
+    // Same signal, surfaced on the Productos sidebar tab -- previously only
+    // visible from inside Resumen, so it went unnoticed unless you were
+    // already looking at that specific panel.
+    const productsTabBadge = document.getElementById('products-tab-lowstock-badge');
+    if (productsTabBadge) {
+        if (canView && lowProducts.length > 0) {
+            productsTabBadge.textContent = lowProducts.length;
+            productsTabBadge.classList.remove('hidden');
+        } else {
+            productsTabBadge.classList.add('hidden');
         }
     }
 

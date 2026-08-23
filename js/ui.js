@@ -1540,14 +1540,13 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
 
     container.innerHTML = '';
 
-    // Empanadas siguen ocultas de Configurar Productos -- no se están vendiendo
-    // por ahora. Tortas SÍ se muestra acá (a diferencia de la vitrina de venta)
-    // para poder cargarle costo de producción aunque no esté a la venta todavía.
+    // Empanadas/Tortas siguen ocultas de Configurar Productos -- no se están
+    // vendiendo por ahora.
     products = products.filter(p => {
         const cat = (window.StorageManager && window.StorageManager.getProductCategory)
             ? window.StorageManager.getProductCategory(p)
             : (p.category || 'pastelitos');
-        return cat !== 'empanadas';
+        return cat !== 'empanadas' && cat !== 'tortas';
     });
 
     products.forEach(p => {

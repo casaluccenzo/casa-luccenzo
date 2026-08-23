@@ -448,6 +448,7 @@ async function upsertProduct(product) {
         max: product.max,
         unit: product.unit,
         price: product.price,
+        cost: product.cost || 0,
         category: product.category,
         initial_stock: (product.initial_stock !== undefined && product.initial_stock !== null) ? product.initial_stock : (product.stock || 0),
         updated_at: new Date().toISOString()
@@ -515,7 +516,8 @@ async function insertSale(sale) {
         name: sale.name,
         price: sale.price,
         timestamp: sale.timestamp,
-        bcv_rate: sale.bcvRate || window.bcvRate || null
+        bcv_rate: sale.bcvRate || window.bcvRate || null,
+        cost_at_sale: (sale.cost !== undefined && sale.cost !== null) ? sale.cost : null
     };
     try {
         if (!navigator.onLine) {
@@ -541,7 +543,8 @@ async function insertSales(sales) {
         name: sale.name,
         price: sale.price,
         timestamp: sale.timestamp,
-        bcv_rate: sale.bcvRate || window.bcvRate || null
+        bcv_rate: sale.bcvRate || window.bcvRate || null,
+        cost_at_sale: (sale.cost !== undefined && sale.cost !== null) ? sale.cost : null
     }));
 
     try {

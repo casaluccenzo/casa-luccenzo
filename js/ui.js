@@ -1891,12 +1891,18 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
     const totalIncome = salesLog.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = totalIncome - totalExpenses;
+    // cost_at_sale queda congelado en Bs al momento de cada venta; se pasa a $
+    // con la tasa actual solo para mostrarlo junto al resto de esta card (no
+    // se recalcula históricamente, solo se convierte para la vista).
+    const totalProductionCostBs = salesLog.reduce((sum, s) => sum + (s.cost_at_sale || 0), 0);
+    const totalProductionCostUsd = totalProductionCostBs / (window.bcvRate || 1);
+    const netMarginReal = netProfit - totalProductionCostUsd;
 
     container.innerHTML = `
         <div style="margin-bottom: 0.75rem;">
             ${barsHtml}
         </div>
-        
+
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
             <span>Total Ventas (Semana):</span>
             <span style="color: var(--color-success);">+$${totalIncome.toFixed(2)}</span>
@@ -1905,9 +1911,13 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
             <span>Gastos (Semana):</span>
             <span style="color: var(--color-danger);">-$${totalExpenses.toFixed(2)}</span>
         </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-top: 0.25rem;">
+            <span>Costo Producción (Semana):</span>
+            <span style="color: var(--color-danger);">-$${totalProductionCostUsd.toFixed(2)} <span style="opacity:0.7;">(Bs. ${totalProductionCostBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })})</span></span>
+        </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; color: var(--color-gold); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.25rem;">
-            <span>Ganancia Neta (Semana):</span>
-            <span>$${netProfit.toFixed(2)}</span>
+            <span>Margen Real (Semana):</span>
+            <span>$${netMarginReal.toFixed(2)}</span>
         </div>
     `;
 
@@ -4617,6 +4627,10 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
     const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) ? parseFloat(customRate) : (window.bcvRate || 1);
+    // Producción pagada a terceros (ej. tortas a Bs.800/unidad), congelada por
+    // venta en cost_at_sale -- no se recalcula con el costo actual del producto.
+    const totalProductionCostBs = salesLog.reduce((sum, sale) => sum + (sale.cost_at_sale || 0), 0);
+    const netMarginBs = (totalSales * rate) - totalProductionCostBs;
 
     // Group sales by category and product
     const categorySales = {
@@ -4992,6 +5006,17 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
                     <div class="kpi-label" style="color: #b45309;">Balance Neto (Caja Estimado)</div>
                     <div class="kpi-val" style="color: #b45309;">$${netCash.toFixed(2)}</div>
                     <div class="kpi-subval" style="color: #b45309;">Bs. ${(netCash * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi-card" style="border-color: #ef4444; background-color: rgba(239,68,68,0.01);">
+                    <div class="kpi-label" style="color: #dc2626;">Costo de Producción (Terceros)</div>
+                    <div class="kpi-val" style="color: #dc2626;">-Bs. ${totalProductionCostBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div class="kpi-card" style="border-color: #10b981; background-color: rgba(16,185,129,0.01);">
+                    <div class="kpi-label" style="color: #059669;">Margen Real (Ventas - Producción)</div>
+                    <div class="kpi-val" style="color: #059669;">Bs. ${netMarginBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
                 </div>
             </div>
 

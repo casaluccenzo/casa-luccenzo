@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=297">
+    <link rel="stylesheet" href="/css/main.css?v=298">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=297"></script>
-    <script src="/js/storage.js?v=297"></script>
-    <script src="/js/supabase.js?v=297"></script>
-    <script src="/js/exchange-rate.js?v=297"></script>
-    <script src="/js/export.js?v=297"></script>
-    <script src="/js/auth.js?v=297"></script>
-    <script src="/js/sales.js?v=297"></script>
-    <script src="/js/analytics.js?v=297"></script>
-    <script src="/js/inventory.js?v=297"></script>
-    <script src="/js/pin-management.js?v=297"></script>
-    <script src="/js/recipes.js?v=297"></script>
-    <script src="/js/audio.js?v=297"></script>
-    <script src="/js/share.js?v=297"></script>
-    <script src="/js/agent.js?v=297"></script>
-    <script src="/js/ui.js?v=297"></script>
-    <script src="/js/app.js?v=297"></script>
+    <script src="/js/ui/shared.js?v=298"></script>
+    <script src="/js/storage.js?v=298"></script>
+    <script src="/js/supabase.js?v=298"></script>
+    <script src="/js/exchange-rate.js?v=298"></script>
+    <script src="/js/export.js?v=298"></script>
+    <script src="/js/auth.js?v=298"></script>
+    <script src="/js/sales.js?v=298"></script>
+    <script src="/js/analytics.js?v=298"></script>
+    <script src="/js/inventory.js?v=298"></script>
+    <script src="/js/pin-management.js?v=298"></script>
+    <script src="/js/recipes.js?v=298"></script>
+    <script src="/js/audio.js?v=298"></script>
+    <script src="/js/share.js?v=298"></script>
+    <script src="/js/agent.js?v=298"></script>
+    <script src="/js/ui.js?v=298"></script>
+    <script src="/js/app.js?v=298"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -865,6 +865,10 @@
                                         <input type="number" id="new-price" step="0.01" required value="1.50" min="0" class="form-input" style="height: 32px; font-size: 0.75rem;">
                                     </div>
                                     <div class="form-field" style="margin-top: 0.5rem;">
+                                        <label class="form-label">Costo Producción (Bs)</label>
+                                        <input type="number" id="new-cost" step="0.01" value="0" min="0" class="form-input" style="height: 32px; font-size: 0.75rem;">
+                                    </div>
+                                    <div class="form-field" style="margin-top: 0.5rem;">
                                         <label class="form-label">Categoría</label>
                                         <select id="new-category" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
                                             <option value="pastelitos">Pastelitos</option>
@@ -1241,6 +1245,14 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                 <option value="bebidas">Bebidas</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Production Cost (Bs) paid to a third-party producer, e.g. tortas -->
+                    <div class="form-field">
+                        <label class="form-label" style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                            <i class="fa-solid fa-hand-holding-dollar" style="color: #F87171;"></i> COSTO PRODUCCIÓN (Bs)
+                        </label>
+                        <input type="number" id="edit-prod-cost" step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #F87171; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
                     </div>
 
                     <!-- Color-Coded Metrics: Stock (Green), Max (Gold), Alert Min (Amber) with Stepper (-) and (+) buttons -->

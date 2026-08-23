@@ -13,7 +13,7 @@ const DEFAULT_PRODUCTS = [
     { id: 'empanada_de_pollo', name: 'Empanada de Pollo', stock: 0, min: 2, max: 2, unit: 'unid.', price: 1.70, category: 'empanadas' },
     { id: 'empanada_de_molida', name: 'Empanada de Molida', stock: 0, min: 2, max: 2, unit: 'unid.', price: 1.70, category: 'empanadas' },
     { id: 'empanada_de_queso', name: 'Empanada de Queso', stock: 0, min: 2, max: 1, unit: 'unid.', price: 1.70, category: 'empanadas' },
-    { id: 'tortas', name: 'Tortas de la Casa', stock: 5, min: 1, max: 5, unit: 'unid.', price: 12.00, category: 'tortas' },
+    { id: 'tortas', name: 'Tortas de la Casa', stock: 5, min: 1, max: 5, unit: 'unid.', price: 12.00, cost: 800.00, category: 'tortas' },
     { id: 'malta', name: 'Malta Retornable', stock: 24, min: 6, max: 24, unit: 'botellas', price: 1.00, category: 'bebidas' },
     { id: 'samba_fresa', name: 'Samba de fresa', stock: 20, min: 5, max: 20, unit: 'unid.', price: 1.06, category: 'dulces' },
     { id: 'cocosette_maxi', name: 'Cocosette Maxi', stock: 18, min: 4, max: 18, unit: 'unid.', price: 0.90, category: 'dulces' },

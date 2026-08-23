@@ -756,12 +756,14 @@ async function handleCheckoutCart() {
     // Create sales log items for each cart product (as open active account)
     const newSales = [];
     currentCart.forEach(cartItem => {
+        const prod = products.find(p => p.id === cartItem.productId);
         for (let i = 0; i < cartItem.quantity; i++) {
             const saleItem = {
                 uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                 productId: cartItem.productId,
                 name: `${cartItem.name} [${clientName}]`,
                 price: cartItem.price || 0,
+                cost: prod ? (prod.cost || 0) : 0,
                 timestamp: timestamp
             };
             newSales.push(saleItem);
@@ -874,6 +876,7 @@ async function handleAutocorrectSales(discrepancyList) {
                 productId: item.product.id,
                 name: `${item.product.name} [Ajuste Inventario]`,
                 price: item.product.price || 0,
+                cost: item.product.cost || 0,
                 timestamp: timestamp
             };
             newSales.push(saleItem);
@@ -1996,6 +1999,7 @@ function addNewProduct(e) {
     const minInput = document.getElementById('new-min');
     const unitSelect = document.getElementById('new-unit');
     const priceInput = document.getElementById('new-price');
+    const costInput = document.getElementById('new-cost');
     const categorySelect = document.getElementById('new-category');
 
     const name = nameInput.value.trim();
@@ -2003,6 +2007,7 @@ function addNewProduct(e) {
     const min = parseInt(minInput.value);
     const unit = unitSelect.value;
     const price = parseFloat(priceInput.value) || 0;
+    const cost = parseFloat(costInput.value) || 0;
     const category = categorySelect.value;
 
     if (!name) return;
@@ -2016,7 +2021,7 @@ function addNewProduct(e) {
         return;
     }
 
-    const newProd = { id, name, stock: max, min, max, unit, price, category, initial_stock: max };
+    const newProd = { id, name, stock: max, min, max, unit, price, cost, category, initial_stock: max };
     products.push(newProd);
     window.StorageManager.saveProducts(products);
 
@@ -2045,6 +2050,7 @@ function editProductPrompt(id) {
     document.getElementById('edit-prod-id').value = product.id;
     document.getElementById('edit-prod-name').value = product.name;
     document.getElementById('edit-prod-price').value = product.price !== undefined ? product.price : 1.50;
+    document.getElementById('edit-prod-cost').value = product.cost !== undefined ? product.cost : 0;
     document.getElementById('edit-prod-category').value = product.category || 'pastelitos';
     document.getElementById('edit-prod-stock').value = product.stock !== undefined ? product.stock : 0;
     document.getElementById('edit-prod-max').value = product.max !== undefined ? product.max : 20;
@@ -2642,6 +2648,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 max: parseInt(newRow.max),
                 unit: newRow.unit,
                 price: parseFloat(newRow.price) || 0,
+                cost: parseFloat(newRow.cost) || 0,
                 category: newRow.category || 'pastelitos',
                 initial_stock: (newRow.initial_stock !== null && newRow.initial_stock !== undefined) ? parseInt(newRow.initial_stock) : parseInt(newRow.stock)
             };
@@ -2675,6 +2682,8 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                     productId: newRow.product_id,
                     name: newRow.name,
                     price: parseFloat(newRow.price) || 0,
+                    cost_at_sale: (newRow.cost_at_sale !== null && newRow.cost_at_sale !== undefined) ? parseFloat(newRow.cost_at_sale) : null,
+                    bcv_rate: (newRow.bcv_rate !== null && newRow.bcv_rate !== undefined) ? parseFloat(newRow.bcv_rate) : null,
                     timestamp: newRow.timestamp
                 };
                 if (idx !== -1) {
@@ -4749,6 +4758,7 @@ function initAdminDashboardListeners() {
 
             const newName = document.getElementById('edit-prod-name').value.trim();
             const newPrice = parseFloat(document.getElementById('edit-prod-price').value) || 0;
+            const newCost = parseFloat(document.getElementById('edit-prod-cost').value) || 0;
             const newCategory = document.getElementById('edit-prod-category').value;
             const stockVal = parseInt(document.getElementById('edit-prod-stock').value) || 0;
             const maxValRaw = parseInt(document.getElementById('edit-prod-max').value);
@@ -4764,6 +4774,7 @@ function initAdminDashboardListeners() {
 
             product.name = newName;
             product.price = newPrice;
+            product.cost = newCost;
             product.category = newCategory;
             product.min = minVal;
 
@@ -4789,7 +4800,7 @@ function initAdminDashboardListeners() {
             window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
             window.UIManager.showToast("✏️ Producto editado correctamente.", "fa-solid fa-pen-to-square");
-            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}, Cat: ${newCategory})`);
+            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}, Costo: Bs.${newCost.toFixed(2)}, Cat: ${newCategory})`);
         });
     }
 

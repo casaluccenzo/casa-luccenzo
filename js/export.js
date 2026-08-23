@@ -6,19 +6,23 @@ function exportSalesToCSV(salesLog = []) {
         return;
     }
 
-    const headers = ["Fecha", "Hora", "Producto", "Precio USD", "Precio Bs", "Metodo Pago", "UUID"];
+    const headers = ["Fecha", "Hora", "Producto", "Precio USD", "Precio Bs", "Costo Bs", "Margen Bs", "Metodo Pago", "UUID"];
     const rows = salesLog.map(s => {
         const dateObj = new Date(s.timestamp || Date.now());
         const dateStr = dateObj.toLocaleDateString();
         const timeStr = dateObj.toLocaleTimeString();
-        const bcvRate = s.bcvRate || window.bcvRate || 744.23;
-        const priceBs = ((s.price || 0) * bcvRate).toFixed(2);
+        const bcvRate = s.bcv_rate || s.bcvRate || window.bcvRate || 744.23;
+        const priceBs = (s.price || 0) * bcvRate;
+        const costBs = s.cost_at_sale || 0;
+        const marginBs = priceBs - costBs;
         return [
             `"${dateStr}"`,
             `"${timeStr}"`,
             `"${(s.name || '').replace(/"/g, '""')}"`,
             s.price ? s.price.toFixed(2) : "0.00",
-            priceBs,
+            priceBs.toFixed(2),
+            costBs.toFixed(2),
+            marginBs.toFixed(2),
             `"${s.paymentMethod || 'Efectivo USD'}"`,
             `"${s.uuid || ''}"`
         ];

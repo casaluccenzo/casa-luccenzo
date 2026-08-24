@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=316">
+    <link rel="stylesheet" href="/css/main.css?v=317">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=316"></script>
-    <script src="/js/storage.js?v=316"></script>
-    <script src="/js/supabase.js?v=316"></script>
-    <script src="/js/exchange-rate.js?v=316"></script>
-    <script src="/js/export.js?v=316"></script>
-    <script src="/js/auth.js?v=316"></script>
-    <script src="/js/sales.js?v=316"></script>
-    <script src="/js/analytics.js?v=316"></script>
-    <script src="/js/inventory.js?v=316"></script>
-    <script src="/js/pin-management.js?v=316"></script>
-    <script src="/js/recipes.js?v=316"></script>
-    <script src="/js/audio.js?v=316"></script>
-    <script src="/js/share.js?v=316"></script>
-    <script src="/js/agent.js?v=316"></script>
-    <script src="/js/ui.js?v=316"></script>
-    <script src="/js/app.js?v=316"></script>
+    <script src="/js/ui/shared.js?v=317"></script>
+    <script src="/js/storage.js?v=317"></script>
+    <script src="/js/supabase.js?v=317"></script>
+    <script src="/js/exchange-rate.js?v=317"></script>
+    <script src="/js/export.js?v=317"></script>
+    <script src="/js/auth.js?v=317"></script>
+    <script src="/js/sales.js?v=317"></script>
+    <script src="/js/analytics.js?v=317"></script>
+    <script src="/js/inventory.js?v=317"></script>
+    <script src="/js/pin-management.js?v=317"></script>
+    <script src="/js/recipes.js?v=317"></script>
+    <script src="/js/audio.js?v=317"></script>
+    <script src="/js/share.js?v=317"></script>
+    <script src="/js/agent.js?v=317"></script>
+    <script src="/js/ui.js?v=317"></script>
+    <script src="/js/app.js?v=317"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -938,9 +938,12 @@
                         <h3 class="panel-title">
                             Bitácora de Actividades (Auditoría)
                         </h3>
-                        <button class="btn-action-small" id="btn-admin-logs-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
-                            <i class="fa-solid fa-arrows-rotate"></i> Actualizar
-                        </button>
+                        <div class="flex-row" style="gap: 0.5rem;">
+                            <input type="text" id="admin-logs-search" class="form-input" placeholder="Buscar..." style="width: 160px; height: 28px; padding: 0.25rem 0.6rem; font-size: 11px;">
+                            <button class="btn-action-small" id="btn-admin-logs-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
+                                <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+                            </button>
+                        </div>
                     </div>
                     <div class="admin-panel-body" style="padding-top: 0.75rem;">
                         <div class="admin-dashboard-card" style="padding: 0.75rem; max-height: 440px; display: flex; flex-direction: column;">

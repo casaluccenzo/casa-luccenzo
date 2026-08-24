@@ -59,6 +59,10 @@ let analyticsRangeDays = 60;
 let analyticsPrepMode = 'today'; // 'today' | 'tomorrow'
 const analyticsSalesCache = {};
 
+// Full (unfiltered) set from the last Bitácora fetch -- the search box
+// filters this client-side instead of re-querying Supabase per keystroke.
+let currentActivityLogs = [];
+
 function getAnalyticsPrepWeekday() {
     const now = new Date();
     if (analyticsPrepMode === 'tomorrow') {
@@ -4704,6 +4708,13 @@ function initAdminDashboardListeners() {
         });
     }
 
+    // Bitácora search -- filters the already-fetched logs client-side, no
+    // need to hit Supabase again per keystroke.
+    const logsSearchInput = document.getElementById('admin-logs-search');
+    if (logsSearchInput) {
+        logsSearchInput.addEventListener('input', () => applyActivityLogsFilter());
+    }
+
     // Security PINs form submission
     const pinesForm = document.getElementById('admin-pines-form');
     if (pinesForm) {
@@ -4927,12 +4938,34 @@ function initAdminDashboardListeners() {
  */
 async function refreshActivityLogsView() {
     if (window.SupabaseManager.isConfigured()) {
-        const logs = await window.SupabaseManager.fetchActivityLogs();
-        window.UIManager.renderActivityLogs(logs);
+        currentActivityLogs = await window.SupabaseManager.fetchActivityLogs();
     } else {
         const localLogs = JSON.parse(localStorage.getItem('casa_lucenzo_local_activity_logs') || '[]');
-        window.UIManager.renderActivityLogs([...localLogs].reverse());
+        currentActivityLogs = [...localLogs].reverse();
     }
+    applyActivityLogsFilter();
+}
+
+/**
+ * Re-render the Bitácora table from currentActivityLogs, filtered by
+ * whatever's currently typed in #admin-logs-search (action, details, actor).
+ */
+function applyActivityLogsFilter() {
+    const searchInput = document.getElementById('admin-logs-search');
+    const term = (searchInput?.value || '').trim().toLowerCase();
+
+    if (!term) {
+        window.UIManager.renderActivityLogs(currentActivityLogs);
+        return;
+    }
+
+    const filtered = currentActivityLogs.filter(log => {
+        return (log.action || '').toLowerCase().includes(term)
+            || (log.details || '').toLowerCase().includes(term)
+            || (log.actor_name || '').toLowerCase().includes(term)
+            || (log.role || '').toLowerCase().includes(term);
+    });
+    window.UIManager.renderActivityLogs(filtered, true);
 }
 
 /**

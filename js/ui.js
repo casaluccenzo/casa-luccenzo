@@ -2044,8 +2044,9 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
 /**
  * Render recent audit activity logs in the admin panel
  * @param {Array} logs Activity logs list
+ * @param {boolean} isFiltered Whether `logs` is a search result (changes the empty-state copy)
  */
-function renderActivityLogs(logs) {
+function renderActivityLogs(logs, isFiltered = false) {
     const tbody = document.getElementById('admin-logs-tbody');
     if (!tbody) return;
 
@@ -2055,7 +2056,7 @@ function renderActivityLogs(logs) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 1.5rem 0;">
-                    No hay registros de actividad en la bitácora.
+                    ${isFiltered ? 'Ningún registro coincide con la búsqueda.' : 'No hay registros de actividad en la bitácora.'}
                 </td>
             </tr>
         `;

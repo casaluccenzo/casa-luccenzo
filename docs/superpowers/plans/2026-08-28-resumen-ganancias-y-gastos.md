@@ -14,7 +14,7 @@
 
 - **Live production POS.** Single domain `casalucenzo.com`. Verify there after deploy, not only locally. (memory: `feedback_production_deploy_caution`)
 - **Deploy order for the migration is mandatory:** migration 020 must be applied to the DB *before* client code that sends `category`/`currency`/`bcv_rate` in an `expenses` insert reaches production. An unknown column fails the whole insert.
-- **Cache-busting must stay in sync:** every `<script src="/js/*.js?v=N">` in `sistema/index.html` (16 tags), `APP_VERSION` in `sw.js`, and `/css/main.css?v=N` in `sw.js` share one version number. Current: `317`. Bump to `318` in the final task.
+- **Cache-busting must stay in sync:** `sistema/index.html` has **17** `?v=317` occurrences (16 `<script src="/js/*.js">` tags + 1 on `main.css`); `sw.js` has `APP_VERSION` (its `/css/main.css?v=${APP_VERSION}` follows the var automatically). Current: `317`. Bump every occurrence to `318` in the final task.
 - **No new JS file.** All new calc goes in `js/analytics.js` (already loaded, already in `SCRIPTS`). This keeps the `SCRIPTS` array in `sw.js` unchanged.
 - `js/analytics.js` must stay dependency-free (no `window.*` at call time) — it runs under `node tests/unit.test.js`. Pass `bcvRate` in as a parameter.
 - Money display convention: `$` primary with `Bs` secondary. USD formatted `$X.XX`; Bs formatted `Bs. X.XXX,XX` via `toLocaleString('es-VE', { minimumFractionDigits: 2 })`.
@@ -1355,7 +1355,7 @@ git commit -m "feat(ui): exportPnlToPDF — printable weekly/monthly profit summ
 - [ ] **Step 1: Bump `sistema/index.html`**
 
 Run: `sed -i 's/?v=317/?v=318/g' sistema/index.html`
-Then verify: `grep -c "?v=318" sistema/index.html` → expect `16`; `grep -c "?v=317" sistema/index.html` → expect `0`.
+Then verify: `grep -c "?v=318" sistema/index.html` → expect `17`; `grep -c "?v=317" sistema/index.html` → expect `0`.
 
 - [ ] **Step 2: Bump `sw.js`**
 

@@ -1086,7 +1086,7 @@ function renderPnl(pnl, opts = {}) {
     if (!c || !pnl) return;
     const rate = (window.bcvRate || 1);
     const usd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const ves = v => 'Bs. ' + ((v || 0) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+    const ves = v => 'Bs. ' + ((v || 0) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const t = pnl.totals;
 
     if (t.ventasUsd === 0 && pnl.gastos.totalUsd === 0) {
@@ -1130,7 +1130,7 @@ function renderPnl(pnl, opts = {}) {
             </div>
           </div>
           <div class="category-stat-dropdown pnl-cat-dd" data-idx="${i}" style="display:none;">
-            ${cat.productos.map(p => `<div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:0.15rem 0.5rem;"><span>${p.name} ×${p.unidades}</span><span>${usd(p.ventasUsd)}</span></div>`).join('')}
+            ${cat.productos.map(p => `<div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:0.15rem 0.5rem;"><span>${escapeHtml(p.name)} ×${p.unidades}</span><span>${usd(p.ventasUsd)}</span></div>`).join('')}
           </div>
         </div>`).join('');
 

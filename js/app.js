@@ -1522,7 +1522,9 @@ function pnlRange(mode, anchor) {
 }
 
 function pnlCanGoNext() {
-    const next = new Date(pnlAnchor);
+    // Build the candidate from the normalized period start (month start = day 1,
+    // week start = Monday) so setMonth/+7 can't overflow a 29-31 day-of-month.
+    const next = new Date(pnlRange(pnlMode, pnlAnchor).start);
     if (pnlMode === 'month') next.setMonth(next.getMonth() + 1);
     else next.setDate(next.getDate() + 7);
     return pnlRange(pnlMode, next).start <= new Date();
@@ -4791,14 +4793,20 @@ function initAdminDashboardListeners() {
     const pnlPrev = document.getElementById('btn-pnl-prev');
     const pnlNext = document.getElementById('btn-pnl-next');
     if (pnlPrev) pnlPrev.addEventListener('click', () => {
+        // normalize to the current period start first so setMonth can't overflow
+        // a 29-31 day-of-month, then step and re-normalize.
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
         if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() - 1);
         else pnlAnchor.setDate(pnlAnchor.getDate() - 7);
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
         loadPnl();
     });
     if (pnlNext) pnlNext.addEventListener('click', () => {
         if (!pnlCanGoNext()) return;
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
         if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() + 1);
         else pnlAnchor.setDate(pnlAnchor.getDate() + 7);
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
         loadPnl();
     });
     const pnlPdf = document.getElementById('btn-pnl-pdf');

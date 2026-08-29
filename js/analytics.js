@@ -325,6 +325,12 @@ function aggregatePnl(sales = [], expenses = [], products = [], opts = {}) {
 
     const categorias = Object.values(catMap).map(c => {
         const subset = merch.filter(s => resolvePnlCategory(s, productById) === c.key);
+        // Per-category cost re-runs estimateProductionCost on the category subset,
+        // so Σ categorias[].costoTercerosUsd can exceed totals.costoTerceros.usd on
+        // a calendar day that spans two cost>0 categories where only one carries
+        // cost_at_sale (the other gets day-level estimation on its subset while the
+        // day total stays real). Spec §2.2-prescribed; inert while only `pasteles`
+        // has cost>0.
         const catCost = estimateProductionCost(subset, products, rate);
         return {
             key: c.key,
@@ -374,7 +380,7 @@ function aggregatePnl(sales = [], expenses = [], products = [], opts = {}) {
             fecha: d.fecha,
             ventasUsd: Number(d.ventasUsd.toFixed(2)),
             gastosUsd: Number(d.gastosUsd.toFixed(2)),
-            gananciaUsd: Number((d.ventasUsd - d.gastosUsd).toFixed(2))
+            margenBrutoUsd: Number((d.ventasUsd - d.gastosUsd).toFixed(2))
         }))
         .sort((a, b) => a.fecha.localeCompare(b.fecha));
 

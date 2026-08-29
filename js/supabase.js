@@ -1152,6 +1152,7 @@ async function fetchExpensesRange(startISO, endISO) {
             .gte('timestamp', startISO)
             .lt('timestamp', endISO)
             .order('timestamp', { ascending: true })
+            .order('uuid', { ascending: true })
             .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
     } catch (e) {
         console.error('fetchExpensesRange failed:', e.message);
@@ -1160,13 +1161,14 @@ async function fetchExpensesRange(startISO, endISO) {
 }
 
 async function fetchPnlData(startISO, endISO) {
-    if (!client) return { sales: [], expenses: [] };
+    if (!client) return null;
     try {
         const [sales, expenses] = await Promise.all([
             fetchAllPages(offset => client.from('sales').select('*')
                 .gte('timestamp', startISO)
                 .lt('timestamp', endISO)
                 .order('timestamp', { ascending: true })
+                .order('uuid', { ascending: true })
                 .range(offset, offset + POSTGREST_PAGE_SIZE - 1)),
             fetchExpensesRange(startISO, endISO)
         ]);
@@ -1174,7 +1176,7 @@ async function fetchPnlData(startISO, endISO) {
         return { sales: normSales, expenses: expenses || [] };
     } catch (e) {
         console.error('fetchPnlData failed:', e.message);
-        return { sales: [], expenses: [] };
+        return null;
     }
 }
 

@@ -1453,6 +1453,19 @@ async function loadAndRenderExpensesTab(forceRefetch = false) {
 }
 
 function handleDeleteAdminExpense(uuid) {
+    let exp = null;
+    Object.keys(expensesTabCache).forEach(m => {
+        const hit = (expensesTabCache[m] || []).find(e => e.uuid === uuid);
+        if (hit) exp = hit;
+    });
+    if (exp) {
+        const CAT_LABEL = { arriendo: 'Arriendo', sueldos: 'Sueldos', servicios: 'Servicios', otros: 'Otros' };
+        const cat = CAT_LABEL[(exp.category || '').toLowerCase()] || 'Otros';
+        const orig = (exp.currency || 'USD').toUpperCase() === 'VES'
+            ? `Bs. ${(parseFloat(exp.amount) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+            : `$${(parseFloat(exp.amount) || 0).toFixed(2)}`;
+        if (!confirm(`¿Eliminar el gasto "${cat} — ${exp.description || ''}" (${orig})?`)) return;
+    }
     deleteExpense(uuid);
     Object.keys(expensesTabCache).forEach(m => {
         expensesTabCache[m] = expensesTabCache[m].filter(e => e.uuid !== uuid);
@@ -1481,8 +1494,11 @@ function addAdminExpense(e) {
         currency,
         bcv_rate: currency === 'VES' ? (window.bcvRate || null) : null
     };
-    expenses.push(newExpense);
-    window.StorageManager.saveExpenses(expenses);
+    // NB: admin fixed expenses (arriendo/sueldos/servicios) are deliberately NOT
+    // pushed into the shift `expenses` array nor persisted via saveExpenses — they
+    // must not touch the shift cash register / day-close PDF / other devices. The
+    // Gastos tab renders from `expensesTabCache` and the P&L refetches from the
+    // server, so neither needs a row here.
     if (window.SupabaseManager.isConfigured()) window.SupabaseManager.insertExpense(newExpense);
 
     const m = ts.slice(0, 7);
@@ -1546,7 +1562,21 @@ async function loadPnl(forceRefetch = false) {
         if (container) container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando resumen...</div>`;
         let sales = [], expenses = [];
         if (window.SupabaseManager.isConfigured() && navigator.onLine) {
-            const data = await window.SupabaseManager.fetchPnlData(start.toISOString(), end.toISOString());
+            let data = null;
+            try {
+                data = await window.SupabaseManager.fetchPnlData(start.toISOString(), end.toISOString());
+            } catch (err) {
+                console.error('loadPnl fetch failed:', err);
+            }
+            if (!data) {
+                // Do NOT cache a failed fetch — offer a retry instead (spec §4.4).
+                if (container) {
+                    container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">No se pudo cargar el resumen, reintentá.<br><button id="btn-pnl-retry" class="btn-action-small" style="margin-top:0.75rem;"><i class="fa-solid fa-rotate"></i> Reintentar</button></div>`;
+                    const retryBtn = document.getElementById('btn-pnl-retry');
+                    if (retryBtn) retryBtn.addEventListener('click', () => loadPnl(true));
+                }
+                return;
+            }
             sales = data.sales; expenses = data.expenses;
         } else if (container) {
             container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">Sin conexión — el resumen necesita datos del servidor.</div>`;
@@ -2878,6 +2908,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             }
         }
         window.StorageManager.saveSalesLog(salesLog);
+        pnlCache = {}; // an incoming sale changes P&L numbers — force a refetch on next tab open / refresh
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
@@ -2913,6 +2944,15 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
         const filterTime = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : startOfDay;
+
+        // Admin fixed expenses (arriendo/sueldos/servicios) are logged from the
+        // Ganancias/Gastos admin tab and must never enter the shift ledger on any
+        // device — they are not part of the counter cash register / day-close.
+        // A null/`otros` category (the counter quick-expense) still flows through.
+        const inboundCat = (newRow && newRow.category ? String(newRow.category).toLowerCase() : '');
+        if (eventType !== 'DELETE' && ['arriendo', 'sueldos', 'servicios'].includes(inboundCat)) {
+            return;
+        }
 
         if (eventType === 'DELETE') {
             expenses = expenses.filter(e => e.uuid !== oldRow.uuid);
@@ -4809,6 +4849,8 @@ function initAdminDashboardListeners() {
         pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
         loadPnl();
     });
+    const pnlRefresh = document.getElementById('btn-pnl-refresh');
+    if (pnlRefresh) pnlRefresh.addEventListener('click', () => loadPnl(true));
     const pnlPdf = document.getElementById('btn-pnl-pdf');
     if (pnlPdf) pnlPdf.addEventListener('click', () => {
         if (pnlLast) window.UIManager.exportPnlToPDF(pnlLast, { mode: pnlMode, bcvRate: window.bcvRate || 1 });

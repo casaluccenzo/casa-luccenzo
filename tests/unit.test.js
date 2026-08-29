@@ -428,6 +428,32 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(emptyPnl.categorias.length, 0, "aggregatePnl: empty period -> no categories");
     assert.strictEqual(emptyPnl.totals.gananciaNetaUsd, 0, "aggregatePnl: empty period -> ganancia 0");
     console.log("✅ TEST PASSED: aggregatePnl handles an empty period");
+
+    // >1000-row aggregation invariant — the guardrail this repo keeps needing
+    // (see the 2026-08-11 pagination note in js/supabase.js). fetchPnlData /
+    // fetchExpensesRange now carry a deterministic .order('uuid') tie-breaker
+    // after .order('timestamp') so paging can't drop or double a row when many
+    // share an identical timestamp; this asserts the aggregation side stays
+    // exact for a large, timestamp-collision-heavy input.
+    const bigStart = new Date(); bigStart.setDate(bigStart.getDate() - 20); bigStart.setHours(0,0,0,0);
+    const bigEnd = new Date(); bigEnd.setHours(23,59,59,999);
+    const collidingTs = new Date(); collidingTs.setDate(collidingTs.getDate() - 3); collidingTs.setHours(10,0,0,0);
+    const bigSales = [];
+    let expectedVentas = 0;
+    for (let i = 0; i < 1500; i++) {
+        const price = (i % 5) + 1; // 1..5, exact in float
+        expectedVentas += price;
+        // ~half the rows share one identical timestamp, the rest walk day-by-day
+        const ts = (i % 2 === 0)
+            ? collidingTs.toISOString()
+            : new Date(bigStart.getTime() + (i % 18) * 86400000 + 3600000).toISOString();
+        bigSales.push({ productId: 'mechada', name: 'Mechada [Bandeja]', price, cost_at_sale: 0, bcv_rate: 40, timestamp: ts });
+    }
+    const bigPnl = aggregatePnl(bigSales, [], pnlProducts,
+        { start: bigStart, end: bigEnd, periodLabel: 'Bulk', bcvRate: 40 });
+    assert.strictEqual(bigPnl.totals.ventasUsd, Number(expectedVentas.toFixed(2)),
+        "aggregatePnl: 1500-row Σ price exact despite timestamp collisions");
+    console.log("✅ TEST PASSED: aggregatePnl sums >1000 rows exactly");
 }
 
 // Security Regression Test: Reject all legacy credentials

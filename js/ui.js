@@ -1040,8 +1040,20 @@ function renderAdminExpenses(expenses = [], filter = {}, onDelete) {
     };
     const catKey = (e) => (CAT_LABEL[(e.category || '').toLowerCase()] ? e.category.toLowerCase() : 'otros');
 
+    // Local-day derivation (matches aggregatePnl's dateKey convention) so the
+    // month filter / row date stay consistent with the server range fetch and
+    // the P&L — a raw UTC .slice() would misbucket late-night rows.
+    const localDay = (ts) => {
+        const d = window.AnalyticsManager.parseTimestamp(ts);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+    const localMonth = (ts) => localDay(ts).slice(0, 7);
+
     let rows = (expenses || []).filter(e => {
-        if (month) { const k = (e.timestamp || '').slice(0, 7); if (k !== month) return false; }
+        if (month) { if (localMonth(e.timestamp) !== month) return false; }
         if (category && catKey(e) !== category) return false;
         return true;
     }).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
@@ -1059,12 +1071,12 @@ function renderAdminExpenses(expenses = [], filter = {}, onDelete) {
         const original = (e.currency || 'USD').toUpperCase() === 'VES' ? fmtVes(e.amount) : fmtUsd(e.amount);
         return `
         <div class="expense-row" style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.8rem;">
-            <span style="flex:0 0 78px; color:var(--color-text-muted);">${(e.timestamp || '').slice(0, 10)}</span>
+            <span style="flex:0 0 78px; color:var(--color-text-muted);">${localDay(e.timestamp)}</span>
             <span style="flex:0 0 80px; font-weight:700;">${CAT_LABEL[catKey(e)]}</span>
-            <span style="flex:1 1 auto;">${(e.description || '').replace(/</g, '&lt;')}</span>
+            <span style="flex:1 1 auto;">${escapeHtml(e.description)}</span>
             <span style="flex:0 0 auto;">${original}</span>
             <span style="flex:0 0 70px; text-align:right; color:var(--color-text-muted);">${fmtUsd(toUsd(e))}</span>
-            <button class="btn-delete-expense" data-uuid="${e.uuid}" style="flex:0 0 auto; background:none; border:none; color:var(--color-danger); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-delete-expense" data-uuid="${escapeHtml(e.uuid)}" style="flex:0 0 auto; background:none; border:none; color:var(--color-danger); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
         </div>`;
     }).join('') + `
         <div style="display:flex; justify-content:space-between; font-weight:800; padding-top:0.6rem; font-size:0.85rem;">
@@ -1103,7 +1115,7 @@ function renderPnl(pnl, opts = {}) {
     const cascade = `
         <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
           <tr><td style="padding:0.35rem 0;">Ventas de mercadería</td><td style="text-align:right;">${usd(t.ventasUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">${ves(t.ventasUsd)}</td></tr>
-          <tr><td style="padding:0.35rem 0;">− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' <em style="color:#f59e0b;">(est.)</em>' : ''}</td><td style="text-align:right;">−${usd(t.costoTerceros.usd)}</td><td style="text-align:right; color:var(--color-text-muted);">−Bs. ${t.costoTerceros.bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td></tr>
+          <tr><td style="padding:0.35rem 0;">− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' <em style="color:#f59e0b;">(est.)</em>' : ''}</td><td style="text-align:right;">−${usd(t.costoTerceros.usd)}</td><td style="text-align:right; color:var(--color-text-muted);">−${ves(t.costoTerceros.usd)}</td></tr>
           <tr id="pnl-gastos-row" style="cursor:pointer;"><td style="padding:0.35rem 0;">− Gastos del local <i class="fa-solid fa-chevron-down" style="font-size:0.7em;"></i></td><td style="text-align:right;">−${usd(t.gastosUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">−${ves(t.gastosUsd)}</td></tr>
           ${pnl.gastos.porCategoria.map(g => `<tr class="pnl-gasto-detail" style="display:none;"><td style="padding:0.2rem 0 0.2rem 1rem; color:var(--color-text-muted);">· ${g.label}</td><td style="text-align:right; color:var(--color-text-muted);">−${usd(g.montoUsd)}</td><td></td></tr>`).join('')}
           <tr style="border-top:2px solid rgba(255,255,255,0.15); font-weight:800;"><td style="padding:0.5rem 0;">= Ganancia neta</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${usd(t.gananciaNetaUsd)}</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${ves(t.gananciaNetaUsd)}</td></tr>

@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
-    <link rel="stylesheet" href="/css/main.css?v=317">
+    <link rel="stylesheet" href="/css/main.css?v=318">
 
     <!-- Link to Modular JS Scripts (Compatible with local file:// protocol) -->
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
@@ -55,22 +55,22 @@
          so a stale ?v= here means users keep running old JS. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
-    <script src="/js/ui/shared.js?v=317"></script>
-    <script src="/js/storage.js?v=317"></script>
-    <script src="/js/supabase.js?v=317"></script>
-    <script src="/js/exchange-rate.js?v=317"></script>
-    <script src="/js/export.js?v=317"></script>
-    <script src="/js/auth.js?v=317"></script>
-    <script src="/js/sales.js?v=317"></script>
-    <script src="/js/analytics.js?v=317"></script>
-    <script src="/js/inventory.js?v=317"></script>
-    <script src="/js/pin-management.js?v=317"></script>
-    <script src="/js/recipes.js?v=317"></script>
-    <script src="/js/audio.js?v=317"></script>
-    <script src="/js/share.js?v=317"></script>
-    <script src="/js/agent.js?v=317"></script>
-    <script src="/js/ui.js?v=317"></script>
-    <script src="/js/app.js?v=317"></script>
+    <script src="/js/ui/shared.js?v=318"></script>
+    <script src="/js/storage.js?v=318"></script>
+    <script src="/js/supabase.js?v=318"></script>
+    <script src="/js/exchange-rate.js?v=318"></script>
+    <script src="/js/export.js?v=318"></script>
+    <script src="/js/auth.js?v=318"></script>
+    <script src="/js/sales.js?v=318"></script>
+    <script src="/js/analytics.js?v=318"></script>
+    <script src="/js/inventory.js?v=318"></script>
+    <script src="/js/pin-management.js?v=318"></script>
+    <script src="/js/recipes.js?v=318"></script>
+    <script src="/js/audio.js?v=318"></script>
+    <script src="/js/share.js?v=318"></script>
+    <script src="/js/agent.js?v=318"></script>
+    <script src="/js/ui.js?v=318"></script>
+    <script src="/js/app.js?v=318"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -596,6 +596,14 @@
                         <i class="fa-solid fa-calculator"></i>
                         <span>Costos y Ganancias</span>
                     </button>
+                    <button id="admin-tab-btn-expenses" class="admin-tab-btn">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span>Gastos</span>
+                    </button>
+                    <button id="admin-tab-btn-pnl" class="admin-tab-btn">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                        <span>Ganancias</span>
+                    </button>
                     <div class="admin-sidebar-section-label">Sistema</div>
                     <button id="admin-tab-btn-devices" class="admin-tab-btn">
                         <i class="fa-solid fa-network-wired"></i>
@@ -1043,6 +1051,71 @@
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5.7: GASTOS DEL LOCAL -->
+                <div id="admin-panel-expenses" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 class="panel-title">Gastos del Local</h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <form id="add-admin-expense-form" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:flex-end; margin-bottom:1rem;">
+                            <select id="admin-expense-category" required style="flex:1 1 130px;">
+                                <option value="arriendo">Arriendo local</option>
+                                <option value="sueldos">Sueldos</option>
+                                <option value="servicios">Servicios</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                            <input id="admin-expense-desc" type="text" placeholder="Descripción / nombre" required style="flex:2 1 160px;">
+                            <input id="admin-expense-amount" type="number" step="0.01" min="0.01" placeholder="Monto" required style="flex:1 1 90px;">
+                            <div class="segmented" id="admin-expense-currency-toggle" style="flex:0 0 auto;">
+                                <button type="button" id="admin-expense-cur-usd" class="segmented-btn active" data-cur="USD">$</button>
+                                <button type="button" id="admin-expense-cur-ves" class="segmented-btn" data-cur="VES">Bs</button>
+                            </div>
+                            <input id="admin-expense-date" type="date" required style="flex:0 0 auto;">
+                            <button type="submit" class="btn-action-small" style="flex:0 0 auto;">
+                                <i class="fa-solid fa-plus"></i> Agregar
+                            </button>
+                        </form>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                            <input id="admin-expense-filter-month" type="month" style="flex:0 0 auto;">
+                            <div class="segmented" id="admin-expense-filter-category">
+                                <button class="segmented-btn active" data-cat="">Todas</button>
+                                <button class="segmented-btn" data-cat="arriendo">Arriendo</button>
+                                <button class="segmented-btn" data-cat="sueldos">Sueldos</button>
+                                <button class="segmented-btn" data-cat="servicios">Servicios</button>
+                                <button class="segmented-btn" data-cat="otros">Otros</button>
+                            </div>
+                        </div>
+                        <div id="admin-expenses-container">
+                            <div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando gastos...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5.8: RESUMEN DE GANANCIAS -->
+                <div id="admin-panel-pnl" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 class="panel-title">Resumen de Ganancias</h3>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <div class="segmented" id="pnl-mode-toggle">
+                                <button class="segmented-btn active" data-mode="week">Semana</button>
+                                <button class="segmented-btn" data-mode="month">Mes</button>
+                            </div>
+                            <button id="btn-pnl-prev" class="btn-action-small"><i class="fa-solid fa-chevron-left"></i></button>
+                            <span id="pnl-period-label" style="font-size:0.8rem; min-width:170px; text-align:center;"></span>
+                            <button id="btn-pnl-next" class="btn-action-small"><i class="fa-solid fa-chevron-right"></i></button>
+                            <button id="btn-pnl-refresh" class="btn-action-small"><i class="fa-solid fa-rotate"></i> Refrescar</button>
+                            <button id="btn-pnl-pdf" class="btn-action-small" style="background:rgba(201,162,74,0.15); border-color:var(--color-gold); color:var(--color-gold);">
+                                <i class="fa-solid fa-file-pdf"></i> PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div id="admin-pnl-container">
+                            <div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando resumen...</div>
                         </div>
                     </div>
                 </div>

@@ -1376,7 +1376,13 @@ function addExpense(e) {
         uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
         description,
         amount,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // NO category: the counter quick-expense is the only expense that flows
+        // into the shift `expenses` array / cash register. Any categorized
+        // expense belongs solely to the P&L / Gastos tab. null/absent reads as
+        // 'otros' in aggregatePnl + renderAdminExpenses.
+        currency: 'USD',
+        bcv_rate: null
     };
 
     expenses.push(newExpense);
@@ -1418,6 +1424,173 @@ function deleteExpense(uuid) {
     }
 
     window.UIManager.showToast("🗑️ Gasto eliminado.", "fa-solid fa-trash");
+}
+
+// ================= ADMIN EXPENSES TAB (GASTOS DEL LOCAL) =================
+
+let expensesTabFilter = { month: '', category: '', bcvRate: 1 };
+let expensesTabCache = {}; // monthISO -> Array
+let pnlCache = {};         // `${mode}:${startISO}` -> pnl  (also reset here on expense add/delete; consumed by Task 7)
+let pnlMode = 'week';       // 'week' | 'month'
+let pnlAnchor = new Date(); // any date inside the selected period
+let pnlLast = null;         // last rendered pnl (for the PDF button)
+
+async function loadAndRenderExpensesTab(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+    const monthInput = document.getElementById('admin-expense-filter-month');
+    const month = (monthInput && monthInput.value) || new Date().toISOString().slice(0, 7);
+    expensesTabFilter.month = month;
+    expensesTabFilter.bcvRate = window.bcvRate || 1;
+
+    if (forceRefetch) delete expensesTabCache[month];
+    if (!Array.isArray(expensesTabCache[month])) {
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            const start = new Date(month + '-01T00:00:00');
+            const end = new Date(start); end.setMonth(end.getMonth() + 1);
+            expensesTabCache[month] = await window.SupabaseManager.fetchExpensesRange(start.toISOString(), end.toISOString());
+        } else {
+            expensesTabCache[month] = expenses.filter(e => (e.timestamp || '').slice(0, 7) === month);
+        }
+    }
+    window.UIManager.renderAdminExpenses(expensesTabCache[month], expensesTabFilter, handleDeleteAdminExpense);
+}
+
+function handleDeleteAdminExpense(uuid) {
+    let exp = null;
+    Object.keys(expensesTabCache).forEach(m => {
+        const hit = (expensesTabCache[m] || []).find(e => e.uuid === uuid);
+        if (hit) exp = hit;
+    });
+    if (exp) {
+        const CAT_LABEL = { arriendo: 'Arriendo', sueldos: 'Sueldos', servicios: 'Servicios', otros: 'Otros' };
+        const cat = CAT_LABEL[(exp.category || '').toLowerCase()] || 'Otros';
+        const orig = (exp.currency || 'USD').toUpperCase() === 'VES'
+            ? `Bs. ${(parseFloat(exp.amount) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+            : `$${(parseFloat(exp.amount) || 0).toFixed(2)}`;
+        if (!confirm(`¿Eliminar el gasto "${cat} — ${exp.description || ''}" (${orig})?`)) return;
+    }
+    deleteExpense(uuid);
+    Object.keys(expensesTabCache).forEach(m => {
+        expensesTabCache[m] = expensesTabCache[m].filter(e => e.uuid !== uuid);
+    });
+    pnlCache = {}; // P&L numbers changed (defined in Task 7)
+    loadAndRenderExpensesTab();
+}
+
+function addAdminExpense(e) {
+    e.preventDefault();
+    const category = document.getElementById('admin-expense-category').value;
+    const description = document.getElementById('admin-expense-desc').value.trim();
+    const amount = parseFloat(document.getElementById('admin-expense-amount').value);
+    const dateStr = document.getElementById('admin-expense-date').value;
+    const curBtn = document.querySelector('#admin-expense-currency-toggle .segmented-btn.active');
+    const currency = (curBtn && curBtn.dataset.cur) || 'USD';
+    if (!description || isNaN(amount) || amount <= 0 || !dateStr) return;
+
+    triggerHaptic(15);
+    // noon local so the date can't slip to the previous day via timezone
+    const ts = new Date(dateStr + 'T12:00:00').toISOString();
+    const newExpense = {
+        uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+        description, amount, timestamp: ts,
+        category,
+        currency,
+        bcv_rate: currency === 'VES' ? (window.bcvRate || null) : null
+    };
+    // NB: admin fixed expenses (arriendo/sueldos/servicios) are deliberately NOT
+    // pushed into the shift `expenses` array nor persisted via saveExpenses — they
+    // must not touch the shift cash register / day-close PDF / other devices. The
+    // Gastos tab renders from `expensesTabCache` and the P&L refetches from the
+    // server, so neither needs a row here.
+    if (window.SupabaseManager.isConfigured()) window.SupabaseManager.insertExpense(newExpense);
+
+    const m = ts.slice(0, 7);
+    if (Array.isArray(expensesTabCache[m])) expensesTabCache[m].push(newExpense);
+    pnlCache = {};
+
+    document.getElementById('add-admin-expense-form').reset();
+    document.getElementById('admin-expense-cur-usd').classList.add('active');
+    document.getElementById('admin-expense-cur-ves').classList.remove('active');
+    setAdminExpenseDateDefault();
+    window.UIManager.showToast('💸 Gasto registrado.', 'fa-solid fa-file-invoice-dollar');
+    loadAndRenderExpensesTab();
+}
+
+function setAdminExpenseDateDefault() {
+    const el = document.getElementById('admin-expense-date');
+    if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+}
+
+// ================= ADMIN GANANCIAS TAB (RESUMEN DE GANANCIAS) =================
+
+function pnlRange(mode, anchor) {
+    const d = new Date(anchor);
+    if (mode === 'month') {
+        const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0);
+        const label = start.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+        return { start, end, label: label.charAt(0).toUpperCase() + label.slice(1) };
+    }
+    // week: Monday 00:00 -> next Monday 00:00
+    const day = (d.getDay() + 6) % 7; // 0 = Monday
+    const start = new Date(d); start.setDate(d.getDate() - day); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(start.getDate() + 7);
+    const endLbl = new Date(end); endLbl.setDate(end.getDate() - 1);
+    const fmt = x => x.toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
+    return { start, end, label: `Semana ${fmt(start)}–${fmt(endLbl)}` };
+}
+
+function pnlCanGoNext() {
+    // Build the candidate from the normalized period start (month start = day 1,
+    // week start = Monday) so setMonth/+7 can't overflow a 29-31 day-of-month.
+    const next = new Date(pnlRange(pnlMode, pnlAnchor).start);
+    if (pnlMode === 'month') next.setMonth(next.getMonth() + 1);
+    else next.setDate(next.getDate() + 7);
+    return pnlRange(pnlMode, next).start <= new Date();
+}
+
+async function loadPnl(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+    const { start, end, label } = pnlRange(pnlMode, pnlAnchor);
+    const labelEl = document.getElementById('pnl-period-label');
+    if (labelEl) labelEl.textContent = label;
+    const nextBtn = document.getElementById('btn-pnl-next');
+    if (nextBtn) nextBtn.disabled = !pnlCanGoNext();
+
+    const key = `${pnlMode}:${start.toISOString()}`;
+    const container = document.getElementById('admin-pnl-container');
+    if (forceRefetch) delete pnlCache[key];
+
+    if (!pnlCache[key]) {
+        if (container) container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando resumen...</div>`;
+        let sales = [], expenses = [];
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            let data = null;
+            try {
+                data = await window.SupabaseManager.fetchPnlData(start.toISOString(), end.toISOString());
+            } catch (err) {
+                console.error('loadPnl fetch failed:', err);
+            }
+            if (!data) {
+                // Do NOT cache a failed fetch — offer a retry instead (spec §4.4).
+                if (container) {
+                    container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">No se pudo cargar el resumen, reintentá.<br><button id="btn-pnl-retry" class="btn-action-small" style="margin-top:0.75rem;"><i class="fa-solid fa-rotate"></i> Reintentar</button></div>`;
+                    const retryBtn = document.getElementById('btn-pnl-retry');
+                    if (retryBtn) retryBtn.addEventListener('click', () => loadPnl(true));
+                }
+                return;
+            }
+            sales = data.sales; expenses = data.expenses;
+        } else if (container) {
+            container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">Sin conexión — el resumen necesita datos del servidor.</div>`;
+            return;
+        }
+        pnlCache[key] = window.AnalyticsManager.aggregatePnl(sales, expenses, products, {
+            start, end, periodLabel: label, bcvRate: window.bcvRate || 1
+        });
+    }
+    pnlLast = pnlCache[key];
+    window.UIManager.renderPnl(pnlLast, { mode: pnlMode });
 }
 
 // ================= DEBTS virtual ledger (FIADOS) =================
@@ -2738,6 +2911,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             }
         }
         window.StorageManager.saveSalesLog(salesLog);
+        pnlCache = {}; // an incoming sale changes P&L numbers — force a refetch on next tab open / refresh
         window.UIManager.renderCashRegister(salesLog, expenses);
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
@@ -2773,6 +2947,16 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         const startOfDay = new Date();
         startOfDay.setHours(0,0,0,0);
         const filterTime = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : startOfDay;
+
+        // Any categorized expense (arriendo/sueldos/servicios/otros/…) is logged
+        // from the Ganancias/Gastos admin tab and belongs only to the P&L —
+        // it must never enter the shift ledger on any device (the cash register /
+        // day-close is currency-blind and would mis-count a Bs row as USD).
+        // Only the counter quick-expense, which carries NO category, flows through.
+        const inboundCat = (newRow && newRow.category ? String(newRow.category).toLowerCase() : '');
+        if (eventType !== 'DELETE' && inboundCat !== '') {
+            return;
+        }
 
         if (eventType === 'DELETE') {
             expenses = expenses.filter(e => e.uuid !== oldRow.uuid);
@@ -4447,6 +4631,8 @@ function initAdminDashboardListeners() {
     const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
     const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
+    const tabExpensesBtn = document.getElementById('admin-tab-btn-expenses');
+    const tabPnlBtn = document.getElementById('admin-tab-btn-pnl');
     const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
@@ -4456,13 +4642,15 @@ function initAdminDashboardListeners() {
     const panelDevices = document.getElementById('admin-panel-devices');
     const panelLogs = document.getElementById('admin-panel-logs');
     const panelCosts = document.getElementById('admin-panel-costs');
+    const panelExpenses = document.getElementById('admin-panel-expenses');
+    const panelPnl = document.getElementById('admin-panel-pnl');
     const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelAgent, panelPreferences].filter(Boolean);
 
     // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
     // permanently visible -- these elements are simply display:none there).
@@ -4600,6 +4788,77 @@ function initAdminDashboardListeners() {
             window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
         });
     }
+
+    if (tabExpensesBtn && panelExpenses) {
+        tabExpensesBtn.addEventListener('click', () => {
+            activateTab(tabExpensesBtn, panelExpenses);
+            setAdminExpenseDateDefault();
+            const mi = document.getElementById('admin-expense-filter-month');
+            if (mi && !mi.value) mi.value = new Date().toISOString().slice(0, 7);
+            loadAndRenderExpensesTab();
+        });
+    }
+    const admExpForm = document.getElementById('add-admin-expense-form');
+    if (admExpForm) admExpForm.addEventListener('submit', addAdminExpense);
+
+    document.querySelectorAll('#admin-expense-currency-toggle .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#admin-expense-currency-toggle .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+        });
+    });
+    document.querySelectorAll('#admin-expense-filter-category .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#admin-expense-filter-category .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            expensesTabFilter.category = b.dataset.cat || '';
+            loadAndRenderExpensesTab();
+        });
+    });
+    const admExpMonth = document.getElementById('admin-expense-filter-month');
+    if (admExpMonth) admExpMonth.addEventListener('change', () => loadAndRenderExpensesTab(true));
+
+    if (tabPnlBtn && panelPnl) {
+        tabPnlBtn.addEventListener('click', () => {
+            activateTab(tabPnlBtn, panelPnl);
+            pnlAnchor = new Date();
+            loadPnl();
+        });
+    }
+    document.querySelectorAll('#pnl-mode-toggle .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#pnl-mode-toggle .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            pnlMode = b.dataset.mode;
+            pnlAnchor = new Date();
+            loadPnl();
+        });
+    });
+    const pnlPrev = document.getElementById('btn-pnl-prev');
+    const pnlNext = document.getElementById('btn-pnl-next');
+    if (pnlPrev) pnlPrev.addEventListener('click', () => {
+        // normalize to the current period start first so setMonth can't overflow
+        // a 29-31 day-of-month, then step and re-normalize.
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
+        if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() - 1);
+        else pnlAnchor.setDate(pnlAnchor.getDate() - 7);
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
+        loadPnl();
+    });
+    if (pnlNext) pnlNext.addEventListener('click', () => {
+        if (!pnlCanGoNext()) return;
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
+        if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() + 1);
+        else pnlAnchor.setDate(pnlAnchor.getDate() + 7);
+        pnlAnchor = pnlRange(pnlMode, pnlAnchor).start;
+        loadPnl();
+    });
+    const pnlRefresh = document.getElementById('btn-pnl-refresh');
+    if (pnlRefresh) pnlRefresh.addEventListener('click', () => loadPnl(true));
+    const pnlPdf = document.getElementById('btn-pnl-pdf');
+    if (pnlPdf) pnlPdf.addEventListener('click', () => {
+        if (pnlLast) window.UIManager.exportPnlToPDF(pnlLast, { mode: pnlMode, bcvRate: window.bcvRate || 1 });
+    });
 
     if (tabAgentBtn && panelAgent) {
         tabAgentBtn.addEventListener('click', () => {

@@ -50,7 +50,9 @@ const {
     getDailyPrepRecommendation,
     getRecentTrend,
     getUpcomingProjection,
-    buildPerformanceInsights
+    buildPerformanceInsights,
+    estimateProductionCost: getEstimate,
+    aggregatePnl
 } = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
@@ -323,6 +325,135 @@ function runAnalyticsUnitTests() {
     assert.ok(Array.isArray(insights) && insights.length > 0, "REAL AnalyticsManager.buildPerformanceInsights: Should return at least one insight");
     assert.ok(insights.some(t => t.includes('Mechada')), "REAL AnalyticsManager.buildPerformanceInsights: Should mention the top-selling flavor (Mechada)");
     console.log("✅ TEST PASSED: REAL AnalyticsManager.buildPerformanceInsights: Generates data-driven insight sentences mentioning the top flavor");
+
+    // --- estimateProductionCost ---
+    function saleCost(date, productId, price, costAtSale, rate) {
+        return { productId, product_id: productId, name: productId, price,
+                 cost_at_sale: costAtSale, bcv_rate: rate, timestamp: date.toISOString() };
+    }
+    const costProducts = [
+        { id: 'mechada', name: 'Mechada', category: 'pastelitos', cost: 800 },
+        { id: 'cafe', name: 'Café', category: 'bebidas', cost: 0 }
+    ];
+    const d1 = pastWeekday(2, 1); // some Tuesday last week
+    const d2 = pastWeekday(3, 1); // some Wednesday last week
+
+    // Day 1: real cost recorded (2 x 800 Bs @ rate 40) -> 1600 Bs, 40 USD
+    // Day 2: NO cost recorded (old day) -> estimate 3 x 800 = 2400 Bs @ bcvRate 50 -> 48 USD
+    const mixedSales = [
+        saleCost(d1, 'mechada', 2, 800, 40),
+        saleCost(d1, 'mechada', 2, 800, 40),
+        saleCost(d2, 'mechada', 2, 0, null),
+        saleCost(d2, 'mechada', 2, 0, null),
+        saleCost(d2, 'mechada', 2, 0, null)
+    ];
+    const est = getEstimate(mixedSales, costProducts, 50);
+    assert.strictEqual(est.bs, 1600 + 2400, "estimateProductionCost: bs = real 1600 + estimated 2400");
+    assert.strictEqual(est.estimatedDays, 1, "estimateProductionCost: exactly 1 day estimated");
+    assert.strictEqual(est.realDays, 1, "estimateProductionCost: exactly 1 day real");
+    assert.strictEqual(est.isEstimated, true, "estimateProductionCost: isEstimated true when any day estimated");
+    assert.strictEqual(Number(est.usd.toFixed(2)), 40 + 48, "estimateProductionCost: usd = 40 real + 48 estimated");
+    console.log("✅ TEST PASSED: estimateProductionCost splits real vs estimated days");
+
+    // Only-abono day is not an estimated day
+    const abonoOnly = [{ productId: 'abono', product_id: 'abono', name: 'Abono', price: 5, cost_at_sale: 0, bcv_rate: null, timestamp: d1.toISOString() }];
+    const est2 = getEstimate(abonoOnly, costProducts, 50);
+    assert.strictEqual(est2.estimatedDays, 0, "estimateProductionCost: an abono-only day is never 'estimated'");
+    assert.strictEqual(est2.isEstimated, false, "estimateProductionCost: no estimation when nothing to estimate");
+    console.log("✅ TEST PASSED: estimateProductionCost ignores abono-only days");
+
+    // A product with cost 0 does not inflate the estimate
+    const cafeDay = [saleCost(d2, 'cafe', 1, 0, null)];
+    const est3 = getEstimate(cafeDay, costProducts, 50);
+    assert.strictEqual(est3.bs, 0, "estimateProductionCost: cost-0 product contributes nothing");
+    assert.strictEqual(est3.estimatedDays, 0, "estimateProductionCost: cost-0-only day is not estimated");
+    console.log("✅ TEST PASSED: estimateProductionCost ignores cost-0 products");
+
+    // --- aggregatePnl ---
+    const pnlProducts = [
+        { id: 'mechada', name: 'Mechada [Bandeja]', category: 'pastelitos', cost: 800 },
+        { id: 'cafe', name: 'Café', category: 'bebidas', cost: 0 },
+        { id: 'bombon', name: 'Bombón', category: 'dulces', cost: 0 }
+    ];
+    const pStart = new Date(); pStart.setDate(pStart.getDate() - 6); pStart.setHours(0,0,0,0);
+    const pEnd = new Date(); pEnd.setHours(23,59,59,999);
+    const day = new Date(); day.setHours(12,0,0,0);
+    const pnlSales = [
+        // 3 mechada @ $2, real cost 800 Bs @ rate 40  -> ventas 6, terceros 60 Bs? -> 3*800=2400 Bs -> /40 = 60 USD
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        // 2 café @ $1
+        { productId:'cafe', name:'Café', price:1, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'cafe', name:'Café', price:1, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() },
+        // 1 abono $5 -> excluded from ventas
+        { productId:'abono', name:'Abono', price:5, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() }
+    ];
+    const pnlExpenses = [
+        { description:'Arriendo agosto', amount:100, currency:'USD', bcv_rate:null, category:'arriendo', timestamp: day.toISOString() },
+        { description:'CANTV', amount:2000, currency:'VES', bcv_rate:40, category:'servicios', timestamp: day.toISOString() }, // -> 50 USD
+        { description:'Servilletas', amount:3, currency:'USD', bcv_rate:null, category:null, timestamp: day.toISOString() }    // -> otros
+    ];
+    const pnl = aggregatePnl(pnlSales, pnlExpenses, pnlProducts,
+        { start: pStart, end: pEnd, periodLabel: 'Semana test', bcvRate: 40 });
+
+    assert.strictEqual(pnl.totals.ventasUsd, 8, "aggregatePnl: ventas = 3*2 + 2*1 (abono excluido)");
+    assert.strictEqual(pnl.totals.costoTerceros.usd, 60, "aggregatePnl: terceros = 2400 Bs / 40");
+    assert.strictEqual(pnl.totals.costoTerceros.isEstimated, false, "aggregatePnl: cost is real, not estimated");
+    assert.strictEqual(pnl.totals.gastosUsd, 153, "aggregatePnl: gastos = 100 + 50 + 3");
+    assert.strictEqual(pnl.totals.gananciaNetaUsd, 8 - 60 - 153, "aggregatePnl: ganancia neta cascades (negative ok)");
+    console.log("✅ TEST PASSED: aggregatePnl totals cascade");
+
+    const past = pnl.categorias.find(c => c.key === 'pasteles');
+    assert.strictEqual(past.unidades, 3, "aggregatePnl: pasteles has 3 units");
+    assert.strictEqual(past.ventasUsd, 6, "aggregatePnl: pasteles ventas 6");
+    assert.strictEqual(past.costoTercerosUsd, 60, "aggregatePnl: pasteles carries the full tercero cost");
+    assert.strictEqual(past.margenUsd, -54, "aggregatePnl: pasteles margen = 6 - 60");
+    assert.strictEqual(past.productos[0].name, 'Mechada', "aggregatePnl: product name cleaned of [Bandeja]");
+    const beb = pnl.categorias.find(c => c.key === 'bebidas');
+    assert.strictEqual(beb.costoTercerosUsd, 0, "aggregatePnl: bebidas has no tercero cost");
+    console.log("✅ TEST PASSED: aggregatePnl per-category breakdown");
+
+    assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
+    assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");
+    const gArr = pnl.gastos.porCategoria.find(g => g.key === 'arriendo');
+    const gOtros = pnl.gastos.porCategoria.find(g => g.key === 'otros');
+    assert.strictEqual(gArr.montoUsd, 100, "aggregatePnl: arriendo 100");
+    assert.strictEqual(gOtros.montoUsd, 3, "aggregatePnl: uncategorized expense falls into otros");
+    assert.strictEqual(pnl.gastos.porCategoria[0].key, 'arriendo', "aggregatePnl: gasto categories ordered arriendo-first");
+    console.log("✅ TEST PASSED: aggregatePnl abonos + expense categories");
+
+    const emptyPnl = aggregatePnl([], [], pnlProducts, { start: pStart, end: pEnd, periodLabel: 'Vacío', bcvRate: 40 });
+    assert.strictEqual(emptyPnl.totals.ventasUsd, 0, "aggregatePnl: empty period -> zeros, no throw");
+    assert.strictEqual(emptyPnl.categorias.length, 0, "aggregatePnl: empty period -> no categories");
+    assert.strictEqual(emptyPnl.totals.gananciaNetaUsd, 0, "aggregatePnl: empty period -> ganancia 0");
+    console.log("✅ TEST PASSED: aggregatePnl handles an empty period");
+
+    // >1000-row aggregation invariant — the guardrail this repo keeps needing
+    // (see the 2026-08-11 pagination note in js/supabase.js). fetchPnlData /
+    // fetchExpensesRange now carry a deterministic .order('uuid') tie-breaker
+    // after .order('timestamp') so paging can't drop or double a row when many
+    // share an identical timestamp; this asserts the aggregation side stays
+    // exact for a large, timestamp-collision-heavy input.
+    const bigStart = new Date(); bigStart.setDate(bigStart.getDate() - 20); bigStart.setHours(0,0,0,0);
+    const bigEnd = new Date(); bigEnd.setHours(23,59,59,999);
+    const collidingTs = new Date(); collidingTs.setDate(collidingTs.getDate() - 3); collidingTs.setHours(10,0,0,0);
+    const bigSales = [];
+    let expectedVentas = 0;
+    for (let i = 0; i < 1500; i++) {
+        const price = (i % 5) + 1; // 1..5, exact in float
+        expectedVentas += price;
+        // ~half the rows share one identical timestamp, the rest walk day-by-day
+        const ts = (i % 2 === 0)
+            ? collidingTs.toISOString()
+            : new Date(bigStart.getTime() + (i % 18) * 86400000 + 3600000).toISOString();
+        bigSales.push({ productId: 'mechada', name: 'Mechada [Bandeja]', price, cost_at_sale: 0, bcv_rate: 40, timestamp: ts });
+    }
+    const bigPnl = aggregatePnl(bigSales, [], pnlProducts,
+        { start: bigStart, end: bigEnd, periodLabel: 'Bulk', bcvRate: 40 });
+    assert.strictEqual(bigPnl.totals.ventasUsd, Number(expectedVentas.toFixed(2)),
+        "aggregatePnl: 1500-row Σ price exact despite timestamp collisions");
+    console.log("✅ TEST PASSED: aggregatePnl sums >1000 rows exactly");
 }
 
 // Security Regression Test: Reject all legacy credentials

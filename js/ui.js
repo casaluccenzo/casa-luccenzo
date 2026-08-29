@@ -1018,6 +1018,157 @@ function renderExpenses(expenses, onRemove) {
 }
 
 /**
+ * Lista de gastos del panel admin, filtrada por mes y categoría.
+ * @param {Array} expenses Filas de expenses (con category, currency, bcv_rate)
+ * @param {{month:string, category:string, bcvRate:number}} filter
+ *   month: 'YYYY-MM' | '' (todos). category: '' (todas) | clave.
+ * @param {Function} onDelete uuid => void
+ */
+function renderAdminExpenses(expenses = [], filter = {}, onDelete) {
+    const container = document.getElementById('admin-expenses-container');
+    if (!container) return;
+    const { month = '', category = '', bcvRate = (window.bcvRate || 1) } = filter;
+
+    const CAT_LABEL = { arriendo: 'Arriendo', sueldos: 'Sueldos', servicios: 'Servicios', otros: 'Otros' };
+    const toUsd = (e) => {
+        const amt = parseFloat(e.amount) || 0;
+        if ((e.currency || 'USD').toUpperCase() === 'VES') {
+            const r = parseFloat(e.bcv_rate) > 0 ? parseFloat(e.bcv_rate) : (bcvRate || 1);
+            return amt / r;
+        }
+        return amt;
+    };
+    const catKey = (e) => (CAT_LABEL[(e.category || '').toLowerCase()] ? e.category.toLowerCase() : 'otros');
+
+    // Local-day derivation (matches aggregatePnl's dateKey convention) so the
+    // month filter / row date stay consistent with the server range fetch and
+    // the P&L — a raw UTC .slice() would misbucket late-night rows.
+    const localDay = (ts) => {
+        const d = window.AnalyticsManager.parseTimestamp(ts);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+    const localMonth = (ts) => localDay(ts).slice(0, 7);
+
+    let rows = (expenses || []).filter(e => {
+        if (month) { if (localMonth(e.timestamp) !== month) return false; }
+        if (category && catKey(e) !== category) return false;
+        return true;
+    }).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+    if (rows.length === 0) {
+        container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Sin gastos para este filtro.</div>`;
+        return;
+    }
+
+    const fmtUsd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtVes = v => 'Bs. ' + (v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+    const total = rows.reduce((s, e) => s + toUsd(e), 0);
+
+    container.innerHTML = rows.map(e => {
+        const original = (e.currency || 'USD').toUpperCase() === 'VES' ? fmtVes(e.amount) : fmtUsd(e.amount);
+        return `
+        <div class="expense-row" style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.8rem;">
+            <span style="flex:0 0 78px; color:var(--color-text-muted);">${localDay(e.timestamp)}</span>
+            <span style="flex:0 0 80px; font-weight:700;">${CAT_LABEL[catKey(e)]}</span>
+            <span style="flex:1 1 auto;">${escapeHtml(e.description)}</span>
+            <span style="flex:0 0 auto;">${original}</span>
+            <span style="flex:0 0 70px; text-align:right; color:var(--color-text-muted);">${fmtUsd(toUsd(e))}</span>
+            <button class="btn-delete-expense" data-uuid="${escapeHtml(e.uuid)}" style="flex:0 0 auto; background:none; border:none; color:var(--color-danger); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+        </div>`;
+    }).join('') + `
+        <div style="display:flex; justify-content:space-between; font-weight:800; padding-top:0.6rem; font-size:0.85rem;">
+            <span>Total del filtro</span><span>${fmtUsd(total)}</span>
+        </div>`;
+
+    container.querySelectorAll('.btn-delete-expense').forEach(btn => {
+        btn.addEventListener('click', () => onDelete && onDelete(btn.dataset.uuid));
+    });
+}
+
+/**
+ * Pinta el resumen de Ganancias (cascada + gráfico diario + categorías + abonos).
+ * @param {Object} pnl  Salida de AnalyticsManager.aggregatePnl
+ * @param {{mode:string}} opts
+ */
+function renderPnl(pnl, opts = {}) {
+    const c = document.getElementById('admin-pnl-container');
+    if (!c || !pnl) return;
+    const rate = (window.bcvRate || 1);
+    const usd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const ves = v => 'Bs. ' + ((v || 0) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const t = pnl.totals;
+
+    if (t.ventasUsd === 0 && pnl.gastos.totalUsd === 0) {
+        c.innerHTML = `<div style="font-size:0.9rem; color:var(--color-text-muted); text-align:center; padding:2rem 0;">Sin ventas ni gastos en este período.</div>`;
+        return;
+    }
+
+    const estBanner = t.costoTerceros.estimatedDays > 0
+        ? `<div style="background:rgba(245,158,11,0.12); border:1px solid #f59e0b; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.75rem;">
+             Incluye ${t.costoTerceros.estimatedDays} día(s) con costo de producción estimado — antes del 22 ago no se registraba el costo real.
+           </div>` : '';
+
+    const neg = v => v < 0 ? ' style="color:var(--color-danger);"' : '';
+    const cascade = `
+        <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+          <tr><td style="padding:0.35rem 0;">Ventas de mercadería</td><td style="text-align:right;">${usd(t.ventasUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">${ves(t.ventasUsd)}</td></tr>
+          <tr><td style="padding:0.35rem 0;">− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' <em style="color:#f59e0b;">(est.)</em>' : ''}</td><td style="text-align:right;">−${usd(t.costoTerceros.usd)}</td><td style="text-align:right; color:var(--color-text-muted);">−${ves(t.costoTerceros.usd)}</td></tr>
+          <tr id="pnl-gastos-row" style="cursor:pointer;"><td style="padding:0.35rem 0;">− Gastos del local <i class="fa-solid fa-chevron-down" style="font-size:0.7em;"></i></td><td style="text-align:right;">−${usd(t.gastosUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">−${ves(t.gastosUsd)}</td></tr>
+          ${pnl.gastos.porCategoria.map(g => `<tr class="pnl-gasto-detail" style="display:none;"><td style="padding:0.2rem 0 0.2rem 1rem; color:var(--color-text-muted);">· ${g.label}</td><td style="text-align:right; color:var(--color-text-muted);">−${usd(g.montoUsd)}</td><td></td></tr>`).join('')}
+          <tr style="border-top:2px solid rgba(255,255,255,0.15); font-weight:800;"><td style="padding:0.5rem 0;">= Ganancia neta</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${usd(t.gananciaNetaUsd)}</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${ves(t.gananciaNetaUsd)}</td></tr>
+        </table>`;
+
+    const maxDay = Math.max(...pnl.dias.map(d => d.ventasUsd), 1);
+    const chart = pnl.dias.map(d => {
+        const pct = (d.ventasUsd / maxDay) * 100;
+        return `<div class="chart-bar-row">
+            <span class="chart-bar-label">${d.fecha.slice(5)}</span>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+            <span class="chart-bar-val">${usd(d.ventasUsd)}</span>
+        </div>`;
+    }).join('');
+
+    const cats = pnl.categorias.map((cat, i) => `
+        <div class="category-stat-wrapper">
+          <div class="category-stat-row pnl-cat-row" data-idx="${i}" style="cursor:pointer;">
+            <div class="category-label">${cat.label}</div>
+            <div class="category-values">
+              <span class="category-qty-badge">${cat.unidades} u</span>
+              <span class="category-price-usd">${usd(cat.ventasUsd)}</span>
+              <span class="category-price-ves">margen ${usd(cat.margenUsd)}</span>
+            </div>
+          </div>
+          <div class="category-stat-dropdown pnl-cat-dd" data-idx="${i}" style="display:none;">
+            ${cat.productos.map(p => `<div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:0.15rem 0.5rem;"><span>${escapeHtml(p.name)} ×${p.unidades}</span><span>${usd(p.ventasUsd)}</span></div>`).join('')}
+          </div>
+        </div>`).join('');
+
+    const abonos = pnl.abonos.count > 0
+        ? `<div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(255,255,255,0.1);">
+             Abonos cobrados en el período: ${pnl.abonos.count} operación(es) · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)
+           </div>` : '';
+
+    c.innerHTML = estBanner + cascade
+        + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Ventas por día</div>` + chart
+        + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Por categoría</div>` + cats
+        + abonos;
+
+    const gastosRow = document.getElementById('pnl-gastos-row');
+    if (gastosRow) gastosRow.addEventListener('click', () => {
+        c.querySelectorAll('.pnl-gasto-detail').forEach(r => {
+            r.style.display = r.style.display === 'none' ? 'table-row' : 'none';
+        });
+    });
+    c.querySelectorAll('.pnl-cat-row').forEach(row => row.addEventListener('click', () => {
+        const dd = c.querySelector(`.pnl-cat-dd[data-idx="${row.dataset.idx}"]`);
+        if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }));
+}
+
+/**
  * Render the clients lists and balances in the Debts tab
  * @param {Array} debts List of customer debts
  * @param {Function} onRecordPayment Callback when a payment is processed (uuid)
@@ -4573,32 +4724,12 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
     const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) ? parseFloat(customRate) : (window.bcvRate || 1);
-    // Costo de producción por venta, congelada en cost_at_sale -- no se
-    // recalcula con el costo actual del producto.
-    const totalProductionCostBs = salesLog.reduce((sum, sale) => sum + (sale.cost_at_sale || 0), 0);
-
-    // Days from before the production-cost feature existed never recorded
-    // cost_at_sale, so it comes back 0 even though real production cost was
-    // owed. For those (and only those) days, estimate what's owed to the
-    // tercero using each product's CURRENT cost -- it's per-unit and flat
-    // (Bs.800 for every pastelito flavor as of writing), not a market price
-    // that drifts sale to sale, so today's rate is a reasonable stand-in for
-    // "what do I need to pay" even though it isn't the exact historical
-    // figure. Clearly labeled as an estimate in the PDF, never silently
-    // written back to cost_at_sale itself.
-    let isEstimatedCost = false;
-    let productionCostBsForDisplay = totalProductionCostBs;
-    if (totalProductionCostBs === 0 && totalSales > 0) {
-        const estimated = salesLog.reduce((sum, sale) => {
-            if (sale.productId === 'abono') return sum;
-            const prod = products.find(p => p.id === sale.productId);
-            return sum + (prod && prod.cost ? parseFloat(prod.cost) : 0);
-        }, 0);
-        if (estimated > 0) {
-            productionCostBsForDisplay = estimated;
-            isEstimatedCost = true;
-        }
-    }
+    // Costo de producción (tercero). Congelado en cost_at_sale por venta;
+    // para días viejos sin ese dato se estima con el costo actual por
+    // unidad -- misma lógica compartida con el resumen de Ganancias.
+    const prodCost = window.AnalyticsManager.estimateProductionCost(salesLog, products, rate);
+    const isEstimatedCost = prodCost.isEstimated;
+    const productionCostBsForDisplay = prodCost.bs;
     const netMarginBs = (totalSales * rate) - productionCostBsForDisplay;
 
     // Group sales by category and product
@@ -5863,6 +5994,64 @@ function exportSalesAnalyticsToPDF(salesHistory = [], products = [], rangeLabel 
     printWindow.document.close();
 }
 
+/**
+ * PDF del resumen de Ganancias. Misma técnica que exportSalesAnalyticsToPDF:
+ * ventana nueva + document.write + window.print().
+ */
+function exportPnlToPDF(pnl, opts = {}) {
+    if (sessionStorage.getItem('casa_lucenzo_active_role') !== 'admin') return;
+    const { mode = 'week', bcvRate = (window.bcvRate || 1) } = opts;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Permite las ventanas emergentes para generar el PDF.'); return; }
+
+    const usd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const t = pnl.totals;
+    const title = `Resumen ${mode === 'month' ? 'Mensual' : 'Semanal'} — ${pnl.period.label}`;
+
+    const catRows = pnl.categorias.map(c => `
+        <tr><td>${c.label}</td><td style="text-align:right">${c.unidades}</td><td style="text-align:right">${usd(c.ventasUsd)}</td><td style="text-align:right">${usd(c.costoTercerosUsd)}</td><td style="text-align:right">${usd(c.margenUsd)}</td></tr>
+        ${c.productos.map(p => `<tr class="sub"><td style="padding-left:1.5rem">${escapeHtml(p.name)}</td><td style="text-align:right">${p.unidades}</td><td style="text-align:right">${usd(p.ventasUsd)}</td><td></td><td></td></tr>`).join('')}
+    `).join('');
+
+    const gastoRows = pnl.gastos.porCategoria.map(g => `
+        <tr><td>${g.label}</td><td style="text-align:right">${usd(g.montoUsd)}</td></tr>
+        ${g.items.map(i => `<tr class="sub"><td style="padding-left:1.5rem">${i.fecha} · ${escapeHtml(i.description)}${i.currency === 'VES' ? ` (Bs. ${i.montoOriginal.toLocaleString('es-VE')})` : ''}</td><td style="text-align:right">${usd(i.montoUsd)}</td></tr>`).join('')}
+    `).join('');
+
+    const estNote = t.costoTerceros.estimatedDays > 0
+        ? `<p class="note">Incluye ${t.costoTerceros.estimatedDays} día(s) con costo de producción estimado (antes del 22 ago no se registraba el costo real).</p>` : '';
+
+    printWindow.document.write(`
+      <html><head><title>${title} — Casa Lucenzo</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:2rem;color:#1e293b;}
+        h1{font-size:1.3rem;margin:0 0 .25rem;} .meta{color:#64748b;font-size:.8rem;margin-bottom:1.5rem;}
+        table{width:100%;border-collapse:collapse;margin-bottom:1.5rem;font-size:.85rem;}
+        th,td{padding:.4rem .5rem;border-bottom:1px solid #e2e8f0;} th{text-align:left;background:#f1f5f9;}
+        tr.sub td{color:#64748b;font-size:.8rem;border-bottom:1px dotted #e2e8f0;}
+        .cascade td{font-size:.95rem;} .cascade .total td{font-weight:800;border-top:2px solid #334155;}
+        .note{background:#fef3c7;border:1px solid #f59e0b;padding:.5rem .75rem;border-radius:6px;font-size:.8rem;}
+        .neg{color:#dc2626;}
+      </style></head><body>
+      <h1>${title}</h1>
+      <div class="meta">Casa Lucenzo · Generado ${new Date().toLocaleString('es-VE')} · Tasa BCV ${bcvRate.toLocaleString('es-VE')}</div>
+      ${estNote}
+      <table class="cascade">
+        <tr><td>Ventas de mercadería</td><td style="text-align:right">${usd(t.ventasUsd)}</td></tr>
+        <tr><td>− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' (est.)' : ''}</td><td style="text-align:right">−${usd(t.costoTerceros.usd)}</td></tr>
+        <tr><td>− Gastos del local</td><td style="text-align:right">−${usd(t.gastosUsd)}</td></tr>
+        <tr class="total"><td>= Ganancia neta</td><td style="text-align:right" class="${t.gananciaNetaUsd < 0 ? 'neg' : ''}">${usd(t.gananciaNetaUsd)}</td></tr>
+      </table>
+      <h3>Por categoría</h3>
+      <table><tr><th>Categoría / Producto</th><th style="text-align:right">Unid.</th><th style="text-align:right">Ventas</th><th style="text-align:right">Terceros</th><th style="text-align:right">Margen</th></tr>${catRows}</table>
+      <h3>Gastos</h3>
+      <table><tr><th>Categoría / Detalle</th><th style="text-align:right">Monto</th></tr>${gastoRows}</table>
+      ${pnl.abonos.count > 0 ? `<p class="meta">Abonos cobrados: ${pnl.abonos.count} · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)</p>` : ''}
+      <script>window.onload=function(){setTimeout(function(){window.print();},400);}</script>
+      </body></html>`);
+    printWindow.document.close();
+}
+
 // Expose to window namespace
 /**
  * Opens a quick numeric quantity selector modal for Vitrina
@@ -6278,6 +6467,8 @@ window.UIManager = {
     renderCashRegister,
     renderSalesHistory,
     renderExpenses,
+    renderAdminExpenses,
+    renderPnl,
     renderDebts,
     renderPedidosOnline,
     updatePedidosBadge,
@@ -6307,6 +6498,7 @@ window.UIManager = {
     renderSalesAnalytics,
     exportDayCloseToPDF,
     exportSalesAnalyticsToPDF,
+    exportPnlToPDF,
     renderCostCalculator,
     renderCostFinancialResults,
     renderUsersManagement

@@ -1377,7 +1377,10 @@ function addExpense(e) {
         description,
         amount,
         timestamp: new Date().toISOString(),
-        category: 'otros',
+        // NO category: the counter quick-expense is the only expense that flows
+        // into the shift `expenses` array / cash register. Any categorized
+        // expense belongs solely to the P&L / Gastos tab. null/absent reads as
+        // 'otros' in aggregatePnl + renderAdminExpenses.
         currency: 'USD',
         bcv_rate: null
     };
@@ -2945,12 +2948,13 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         startOfDay.setHours(0,0,0,0);
         const filterTime = lastCloseTime ? window.parseUTCTimestamp(lastCloseTime) : startOfDay;
 
-        // Admin fixed expenses (arriendo/sueldos/servicios) are logged from the
-        // Ganancias/Gastos admin tab and must never enter the shift ledger on any
-        // device — they are not part of the counter cash register / day-close.
-        // A null/`otros` category (the counter quick-expense) still flows through.
+        // Any categorized expense (arriendo/sueldos/servicios/otros/…) is logged
+        // from the Ganancias/Gastos admin tab and belongs only to the P&L —
+        // it must never enter the shift ledger on any device (the cash register /
+        // day-close is currency-blind and would mis-count a Bs row as USD).
+        // Only the counter quick-expense, which carries NO category, flows through.
         const inboundCat = (newRow && newRow.category ? String(newRow.category).toLowerCase() : '');
-        if (eventType !== 'DELETE' && ['arriendo', 'sueldos', 'servicios'].includes(inboundCat)) {
+        if (eventType !== 'DELETE' && inboundCat !== '') {
             return;
         }
 

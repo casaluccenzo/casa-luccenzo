@@ -50,7 +50,9 @@ const {
     getDailyPrepRecommendation,
     getRecentTrend,
     getUpcomingProjection,
-    buildPerformanceInsights
+    buildPerformanceInsights,
+    estimateProductionCost: getEstimate,
+    aggregatePnl
 } = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
@@ -323,6 +325,49 @@ function runAnalyticsUnitTests() {
     assert.ok(Array.isArray(insights) && insights.length > 0, "REAL AnalyticsManager.buildPerformanceInsights: Should return at least one insight");
     assert.ok(insights.some(t => t.includes('Mechada')), "REAL AnalyticsManager.buildPerformanceInsights: Should mention the top-selling flavor (Mechada)");
     console.log("✅ TEST PASSED: REAL AnalyticsManager.buildPerformanceInsights: Generates data-driven insight sentences mentioning the top flavor");
+
+    // --- estimateProductionCost ---
+    function saleCost(date, productId, price, costAtSale, rate) {
+        return { productId, product_id: productId, name: productId, price,
+                 cost_at_sale: costAtSale, bcv_rate: rate, timestamp: date.toISOString() };
+    }
+    const costProducts = [
+        { id: 'mechada', name: 'Mechada', category: 'pastelitos', cost: 800 },
+        { id: 'cafe', name: 'Café', category: 'bebidas', cost: 0 }
+    ];
+    const d1 = pastWeekday(2, 1); // some Tuesday last week
+    const d2 = pastWeekday(3, 1); // some Wednesday last week
+
+    // Day 1: real cost recorded (2 x 800 Bs @ rate 40) -> 1600 Bs, 40 USD
+    // Day 2: NO cost recorded (old day) -> estimate 3 x 800 = 2400 Bs @ bcvRate 50 -> 48 USD
+    const mixedSales = [
+        saleCost(d1, 'mechada', 2, 800, 40),
+        saleCost(d1, 'mechada', 2, 800, 40),
+        saleCost(d2, 'mechada', 2, 0, null),
+        saleCost(d2, 'mechada', 2, 0, null),
+        saleCost(d2, 'mechada', 2, 0, null)
+    ];
+    const est = getEstimate(mixedSales, costProducts, 50);
+    assert.strictEqual(est.bs, 1600 + 2400, "estimateProductionCost: bs = real 1600 + estimated 2400");
+    assert.strictEqual(est.estimatedDays, 1, "estimateProductionCost: exactly 1 day estimated");
+    assert.strictEqual(est.realDays, 1, "estimateProductionCost: exactly 1 day real");
+    assert.strictEqual(est.isEstimated, true, "estimateProductionCost: isEstimated true when any day estimated");
+    assert.strictEqual(Number(est.usd.toFixed(2)), 40 + 48, "estimateProductionCost: usd = 40 real + 48 estimated");
+    console.log("✅ TEST PASSED: estimateProductionCost splits real vs estimated days");
+
+    // Only-abono day is not an estimated day
+    const abonoOnly = [{ productId: 'abono', product_id: 'abono', name: 'Abono', price: 5, cost_at_sale: 0, bcv_rate: null, timestamp: d1.toISOString() }];
+    const est2 = getEstimate(abonoOnly, costProducts, 50);
+    assert.strictEqual(est2.estimatedDays, 0, "estimateProductionCost: an abono-only day is never 'estimated'");
+    assert.strictEqual(est2.isEstimated, false, "estimateProductionCost: no estimation when nothing to estimate");
+    console.log("✅ TEST PASSED: estimateProductionCost ignores abono-only days");
+
+    // A product with cost 0 does not inflate the estimate
+    const cafeDay = [saleCost(d2, 'cafe', 1, 0, null)];
+    const est3 = getEstimate(cafeDay, costProducts, 50);
+    assert.strictEqual(est3.bs, 0, "estimateProductionCost: cost-0 product contributes nothing");
+    assert.strictEqual(est3.estimatedDays, 0, "estimateProductionCost: cost-0-only day is not estimated");
+    console.log("✅ TEST PASSED: estimateProductionCost ignores cost-0 products");
 }
 
 // Security Regression Test: Reject all legacy credentials

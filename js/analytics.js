@@ -170,6 +170,79 @@ function getDailyPrepRecommendation(sales = [], products = [], targetWeekday, op
 }
 
 /**
+ * Costo total pagado (o a pagar) al tercero por producción en un rango.
+ *
+ * Por día: si Σ cost_at_sale > 0 ese día tiene dato real y se respeta. Si
+ * es 0 pero hubo ventas no-abono de productos con products.cost > 0, ese
+ * día se ESTIMA con el costo actual por unidad (mismo criterio que usaba
+ * exportDayCloseToPDF). Un día solo-abono, o solo productos con cost 0, no
+ * se marca como estimado: su costo 0 es correcto.
+ *
+ * @param {Array} sales Filas de venta (con cost_at_sale, bcv_rate, timestamp)
+ * @param {Array} products Catálogo actual (con id, cost, category)
+ * @param {number} bcvRate Tasa actual, para convertir los días estimados y
+ *   los reales sin bcv_rate propia.
+ * @returns {{bs:number, usd:number, isEstimated:boolean, estimatedDays:number, realDays:number}}
+ */
+function estimateProductionCost(sales = [], products = [], bcvRate = 1) {
+    const rate = bcvRate > 0 ? bcvRate : 1;
+    const productById = {};
+    (products || []).forEach(p => { if (p && p.id != null) productById[p.id] = p; });
+
+    // Agrupar por día local
+    const byDay = {};
+    (sales || []).forEach(s => {
+        if (!s || !s.timestamp) return;
+        const key = dateKey(parseTimestamp(s.timestamp));
+        (byDay[key] = byDay[key] || []).push(s);
+    });
+
+    let bs = 0;
+    let usd = 0;
+    let estimatedDays = 0;
+    let realDays = 0;
+
+    Object.values(byDay).forEach(daySales => {
+        const realBs = daySales.reduce((sum, s) => sum + (parseFloat(s.cost_at_sale) || 0), 0);
+
+        if (realBs > 0) {
+            realDays += 1;
+            bs += realBs;
+            usd += daySales.reduce((sum, s) => {
+                const c = parseFloat(s.cost_at_sale) || 0;
+                if (c <= 0) return sum;
+                const r = parseFloat(s.bcv_rate) > 0 ? parseFloat(s.bcv_rate) : rate;
+                return sum + c / r;
+            }, 0);
+            return;
+        }
+
+        // realBs === 0 -> ¿estimable?
+        const estBs = daySales.reduce((sum, s) => {
+            const pid = s.productId || s.product_id;
+            if (!pid || pid === 'abono') return sum;
+            const prod = productById[pid];
+            const c = prod && prod.cost ? parseFloat(prod.cost) : 0;
+            return sum + (c > 0 ? c : 0);
+        }, 0);
+
+        if (estBs > 0) {
+            estimatedDays += 1;
+            bs += estBs;
+            usd += estBs / rate;
+        }
+    });
+
+    return {
+        bs: Number(bs.toFixed(2)),
+        usd: Number(usd.toFixed(2)),
+        isEstimated: estimatedDays > 0,
+        estimatedDays,
+        realDays
+    };
+}
+
+/**
  * Compares the average daily total of the most recent `weeksToCompare`
  * weeks against the equivalent period right before it, to catch whether
  * the business is trending up or down (not just "today vs. this weekday").
@@ -301,7 +374,8 @@ const AnalyticsManager = {
     getDailyPrepRecommendation,
     getRecentTrend,
     getUpcomingProjection,
-    buildPerformanceInsights
+    buildPerformanceInsights,
+    estimateProductionCost
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -316,6 +390,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getRecentTrend,
         getUpcomingProjection,
         buildPerformanceInsights,
+        estimateProductionCost,
         AnalyticsManager
     };
 }

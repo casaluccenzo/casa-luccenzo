@@ -368,6 +368,66 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(est3.bs, 0, "estimateProductionCost: cost-0 product contributes nothing");
     assert.strictEqual(est3.estimatedDays, 0, "estimateProductionCost: cost-0-only day is not estimated");
     console.log("✅ TEST PASSED: estimateProductionCost ignores cost-0 products");
+
+    // --- aggregatePnl ---
+    const pnlProducts = [
+        { id: 'mechada', name: 'Mechada [Bandeja]', category: 'pastelitos', cost: 800 },
+        { id: 'cafe', name: 'Café', category: 'bebidas', cost: 0 },
+        { id: 'bombon', name: 'Bombón', category: 'dulces', cost: 0 }
+    ];
+    const pStart = new Date(); pStart.setDate(pStart.getDate() - 6); pStart.setHours(0,0,0,0);
+    const pEnd = new Date(); pEnd.setHours(23,59,59,999);
+    const day = new Date(); day.setHours(12,0,0,0);
+    const pnlSales = [
+        // 3 mechada @ $2, real cost 800 Bs @ rate 40  -> ventas 6, terceros 60 Bs? -> 3*800=2400 Bs -> /40 = 60 USD
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'mechada', name:'Mechada [Bandeja]', price:2, cost_at_sale:800, bcv_rate:40, timestamp: day.toISOString() },
+        // 2 café @ $1
+        { productId:'cafe', name:'Café', price:1, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() },
+        { productId:'cafe', name:'Café', price:1, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() },
+        // 1 abono $5 -> excluded from ventas
+        { productId:'abono', name:'Abono', price:5, cost_at_sale:0, bcv_rate:40, timestamp: day.toISOString() }
+    ];
+    const pnlExpenses = [
+        { description:'Arriendo agosto', amount:100, currency:'USD', bcv_rate:null, category:'arriendo', timestamp: day.toISOString() },
+        { description:'CANTV', amount:2000, currency:'VES', bcv_rate:40, category:'servicios', timestamp: day.toISOString() }, // -> 50 USD
+        { description:'Servilletas', amount:3, currency:'USD', bcv_rate:null, category:null, timestamp: day.toISOString() }    // -> otros
+    ];
+    const pnl = aggregatePnl(pnlSales, pnlExpenses, pnlProducts,
+        { start: pStart, end: pEnd, periodLabel: 'Semana test', bcvRate: 40 });
+
+    assert.strictEqual(pnl.totals.ventasUsd, 8, "aggregatePnl: ventas = 3*2 + 2*1 (abono excluido)");
+    assert.strictEqual(pnl.totals.costoTerceros.usd, 60, "aggregatePnl: terceros = 2400 Bs / 40");
+    assert.strictEqual(pnl.totals.costoTerceros.isEstimated, false, "aggregatePnl: cost is real, not estimated");
+    assert.strictEqual(pnl.totals.gastosUsd, 153, "aggregatePnl: gastos = 100 + 50 + 3");
+    assert.strictEqual(pnl.totals.gananciaNetaUsd, 8 - 60 - 153, "aggregatePnl: ganancia neta cascades (negative ok)");
+    console.log("✅ TEST PASSED: aggregatePnl totals cascade");
+
+    const past = pnl.categorias.find(c => c.key === 'pasteles');
+    assert.strictEqual(past.unidades, 3, "aggregatePnl: pasteles has 3 units");
+    assert.strictEqual(past.ventasUsd, 6, "aggregatePnl: pasteles ventas 6");
+    assert.strictEqual(past.costoTercerosUsd, 60, "aggregatePnl: pasteles carries the full tercero cost");
+    assert.strictEqual(past.margenUsd, -54, "aggregatePnl: pasteles margen = 6 - 60");
+    assert.strictEqual(past.productos[0].name, 'Mechada', "aggregatePnl: product name cleaned of [Bandeja]");
+    const beb = pnl.categorias.find(c => c.key === 'bebidas');
+    assert.strictEqual(beb.costoTercerosUsd, 0, "aggregatePnl: bebidas has no tercero cost");
+    console.log("✅ TEST PASSED: aggregatePnl per-category breakdown");
+
+    assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
+    assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");
+    const gArr = pnl.gastos.porCategoria.find(g => g.key === 'arriendo');
+    const gOtros = pnl.gastos.porCategoria.find(g => g.key === 'otros');
+    assert.strictEqual(gArr.montoUsd, 100, "aggregatePnl: arriendo 100");
+    assert.strictEqual(gOtros.montoUsd, 3, "aggregatePnl: uncategorized expense falls into otros");
+    assert.strictEqual(pnl.gastos.porCategoria[0].key, 'arriendo', "aggregatePnl: gasto categories ordered arriendo-first");
+    console.log("✅ TEST PASSED: aggregatePnl abonos + expense categories");
+
+    const emptyPnl = aggregatePnl([], [], pnlProducts, { start: pStart, end: pEnd, periodLabel: 'Vacío', bcvRate: 40 });
+    assert.strictEqual(emptyPnl.totals.ventasUsd, 0, "aggregatePnl: empty period -> zeros, no throw");
+    assert.strictEqual(emptyPnl.categorias.length, 0, "aggregatePnl: empty period -> no categories");
+    assert.strictEqual(emptyPnl.totals.gananciaNetaUsd, 0, "aggregatePnl: empty period -> ganancia 0");
+    console.log("✅ TEST PASSED: aggregatePnl handles an empty period");
 }
 
 // Security Regression Test: Reject all legacy credentials

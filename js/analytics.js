@@ -242,6 +242,159 @@ function estimateProductionCost(sales = [], products = [], bcvRate = 1) {
     };
 }
 
+const PNL_CATEGORY_META = {
+    pasteles: { label: '🥐 Pasteles y Repostería', order: 1 },
+    bebidas:  { label: '🥤 Bebidas',               order: 2 },
+    dulces:   { label: '🍬 Dulces',                order: 3 },
+    otros:    { label: '📦 Otros / Varios',         order: 4 }
+};
+
+const EXPENSE_CATEGORY_META = {
+    arriendo:  { label: 'Arriendo local', order: 1 },
+    sueldos:   { label: 'Sueldos',        order: 2 },
+    servicios: { label: 'Servicios',      order: 3 },
+    otros:     { label: 'Otros / diarios', order: 4 }
+};
+
+const PRODUCT_NAME_CLEAN_RE = /\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/;
+
+function resolvePnlCategory(sale, productById) {
+    const pid = sale.productId || sale.product_id;
+    const prod = pid ? productById[pid] : null;
+    let cat = prod ? prod.category : '';
+    if (!cat || cat === 'otros') {
+        const n = (sale.name || '').toLowerCase();
+        cat = /malta|refresco|agua|jugo/.test(n) ? 'bebidas' : 'pastelitos';
+    }
+    if (cat === 'pastelitos') return 'pasteles';
+    if (cat === 'bebidas' || cat === 'dulces') return cat;
+    return 'otros';
+}
+
+function resolveExpenseCategory(exp) {
+    const c = (exp.category || '').toLowerCase();
+    return EXPENSE_CATEGORY_META[c] ? c : 'otros';
+}
+
+function expenseUsd(exp, bcvRate) {
+    const amt = parseFloat(exp.amount) || 0;
+    const cur = (exp.currency || 'USD').toUpperCase();
+    if (cur === 'VES' || cur === 'BS') {
+        const r = parseFloat(exp.bcv_rate) > 0 ? parseFloat(exp.bcv_rate) : (bcvRate > 0 ? bcvRate : 1);
+        return amt / r;
+    }
+    return amt;
+}
+
+/**
+ * P&L de un período: ventas de mercadería, costo del tercero, gastos y
+ * ganancia neta, con desglose por categoría de producto y de gasto.
+ * Puro: no lee window.*; la tasa entra por opts.bcvRate.
+ */
+function aggregatePnl(sales = [], expenses = [], products = [], opts = {}) {
+    const { start, end, periodLabel = '', bcvRate = 1 } = opts;
+    const rate = bcvRate > 0 ? bcvRate : 1;
+
+    const productById = {};
+    (products || []).forEach(p => { if (p && p.id != null) productById[p.id] = p; });
+
+    const merch = [];
+    let abonoCount = 0;
+    let abonoUsd = 0;
+    (sales || []).forEach(s => {
+        const pid = s.productId || s.product_id;
+        if (pid === 'abono') { abonoCount += 1; abonoUsd += parseFloat(s.price) || 0; return; }
+        merch.push(s);
+    });
+
+    const ventasUsd = merch.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
+    const costoTerceros = estimateProductionCost(merch, products, rate);
+
+    // Categorías de producto
+    const catMap = {};
+    merch.forEach(s => {
+        const key = resolvePnlCategory(s, productById);
+        const c = catMap[key] || (catMap[key] = { key, label: PNL_CATEGORY_META[key].label, unidades: 0, ventasUsd: 0, _prod: {} });
+        c.unidades += 1;
+        c.ventasUsd += parseFloat(s.price) || 0;
+        const name = (s.name || '').replace(PRODUCT_NAME_CLEAN_RE, '') || (s.productId || s.product_id || '—');
+        const p = c._prod[name] || (c._prod[name] = { name, unidades: 0, ventasUsd: 0 });
+        p.unidades += 1;
+        p.ventasUsd += parseFloat(s.price) || 0;
+    });
+
+    const categorias = Object.values(catMap).map(c => {
+        const subset = merch.filter(s => resolvePnlCategory(s, productById) === c.key);
+        const catCost = estimateProductionCost(subset, products, rate);
+        return {
+            key: c.key,
+            label: c.label,
+            unidades: c.unidades,
+            ventasUsd: Number(c.ventasUsd.toFixed(2)),
+            costoTercerosUsd: catCost.usd,
+            margenUsd: Number((c.ventasUsd - catCost.usd).toFixed(2)),
+            productos: Object.values(c._prod)
+                .map(p => ({ name: p.name, unidades: p.unidades, ventasUsd: Number(p.ventasUsd.toFixed(2)) }))
+                .sort((a, b) => b.unidades - a.unidades)
+        };
+    }).sort((a, b) => PNL_CATEGORY_META[a.key].order - PNL_CATEGORY_META[b.key].order);
+
+    // Gastos
+    const gMap = {};
+    (expenses || []).forEach(e => {
+        const key = resolveExpenseCategory(e);
+        const g = gMap[key] || (gMap[key] = { key, label: EXPENSE_CATEGORY_META[key].label, montoUsd: 0, items: [] });
+        const usd = expenseUsd(e, rate);
+        g.montoUsd += usd;
+        g.items.push({
+            description: e.description || '',
+            montoUsd: Number(usd.toFixed(2)),
+            currency: (e.currency || 'USD').toUpperCase(),
+            montoOriginal: parseFloat(e.amount) || 0,
+            fecha: dateKey(parseTimestamp(e.timestamp))
+        });
+    });
+    const gastosCategorias = Object.values(gMap)
+        .map(g => ({ ...g, montoUsd: Number(g.montoUsd.toFixed(2)) }))
+        .sort((a, b) => EXPENSE_CATEGORY_META[a.key].order - EXPENSE_CATEGORY_META[b.key].order);
+    const gastosUsd = gastosCategorias.reduce((sum, g) => sum + g.montoUsd, 0);
+
+    // Serie diaria
+    const dayMap = {};
+    merch.forEach(s => {
+        const k = dateKey(parseTimestamp(s.timestamp));
+        (dayMap[k] = dayMap[k] || { fecha: k, ventasUsd: 0, gastosUsd: 0 }).ventasUsd += parseFloat(s.price) || 0;
+    });
+    (expenses || []).forEach(e => {
+        const k = dateKey(parseTimestamp(e.timestamp));
+        (dayMap[k] = dayMap[k] || { fecha: k, ventasUsd: 0, gastosUsd: 0 }).gastosUsd += expenseUsd(e, rate);
+    });
+    const dias = Object.values(dayMap)
+        .map(d => ({
+            fecha: d.fecha,
+            ventasUsd: Number(d.ventasUsd.toFixed(2)),
+            gastosUsd: Number(d.gastosUsd.toFixed(2)),
+            gananciaUsd: Number((d.ventasUsd - d.gastosUsd).toFixed(2))
+        }))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    const gananciaNetaUsd = Number((ventasUsd - costoTerceros.usd - gastosUsd).toFixed(2));
+
+    return {
+        period: { start, end, label: periodLabel },
+        totals: {
+            ventasUsd: Number(ventasUsd.toFixed(2)),
+            costoTerceros,
+            gastosUsd: Number(gastosUsd.toFixed(2)),
+            gananciaNetaUsd
+        },
+        categorias,
+        gastos: { totalUsd: Number(gastosUsd.toFixed(2)), porCategoria: gastosCategorias },
+        abonos: { count: abonoCount, montoUsd: Number(abonoUsd.toFixed(2)) },
+        dias
+    };
+}
+
 /**
  * Compares the average daily total of the most recent `weeksToCompare`
  * weeks against the equivalent period right before it, to catch whether
@@ -375,7 +528,8 @@ const AnalyticsManager = {
     getRecentTrend,
     getUpcomingProjection,
     buildPerformanceInsights,
-    estimateProductionCost
+    estimateProductionCost,
+    aggregatePnl
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -391,6 +545,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getUpcomingProjection,
         buildPerformanceInsights,
         estimateProductionCost,
+        aggregatePnl,
         AnalyticsManager
     };
 }

@@ -4573,32 +4573,12 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
     const rate = (customRate && !isNaN(parseFloat(customRate)) && parseFloat(customRate) > 0) ? parseFloat(customRate) : (window.bcvRate || 1);
-    // Costo de producción por venta, congelada en cost_at_sale -- no se
-    // recalcula con el costo actual del producto.
-    const totalProductionCostBs = salesLog.reduce((sum, sale) => sum + (sale.cost_at_sale || 0), 0);
-
-    // Days from before the production-cost feature existed never recorded
-    // cost_at_sale, so it comes back 0 even though real production cost was
-    // owed. For those (and only those) days, estimate what's owed to the
-    // tercero using each product's CURRENT cost -- it's per-unit and flat
-    // (Bs.800 for every pastelito flavor as of writing), not a market price
-    // that drifts sale to sale, so today's rate is a reasonable stand-in for
-    // "what do I need to pay" even though it isn't the exact historical
-    // figure. Clearly labeled as an estimate in the PDF, never silently
-    // written back to cost_at_sale itself.
-    let isEstimatedCost = false;
-    let productionCostBsForDisplay = totalProductionCostBs;
-    if (totalProductionCostBs === 0 && totalSales > 0) {
-        const estimated = salesLog.reduce((sum, sale) => {
-            if (sale.productId === 'abono') return sum;
-            const prod = products.find(p => p.id === sale.productId);
-            return sum + (prod && prod.cost ? parseFloat(prod.cost) : 0);
-        }, 0);
-        if (estimated > 0) {
-            productionCostBsForDisplay = estimated;
-            isEstimatedCost = true;
-        }
-    }
+    // Costo de producción (tercero). Congelado en cost_at_sale por venta;
+    // para días viejos sin ese dato se estima con el costo actual por
+    // unidad -- misma lógica compartida con el resumen de Ganancias.
+    const prodCost = window.AnalyticsManager.estimateProductionCost(salesLog, products, rate);
+    const isEstimatedCost = prodCost.isEstimated;
+    const productionCostBsForDisplay = prodCost.bs;
     const netMarginBs = (totalSales * rate) - productionCostBsForDisplay;
 
     // Group sales by category and product

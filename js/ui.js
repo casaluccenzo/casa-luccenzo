@@ -1077,6 +1077,86 @@ function renderAdminExpenses(expenses = [], filter = {}, onDelete) {
 }
 
 /**
+ * Pinta el resumen de Ganancias (cascada + gráfico diario + categorías + abonos).
+ * @param {Object} pnl  Salida de AnalyticsManager.aggregatePnl
+ * @param {{mode:string}} opts
+ */
+function renderPnl(pnl, opts = {}) {
+    const c = document.getElementById('admin-pnl-container');
+    if (!c || !pnl) return;
+    const rate = (window.bcvRate || 1);
+    const usd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const ves = v => 'Bs. ' + ((v || 0) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+    const t = pnl.totals;
+
+    if (t.ventasUsd === 0 && pnl.gastos.totalUsd === 0) {
+        c.innerHTML = `<div style="font-size:0.9rem; color:var(--color-text-muted); text-align:center; padding:2rem 0;">Sin ventas ni gastos en este período.</div>`;
+        return;
+    }
+
+    const estBanner = t.costoTerceros.estimatedDays > 0
+        ? `<div style="background:rgba(245,158,11,0.12); border:1px solid #f59e0b; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.75rem;">
+             Incluye ${t.costoTerceros.estimatedDays} día(s) con costo de producción estimado — antes del 22 ago no se registraba el costo real.
+           </div>` : '';
+
+    const neg = v => v < 0 ? ' style="color:var(--color-danger);"' : '';
+    const cascade = `
+        <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+          <tr><td style="padding:0.35rem 0;">Ventas de mercadería</td><td style="text-align:right;">${usd(t.ventasUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">${ves(t.ventasUsd)}</td></tr>
+          <tr><td style="padding:0.35rem 0;">− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' <em style="color:#f59e0b;">(est.)</em>' : ''}</td><td style="text-align:right;">−${usd(t.costoTerceros.usd)}</td><td style="text-align:right; color:var(--color-text-muted);">−Bs. ${t.costoTerceros.bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td></tr>
+          <tr id="pnl-gastos-row" style="cursor:pointer;"><td style="padding:0.35rem 0;">− Gastos del local <i class="fa-solid fa-chevron-down" style="font-size:0.7em;"></i></td><td style="text-align:right;">−${usd(t.gastosUsd)}</td><td style="text-align:right; color:var(--color-text-muted);">−${ves(t.gastosUsd)}</td></tr>
+          ${pnl.gastos.porCategoria.map(g => `<tr class="pnl-gasto-detail" style="display:none;"><td style="padding:0.2rem 0 0.2rem 1rem; color:var(--color-text-muted);">· ${g.label}</td><td style="text-align:right; color:var(--color-text-muted);">−${usd(g.montoUsd)}</td><td></td></tr>`).join('')}
+          <tr style="border-top:2px solid rgba(255,255,255,0.15); font-weight:800;"><td style="padding:0.5rem 0;">= Ganancia neta</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${usd(t.gananciaNetaUsd)}</td><td style="text-align:right;"${neg(t.gananciaNetaUsd)}>${ves(t.gananciaNetaUsd)}</td></tr>
+        </table>`;
+
+    const maxDay = Math.max(...pnl.dias.map(d => d.ventasUsd), 1);
+    const chart = pnl.dias.map(d => {
+        const pct = (d.ventasUsd / maxDay) * 100;
+        return `<div class="chart-bar-row">
+            <span class="chart-bar-label">${d.fecha.slice(5)}</span>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+            <span class="chart-bar-val">${usd(d.ventasUsd)}</span>
+        </div>`;
+    }).join('');
+
+    const cats = pnl.categorias.map((cat, i) => `
+        <div class="category-stat-wrapper">
+          <div class="category-stat-row pnl-cat-row" data-idx="${i}" style="cursor:pointer;">
+            <div class="category-label">${cat.label}</div>
+            <div class="category-values">
+              <span class="category-qty-badge">${cat.unidades} u</span>
+              <span class="category-price-usd">${usd(cat.ventasUsd)}</span>
+              <span class="category-price-ves">margen ${usd(cat.margenUsd)}</span>
+            </div>
+          </div>
+          <div class="category-stat-dropdown pnl-cat-dd" data-idx="${i}" style="display:none;">
+            ${cat.productos.map(p => `<div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:0.15rem 0.5rem;"><span>${p.name} ×${p.unidades}</span><span>${usd(p.ventasUsd)}</span></div>`).join('')}
+          </div>
+        </div>`).join('');
+
+    const abonos = pnl.abonos.count > 0
+        ? `<div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(255,255,255,0.1);">
+             Abonos cobrados en el período: ${pnl.abonos.count} operación(es) · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)
+           </div>` : '';
+
+    c.innerHTML = estBanner + cascade
+        + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Ventas por día</div>` + chart
+        + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Por categoría</div>` + cats
+        + abonos;
+
+    const gastosRow = document.getElementById('pnl-gastos-row');
+    if (gastosRow) gastosRow.addEventListener('click', () => {
+        c.querySelectorAll('.pnl-gasto-detail').forEach(r => {
+            r.style.display = r.style.display === 'none' ? 'table-row' : 'none';
+        });
+    });
+    c.querySelectorAll('.pnl-cat-row').forEach(row => row.addEventListener('click', () => {
+        const dd = c.querySelector(`.pnl-cat-dd[data-idx="${row.dataset.idx}"]`);
+        if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }));
+}
+
+/**
  * Render the clients lists and balances in the Debts tab
  * @param {Array} debts List of customer debts
  * @param {Function} onRecordPayment Callback when a payment is processed (uuid)
@@ -6318,6 +6398,7 @@ window.UIManager = {
     renderSalesHistory,
     renderExpenses,
     renderAdminExpenses,
+    renderPnl,
     renderDebts,
     renderPedidosOnline,
     updatePedidosBadge,

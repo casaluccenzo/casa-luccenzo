@@ -1428,6 +1428,9 @@ function deleteExpense(uuid) {
 let expensesTabFilter = { month: '', category: '', bcvRate: 1 };
 let expensesTabCache = {}; // monthISO -> Array
 let pnlCache = {};         // `${mode}:${startISO}` -> pnl  (also reset here on expense add/delete; consumed by Task 7)
+let pnlMode = 'week';       // 'week' | 'month'
+let pnlAnchor = new Date(); // any date inside the selected period
+let pnlLast = null;         // last rendered pnl (for the PDF button)
 
 async function loadAndRenderExpensesTab(forceRefetch = false) {
     if (currentRole !== 'admin') return;
@@ -1497,6 +1500,62 @@ function addAdminExpense(e) {
 function setAdminExpenseDateDefault() {
     const el = document.getElementById('admin-expense-date');
     if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+}
+
+// ================= ADMIN GANANCIAS TAB (RESUMEN DE GANANCIAS) =================
+
+function pnlRange(mode, anchor) {
+    const d = new Date(anchor);
+    if (mode === 'month') {
+        const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0);
+        const label = start.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+        return { start, end, label: label.charAt(0).toUpperCase() + label.slice(1) };
+    }
+    // week: Monday 00:00 -> next Monday 00:00
+    const day = (d.getDay() + 6) % 7; // 0 = Monday
+    const start = new Date(d); start.setDate(d.getDate() - day); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(start.getDate() + 7);
+    const endLbl = new Date(end); endLbl.setDate(end.getDate() - 1);
+    const fmt = x => x.toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
+    return { start, end, label: `Semana ${fmt(start)}–${fmt(endLbl)}` };
+}
+
+function pnlCanGoNext() {
+    const next = new Date(pnlAnchor);
+    if (pnlMode === 'month') next.setMonth(next.getMonth() + 1);
+    else next.setDate(next.getDate() + 7);
+    return pnlRange(pnlMode, next).start <= new Date();
+}
+
+async function loadPnl(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+    const { start, end, label } = pnlRange(pnlMode, pnlAnchor);
+    const labelEl = document.getElementById('pnl-period-label');
+    if (labelEl) labelEl.textContent = label;
+    const nextBtn = document.getElementById('btn-pnl-next');
+    if (nextBtn) nextBtn.disabled = !pnlCanGoNext();
+
+    const key = `${pnlMode}:${start.toISOString()}`;
+    const container = document.getElementById('admin-pnl-container');
+    if (forceRefetch) delete pnlCache[key];
+
+    if (!pnlCache[key]) {
+        if (container) container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando resumen...</div>`;
+        let sales = [], expenses = [];
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            const data = await window.SupabaseManager.fetchPnlData(start.toISOString(), end.toISOString());
+            sales = data.sales; expenses = data.expenses;
+        } else if (container) {
+            container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">Sin conexión — el resumen necesita datos del servidor.</div>`;
+            return;
+        }
+        pnlCache[key] = window.AnalyticsManager.aggregatePnl(sales, expenses, products, {
+            start, end, periodLabel: label, bcvRate: window.bcvRate || 1
+        });
+    }
+    pnlLast = pnlCache[key];
+    window.UIManager.renderPnl(pnlLast, { mode: pnlMode });
 }
 
 // ================= DEBTS virtual ledger (FIADOS) =================
@@ -4527,6 +4586,7 @@ function initAdminDashboardListeners() {
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
     const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
     const tabExpensesBtn = document.getElementById('admin-tab-btn-expenses');
+    const tabPnlBtn = document.getElementById('admin-tab-btn-pnl');
     const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
@@ -4537,13 +4597,14 @@ function initAdminDashboardListeners() {
     const panelLogs = document.getElementById('admin-panel-logs');
     const panelCosts = document.getElementById('admin-panel-costs');
     const panelExpenses = document.getElementById('admin-panel-expenses');
+    const panelPnl = document.getElementById('admin-panel-pnl');
     const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelAgent, panelPreferences].filter(Boolean);
 
     // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
     // permanently visible -- these elements are simply display:none there).
@@ -4710,6 +4771,40 @@ function initAdminDashboardListeners() {
     });
     const admExpMonth = document.getElementById('admin-expense-filter-month');
     if (admExpMonth) admExpMonth.addEventListener('change', () => loadAndRenderExpensesTab(true));
+
+    if (tabPnlBtn && panelPnl) {
+        tabPnlBtn.addEventListener('click', () => {
+            activateTab(tabPnlBtn, panelPnl);
+            pnlAnchor = new Date();
+            loadPnl();
+        });
+    }
+    document.querySelectorAll('#pnl-mode-toggle .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#pnl-mode-toggle .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            pnlMode = b.dataset.mode;
+            pnlAnchor = new Date();
+            loadPnl();
+        });
+    });
+    const pnlPrev = document.getElementById('btn-pnl-prev');
+    const pnlNext = document.getElementById('btn-pnl-next');
+    if (pnlPrev) pnlPrev.addEventListener('click', () => {
+        if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() - 1);
+        else pnlAnchor.setDate(pnlAnchor.getDate() - 7);
+        loadPnl();
+    });
+    if (pnlNext) pnlNext.addEventListener('click', () => {
+        if (!pnlCanGoNext()) return;
+        if (pnlMode === 'month') pnlAnchor.setMonth(pnlAnchor.getMonth() + 1);
+        else pnlAnchor.setDate(pnlAnchor.getDate() + 7);
+        loadPnl();
+    });
+    const pnlPdf = document.getElementById('btn-pnl-pdf');
+    if (pnlPdf) pnlPdf.addEventListener('click', () => {
+        if (pnlLast) window.UIManager.exportPnlToPDF(pnlLast, { mode: pnlMode, bcvRate: window.bcvRate || 1 });
+    });
 
     if (tabAgentBtn && panelAgent) {
         tabAgentBtn.addEventListener('click', () => {

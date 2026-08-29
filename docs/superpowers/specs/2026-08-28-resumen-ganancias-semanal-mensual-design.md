@@ -11,7 +11,8 @@ mensual** que separe con claridad:
 
 - lo que se vendió (desglosado por categoría: pasteles, bebidas, dulces),
 - lo que hay que pagarle al tercero por producir los pasteles,
-- los gastos del local,
+- los gastos del local — incluyendo gastos fijos que hoy no se registran
+  (arriendo, sueldos, servicios), con una sección admin para cargarlos,
 - y la ganancia neta que queda.
 
 Hoy no existe: el tab "Análisis" (`js/analytics.js`) tiene patrones
@@ -52,6 +53,10 @@ días y sin desglose.
 | Detalle por categoría | **Categoría + lista completa de productos individuales** |
 | Días sin costo (pre 22-ago) | **Estimar con costo actual por unidad y marcar el total** |
 | Abonos | **Aparte, NO dentro de "Ventas"** — línea informativa separada |
+| Gastos fijos (arriendo/sueldos) | **Cargados a mano cada pago** — sin recurrencia automática |
+| Categorías de gasto | **`arriendo`, `sueldos`, `servicios`, `otros`** (default) |
+| UI de gastos | **Sección "Gastos" en panel admin** — form con selector de categoría + lista filtrable |
+| Moneda de gastos | **Cada gasto elige $ o Bs**; se guarda moneda + tasa, el resumen convierte a $ |
 
 ## Enfoque
 
@@ -79,7 +84,8 @@ Nueva función `fetchPnlData(startISO, endISO)`:
 - `client.from('sales').select('*').gte('timestamp', startISO).lt('timestamp', endISO)`
   ordenado por `timestamp` asc, paginado con `fetchAllPages` (mismo patrón
   que `fetchStatsData` — el rango mensual puede acercarse al cap de 1000).
-- `expenses` igual, `select('*')` con el mismo rango.
+- `expenses` igual, `select('*')` con el mismo rango — trae también las
+  columnas nuevas `category`, `currency`, `bcv_rate` (ver §8).
 - Normaliza `productId` desde `product_id` como hacen las otras funciones.
 - Devuelve `{ sales, expenses }` crudo. **Cero lógica de negocio.**
 - Se exporta en el objeto `SupabaseManager` junto a `fetchStatsData`, etc.
@@ -135,8 +141,16 @@ Retorna:
     costoTerceros: {                  // de estimateProductionCost()
       bs, usd, isEstimated, estimatedDays
     },
-    gastosUsd,                        // Σ expenses.amount
+    gastosUsd,                        // Σ gastos convertidos a USD (ver §2.4)
     gananciaNetaUsd                   // ventasUsd − costoTerceros.usd − gastosUsd
+  },
+
+  gastos: {                          // desglose de la línea "Gastos"
+    totalUsd,
+    porCategoria: [                   // solo las que tuvieron movimiento
+      { key, label, montoUsd,
+        items: [ { description, montoUsd, currency, montoOriginal, fecha } ] }
+    ]
   },
 
   categorias: [                       // solo las que tuvieron movimiento
@@ -183,6 +197,22 @@ Reglas de categorización (mismas que `exportDayCloseToPDF`, 3+otros):
 `window.bcvRate` se lee una vez y se pasa como parámetro a `aggregatePnl`
 (el módulo se mantiene sin `window.*` en tiempo de llamada, para los tests).
 Firma real: `aggregatePnl(sales, expenses, products, { start, end, periodLabel, bcvRate })`.
+
+#### 2.4 Conversión y agrupación de gastos
+
+Cada fila de `expenses` se normaliza a USD:
+
+- `currency === 'VES'` (o `'Bs'`) y `bcv_rate > 0` → `amount / bcv_rate`
+- `currency === 'VES'` sin `bcv_rate` → `amount / bcvRate` (fallback, tasa actual)
+- cualquier otro caso (incluye `currency` nulo en filas viejas) → `amount`
+  tal cual, se asume USD.
+
+Agrupación por `category`:
+
+- `category` nulo / desconocido → `'otros'` (cubre gastos de mostrador y
+  filas previas a la migración).
+- Categorías esperadas: `arriendo`, `sueldos`, `servicios`, `otros`.
+- Orden de presentación: arriendo → sueldos → servicios → otros.
 
 ### 3. Semántica de períodos y casos borde
 
@@ -232,7 +262,11 @@ Firma real: `aggregatePnl(sales, expenses, products, { start, end, periodLabel, 
    | Ventas de mercadería | $X | Bs X |
    | − Costo de producción (terceros)`[Estimado]` | −$X | −Bs X |
    | − Gastos del local | −$X | −Bs X |
+   |   · Arriendo / Sueldos / Servicios / Otros | −$X c/u | |
    | **= Ganancia neta** | **$X** | **Bs X** |
+
+   La línea "Gastos" es expandible al desglose por categoría (`gastos.porCategoria`),
+   y cada categoría a sus ítems individuales.
 
 2. **Mini-gráfico de barras por día** — reusa las clases `.chart-bar-row
    / .chart-bar-track / .chart-bar-fill / .chart-bar-val` que ya existen
@@ -273,8 +307,9 @@ loadPnl(range):
   estilos `@media print`, llama `window.print()`, lo remueve después.
 - Encabezado: "Casa Lucenzo — Resumen [Semanal|Mensual] — [período]",
   fecha de generación, tasa BCV usada.
-- Contenido: la cascada, la tabla por categoría **con productos**, la
-  línea de abonos, y el aviso de días estimados si aplica.
+- Contenido: la cascada (con el desglose de gastos por categoría), la
+  tabla por categoría **con productos**, la línea de abonos, y el aviso de
+  días estimados si aplica.
 - Sin librería PDF (no hay ninguna cargada hoy; el patrón `window.print()`
   ya se usa en 4+ lugares).
 
@@ -297,6 +332,8 @@ loadPnl(range):
   - período vacío → estructura válida con ceros.
   - margen negativo se propaga (no se hace `Math.max(0, …)`).
   - conversión Bs→USD por `sale.bcv_rate` vs. fallback.
+  - gastos: mezcla $ y Bs → `gastosUsd` correcto; `category` nulo → `otros`;
+    `porCategoria` agrupa y ordena bien.
 
 **Manual (dev server, rol admin):**
 
@@ -307,27 +344,109 @@ loadPnl(range):
 - Generar PDF semanal y mensual; revisar que el desglose por producto
   aparezca y los números coincidan con la pantalla.
 - Período sin ventas (navegar a un mes futuro-tope o uno viejo vacío).
+- Tab "Gastos": cargar un arriendo en $ y un servicio en Bs; verificar que
+  aparezcan en el mes correcto del resumen con la conversión bien hecha, y
+  que el filtro por categoría y por mes funcione.
+- Borrar un gasto y ver que el resumen del período se recalcula.
 
 ### 7. Riesgo de despliegue
 
 - **No** toca `js/supabase.js` en la parte de auth/RLS, ni `vercel.json`,
-  ni `sw.js`, ni `api/*`. Sí toca `sistema/index.html` (markup del panel
-  nuevo) y, si se agrega un archivo JS nuevo, sus `<script>` tags + el
-  `APP_VERSION`/`SCRIPTS`/`?v=` que hay que mantener sincronizados (ver
-  [[feedback_production_deploy_caution]] / memoria de deploy).
-- **No hay migración de base de datos** — usa columnas que ya existen
-  (`cost_at_sale`, `bcv_rate`). Esto lo distingue del spec del sidebar,
-  que sí tenía riesgo de orden de deploy.
-- El plan de implementación debe cerrar: ¿el cálculo nuevo va en
-  `js/analytics.js` (ya cargado) sin archivo nuevo? Si es así, no hay
-  cambio de `<script>` tags y el riesgo baja más. Preferir esa opción.
+  ni `sw.js`, ni `api/*`. Sí toca `sistema/index.html` (markup de los dos
+  paneles nuevos) y, si se agrega un archivo JS nuevo, sus `<script>` tags
+  + el `APP_VERSION`/`SCRIPTS`/`?v=` que hay que mantener sincronizados
+  (ver [[feedback_production_deploy_caution]] / memoria de deploy).
+- **Sí hay migración de base de datos** (§8) — aditiva, sobre `expenses`.
+  **Orden de deploy obligatorio**: la migración va primero; recién después
+  el cliente que manda `category`/`currency`/`bcv_rate` en el INSERT. Mandar
+  una columna inexistente rompe el insert entero — misma clase de gotcha
+  que los incidentes de RLS/paginación en memoria y el `actor_name` del
+  spec del sidebar. El plan lo trata como paso de rollout explícito.
+- El cálculo nuevo va en `js/analytics.js` (ya cargado) sin archivo nuevo,
+  para no tocar `<script>` tags. Preferir esa opción; si algo obliga a un
+  archivo nuevo, sincronizar las tres referencias de versión.
 - Verificar en `casalucenzo.com` después de deploy, no solo en local
-  (memoria: es un POS en vivo, dominio único).
+  (memoria: es un POS en vivo, dominio único). Checklist
+  [[verifying-production-deploys]] por la migración + el cambio de markup.
+
+### 8. Gestión de gastos categorizados
+
+#### 8.1 Migración — `supabase/migrations/020_expense_categories.sql`
+
+```sql
+BEGIN;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS category text;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'USD';
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS bcv_rate numeric;
+COMMIT;
+```
+
+- Todo aditivo y nullable/defaulted. Filas existentes: `category` NULL
+  (→ `otros` en lectura), `currency` `'USD'` por el default, `bcv_rate` NULL.
+- **Sin cambios de RLS**: las políticas de `expenses` (migraciones 001/010/011)
+  no referencian columnas puntuales; una columna nueva no las afecta.
+- No hay trigger de relleno server-side (a diferencia de `cost_at_sale` /
+  `bcv_rate` en `sales`): estos gastos siempre se cargan desde un form que
+  manda los tres campos, y el default de `currency` cubre cualquier ruta vieja.
+
+#### 8.2 Cliente — `js/app.js` / `js/supabase.js`
+
+- `insertExpense(expense)` (`js/supabase.js`) ya hace `insert(payload)` con
+  el objeto entero → basta con que el objeto lleve `category`, `currency`,
+  `bcv_rate`. Verificar que no haya un whitelisting de campos en el camino.
+- `addExpense()` actual (`js/app.js:1362`, el del mostrador) suma
+  `category: 'otros'`, `currency: 'USD'`, `bcv_rate: null` a `newExpense`
+  para mantener el shape consistente. Su UI no cambia.
+- **Nuevo** `addAdminExpense(e)` en `js/app.js`: lee categoría, descripción,
+  monto, moneda (toggle) y fecha del form admin. Si moneda = `VES`, setea
+  `bcv_rate: window.bcvRate`. `timestamp`: si la fecha elegida ≠ hoy, se
+  arma como ISO a mediodía local de ese día (evita que caiga en el día
+  anterior por zona). Reusa el resto del flujo de `addExpense` (push local,
+  `saveExpenses`, `insertExpense`, toast, re-render).
+- `deleteExpense()` sin cambios (borra por `uuid`).
+
+#### 8.3 UI — panel "Gastos"
+
+- Botón nuevo en el sidebar admin, **grupo OPERACIÓN, junto a "Ganancias"**.
+  Label **"Gastos"**, icono `fa-file-invoice-dollar`.
+  `id="admin-tab-btn-expenses"`, panel `id="admin-panel-expenses"`.
+  Engancha en `activateTab()` como los otros.
+- **Form** (`add-admin-expense-form`):
+  - `<select>` categoría: Arriendo local / Sueldos / Servicios / Otros.
+  - `<input>` descripción (para sueldos, el nombre del empleado).
+  - `<input type="number">` monto + toggle `$ | Bs` (mismo patrón visual
+    que `btn-stats-cat-day/week`).
+  - `<input type="date">` fecha, default hoy.
+- **Lista** (`renderAdminExpenses(expenses, onDelete)` en `js/ui.js`):
+  - Filtros: por categoría (chips) y por mes (`<input type="month">`,
+    default mes actual).
+  - Cada fila: fecha · categoría · descripción · monto original
+    (`$X` o `Bs X`) · equivalente en $ · botón borrar.
+  - Total del filtro aplicado al pie.
+- El render se dispara al abrir el tab y tras cada alta/baja. Usa el array
+  `expenses` en memoria (ya se sincroniza desde Supabase al cargar la app);
+  para meses viejos fuera del set local, hace `fetchPnlData`-equivalente o
+  reusa el fetch del resumen. **Decisión para el plan**: lo más simple es
+  un `fetchExpensesByMonth(monthISO)` chico y cachearlo igual que el PnL.
+
+#### 8.4 Casos borde
+
+- Monto 0 o negativo → no se guarda (igual que `addExpense` hoy).
+- Fecha futura → permitida pero advertida (podría querer registrar un pago
+  adelantado); no se bloquea.
+- Cambio de `window.bcvRate` después de cargar un gasto en Bs: el gasto
+  conserva su `bcv_rate` congelado, no se recalcula.
+- Offline: mismo path `enqueueOfflineOp('expenses', ...)` que ya existe.
 
 ## Fuera de alcance
 
 - Rediseño del tab "Análisis" o del PDF de cierre de día (solo se
   refactoriza la estimación de costo a un helper compartido).
+- Gastos recurrentes / fijos automáticos — se cargan a mano cada pago.
+- Categoría de gasto "insumos / mercadería" — no pedida en esta pasada
+  (los insumos ya se ven parcialmente por otro lado); fácil de sumar luego
+  al mismo `<select>` y al orden de `porCategoria`.
+- Editar un gasto ya cargado — por ahora solo alta y baja (borrar y recargar).
 - Categoría "tortas" separada — hoy no existe y no se crea acá.
 - Backfill de `cost_at_sale` en filas históricas (la estimación es en
   tiempo de lectura, nunca se escribe).

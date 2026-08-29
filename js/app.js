@@ -2381,15 +2381,14 @@ async function loadAllDataFromSupabase() {
         }
         if (headerBcvInput) headerBcvInput.value = bcvRate;
 
-        // Auto-fetch updated live BCV rate from official API providers
-        if (useAutoBcv) {
-            fetchBcvRate();
-        }
+        // NOTE: the live BCV rate is NOT fetched here. This function runs on the
+        // periodic background re-sync, and calling fetchBcvRate() on every cycle
+        // meant two slow external API calls + (pre-guard) a full re-render every
+        // time. The rate is refreshed on its own schedule: on app load, every
+        // 6h, on tab-focus when >=6h stale, and on day close. Any rate another
+        // device pushed is still picked up above via supConfig.bcv_rate.
     } else {
         lastCloseTime = window.StorageManager.loadLastCloseTime();
-        if (useAutoBcv) {
-            fetchBcvRate();
-        }
     }
 
     // 2. Fetch all other datasets in parallel to reduce network latency and roundtrips
@@ -3786,6 +3785,17 @@ function updateBcvHeaderDisplay() {
 /**
  * Fetch the official BCV rate from DolarVZLA API (which updates correctly with next business day value date)
  */
+// Sub-centavo drift between the two rate providers is noise, not a rate move.
+// A difference at or under 1 céntimo counts as "unchanged" so fetchBcvRate can
+// skip the expensive app_config write (fans out over realtime) + full
+// renderAllViews() on a poll that found the same published rate. Exported for
+// tests.
+function bcvRateChangedEnough(prevRate, newRate) {
+    if (!(newRate > 0)) return false;
+    if (!(prevRate > 0)) return true;
+    return Math.abs(newRate - prevRate) > 0.01;
+}
+
 async function fetchBcvRate(force = false) {
     if (!useAutoBcv && !force) return;
     try {
@@ -3823,32 +3833,49 @@ async function fetchBcvRate(force = false) {
         const newRate = Math.max(rate1 || 0, rate2 || 0);
 
         if (newRate > 0) {
+            const prevRate = bcvRate;
+            const rateChanged = bcvRateChangedEnough(prevRate, newRate);
+
             bcvRate = newRate;
             window.bcvRate = bcvRate;
             useAutoBcv = true;
+
+            // A successful fetch always refreshes the "last checked" clock even
+            // when the published rate did not move -- otherwise the 6h-stale
+            // guard on visibilitychange keeps re-firing this on every focus.
             bcvLastFetchTime = new Date().toISOString();
             window.StorageManager.saveBcvLastFetch(bcvLastFetchTime);
-            saveAndSyncBcvConfig();
-            console.log(`BCV Rate updated successfully to ${bcvRate} Bs.`);
 
-            const bcvRateInput = document.getElementById('pref-bcv-rate');
-            const autoCheckbox = document.getElementById('pref-bcv-auto');
-            const headerBcvInput = document.getElementById('header-bcv-rate-input');
-            if (bcvRateInput) {
-                bcvRateInput.value = bcvRate;
-                bcvRateInput.disabled = true;
-            }
-            if (headerBcvInput) {
-                headerBcvInput.value = bcvRate;
-            }
-            if (autoCheckbox) {
-                autoCheckbox.checked = true;
-            }
+            // Everything below is expensive: saveAndSyncBcvConfig() writes
+            // app_config (which fans out over realtime to every other device)
+            // and renderAllViews() repaints all ~13 views. This used to run on
+            // every poll regardless of whether the rate actually changed, which
+            // is what made the POS feel slow. Only pay that cost on a real move.
+            if (rateChanged) {
+                saveAndSyncBcvConfig();
+                console.log(`BCV Rate updated: ${prevRate} -> ${bcvRate} Bs.`);
 
-            updateBcvHeaderDisplay();
+                const bcvRateInput = document.getElementById('pref-bcv-rate');
+                const autoCheckbox = document.getElementById('pref-bcv-auto');
+                const headerBcvInput = document.getElementById('header-bcv-rate-input');
+                if (bcvRateInput) {
+                    bcvRateInput.value = bcvRate;
+                    bcvRateInput.disabled = true;
+                }
+                if (headerBcvInput) {
+                    headerBcvInput.value = bcvRate;
+                }
+                if (autoCheckbox) {
+                    autoCheckbox.checked = true;
+                }
 
-            // Re-render UI
-            renderAllViews();
+                updateBcvHeaderDisplay();
+
+                // Re-render UI
+                renderAllViews();
+            } else {
+                console.log(`BCV Rate unchanged (${bcvRate} Bs) -- skipping sync + re-render.`);
+            }
         }
     } catch (e) {
         console.error("Failed to fetch BCV rate, using fallback/cached value.", e);
@@ -4587,12 +4614,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // Periodic silent background heartbeat (every 45s) to guarantee zero missing updates
+    // Periodic silent background re-sync as a backstop for the realtime channel.
+    // Realtime (subscribeToChanges) is the primary freshness mechanism and fires
+    // on every row change; autoSyncAndReconnect() also runs a full sync on every
+    // tab focus / reconnect. This interval only needs to catch anything a
+    // dropped socket missed, so 3 min is plenty -- 45s meant a burst of ~8 REST
+    // calls + dataset re-parse every 45s on the till, for near-zero benefit.
     setInterval(() => {
         if (document.visibilityState === 'visible' && window.SupabaseManager.isConfigured() && navigator.onLine) {
             loadAllDataFromSupabase();
         }
-    }, 45000);
+    }, 3 * 60 * 1000);
 
     // Ticks the "Actualizado hace X" freshness label in Resumen
     setInterval(updateSyncFreshnessDisplay, 3000);
@@ -5386,6 +5418,7 @@ if (typeof module !== 'undefined' && module.exports) {
         checkRolePermission: (role, action) => (typeof window !== 'undefined' && window.AuthManager ? window.AuthManager.checkRolePermission(role, action) : require('./auth.js').checkRolePermission(role, action)),
         applyStockLoad,
         applyStockCount,
-        resolveVitrinaCapacity
+        resolveVitrinaCapacity,
+        bcvRateChangedEnough
     };
 }

@@ -39,7 +39,7 @@ if (typeof global.navigator === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -216,6 +216,18 @@ function runCoreUnitTests() {
     console.log("✅ TEST PASSED: REAL checkRolePermission: Admin should have permission for Day Close");
     console.log("✅ TEST PASSED: REAL checkRolePermission: Ventas should NOT have permission for Day Close");
     console.log("✅ TEST PASSED: REAL checkRolePermission: Cocina should NOT have permission for POS register");
+
+    // 4. BCV rate change guard -- fetchBcvRate polls every 6h + on focus, and the
+    // background config read runs on every re-sync. Without this guard each poll
+    // that found the SAME published rate still wrote app_config (fanning out over
+    // realtime to every device) and ran a full renderAllViews(). That constant
+    // churn is what made the till feel slow. The guard must only report a real move.
+    assert.strictEqual(bcvRateChangedEnough(732.48, 732.48), false, "REAL bcvRateChangedEnough: identical rate is not a change");
+    assert.strictEqual(bcvRateChangedEnough(794.9917, 794.9950), false, "REAL bcvRateChangedEnough: sub-céntimo provider drift is not a change");
+    assert.strictEqual(bcvRateChangedEnough(794.99, 795.10), true, "REAL bcvRateChangedEnough: a real rate move is a change");
+    assert.strictEqual(bcvRateChangedEnough(732.48, 0), false, "REAL bcvRateChangedEnough: a failed fetch (0) never counts as a change");
+    assert.strictEqual(bcvRateChangedEnough(0, 795.10), true, "REAL bcvRateChangedEnough: first real rate over an unset baseline is a change");
+    console.log("✅ TEST PASSED: REAL bcvRateChangedEnough: only a real rate move triggers sync + re-render");
 }
 
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation

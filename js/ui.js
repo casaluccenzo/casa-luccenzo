@@ -1018,6 +1018,65 @@ function renderExpenses(expenses, onRemove) {
 }
 
 /**
+ * Lista de gastos del panel admin, filtrada por mes y categoría.
+ * @param {Array} expenses Filas de expenses (con category, currency, bcv_rate)
+ * @param {{month:string, category:string, bcvRate:number}} filter
+ *   month: 'YYYY-MM' | '' (todos). category: '' (todas) | clave.
+ * @param {Function} onDelete uuid => void
+ */
+function renderAdminExpenses(expenses = [], filter = {}, onDelete) {
+    const container = document.getElementById('admin-expenses-container');
+    if (!container) return;
+    const { month = '', category = '', bcvRate = (window.bcvRate || 1) } = filter;
+
+    const CAT_LABEL = { arriendo: 'Arriendo', sueldos: 'Sueldos', servicios: 'Servicios', otros: 'Otros' };
+    const toUsd = (e) => {
+        const amt = parseFloat(e.amount) || 0;
+        if ((e.currency || 'USD').toUpperCase() === 'VES') {
+            const r = parseFloat(e.bcv_rate) > 0 ? parseFloat(e.bcv_rate) : (bcvRate || 1);
+            return amt / r;
+        }
+        return amt;
+    };
+    const catKey = (e) => (CAT_LABEL[(e.category || '').toLowerCase()] ? e.category.toLowerCase() : 'otros');
+
+    let rows = (expenses || []).filter(e => {
+        if (month) { const k = (e.timestamp || '').slice(0, 7); if (k !== month) return false; }
+        if (category && catKey(e) !== category) return false;
+        return true;
+    }).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+    if (rows.length === 0) {
+        container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Sin gastos para este filtro.</div>`;
+        return;
+    }
+
+    const fmtUsd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtVes = v => 'Bs. ' + (v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+    const total = rows.reduce((s, e) => s + toUsd(e), 0);
+
+    container.innerHTML = rows.map(e => {
+        const original = (e.currency || 'USD').toUpperCase() === 'VES' ? fmtVes(e.amount) : fmtUsd(e.amount);
+        return `
+        <div class="expense-row" style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.8rem;">
+            <span style="flex:0 0 78px; color:var(--color-text-muted);">${(e.timestamp || '').slice(0, 10)}</span>
+            <span style="flex:0 0 80px; font-weight:700;">${CAT_LABEL[catKey(e)]}</span>
+            <span style="flex:1 1 auto;">${(e.description || '').replace(/</g, '&lt;')}</span>
+            <span style="flex:0 0 auto;">${original}</span>
+            <span style="flex:0 0 70px; text-align:right; color:var(--color-text-muted);">${fmtUsd(toUsd(e))}</span>
+            <button class="btn-delete-expense" data-uuid="${e.uuid}" style="flex:0 0 auto; background:none; border:none; color:var(--color-danger); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+        </div>`;
+    }).join('') + `
+        <div style="display:flex; justify-content:space-between; font-weight:800; padding-top:0.6rem; font-size:0.85rem;">
+            <span>Total del filtro</span><span>${fmtUsd(total)}</span>
+        </div>`;
+
+    container.querySelectorAll('.btn-delete-expense').forEach(btn => {
+        btn.addEventListener('click', () => onDelete && onDelete(btn.dataset.uuid));
+    });
+}
+
+/**
  * Render the clients lists and balances in the Debts tab
  * @param {Array} debts List of customer debts
  * @param {Function} onRecordPayment Callback when a payment is processed (uuid)
@@ -6258,6 +6317,7 @@ window.UIManager = {
     renderCashRegister,
     renderSalesHistory,
     renderExpenses,
+    renderAdminExpenses,
     renderDebts,
     renderPedidosOnline,
     updatePedidosBadge,

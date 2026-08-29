@@ -1376,7 +1376,10 @@ function addExpense(e) {
         uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
         description,
         amount,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        category: 'otros',
+        currency: 'USD',
+        bcv_rate: null
     };
 
     expenses.push(newExpense);
@@ -1418,6 +1421,82 @@ function deleteExpense(uuid) {
     }
 
     window.UIManager.showToast("🗑️ Gasto eliminado.", "fa-solid fa-trash");
+}
+
+// ================= ADMIN EXPENSES TAB (GASTOS DEL LOCAL) =================
+
+let expensesTabFilter = { month: '', category: '', bcvRate: 1 };
+let expensesTabCache = {}; // monthISO -> Array
+let pnlCache = {};         // `${mode}:${startISO}` -> pnl  (also reset here on expense add/delete; consumed by Task 7)
+
+async function loadAndRenderExpensesTab(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+    const monthInput = document.getElementById('admin-expense-filter-month');
+    const month = (monthInput && monthInput.value) || new Date().toISOString().slice(0, 7);
+    expensesTabFilter.month = month;
+    expensesTabFilter.bcvRate = window.bcvRate || 1;
+
+    if (forceRefetch) delete expensesTabCache[month];
+    if (!Array.isArray(expensesTabCache[month])) {
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            const start = new Date(month + '-01T00:00:00');
+            const end = new Date(start); end.setMonth(end.getMonth() + 1);
+            expensesTabCache[month] = await window.SupabaseManager.fetchExpensesRange(start.toISOString(), end.toISOString());
+        } else {
+            expensesTabCache[month] = expenses.filter(e => (e.timestamp || '').slice(0, 7) === month);
+        }
+    }
+    window.UIManager.renderAdminExpenses(expensesTabCache[month], expensesTabFilter, handleDeleteAdminExpense);
+}
+
+function handleDeleteAdminExpense(uuid) {
+    deleteExpense(uuid);
+    Object.keys(expensesTabCache).forEach(m => {
+        expensesTabCache[m] = expensesTabCache[m].filter(e => e.uuid !== uuid);
+    });
+    pnlCache = {}; // P&L numbers changed (defined in Task 7)
+    loadAndRenderExpensesTab();
+}
+
+function addAdminExpense(e) {
+    e.preventDefault();
+    const category = document.getElementById('admin-expense-category').value;
+    const description = document.getElementById('admin-expense-desc').value.trim();
+    const amount = parseFloat(document.getElementById('admin-expense-amount').value);
+    const dateStr = document.getElementById('admin-expense-date').value;
+    const curBtn = document.querySelector('#admin-expense-currency-toggle .segmented-btn.active');
+    const currency = (curBtn && curBtn.dataset.cur) || 'USD';
+    if (!description || isNaN(amount) || amount <= 0 || !dateStr) return;
+
+    triggerHaptic(15);
+    // noon local so the date can't slip to the previous day via timezone
+    const ts = new Date(dateStr + 'T12:00:00').toISOString();
+    const newExpense = {
+        uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+        description, amount, timestamp: ts,
+        category,
+        currency,
+        bcv_rate: currency === 'VES' ? (window.bcvRate || null) : null
+    };
+    expenses.push(newExpense);
+    window.StorageManager.saveExpenses(expenses);
+    if (window.SupabaseManager.isConfigured()) window.SupabaseManager.insertExpense(newExpense);
+
+    const m = ts.slice(0, 7);
+    if (Array.isArray(expensesTabCache[m])) expensesTabCache[m].push(newExpense);
+    pnlCache = {};
+
+    document.getElementById('add-admin-expense-form').reset();
+    document.getElementById('admin-expense-cur-usd').classList.add('active');
+    document.getElementById('admin-expense-cur-ves').classList.remove('active');
+    setAdminExpenseDateDefault();
+    window.UIManager.showToast('💸 Gasto registrado.', 'fa-solid fa-file-invoice-dollar');
+    loadAndRenderExpensesTab();
+}
+
+function setAdminExpenseDateDefault() {
+    const el = document.getElementById('admin-expense-date');
+    if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
 }
 
 // ================= DEBTS virtual ledger (FIADOS) =================
@@ -4447,6 +4526,7 @@ function initAdminDashboardListeners() {
     const tabDevicesBtn = document.getElementById('admin-tab-btn-devices');
     const tabLogsBtn = document.getElementById('admin-tab-btn-logs');
     const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
+    const tabExpensesBtn = document.getElementById('admin-tab-btn-expenses');
     const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
@@ -4456,13 +4536,14 @@ function initAdminDashboardListeners() {
     const panelDevices = document.getElementById('admin-panel-devices');
     const panelLogs = document.getElementById('admin-panel-logs');
     const panelCosts = document.getElementById('admin-panel-costs');
+    const panelExpenses = document.getElementById('admin-panel-expenses');
     const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelAgent, panelPreferences].filter(Boolean);
 
     // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
     // permanently visible -- these elements are simply display:none there).
@@ -4600,6 +4681,35 @@ function initAdminDashboardListeners() {
             window.UIManager.renderCostCalculator(products, costInsumos, handleDeleteCostInsumo);
         });
     }
+
+    if (tabExpensesBtn && panelExpenses) {
+        tabExpensesBtn.addEventListener('click', () => {
+            activateTab(tabExpensesBtn, panelExpenses);
+            setAdminExpenseDateDefault();
+            const mi = document.getElementById('admin-expense-filter-month');
+            if (mi && !mi.value) mi.value = new Date().toISOString().slice(0, 7);
+            loadAndRenderExpensesTab();
+        });
+    }
+    const admExpForm = document.getElementById('add-admin-expense-form');
+    if (admExpForm) admExpForm.addEventListener('submit', addAdminExpense);
+
+    document.querySelectorAll('#admin-expense-currency-toggle .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#admin-expense-currency-toggle .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+        });
+    });
+    document.querySelectorAll('#admin-expense-filter-category .segmented-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#admin-expense-filter-category .segmented-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            expensesTabFilter.category = b.dataset.cat || '';
+            loadAndRenderExpensesTab();
+        });
+    });
+    const admExpMonth = document.getElementById('admin-expense-filter-month');
+    if (admExpMonth) admExpMonth.addEventListener('change', () => loadAndRenderExpensesTab(true));
 
     if (tabAgentBtn && panelAgent) {
         tabAgentBtn.addEventListener('click', () => {

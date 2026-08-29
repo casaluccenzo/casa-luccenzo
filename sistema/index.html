@@ -596,6 +596,10 @@
                         <i class="fa-solid fa-calculator"></i>
                         <span>Costos y Ganancias</span>
                     </button>
+                    <button id="admin-tab-btn-expenses" class="admin-tab-btn">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span>Gastos</span>
+                    </button>
                     <div class="admin-sidebar-section-label">Sistema</div>
                     <button id="admin-tab-btn-devices" class="admin-tab-btn">
                         <i class="fa-solid fa-network-wired"></i>
@@ -1043,6 +1047,46 @@
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5.7: GASTOS DEL LOCAL -->
+                <div id="admin-panel-expenses" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 class="panel-title">Gastos del Local</h3>
+                    </div>
+                    <div class="admin-panel-body">
+                        <form id="add-admin-expense-form" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:flex-end; margin-bottom:1rem;">
+                            <select id="admin-expense-category" required style="flex:1 1 130px;">
+                                <option value="arriendo">Arriendo local</option>
+                                <option value="sueldos">Sueldos</option>
+                                <option value="servicios">Servicios</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                            <input id="admin-expense-desc" type="text" placeholder="Descripción / nombre" required style="flex:2 1 160px;">
+                            <input id="admin-expense-amount" type="number" step="0.01" min="0.01" placeholder="Monto" required style="flex:1 1 90px;">
+                            <div class="segmented" id="admin-expense-currency-toggle" style="flex:0 0 auto;">
+                                <button type="button" id="admin-expense-cur-usd" class="segmented-btn active" data-cur="USD">$</button>
+                                <button type="button" id="admin-expense-cur-ves" class="segmented-btn" data-cur="VES">Bs</button>
+                            </div>
+                            <input id="admin-expense-date" type="date" required style="flex:0 0 auto;">
+                            <button type="submit" class="btn-action-small" style="flex:0 0 auto;">
+                                <i class="fa-solid fa-plus"></i> Agregar
+                            </button>
+                        </form>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                            <input id="admin-expense-filter-month" type="month" style="flex:0 0 auto;">
+                            <div class="segmented" id="admin-expense-filter-category">
+                                <button class="segmented-btn active" data-cat="">Todas</button>
+                                <button class="segmented-btn" data-cat="arriendo">Arriendo</button>
+                                <button class="segmented-btn" data-cat="sueldos">Sueldos</button>
+                                <button class="segmented-btn" data-cat="servicios">Servicios</button>
+                                <button class="segmented-btn" data-cat="otros">Otros</button>
+                            </div>
+                        </div>
+                        <div id="admin-expenses-container">
+                            <div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando gastos...</div>
                         </div>
                     </div>
                 </div>

@@ -636,7 +636,10 @@ async function insertExpense(expense) {
         uuid: expense.uuid,
         description: expense.description,
         amount: expense.amount,
-        timestamp: expense.timestamp
+        timestamp: expense.timestamp,
+        category: expense.category || null,
+        currency: expense.currency || 'USD',
+        bcv_rate: expense.bcv_rate != null ? expense.bcv_rate : null
     };
     try {
         if (!navigator.onLine) {
@@ -1142,6 +1145,39 @@ async function fetchStatsData() {
     }
 }
 
+async function fetchExpensesRange(startISO, endISO) {
+    if (!client) return [];
+    try {
+        return await fetchAllPages(offset => client.from('expenses').select('*')
+            .gte('timestamp', startISO)
+            .lt('timestamp', endISO)
+            .order('timestamp', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
+    } catch (e) {
+        console.error('fetchExpensesRange failed:', e.message);
+        return [];
+    }
+}
+
+async function fetchPnlData(startISO, endISO) {
+    if (!client) return { sales: [], expenses: [] };
+    try {
+        const [sales, expenses] = await Promise.all([
+            fetchAllPages(offset => client.from('sales').select('*')
+                .gte('timestamp', startISO)
+                .lt('timestamp', endISO)
+                .order('timestamp', { ascending: true })
+                .range(offset, offset + POSTGREST_PAGE_SIZE - 1)),
+            fetchExpensesRange(startISO, endISO)
+        ]);
+        const normSales = (sales || []).map(s => ({ ...s, productId: s.product_id }));
+        return { sales: normSales, expenses: expenses || [] };
+    } catch (e) {
+        console.error('fetchPnlData failed:', e.message);
+        return { sales: [], expenses: [] };
+    }
+}
+
 /**
  * Fetch sales and expenses for a specific date range (single day)
  * @param {string} dateStr Date string in YYYY-MM-DD format
@@ -1545,6 +1581,8 @@ window.SupabaseManager = {
     syncOfflineQueue,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,
+    fetchExpensesRange,
+    fetchPnlData,
     fetchDayReport,
     fetchReportDays,
     fetchSalesHistory,

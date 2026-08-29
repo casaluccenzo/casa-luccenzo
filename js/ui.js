@@ -5982,6 +5982,64 @@ function exportSalesAnalyticsToPDF(salesHistory = [], products = [], rangeLabel 
     printWindow.document.close();
 }
 
+/**
+ * PDF del resumen de Ganancias. Misma técnica que exportSalesAnalyticsToPDF:
+ * ventana nueva + document.write + window.print().
+ */
+function exportPnlToPDF(pnl, opts = {}) {
+    if (sessionStorage.getItem('casa_lucenzo_active_role') !== 'admin') return;
+    const { mode = 'week', bcvRate = (window.bcvRate || 1) } = opts;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Permite las ventanas emergentes para generar el PDF.'); return; }
+
+    const usd = v => '$' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const t = pnl.totals;
+    const title = `Resumen ${mode === 'month' ? 'Mensual' : 'Semanal'} — ${pnl.period.label}`;
+
+    const catRows = pnl.categorias.map(c => `
+        <tr><td>${c.label}</td><td style="text-align:right">${c.unidades}</td><td style="text-align:right">${usd(c.ventasUsd)}</td><td style="text-align:right">${usd(c.costoTercerosUsd)}</td><td style="text-align:right">${usd(c.margenUsd)}</td></tr>
+        ${c.productos.map(p => `<tr class="sub"><td style="padding-left:1.5rem">${escapeHtml(p.name)}</td><td style="text-align:right">${p.unidades}</td><td style="text-align:right">${usd(p.ventasUsd)}</td><td></td><td></td></tr>`).join('')}
+    `).join('');
+
+    const gastoRows = pnl.gastos.porCategoria.map(g => `
+        <tr><td>${g.label}</td><td style="text-align:right">${usd(g.montoUsd)}</td></tr>
+        ${g.items.map(i => `<tr class="sub"><td style="padding-left:1.5rem">${i.fecha} · ${escapeHtml(i.description)}${i.currency === 'VES' ? ` (Bs. ${i.montoOriginal.toLocaleString('es-VE')})` : ''}</td><td style="text-align:right">${usd(i.montoUsd)}</td></tr>`).join('')}
+    `).join('');
+
+    const estNote = t.costoTerceros.estimatedDays > 0
+        ? `<p class="note">Incluye ${t.costoTerceros.estimatedDays} día(s) con costo de producción estimado (antes del 22 ago no se registraba el costo real).</p>` : '';
+
+    printWindow.document.write(`
+      <html><head><title>${title} — Casa Lucenzo</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:2rem;color:#1e293b;}
+        h1{font-size:1.3rem;margin:0 0 .25rem;} .meta{color:#64748b;font-size:.8rem;margin-bottom:1.5rem;}
+        table{width:100%;border-collapse:collapse;margin-bottom:1.5rem;font-size:.85rem;}
+        th,td{padding:.4rem .5rem;border-bottom:1px solid #e2e8f0;} th{text-align:left;background:#f1f5f9;}
+        tr.sub td{color:#64748b;font-size:.8rem;border-bottom:1px dotted #e2e8f0;}
+        .cascade td{font-size:.95rem;} .cascade .total td{font-weight:800;border-top:2px solid #334155;}
+        .note{background:#fef3c7;border:1px solid #f59e0b;padding:.5rem .75rem;border-radius:6px;font-size:.8rem;}
+        .neg{color:#dc2626;}
+      </style></head><body>
+      <h1>${title}</h1>
+      <div class="meta">Casa Lucenzo · Generado ${new Date().toLocaleString('es-VE')} · Tasa BCV ${bcvRate.toLocaleString('es-VE')}</div>
+      ${estNote}
+      <table class="cascade">
+        <tr><td>Ventas de mercadería</td><td style="text-align:right">${usd(t.ventasUsd)}</td></tr>
+        <tr><td>− Costo de producción (terceros)${t.costoTerceros.isEstimated ? ' (est.)' : ''}</td><td style="text-align:right">−${usd(t.costoTerceros.usd)}</td></tr>
+        <tr><td>− Gastos del local</td><td style="text-align:right">−${usd(t.gastosUsd)}</td></tr>
+        <tr class="total"><td>= Ganancia neta</td><td style="text-align:right" class="${t.gananciaNetaUsd < 0 ? 'neg' : ''}">${usd(t.gananciaNetaUsd)}</td></tr>
+      </table>
+      <h3>Por categoría</h3>
+      <table><tr><th>Categoría / Producto</th><th style="text-align:right">Unid.</th><th style="text-align:right">Ventas</th><th style="text-align:right">Terceros</th><th style="text-align:right">Margen</th></tr>${catRows}</table>
+      <h3>Gastos</h3>
+      <table><tr><th>Categoría / Detalle</th><th style="text-align:right">Monto</th></tr>${gastoRows}</table>
+      ${pnl.abonos.count > 0 ? `<p class="meta">Abonos cobrados: ${pnl.abonos.count} · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)</p>` : ''}
+      <script>window.onload=function(){setTimeout(function(){window.print();},400);}</script>
+      </body></html>`);
+    printWindow.document.close();
+}
+
 // Expose to window namespace
 /**
  * Opens a quick numeric quantity selector modal for Vitrina
@@ -6428,6 +6486,7 @@ window.UIManager = {
     renderSalesAnalytics,
     exportDayCloseToPDF,
     exportSalesAnalyticsToPDF,
+    exportPnlToPDF,
     renderCostCalculator,
     renderCostFinancialResults,
     renderUsersManagement

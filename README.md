@@ -100,6 +100,26 @@ Variables de entorno configurables en Vercel:
   WhatsApp a `WHATSAPP_ADMIN_PHONE`. Con cualquier otro valor responde 503 y
   no manda nada. Reutiliza el mismo cálculo de patrón semanal/tendencia/
   reseñas que la pestaña "Análisis" y su informe PDF (`js/analytics.js`).
+- `SUPABASE_SERVICE_ROLE_KEY`: clave de rol de servicio de Supabase. La
+  necesitan los endpoints que escriben o leen tablas protegidas por RLS sin
+  una sesión de usuario real: los bots de WhatsApp/Telegram (`update_bcv`,
+  `add_stock`/`set_stock`) y el cron `/api/bcv-rate-sync`. Sin esta variable,
+  esos endpoints no pueden escribir en `app_config`/`products` ni leer
+  `sales`.
+
+### `/api/bcv-rate-sync` (cron diario, tasa BCV)
+
+`js/exchange-rate.js`/`js/app.js` solo refrescan la tasa BCV desde un
+navegador abierto (al cargar la app, cada 6h con la pestaña abierta, al
+volver a la pestaña si está desactualizada, o al cerrar caja). Si un día
+nadie abre el POS antes de que el BCV publique su tasa, el valor queda
+congelado en el de ayer sin ningún aviso. Este cron (30 18 * * * UTC ⇒
+2:30pm hora Venezuela, después de que el BCV suele publicar) llama a los
+mismos dos proveedores que usa el cliente (DolarVZLA, DolarAPI) y escribe
+directo en `app_config.bcv_rate` con la service role key, independientemente
+de si algún dispositivo tiene la app abierta. Respeta una tasa fijada a mano
+(`use_auto_bcv = false`) y deja un registro en `activity_logs` cuando
+efectivamente cambia el valor.
 
 ## Versionado de assets
 

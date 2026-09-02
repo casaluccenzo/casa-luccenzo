@@ -24,6 +24,18 @@ requiere Pro; el free tier permite 2 proyectos. Scripts de aserción SQL
 **Spec:** `docs/superpowers/specs/2026-09-02-offline-first-pos-design.md`
 (secciones 5, 5.1, 5.1a, 8; contexto en 2, 3, 4).
 
+## Estado (2026-09-02)
+
+**Tasks 0-9 + Task 10 (lado dev): HECHAS.** Migraciones 025-032 aplicadas al
+proyecto dev `casa-lucenzo-dev` (`hvwpbhnnfggfdpztdmwo`), suite de aserciones
+`SUITE OK`, diff sombra-vs-real = 0, cero triggers nuevos en products/sales/debts.
+Ver `planA-shadow-report.md`. Commits en la rama `feature/offline-first`.
+
+**PENDIENTE — Task 10 Step 2:** aplicar 025-032 a producción
+(`xttpaqokeyywjaajvjyu`) y correr el diff real. **Requiere OK del usuario** — no
+se ejecuta autónomamente porque toca la base del POS en vivo (aunque sea
+aditivo/dormido).
+
 ## Global Constraints
 
 - Migraciones numeradas siguiendo la serie actual: la última es

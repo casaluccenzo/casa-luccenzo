@@ -102,3 +102,29 @@ END $$;
 DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
 DELETE FROM public.day_closes WHERE id = 't-close-A';
 DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');
+
+-- ── Task 7: v_stock_alerts ─────────────────────────────────────────────
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
+VALUES ('t-neg-1','Test Neg',0,1,10,1,'pastelitos',0,0);
+INSERT INTO public.stock_movements (id,product_id,delta,type) VALUES
+  ('n1','t-neg-1', 2,'load'),
+  ('n2','t-neg-1', -5,'sale');
+DO $$
+DECLARE f int;
+BEGIN
+  SELECT faltante INTO f FROM public.v_stock_alerts WHERE product_id='t-neg-1';
+  ASSERT f = 3, 'planA 7.2: v_stock_alerts faltante esperado 3, dio ' || COALESCE(f::text,'NULL');
+END $$;
+DELETE FROM public.stock_movements WHERE product_id='t-neg-1';
+DELETE FROM public.products WHERE id='t-neg-1';
+
+-- ── Task 8: backfill — sombra == real para TODOS los productos ─────────
+-- (corre DESPUES de aplicar la migracion 032; asume day_closes vacia)
+DO $$
+DECLARE bad int;
+BEGIN
+  SELECT count(*) INTO bad FROM public.products
+   WHERE stock_computed IS DISTINCT FROM stock
+      OR initial_stock_computed IS DISTINCT FROM initial_stock;
+  ASSERT bad = 0, 'planA 8.3: ' || bad || ' productos con sombra != real tras el backfill';
+END $$;

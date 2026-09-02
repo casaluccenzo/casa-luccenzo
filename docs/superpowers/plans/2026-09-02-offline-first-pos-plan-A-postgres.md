@@ -16,8 +16,10 @@ vivos. El frontend que empieza a *escribir* movimientos y a *leer* las columnas
 sombra es Plan B.
 
 **Tech Stack:** Supabase Postgres 17, migraciones `.sql` aplicadas vía el MCP
-de Supabase (`apply_migration`), rama de desarrollo de Supabase para aislar,
-scripts de aserción SQL (`DO $$ ... RAISE EXCEPTION $$`) vía `execute_sql`.
+de Supabase (`apply_migration`), **un 2º proyecto Supabase gratis**
+(`casa-lucenzo-dev`) para aislar — la org está en plan free y el branching
+requiere Pro; el free tier permite 2 proyectos. Scripts de aserción SQL
+(`DO $$ ... RAISE EXCEPTION $$`) vía `execute_sql`.
 
 **Spec:** `docs/superpowers/specs/2026-09-02-offline-first-pos-design.md`
 (secciones 5, 5.1, 5.1a, 8; contexto en 2, 3, 4).
@@ -27,7 +29,8 @@ scripts de aserción SQL (`DO $$ ... RAISE EXCEPTION $$`) vía `execute_sql`.
 - Migraciones numeradas siguiendo la serie actual: la última es
   `024_pin_functions_search_path` (`schema_migrations` version `20260902014500`).
   Las nuevas van `025`, `026`, … con nombre `NNN_<snake_case>` y version
-  timestamp `AAAAMMDDHHMMSS`.
+  timestamp `AAAAMMDDHHMMSS`. Se aplican PRIMERO al proyecto dev; a producción
+  (`xttpaqokeyywjaajvjyu`) recién cuando Plan A pasa el gate de la Task 10.
 - Toda tabla nueva: `ENABLE ROW LEVEL SECURITY` + políticas explícitas antes de
   cualquier `GRANT`. Patrón de las tablas existentes: lectura por rol
   (`authenticated`), escritura para `venta`/`cocina`/`admin` según corresponda.
@@ -37,8 +40,8 @@ scripts de aserción SQL (`DO $$ ... RAISE EXCEPTION $$`) vía `execute_sql`.
   `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` salvo que deba ser RPC.
 - `location_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'`
   en toda tabla nueva (multi-tenant, hoy una sola location).
-- Nada de esto se aplica a la rama `main` de Supabase (producción) hasta que
-  Plan A entero pase sus aserciones en la rama de desarrollo. La app en
+- Nada de esto se aplica al proyecto de producción (`xttpaqokeyywjaajvjyu`)
+  hasta que Plan A entero pase sus aserciones en el proyecto dev. La app en
   `casalucenzo.com` NO debe cambiar de comportamiento al terminar Plan A.
 - PKs de tablas append-only: `uuid` (texto o `uuid`), generado por el cliente,
   igual que `sales.uuid` / `debts.uuid` hoy (son `text`).
@@ -57,7 +60,7 @@ scripts de aserción SQL (`DO $$ ... RAISE EXCEPTION $$`) vía `execute_sql`.
 | `supabase/migrations/030_stock_recompute.sql` | Función `recompute_product_stock(text)` + triggers en `stock_movements` y `day_closes` |
 | `supabase/migrations/031_stock_alerts_view.sql` | Vista `v_stock_alerts` |
 | `supabase/migrations/032_backfill_stock_movements.sql` | Un `stock_movements` inicial por producto que reproduce el estado actual |
-| `supabase/tests/planA_assertions.sql` | Script de aserciones (no es migración; se corre a mano en la rama) |
+| `supabase/tests/planA_assertions.sql` | Script de aserciones (no es migración; se corre a mano en el proyecto dev) |
 
 Cada migración envuelta en `BEGIN; … COMMIT;` como las existentes (ver
 `017_bcv_rate_history.sql`). Cada una con un ROLLBACK companion solo si revertir
@@ -65,39 +68,72 @@ no es trivial (patrón de `010_close_public_rls_ROLLBACK.sql`).
 
 ---
 
-## Task 0: Ramas de trabajo aisladas
+## Task 0: Entorno de trabajo aislado
 
 **Files:** ninguno (setup).
 
 **Interfaces:**
-- Produces: una rama git `feature/offline-first` y una rama de desarrollo de
-  Supabase donde se aplican las migraciones 025-032 sin tocar producción.
+- Produces: una rama git `feature/offline-first` y un 2º proyecto Supabase
+  gratis (`casa-lucenzo-dev`) con las 24 migraciones de producción ya aplicadas,
+  donde corren las migraciones 025-032 sin tocar producción.
 
 - [ ] **Step 1: Crear la rama git**
 
 ```bash
 git checkout main && git pull origin main
 git checkout -b feature/offline-first
+mkdir -p supabase/tests
+git commit --allow-empty -m "chore: start offline-first Phase 1 (Plan A)"
 ```
 
-- [ ] **Step 2: Crear la rama de desarrollo de Supabase**
+- [ ] **Step 2: El usuario crea el 2º proyecto**
 
-Usar el MCP: `mcp__supabase__create_branch` con `name: "offline-first"` y
-confirmar el costo cuando lo pida (`mcp__supabase__confirm_cost`). Guardar el
-`project_id` de la rama que devuelve — TODAS las migraciones y aserciones de
-Plan A se aplican contra ESE `project_id`, no contra `xttpaqokeyywjaajvjyu`
-(producción).
+El usuario crea desde el dashboard un proyecto gratis `casa-lucenzo-dev`, misma
+región (`us-west-2`), y pasa el `project_id`. (No lo crea el agente salvo que el
+usuario lo pida explícitamente.) Anotar el `DEV_PROJECT_ID` — TODAS las
+migraciones y aserciones de Plan A van contra ese id, nunca contra
+`xttpaqokeyywjaajvjyu` (producción).
 
-- [ ] **Step 3: Verificar que la rama arrancó con el esquema de producción**
+- [ ] **Step 3: Clonar el esquema de producción al proyecto dev**
 
-Run (MCP `list_migrations` contra el project_id de la rama):
-Expected: la lista termina en `20260902014500 024_pin_functions_search_path`.
+El proyecto dev arranca vacío. Aplicar las 24 migraciones existentes en orden
+(`001` … `024_pin_functions_search_path`) vía MCP `apply_migration` contra
+`DEV_PROJECT_ID`, leyendo cada archivo de `supabase/migrations/`. Verificar con
+`list_migrations` que la lista final coincide con la de producción.
 
-- [ ] **Step 4: Commit del scaffold**
+Nota: las migraciones `021`/`022` habilitan `http` + `pg_cron` y programan el
+cron de la tasa BCV — en dev se aplican igual (son idempotentes) pero el cron
+puede quedar activo escribiendo `app_config` cada hora. Tras aplicarlas, correr
+en dev: `SELECT cron.unschedule('sync-bcv-rate');` para que no ensucie los
+tests de stock con writes de fondo.
+
+- [ ] **Step 4: Sembrar datos de ejemplo para el backfill**
+
+El proyecto dev no tiene los datos de prod. Insertar ~6 productos
+representativos (mix de `pastelitos` y `bebidas`/`dulces`, con `stock` e
+`initial_stock` distintos, alguno con `stock < initial_stock`) y ~3 deudas.
+Guardar el script en `supabase/tests/planA_seed.sql`.
+
+```sql
+-- planA_seed.sql — datos de ejemplo SOLO para el proyecto dev
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost) VALUES
+  ('seed-past-a','Pastelito Queso',   14, 3, 30, 1.50, 'pastelitos', 20, 0.55),
+  ('seed-past-b','Pastelito Carne',    0, 3, 30, 1.75, 'pastelitos', 18, 0.70),
+  ('seed-past-c','Pastelito Pizza',    9, 3, 30, 1.60, 'pastelitos', 12, 0.60),
+  ('seed-beb-a', 'Malta 355ml',       28, 6, 60, 1.20, 'bebidas',    40, 0.80),
+  ('seed-beb-b', 'Agua 600ml',        11, 6, 60, 0.90, 'bebidas',    11, 0.45),
+  ('seed-dul-a', 'Chocolate barra',    5, 2, 24, 2.00, 'dulces',      7, 1.10);
+INSERT INTO public.debts (uuid, client_name, amount) VALUES
+  ('seed-debt-a','Panadería El Sol', 120.00),
+  ('seed-debt-b','Kiosco Maria',      45.50),
+  ('seed-debt-c','Cliente Frecuente', 8.00);
+```
+
+- [ ] **Step 5: Commit del scaffold**
 
 ```bash
-mkdir -p supabase/tests
-git add -A && git commit -m "chore: branch for offline-first Phase 1 (Plan A)"
+git add supabase/tests/planA_seed.sql
+git commit -m "chore: Plan A dev-project seed data"
 ```
 
 ---
@@ -126,7 +162,7 @@ DO $$ BEGIN
 END $$;
 ```
 
-Correr ese bloque solo vía `execute_sql` contra la rama. Expected: pasa (no
+Correr ese bloque solo vía `execute_sql` contra el proyecto dev. Expected: pasa (no
 lanza) porque la tabla aún no existe.
 
 - [ ] **Step 2: Escribir la migración 025**
@@ -170,9 +206,9 @@ CREATE POLICY "Venta y cocina y admin insertan movimientos" ON public.stock_move
 COMMIT;
 ```
 
-- [ ] **Step 3: Aplicar la migración a la rama**
+- [ ] **Step 3: Aplicar la migración al proyecto dev**
 
-MCP `apply_migration` contra el `project_id` de la rama, `name: "025_stock_movements"`.
+MCP `apply_migration` contra `DEV_PROJECT_ID`, `name: "025_stock_movements"`.
 Expected: `{"success": true}`.
 
 - [ ] **Step 4: Aserciones de estructura**
@@ -262,7 +298,7 @@ REVOKE EXECUTE ON FUNCTION public.last_close_at() FROM PUBLIC, anon;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar a la rama**
+- [ ] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "026_day_closes"`. Expected: `{"success": true}`.
 
@@ -285,7 +321,7 @@ END $$;
 DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');
 ```
 
-Expected: no lanza. (El `DELETE` de limpieza es válido acá porque es la rama de
+Expected: no lanza. (El `DELETE` de limpieza es válido acá porque es el proyecto dev de
 test y estas filas son sintéticas; en producción `day_closes` es append-only.)
 
 - [ ] **Step 4: Commit**
@@ -344,7 +380,7 @@ CREATE POLICY "Venta y admin registran abonos" ON public.debt_payments
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar a la rama**
+- [ ] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "027_debt_payments"`. Expected: `{"success": true}`.
 
@@ -401,7 +437,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_active
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar a la rama**
+- [ ] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "028_sales_void_columns"`. Expected: `{"success": true}`.
 
@@ -579,7 +615,7 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.tg_day_close_recompute();
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar a la rama**
+- [ ] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "030_stock_recompute"`. Expected: `{"success": true}`.
 
@@ -793,7 +829,7 @@ WHERE p.stock < p.initial_stock;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar a la rama**
+- [ ] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "032_backfill_stock_movements"`. Expected: `{"success": true}`.
 
@@ -831,8 +867,8 @@ git commit -m "feat(db): backfill stock_movements to match current products stat
 - Modify: `supabase/tests/planA_assertions.sql` (encabezado + orden)
 
 **Interfaces:**
-- Produces: un `planA_assertions.sql` que corre de principio a fin sobre una
-  rama recién migrada sin lanzar ninguna excepción, y deja la DB sin filas de
+- Produces: un `planA_assertions.sql` que corre de principio a fin sobre un
+  proyecto dev recién migrado sin lanzar ninguna excepción, y deja la DB sin filas de
   prueba (`t-*`, `m*`, `b*`, `n*`).
 
 - [ ] **Step 1: Ordenar el archivo**
@@ -850,9 +886,9 @@ limpieza (6.6) → alerta (7.2) → backfill sombra==real (8.3). Encabezar con:
 
 - [ ] **Step 2: Correr la suite entera**
 
-Pegar el archivo completo en `execute_sql` contra el `project_id` de la rama.
+Pegar el archivo completo en `execute_sql` contra `DEV_PROJECT_ID`.
 Expected: sin error. Si alguna aserción lanza, arreglar la migración
-correspondiente, re-aplicar (crear una rama nueva o `reset_branch`), re-correr.
+correspondiente, re-aplicar (recrear el proyecto dev o borrar a mano las tablas 025-032), re-correr.
 
 - [ ] **Step 3: Verificar que no quedó basura de test**
 
@@ -881,12 +917,17 @@ git commit -m "test(db): Plan A assertion suite passes clean on a fresh branch"
 **Files:** ninguno (verificación).
 
 **Interfaces:**
-- Consumes: la rama con las 8 migraciones aplicadas y el backfill corrido sobre
-  una copia de los datos de producción (la rama de Supabase parte de un dump de
-  prod).
+- Consumes: (a) el proyecto dev con las 8 migraciones + backfill sobre los datos
+  de ejemplo (gate en dev), y (b) producción `xttpaqokeyywjaajvjyu` DESPUÉS de
+  aplicarle 025-032 (gate real sobre los datos vivos).
 - Produces: evidencia de que `stock_computed == stock` e
   `initial_stock_computed == initial_stock` para los ~29 productos reales, y de
   que ninguna migración cambió una tabla que la app de producción escribe.
+
+Nota: el gate tiene dos corridas. Primero en dev con datos de ejemplo (barato,
+iterás). Cuando pasa, se aplican 025-032 a producción (son aditivas/dormidas,
+la app no cambia) y se corre el mismo diff sombra-vs-real contra los 29
+productos reales. Ese segundo diff en 0 es el OK definitivo.
 
 - [ ] **Step 1: Diff sombra vs real en los productos reales**
 
@@ -922,7 +963,7 @@ Expected: la MISMA lista que en producción antes de Plan A (comparar contra
 - [ ] **Step 3: Escribir el reporte de gate**
 
 Crear `docs/superpowers/plans/planA-shadow-report.md` con: fecha, project_id de
-la rama, el resultado del step 1 (0 filas), el diff de triggers (sin cambios), y
+el DEV_PROJECT_ID, el resultado del step 1 (0 filas), el diff de triggers (sin cambios), y
 la lista de migraciones aplicadas. Este archivo es el "OK para mergear Plan A a
 producción" — pero el merge real y el arranque de PowerSync son Plan B.
 

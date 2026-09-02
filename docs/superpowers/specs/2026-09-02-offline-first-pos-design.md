@@ -107,28 +107,116 @@ sumando. Cuatro cambios:
 
 ### 5.1 Stock → `stock_movements` (append-only)
 
-- Tabla nueva: `stock_movements (id uuid pk, product_id, delta int, type, source_uuid, created_at, device_id)`.
-  `type ∈ {sale, replenishment, adjustment, void}`.
-- Cada línea de venta inserta `delta = -cantidad, type = 'sale', source_uuid = <sale uuid>`.
-- Cada carga de cocina: `delta = +N, type = 'replenishment'`.
-- Ajuste manual: `delta = ±N, type = 'adjustment'`.
-- `products.stock` deja de escribirse desde el dispositivo. Pasa a ser **cache
-  calculado por Postgres** (trigger sobre `stock_movements`):
-  - Productos categoría `pastelitos`: `stock = Σ delta WHERE created_at > último day_close`,
-    donde "último day_close" = `MAX(day_closes.closed_at)` (ver 5.4).
-  - Productos empaquetados (`bebidas`, `dulces`): `stock = Σ delta` (todo el historial).
-- **`day_closes` es un marcador de frontera, no genera un movimiento
-  compensatorio.** Una venta que sincroniza tarde (de antes del cierre) cuenta
-  para el reporte de ese día cerrado pero no afecta el stock de hoy, porque su
-  `created_at` cae antes de la frontera.
-- El stock puede dar negativo → el trigger/edge deja una fila en una vista de
-  alertas para el admin ("se vendió N de más de X").
+Ver **§5.1a** para el mapeo completo del modelo físico actual (dos contadores
+`stock` + `initial_stock`, "vendidos = initial − stock", carga vs corrección,
+Conciliación). Resumen:
+
+- Tabla nueva `stock_movements` — cada hecho físico es una fila con `delta`
+  firmado y un `type`.
+- `products.stock`, `products.initial_stock` y `products.max` dejan de
+  escribirse desde el dispositivo: pasan a ser **cache calculado por Postgres**
+  (trigger sobre `stock_movements` + `day_closes`).
+- El stock puede dar negativo → una vista de alertas lo muestra al admin.
+
+### 5.1a Mapeo detallado del stock
+
+**Estado actual (código):** cada producto tiene dos enteros —
+`stock` (piezas en la vitrina ahora) e `initial_stock` (base del día: todo lo
+cargado desde el último cierre). Cada "vendidos reales" del reporte es
+`initial_stock − stock`. La app además distingue:
+- **Vendido POS** = cantidad de filas en `sales` (lo que se cobró).
+- **Diferencia física** = `initial_stock − stock`.
+- **Conciliación** = diferencia física − vendido POS (mermas, mal conteo,
+  regalado — lo que salió de la vitrina sin pasar por caja).
+
+Caminos que hoy tocan los contadores:
+| Acción | `stock` | `initial_stock` |
+|--------|---------|-----------------|
+| Agregar 1 al carrito (`adjustStock(-1)`) | −1 | — |
+| Sacar 1 del carrito (`adjustStock(+1)`) | +1 | — |
+| Carga de cocina / `applyStockLoad` | +N | +N |
+| Recuento hacia arriba (modal / bot) | +Δ | +Δ (es una carga) |
+| Recuento hacia abajo (`applyStockCount`) | = target | — (queda, aparece en Conciliación) |
+| Cierre — pastelitos | → 0 | → 0 |
+| Cierre — bebidas/dulces | sin cambio | = `stock` (base arranca en 0 mañana) |
+
+**Modelo nuevo — `stock_movements`:**
+
+```
+id            uuid PK
+product_id    text  NOT NULL  REFERENCES products(id)
+delta         integer NOT NULL         -- firmado: -1 venta, +N carga, etc.
+type          text NOT NULL CHECK (type IN
+                ('load','sale','sale_return','count_down','open_carry'))
+source_uuid   text                     -- sales.uuid o replenishments.uuid que lo originó
+device_id     text
+created_at    timestamptz NOT NULL DEFAULT now()
+location_id   uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'
+note          text
+```
+
+- `load` — entra a la vitrina (carga de cocina, recuento hacia arriba). `delta > 0`. **Sube la base.**
+- `sale` — una unidad cobrada. `delta = -1`. `source_uuid` = `sales.uuid`. No sube la base.
+- `sale_return` — se sacó del carrito o se anuló una venta. `delta = +1`. No sube la base.
+- `count_down` — recuento físico hacia abajo. `delta < 0`. No sube la base (alimenta Conciliación).
+- `open_carry` — al cerrar la jornada, para bebidas/dulces: fija la base de mañana en el stock actual. `delta = 0`, informativo (marca la frontera para esa categoría).
+
+**`day_closes` sigue siendo la frontera** (§5.4). Para pastelitos el cierre NO
+inserta movimiento: su stock se calcula solo desde el último cierre, así que al
+aparecer la fila de `day_closes` vuelven a 0 automáticamente.
+
+**Cómo Postgres recalcula (trigger sobre `stock_movements` + al insertar en `day_closes`):**
+
+Sea `T0 = MAX(day_closes.closed_at)` (o `-infinity` si no hay cierres).
+
+```
+-- piezas en vitrina AHORA
+products.stock =
+  CASE WHEN category = 'pastelitos'
+       THEN COALESCE(Σ delta WHERE created_at > T0, 0)
+       ELSE COALESCE(Σ delta,            -- todo el historial
+                     0)
+  END
+
+-- base del día
+products.initial_stock =
+  CASE WHEN category = 'pastelitos'
+       THEN COALESCE(Σ delta WHERE created_at > T0 AND type = 'load', 0)
+       ELSE (stock as of T0)             -- lo que había al cerrar ayer
+            + COALESCE(Σ delta WHERE created_at > T0 AND type = 'load', 0)
+  END
+
+-- 'vendido POS' y 'diferencia física' salen de acá:
+--   vendido_pos      = COUNT(sales WHERE timestamp > T0 AND voided_at IS NULL)  (= |Σ sale movements|)
+--   diferencia_fisica = initial_stock - stock
+--   conciliacion      = diferencia_fisica - vendido_pos
+```
+
+`products.max` (capacidad de vitrina) = `GREATEST(base del día, max configurado)`,
+recomputado por el mismo trigger. No es punto de conflicto (last-write-wins
+aceptable), pero se calcula para no dejar dos fuentes de verdad.
+
+**Backfill (una vez, en la migración):** por cada producto, insertar un
+`stock_movements` inicial:
+- tipo `load`, `delta = initial_stock` actual, `created_at = ahora`
+- si `stock < initial_stock` actual: además un `count_down` con
+  `delta = stock − initial_stock` (negativo) para reproducir la diferencia física de hoy.
+
+Así el cálculo nuevo arranca dando exactamente los mismos `stock` /
+`initial_stock` que hay hoy en `products`.
+
+**Negativo:** si `stock < 0`, la vista `v_stock_alerts` lista el producto y el
+faltante para el admin. No bloquea nada.
 
 ### 5.2 Anular venta → `voided_at` (no `DELETE`)
 
 - Columna nueva `sales.voided_at timestamptz` + `sales.void_reason text`.
 - "Deshacer" = `UPDATE sales SET voided_at = now(), void_reason = ...` + un
-  `stock_movements` de tipo `void` con `delta = +cantidad`.
+  `stock_movements` de tipo `sale_return` con `delta = +1` por cada unidad
+  (`source_uuid` = la `sales.uuid` anulada).
+- **Editar una cuenta** (flujo actual "Modificar" en Clientes): en vez de
+  `deleteSalesByTimestamp` + re-insert, se anula (`voided_at`) cada fila de esa
+  cuenta con su `sale_return`, y se inserta el set corregido como cuenta nueva.
 - Los reportes y el cálculo de caja ignoran filas con `voided_at IS NOT NULL`.
 - **Nunca se hace `DELETE` de una fila ya sincronizada.** Se retiran del código
   `deleteSale`, `deleteSales`, `deleteSalesByTimestamp` (o quedan solo para

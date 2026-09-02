@@ -4,6 +4,7 @@ const browserGlobals = {
     window: 'readonly',
     document: 'readonly',
     navigator: 'readonly',
+    caches: 'readonly',
     localStorage: 'readonly',
     sessionStorage: 'readonly',
     fetch: 'readonly',
@@ -62,7 +63,10 @@ module.exports = [
             // The shared globals above are declared by files inside this same glob,
             // so their definition sites must not be reported as redeclarations.
             'no-redeclare': ['error', { builtinGlobals: false }],
-            'no-undef': 'warn'
+            'no-undef': 'warn',
+            // Same house style as caughtErrors:'none' above -- `catch (e) {}` is
+            // a deliberate swallow, not an oversight.
+            'no-empty': ['error', { allowEmptyCatch: true }]
         }
     },
     {
@@ -102,6 +106,14 @@ module.exports = [
         }
     },
     {
-        ignores: ['www/', 'node_modules/', 'whatsapp-session/', 'supabase/.temp/']
+        ignores: [
+            'www/', 'node_modules/', 'whatsapp-session/', 'supabase/.temp/',
+            // Every dot-directory is local tooling (editor, AI skills/agents,
+            // deploy, worktrees) -- all git-ignored, none of it application
+            // code. Without this, `eslint .` scans their .mjs helpers and
+            // drowns real findings under thousands of no-undef errors.
+            '.agents/', '.claude/', '.codex/', '.gemini/', '.github/',
+            '.gstack/', '.idea/', '.impeccable/', '.vercel/', '.worktrees/'
+        ]
     }
 ];

@@ -94,18 +94,17 @@ usuario lo pida explícitamente.) Anotar el `DEV_PROJECT_ID` — TODAS las
 migraciones y aserciones de Plan A van contra ese id, nunca contra
 `xttpaqokeyywjaajvjyu` (producción).
 
-- [ ] **Step 3: Clonar el esquema de producción al proyecto dev**
+- [ ] **Step 3: Bootstrap del esquema mínimo en el proyecto dev**
 
-El proyecto dev arranca vacío. Aplicar las 24 migraciones existentes en orden
-(`001` … `024_pin_functions_search_path`) vía MCP `apply_migration` contra
-`DEV_PROJECT_ID`, leyendo cada archivo de `supabase/migrations/`. Verificar con
-`list_migrations` que la lista final coincide con la de producción.
+Los archivos `supabase/migrations/*.sql` NO reflejan fielmente lo aplicado en
+prod (falta el archivo de `multi_tenant_locations`; varias 010-015 no están
+trackeadas). En vez de replayarlas, aplicar `supabase/tests/planA_devbootstrap.sql`
+vía `execute_sql` contra `DEV_PROJECT_ID`. Crea el subconjunto mínimo que Plan A
+necesita, con columnas exactas de la prod viva: `locations`, `profiles`,
+`products`, `sales`, `debts` + funciones `get_user_role(uuid)`,
+`get_user_location(uuid)`. Verificar: `get_user_role(null)` devuelve `'anon'`.
 
-Nota: las migraciones `021`/`022` habilitan `http` + `pg_cron` y programan el
-cron de la tasa BCV — en dev se aplican igual (son idempotentes) pero el cron
-puede quedar activo escribiendo `app_config` cada hora. Tras aplicarlas, correr
-en dev: `SELECT cron.unschedule('sync-bcv-rate');` para que no ensucie los
-tests de stock con writes de fondo.
+DEV_PROJECT_ID = `hvwpbhnnfggfdpztdmwo` (creado 2026-09-02, región us-east-2).
 
 - [ ] **Step 4: Sembrar datos de ejemplo para el backfill**
 

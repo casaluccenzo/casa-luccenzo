@@ -1082,12 +1082,24 @@ async function fetchAppConfig() {
 
 async function upsertAppConfig(config) {
     if (!client) return;
+    // Partial upsert: only touch the columns the caller actually passed.
+    // This used to unconditionally write bcv_rate + use_auto_bcv, so a call
+    // that only meant to set last_close_time (the day close) clobbered the
+    // exchange rate with the 732.48 fallback and turned auto-BCV off. From
+    // 2026-09 the rate is kept current server-side (migration 021 cron), so
+    // the browser has no business overwriting it unless the admin explicitly
+    // edited it.
     const payload = {
         id: 1,
-        bcv_rate: parseFloat(config.bcvRate) || 732.48,
-        use_auto_bcv: !!config.useAutoBcv,
         updated_at: new Date().toISOString()
     };
+
+    if (config.bcvRate !== undefined) {
+        payload.bcv_rate = parseFloat(config.bcvRate) || 732.48;
+    }
+    if (config.useAutoBcv !== undefined) {
+        payload.use_auto_bcv = !!config.useAutoBcv;
+    }
 
     if (config.pinLocal !== undefined) payload.pin_local = config.pinLocal;
     if (config.pinCocina !== undefined) payload.pin_cocina = config.pinCocina;

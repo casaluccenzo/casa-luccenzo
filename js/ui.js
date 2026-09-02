@@ -3835,9 +3835,12 @@ function showPosReceiptModal({
     const totalUSD = cart.reduce((sum, item) => sum + getItemTotalUSD(item), 0);
     const totalVES = totalUSD * rate;
 
-    // SENIAT 16% IVA breakdown (Inclusive Tax Model)
-    const biVES = totalVES / 1.16;
-    const iva16VES = totalVES - biVES;
+    // Optional 16% IVA surcharge for clients that request a factura.
+    // Normal sales stay at totalVES/totalUSD; checking the toggle below
+    // adds 16% on top to reach the invoiced total (SENIAT).
+    const iva16VES = totalVES * 0.16;
+    const totalConIvaVES = totalVES + iva16VES;
+    const totalConIvaUSD = totalUSD * 1.16;
 
     let timeStr = 'Ahora';
     let dateStr = new Date().toLocaleDateString('es-VE');
@@ -3876,12 +3879,12 @@ function showPosReceiptModal({
             </button>
         </div>
 
-        <!-- Optional Tax Breakdown Toggle Bar -->
+        <!-- Optional Factura IVA Toggle Bar -->
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 0.4rem 0.6rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.75rem;">
-            <span style="color: var(--color-text-muted); font-weight: 600;">Desglose IVA (16%):</span>
+            <span style="color: var(--color-text-muted); font-weight: 600;">¿Cliente pidió factura?</span>
             <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
                 <input type="checkbox" id="toggle-pos-iva" style="cursor: pointer;">
-                <span style="font-weight: 700; color: var(--color-gold);">Mostrar IVA</span>
+                <span style="font-weight: 700; color: var(--color-gold);">Facturar con IVA (+16%)</span>
             </label>
         </div>
 
@@ -3970,25 +3973,25 @@ function showPosReceiptModal({
             <div style="font-size: 0.75rem;">
                 <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.15rem;">
                     <span>SUBTOTAL:</span>
-                    <span>${formatVES(totalVES)}</span>
+                    <span id="pos-subtotal-value">${formatVES(totalVES)}</span>
                 </div>
                 <div id="pos-iva-rows" style="display: none;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
-                        <span>BI G16,00%:</span>
-                        <span>${formatVES(biVES)}</span>
+                        <span>BASE IMPONIBLE:</span>
+                        <span>${formatVES(totalVES)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
-                        <span>IVA G16,00% (16%):</span>
+                        <span>IVA (16%):</span>
                         <span>${formatVES(iva16VES)}</span>
                     </div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
                     <span>TOTAL VES:</span>
-                    <span>${formatVES(totalVES)}</span>
+                    <span id="pos-total-ves-value">${formatVES(totalVES)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.88rem; margin-bottom: 0.2rem;">
                     <span>TOTAL USD:</span>
-                    <span>$${totalUSD.toFixed(2)}</span>
+                    <span id="pos-total-usd-value">$${totalUSD.toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #444; margin-bottom: 0.3rem;">
                     <span>Tasa BCV:</span>
@@ -3997,7 +4000,7 @@ function showPosReceiptModal({
                 ${isAlreadyPaid ? `
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: bold; color: #000; border-top: 1px dashed #000; padding-top: 0.2rem; margin-top: 0.2rem;">
                         <span>PAGO (${payMethod || 'Efectivo'}):</span>
-                        <span>${formatVES(totalVES)}</span>
+                        <span id="pos-pago-value">${formatVES(totalVES)}</span>
                     </div>
                 ` : ''}
             </div>
@@ -4034,9 +4037,18 @@ function showPosReceiptModal({
 
     const ivaCheckbox = modalBody.querySelector('#toggle-pos-iva');
     const ivaRows = modalBody.querySelector('#pos-iva-rows');
-    if (ivaCheckbox && ivaRows) {
+    const totalVesEl = modalBody.querySelector('#pos-total-ves-value');
+    const totalUsdEl = modalBody.querySelector('#pos-total-usd-value');
+    const pagoEl = modalBody.querySelector('#pos-pago-value');
+    if (ivaCheckbox) {
         ivaCheckbox.addEventListener('change', (e) => {
-            ivaRows.style.display = e.target.checked ? 'block' : 'none';
+            const withIva = e.target.checked;
+            if (ivaRows) ivaRows.style.display = withIva ? 'block' : 'none';
+            const shownVES = withIva ? totalConIvaVES : totalVES;
+            const shownUSD = withIva ? totalConIvaUSD : totalUSD;
+            if (totalVesEl) totalVesEl.textContent = formatVES(shownVES);
+            if (totalUsdEl) totalUsdEl.textContent = '$' + shownUSD.toFixed(2);
+            if (pagoEl) pagoEl.textContent = formatVES(shownVES);
         });
     }
 

@@ -46,3 +46,6 @@ skills-lock.json
 .github/hooks/
 .github/skills/
 .impeccable/
+
+# Visual brainstorming companion (superpowers)
+.superpowers/

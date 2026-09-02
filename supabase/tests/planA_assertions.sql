@@ -50,3 +50,55 @@ DO $$ BEGIN
             AND column_name IN ('voided_at','void_reason')) = 2,
          'planA: faltan columnas de anulacion en sales';
 END $$;
+
+-- ── Task 5: columnas sombra en products ─────────────────────────────────
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='products'
+            AND column_name LIKE '%_computed') = 3,
+         'planA: faltan columnas sombra en products';
+END $$;
+
+-- ── Task 6: recompute_product_stock + triggers ─────────────────────────
+-- Fase 1: pastelito sin cierre (last_close_at = -infinity)
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
+VALUES ('t-past-1','Test Pastelito',0,2,20,1.5,'pastelitos',0,0.5);
+INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
+  ('m1','t-past-1', 12,'load',       '2026-09-02T10:00:00Z'),
+  ('m2','t-past-1', -1,'sale',       '2026-09-02T10:10:00Z'),
+  ('m3','t-past-1', -1,'sale',       '2026-09-02T10:20:00Z'),
+  ('m4','t-past-1', -2,'count_down', '2026-09-02T10:30:00Z');
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s,i FROM public.products WHERE id='t-past-1';
+  ASSERT s = 8,  'planA 6.3: pastelito stock esperado 8, dio '  || s;
+  ASSERT i = 12, 'planA 6.3: pastelito initial esperado 12, dio '|| i;
+END $$;
+-- Fase 2: el cierre resetea el pastelito
+INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-A', '2026-09-02T20:00:00Z');
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s,i FROM public.products WHERE id='t-past-1';
+  ASSERT s = 0, 'planA 6.4: tras el cierre el pastelito debe dar stock 0, dio ' || s;
+  ASSERT i = 0, 'planA 6.4: tras el cierre initial del pastelito debe dar 0, dio ' || i;
+END $$;
+-- Fase 3: bebida (empaquetado) que cruza el cierre (20:00)
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
+VALUES ('t-beb-1','Test Bebida',0,1,50,2.0,'bebidas',0,1.0);
+INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
+  ('b1','t-beb-1', 24,'load','2026-09-02T18:00:00Z'),
+  ('b2','t-beb-1', -4,'sale','2026-09-02T19:00:00Z'),
+  ('b3','t-beb-1', 12,'load','2026-09-02T21:00:00Z'),
+  ('b4','t-beb-1', -3,'sale','2026-09-02T21:30:00Z');
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s,i FROM public.products WHERE id='t-beb-1';
+  ASSERT s = 29, 'planA 6.5: bebida stock esperado 29, dio ' || s;
+  ASSERT i = 32, 'planA 6.5: bebida initial esperado 32, dio ' || i;
+END $$;
+DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
+DELETE FROM public.day_closes WHERE id = 't-close-A';
+DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');

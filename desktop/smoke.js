@@ -16,7 +16,9 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(filePath).toString());
   });
 
-  const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const { ipcMain } = require('electron');
+  const V = require('./package.json').version; ipcMain.on('app:getVersion', (e) => { e.returnValue = V; });
+  const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') } });
   const failures = [];
   win.webContents.on('did-fail-load', (_e, code, desc, url) => failures.push(`did-fail-load ${code} ${desc} ${url}`));
   win.webContents.on('console-message', (_e, level, message, line, src) => {
@@ -29,9 +31,15 @@ app.whenReady().then(async () => {
     const title = await win.webContents.executeJavaScript('document.title');
     const hasApp = await win.webContents.executeJavaScript('!!(window.SupabaseManager || window.UIManager || window.StorageManager)');
     const scriptsLoaded = await win.webContents.executeJavaScript('document.querySelectorAll("script[src]").length');
+    const apiVersion = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getVersion()');
+    const apiStatus = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getUpdateStatus()');
+    const apiKeys = await win.webContents.executeJavaScript('window.electronAPI ? Object.keys(window.electronAPI).sort().join(",") : "MISSING"');
     console.log('SMOKE title=' + JSON.stringify(title));
     console.log('SMOKE appGlobals=' + hasApp);
     console.log('SMOKE scriptTags=' + scriptsLoaded);
+    console.log('SMOKE electronAPI.getVersion=' + JSON.stringify(apiVersion));
+    console.log('SMOKE electronAPI.getUpdateStatus=' + JSON.stringify(apiStatus));
+    console.log('SMOKE electronAPI.keys=' + apiKeys);
     console.log('SMOKE failures=' + JSON.stringify(failures, null, 2));
   } catch (e) {
     console.log('SMOKE loadURL threw: ' + e.message);

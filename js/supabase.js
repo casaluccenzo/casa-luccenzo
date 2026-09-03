@@ -111,9 +111,16 @@ function enqueueOfflineOp(table, action, data = null, key = null, keyValue = nul
 }
 
 // Items that have been retrying for longer than this are assumed to be permanently
-// broken (bad payload, deleted parent row, etc.) rather than a transient network blip.
-// Without this cap, a single bad record retries forever on every sync tick.
-const OFFLINE_QUEUE_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
+// broken (bad payload, deleted parent row, etc.) rather than a transient network blip,
+// and move to the dead-letter store. Without a cap, a single bad record retries
+// forever on every sync tick.
+//
+// 14 days (was 48h): Venezuela cortes de internet de varios días son la norma, no
+// la excepción. Con 48h, las ventas del día 1-2 de un corte largo se perdían
+// (dead-letter = no se re-aplican solas). 14 días cubre casi cualquier corte y
+// deja que las ventas encoladas se sincronicen solas al volver la conexión.
+// Trade-off: un record genuinamente roto reintenta 14 días antes de rendirse.
+const OFFLINE_QUEUE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 días
 
 /**
  * Moves permanently-stuck offline ops to a dead-letter store instead of silently

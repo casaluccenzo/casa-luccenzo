@@ -6,7 +6,7 @@
     // El footer ya trae el número inyectado en build. En Electron, si el
     // package.json del shell difiere, preferimos el del shell.
     if (api && versionLine) {
-        try { versionLine.textContent = 'v' + api.getVersion(); } catch (_) {}
+        try { versionLine.textContent = 'v' + api.getVersion() + ' · PC'; } catch (_) {}
     }
 
     if (!api) return; // navegador: nada más que hacer

@@ -1,6 +1,22 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, protocol, net } = require('electron');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
-// Doble click en el icono no abre una segunda ventana.
+// www/ está al lado de main.js en dev; en resources/ cuando está empaquetado.
+const WWW_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'www')
+  : path.join(__dirname, '..', 'www');
+
+// Host fijo. La ventana carga app://bundle/sistema/index.html y las rutas
+// absolutas del frontend (/js/app.js, /css/main.css) resuelven como
+// app://bundle/js/app.js — el pathname es la ruta bajo www/.
+const APP_ORIGIN = 'app://bundle';
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'app',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+}]);
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -10,6 +26,18 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    protocol.handle('app', (request) => {
+      const { pathname } = new URL(request.url);
+      let rel = decodeURIComponent(pathname).replace(/^\/+/, '');
+      if (rel === '' || rel.endsWith('/')) rel += 'sistema/index.html';
+      const filePath = path.normalize(path.join(WWW_DIR, rel));
+      // Anti path-traversal: el archivo tiene que quedar dentro de WWW_DIR
+      if (filePath !== WWW_DIR && !filePath.startsWith(WWW_DIR + path.sep)) {
+        return new Response('Not found', { status: 404 });
+      }
+      return net.fetch(pathToFileURL(filePath).toString());
+    });
+
     const win = new BrowserWindow({
       width: 1280,
       height: 800,
@@ -17,7 +45,11 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
     });
     win.once('ready-to-show', () => { win.maximize(); win.show(); });
-    win.loadURL('data:text/html,<h1>Casa Lucenzo &mdash; scaffold OK</h1>');
+    win.loadURL(`${APP_ORIGIN}/sistema/index.html`);
+
+    win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+      console.error('did-fail-load', code, desc, url);
+    });
   });
 
   app.on('window-all-closed', () => app.quit());

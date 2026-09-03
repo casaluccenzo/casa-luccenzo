@@ -25,7 +25,8 @@ const SCRIPTS = [
   'share.js',
   'agent.js',
   'ui.js',
-  'app.js'
+  'app.js',
+  'desktop.js'
 ].map(file => `/js/${file}?v=${APP_VERSION}`);
 
 const ASSETS_TO_CACHE = [

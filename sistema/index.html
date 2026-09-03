@@ -71,6 +71,7 @@
     <script src="/js/agent.js?v=__APP_VERSION__"></script>
     <script src="/js/ui.js?v=__APP_VERSION__"></script>
     <script src="/js/app.js?v=__APP_VERSION__"></script>
+    <script src="/js/desktop.js?v=__APP_VERSION__"></script>
     
     <!-- PWA manifest for android/iOS install support -->
     <link rel="manifest" href="/manifest.json" onerror="this.onerror=null;">
@@ -551,6 +552,7 @@
                 <div style="margin-top: 0.25rem; font-size: 9px; font-weight: 700; color: var(--color-gold); letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
                     <i class="fa-solid fa-shield-halved"></i> HECHO EN VENEZUELA
                 </div>
+                <div id="app-version-line" style="margin-top: 0.25rem; font-size: 9px; color: var(--color-text-muted); opacity: 0.6;">v__APP_VERSION__</div>
             </footer>
             
         </div>
@@ -1585,6 +1587,27 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
             <span id="toast-icon"></span>
         </div>
         <span id="toast-message"></span>
+    </div>
+
+    <!-- ================= ACERCA DE (solo Electron) ================= -->
+    <div id="about-dialog" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 360px; text-align: center;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1.25rem 1.5rem;">
+                <h3 style="margin: 0;">Acerca de Casa Lucenzo</h3>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="font-size: 1.1rem; font-weight: 800;">Casa Lucenzo</div>
+                <div id="about-version" style="font-size: 0.85rem; color: var(--color-text-muted); margin: 0.25rem 0 1rem;">Versión __APP_VERSION__ (Windows)</div>
+                <div id="about-update-status" style="font-size: 0.85rem; padding: 0.6rem 0.9rem; border-radius: 8px; background: rgba(255,255,255,0.04);">Verificando…</div>
+                <div style="display: flex; gap: 0.6rem; justify-content: center; margin-top: 1.1rem;">
+                    <button type="button" id="about-check" class="btn-touch" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; min-height: 40px; padding: 0 1rem; border-radius: var(--radius-md); font-size: 0.8rem; font-weight: 700; cursor: pointer;">Buscar actualizaciones</button>
+                    <button type="button" id="about-restart" class="btn-touch hidden" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border: none; color: white; min-height: 40px; padding: 0 1rem; border-radius: var(--radius-md); font-size: 0.8rem; font-weight: 900; cursor: pointer;">Reiniciar ahora</button>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.08);">
+                <button type="button" id="about-close" class="btn-touch" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; min-height: 40px; padding: 0 1.25rem; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 700; cursor: pointer;">Cerrar</button>
+            </div>
+        </div>
     </div>
 
 </body>

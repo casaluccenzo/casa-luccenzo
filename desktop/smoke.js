@@ -1,10 +1,13 @@
-// Throwaway smoke test: load app://bundle/sistema/index.html headlessly, report, quit.
-const { app, BrowserWindow, protocol, net } = require('electron');
+// Throwaway headless smoke test del shell Electron. Corre: npx electron smoke.js
+const { app, BrowserWindow, protocol, net, ipcMain } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const WWW_DIR = path.normalize(path.join(__dirname, '..', 'www'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+
+const V = require('./package.json').version;
+ipcMain.on('app:getVersion', (e) => { e.returnValue = V; });
 
 app.whenReady().then(async () => {
   protocol.handle('app', (request) => {
@@ -16,38 +19,35 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(filePath).toString());
   });
 
-  const { ipcMain } = require('electron');
-  const V = require('./package.json').version; ipcMain.on('app:getVersion', (e) => { e.returnValue = V; });
   const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') } });
   require('./updater').initUpdater(win);
+
   const failures = [];
   win.webContents.on('did-fail-load', (_e, code, desc, url) => failures.push(`did-fail-load ${code} ${desc} ${url}`));
   win.webContents.on('console-message', (_e, level, message, line, src) => {
     if (level >= 2) failures.push(`console[${level}]: ${message} (${src}:${line})`);
   });
 
-  try {
-    await win.loadURL('app://bundle/sistema/index.html');
-    await new Promise((r) => setTimeout(r, 3000));
-    const title = await win.webContents.executeJavaScript('document.title');
-    const hasApp = await win.webContents.executeJavaScript('!!(window.SupabaseManager || window.UIManager || window.StorageManager)');
-    const scriptsLoaded = await win.webContents.executeJavaScript('document.querySelectorAll("script[src]").length');
-    const apiVersion = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getVersion()');
-    const apiStatus = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getUpdateStatus()');
-    const apiKeys = await win.webContents.executeJavaScript('window.electronAPI ? Object.keys(window.electronAPI).sort().join(",") : "MISSING"');
-    await win.webContents.executeJavaScript('window.electronAPI.checkForUpdates()');
-    await new Promise((r) => setTimeout(r, 1500));
-    const afterCheck = await win.webContents.executeJavaScript('window.electronAPI.getUpdateStatus()');
-    console.log('SMOKE statusAfterCheck=' + JSON.stringify(afterCheck));
-    console.log('SMOKE title=' + JSON.stringify(title));
-    console.log('SMOKE appGlobals=' + hasApp);
-    console.log('SMOKE scriptTags=' + scriptsLoaded);
-    console.log('SMOKE electronAPI.getVersion=' + JSON.stringify(apiVersion));
-    console.log('SMOKE electronAPI.getUpdateStatus=' + JSON.stringify(apiStatus));
-    console.log('SMOKE electronAPI.keys=' + apiKeys);
-    console.log('SMOKE failures=' + JSON.stringify(failures, null, 2));
-  } catch (e) {
-    console.log('SMOKE loadURL threw: ' + e.message);
-  }
+  const q = async (label, js) => {
+    try { console.log('SMOKE ' + label + '=' + JSON.stringify(await win.webContents.executeJavaScript(js))); }
+    catch (e) { console.log('SMOKE ' + label + ' THREW: ' + (e && e.message)); }
+  };
+
+  win.loadURL('app://bundle/sistema/index.html').catch((e) => console.log('SMOKE loadURL rejected: ' + (e && e.message)));
+  await new Promise((r) => setTimeout(r, 3500));
+
+  await q('title', 'document.title');
+  await q('appGlobals', '!!(window.SupabaseManager || window.UIManager || window.StorageManager)');
+  await q('scriptTags', 'document.querySelectorAll("script[src]").length');
+  await q('footerVersion', '(document.getElementById("app-version-line")||{}).textContent');
+  await q('hasAboutDialog', '!!document.getElementById("about-dialog")');
+  await q('swController', 'navigator.serviceWorker ? String(!!navigator.serviceWorker.controller) : "no-sw-api"');
+  await q('electronAPI.getVersion', 'window.electronAPI && window.electronAPI.getVersion()');
+  await q('electronAPI.keys', 'window.electronAPI ? Object.keys(window.electronAPI).sort().join(",") : "MISSING"');
+  await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.checkForUpdates()').catch(() => {});
+  await new Promise((r) => setTimeout(r, 1000));
+  await q('statusAfterCheck', 'window.electronAPI && window.electronAPI.getUpdateStatus()');
+
+  console.log('SMOKE failures=' + JSON.stringify(failures, null, 2));
   app.quit();
 });

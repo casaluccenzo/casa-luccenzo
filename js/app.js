@@ -3883,8 +3883,11 @@ async function fetchBcvRate(force = false) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Register PWA Service Worker (only if running on local server or online)
-    if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+    // 1. Register PWA Service Worker (only in a browser on http/https -- NOT in
+    // the Electron shell, where the frontend is already local under app:// and
+    // the SW would just add a redundant cache layer).
+    if ('serviceWorker' in navigator && !window.electronAPI
+        && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
         let refreshing = false;
         
         // Listen for controllerchange to trigger automated reload when new sw takes over

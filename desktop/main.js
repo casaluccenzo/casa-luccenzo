@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 // app.getVersion() devuelve la version de Electron cuando NO esta empaquetado.
 // Leemos package.json directo para que dev y prod reporten lo mismo.
 const APP_VERSION = require('./package.json').version;
+const { initUpdater } = require('./updater');
 
 // www/ está al lado de main.js en dev; en resources/ cuando está empaquetado.
 const WWW_DIR = app.isPackaged
@@ -31,8 +32,6 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     ipcMain.on('app:getVersion', (e) => { e.returnValue = APP_VERSION; });
-    ipcMain.on('update:check', () => {});    // Task 4
-    ipcMain.on('update:restart', () => {});  // Task 4
 
     protocol.handle('app', (request) => {
       const { pathname } = new URL(request.url);
@@ -59,6 +58,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     win.once('ready-to-show', () => { win.maximize(); win.show(); });
     win.loadURL(`${APP_ORIGIN}/sistema/index.html`);
+    initUpdater(win);
 
     win.webContents.on('did-fail-load', (_e, code, desc, url) => {
       console.error('did-fail-load', code, desc, url);

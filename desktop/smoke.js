@@ -19,6 +19,7 @@ app.whenReady().then(async () => {
   const { ipcMain } = require('electron');
   const V = require('./package.json').version; ipcMain.on('app:getVersion', (e) => { e.returnValue = V; });
   const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') } });
+  require('./updater').initUpdater(win);
   const failures = [];
   win.webContents.on('did-fail-load', (_e, code, desc, url) => failures.push(`did-fail-load ${code} ${desc} ${url}`));
   win.webContents.on('console-message', (_e, level, message, line, src) => {
@@ -34,6 +35,10 @@ app.whenReady().then(async () => {
     const apiVersion = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getVersion()');
     const apiStatus = await win.webContents.executeJavaScript('window.electronAPI && window.electronAPI.getUpdateStatus()');
     const apiKeys = await win.webContents.executeJavaScript('window.electronAPI ? Object.keys(window.electronAPI).sort().join(",") : "MISSING"');
+    await win.webContents.executeJavaScript('window.electronAPI.checkForUpdates()');
+    await new Promise((r) => setTimeout(r, 1500));
+    const afterCheck = await win.webContents.executeJavaScript('window.electronAPI.getUpdateStatus()');
+    console.log('SMOKE statusAfterCheck=' + JSON.stringify(afterCheck));
     console.log('SMOKE title=' + JSON.stringify(title));
     console.log('SMOKE appGlobals=' + hasApp);
     console.log('SMOKE scriptTags=' + scriptsLoaded);

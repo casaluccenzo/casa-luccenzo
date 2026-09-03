@@ -54,3 +54,4 @@ skills-lock.json
 desktop/node_modules/
 desktop/dist/
 .env
+!desktop/.env.example

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Shell de escritorio del POS Casa Lucenzo",
+  "author": "Casa Lucenzo",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -15,5 +16,20 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
+  },
+  "build": {
+    "appId": "com.casaluccenzo.pos",
+    "productName": "Casa Lucenzo",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "updater.js", "package.json"],
+    "extraResources": [{ "from": "../www", "to": "www" }],
+    "win": { "target": "nsis", "icon": "build/icon.png" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "shortcutName": "Casa Lucenzo"
+    },
+    "publish": { "provider": "github", "owner": "casaluccenzo", "repo": "casa-luccenzo" }
   }
 }

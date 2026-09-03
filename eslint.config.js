@@ -44,7 +44,11 @@ const nodeGlobals = {
     __dirname: 'readonly',
     fetch: 'readonly',
     setTimeout: 'readonly',
-    clearTimeout: 'readonly'
+    clearTimeout: 'readonly',
+    setInterval: 'readonly',
+    clearInterval: 'readonly',
+    URL: 'readonly',
+    Response: 'readonly'
 };
 
 module.exports = [
@@ -70,7 +74,7 @@ module.exports = [
         }
     },
     {
-        files: ['api/**/*.js', 'lib/**/*.js', 'scripts/**/*.js', 'tools/**/*.js', 'tests/**/*.js'],
+        files: ['api/**/*.js', 'lib/**/*.js', 'scripts/**/*.js', 'tools/**/*.js', 'tests/**/*.js', 'desktop/*.js'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'commonjs',
@@ -80,7 +84,8 @@ module.exports = [
             // caughtErrors: 'none' -- `catch (e)` without touching `e` is the house
             // style for deliberate swallows; flagging ~40 of those buried the real hits.
             'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
-            'no-undef': 'warn'
+            'no-undef': 'warn',
+            'no-empty': ['error', { allowEmptyCatch: true }]
         }
     },
     {
@@ -108,6 +113,7 @@ module.exports = [
     {
         ignores: [
             'www/', 'node_modules/', 'whatsapp-session/', 'supabase/.temp/',
+            'desktop/dist/', 'desktop/node_modules/',
             // Every dot-directory is local tooling (editor, AI skills/agents,
             // deploy, worktrees) -- all git-ignored, none of it application
             // code. Without this, `eslint .` scans their .mjs helpers and

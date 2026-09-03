@@ -49,3 +49,9 @@ skills-lock.json
 
 # Visual brainstorming companion (superpowers)
 .superpowers/
+
+# Electron desktop app
+desktop/node_modules/
+desktop/dist/
+.env
+!desktop/.env.example

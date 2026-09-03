@@ -5,7 +5,7 @@
 // by the full request URL, so precaching '/js/app.js' while the page asks for
 // '/js/app.js?v=NNN' (mismatched) would store two unrelated entries and never serve the
 // precached one. Bump both together on every release.
-const APP_VERSION = '320';
+const APP_VERSION = '__APP_VERSION__';
 const CACHE_NAME = `casa-lucenzo-v${APP_VERSION}`;
 
 // Every script sistema/index.html loads, in the same order, with the same ?v=.
@@ -25,7 +25,8 @@ const SCRIPTS = [
   'share.js',
   'agent.js',
   'ui.js',
-  'app.js'
+  'app.js',
+  'desktop.js'
 ].map(file => `/js/${file}?v=${APP_VERSION}`);
 
 const ASSETS_TO_CACHE = [

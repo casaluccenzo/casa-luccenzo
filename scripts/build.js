@@ -34,6 +34,13 @@ assetsToCopy.forEach(asset => {
     }
 });
 
+// Single version source: inject package.json version into www/ (footer, About
+// dialog, ?v= cache-bust, sw.js APP_VERSION -- all via the __APP_VERSION__ token).
+const { injectVersion } = require('./inject-version');
+const appVersion = require('../package.json').version;
+injectVersion(destDir, appVersion);
+console.log(`🏷️  Versión ${appVersion} inyectada en www/`);
+
 // Perform environment variable placeholder injection for production www/ build
 const supabaseBuildFile = path.join(destDir, 'js', 'supabase.js');
 // The Sentry init + __SENTRY_DSN__ placeholder lives in the internal POS app

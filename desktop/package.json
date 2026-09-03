@@ -28,6 +28,7 @@
       "main.js",
       "preload.js",
       "updater.js",
+      "menu.js",
       "package.json"
     ],
     "extraResources": [

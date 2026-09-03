@@ -6,6 +6,7 @@ const { pathToFileURL } = require('node:url');
 // Leemos package.json directo para que dev y prod reporten lo mismo.
 const APP_VERSION = require('./package.json').version;
 const { initUpdater } = require('./updater');
+const { buildMenu } = require('./menu');
 
 // www/ está al lado de main.js en dev; en resources/ cuando está empaquetado.
 const WWW_DIR = app.isPackaged
@@ -58,6 +59,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     win.once('ready-to-show', () => { win.maximize(); win.show(); });
     win.loadURL(`${APP_ORIGIN}/sistema/index.html`);
+    buildMenu(win);
     initUpdater(win);
 
     win.webContents.on('did-fail-load', (_e, code, desc, url) => {

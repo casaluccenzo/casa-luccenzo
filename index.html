@@ -819,11 +819,13 @@
     </script>
 
     <!-- Fills real prices into the always-visible menu section (separate from the
-         order modal above). Pastelitos enhances the existing static list in place;
-         Bebidas & Dulces replaces its generic placeholder text with the real,
-         priced catalog. On any failure this just leaves the static fallback text
-         already in the HTML -- same "fail quiet, keep something useful on screen"
-         approach as the order modal's loadMenu(). -->
+         order modal above). Both lists are fully rebuilt from whatever `sistema`
+         has in the `products` table right now -- no hardcoded product names to
+         keep in sync by hand, so a price change, a rename, or a new/retired
+         product in the POS shows up here automatically on next page load. On
+         any failure this just leaves the static fallback text already in the
+         HTML -- same "fail quiet, keep something useful on screen" approach as
+         the order modal's loadMenu(). -->
     <script>
     (function () {
         const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
@@ -833,6 +835,18 @@
         if (!pastelitosList || !bebidasList || !window.supabase) return;
 
         function money(n) { return '$' + parseFloat(n).toFixed(2); }
+
+        function renderList(listEl, items) {
+            if (items.length === 0) return;
+            listEl.innerHTML = '';
+            items.forEach(p => {
+                const li = document.createElement('li');
+                li.innerHTML = '<span></span><span class="li-price"></span>';
+                li.querySelector('span').textContent = p.name;
+                li.querySelector('.li-price').textContent = money(p.price);
+                listEl.appendChild(li);
+            });
+        }
 
         (async function () {
             try {
@@ -845,26 +859,8 @@
                     .order('name');
                 if (error || !data || data.length === 0) return;
 
-                pastelitosList.querySelectorAll('li[data-name]').forEach(li => {
-                    const match = data.find(p => p.category === 'pastelitos' && p.name === li.dataset.name);
-                    if (!match) return;
-                    const priceEl = document.createElement('span');
-                    priceEl.className = 'li-price';
-                    priceEl.textContent = money(match.price);
-                    li.appendChild(priceEl);
-                });
-
-                const bebidasDulces = data.filter(p => p.category === 'bebidas' || p.category === 'dulces');
-                if (bebidasDulces.length > 0) {
-                    bebidasList.innerHTML = '';
-                    bebidasDulces.forEach(p => {
-                        const li = document.createElement('li');
-                        li.innerHTML = '<span></span><span class="li-price"></span>';
-                        li.querySelector('span').textContent = p.name;
-                        li.querySelector('.li-price').textContent = money(p.price);
-                        bebidasList.appendChild(li);
-                    });
-                }
+                renderList(pastelitosList, data.filter(p => p.category === 'pastelitos'));
+                renderList(bebidasList, data.filter(p => p.category === 'bebidas' || p.category === 'dulces'));
             } catch (e) {
                 // Static fallback text already in the HTML stays as-is.
             }

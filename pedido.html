@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hacer un Pedido — Casa Lucenzo</title>
+    <meta name="description" content="Pedí tus pastelitos, bebidas y dulces de Casa Lucenzo directo desde la mesa. Elegí, armá tu pedido y te confirmamos por WhatsApp.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Hacer un Pedido — Casa Lucenzo">
+    <meta property="og:description" content="Pedí tus pastelitos, bebidas y dulces directo desde la mesa. Confirmación por WhatsApp.">
+    <meta property="og:url" content="https://casalucenzo.com/pedido.html">
+    <meta property="og:image" content="https://casalucenzo.com/img/logo-512.png">
+    <link rel="apple-touch-icon" href="/img/logo-192.png">
+    <link rel="icon" href="/img/logo-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-950: #0f2137;
+            --navy-900: #142a44;
+            --gold-500: #c9a24a;
+            --gold-300: #e4cd93;
+            --cream-100: #f6f1e4;
+            --cream-200: #eee4cd;
+            --serif: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--sans);
+            color: var(--cream-100);
+            background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201,162,74,0.16), transparent 60%),
+                        linear-gradient(180deg, var(--navy-950), var(--navy-900) 55%, #0c1b2c);
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: inherit; }
+        h1 { font-family: var(--serif); text-wrap: balance; margin: 0; }
+
+        .top-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 1.25rem; gap: 1rem;
+        }
+        .top-nav .brand { display: flex; align-items: center; gap: 0.55rem; text-decoration: none; }
+        .top-nav .brand img { width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(201,162,74,0.5); }
+        .top-nav .brand span { font-family: var(--serif); font-weight: 700; font-size: 1rem; color: var(--cream-100); letter-spacing: 0.01em; }
+        .top-nav .back-link {
+            font-size: 0.78rem; font-weight: 600; color: var(--gold-300); text-decoration: none;
+            border: 1px solid rgba(201,162,74,0.35); border-radius: 999px; padding: 0.45rem 0.9rem;
+            white-space: nowrap;
+        }
+        .top-nav .back-link:hover { background: rgba(201,162,74,0.1); }
+
+        main {
+            max-width: 30rem; margin: 0 auto;
+            padding: 0.5rem 1.1rem 3rem;
+            display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+        }
+
+        .pedido-card {
+            width: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+            border: 1px solid rgba(201,162,74,0.28);
+            border-radius: 18px;
+            box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        .pedido-head { padding: 1.5rem 1.4rem 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; }
+        .pedido-head .eyebrow {
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+            color: var(--gold-300); margin: 0 0 0.6rem;
+        }
+        .pedido-head h1 { font-size: clamp(1.5rem, 5vw, 1.85rem); font-weight: 800; color: #fff; }
+        .pedido-head .sub { font-size: 0.85rem; color: var(--cream-200); line-height: 1.55; margin: 0.6rem 0 0; }
+
+        .filter-row { display: flex; gap: 0.4rem; padding: 0.9rem 1.3rem; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .filter-row::-webkit-scrollbar { display: none; }
+        .filter-pill {
+            flex: 0 0 auto; min-width: 4.6rem; text-align: center;
+            font-size: 0.76rem; font-weight: 700; color: var(--cream-200);
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px; padding: 0.5rem 0.95rem; cursor: pointer; transition: all 0.15s ease;
+        }
+        .filter-pill:hover { background: rgba(255,255,255,0.08); }
+        .filter-pill.active { background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); border-color: var(--gold-500); color: var(--navy-950); }
+
+        .pedido-body { padding: 0 1.3rem; }
+        .order-loading { text-align: center; color: var(--cream-200); font-size: 0.85rem; padding: 2.5rem 0; }
+
+        .form-fields { padding-top: 1rem; }
+        .field-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-300); margin-bottom: 0.4rem; display: block; }
+        .field-input {
+            width: 100%; padding: 0.7rem 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05); color: #fff; font-family: var(--sans); font-size: 0.9rem; margin-bottom: 1rem;
+        }
+        .field-input::placeholder { color: rgba(246,241,228,0.4); }
+        .field-input:focus { outline: none; border-color: var(--gold-500); }
+
+        .product-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+            padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .product-row:last-child { border-bottom: none; }
+        .product-row .name { font-size: 0.88rem; color: #fff; font-weight: 600; }
+        .product-row .price { font-size: 0.78rem; color: var(--gold-300); font-variant-numeric: tabular-nums; }
+        .qty-control { display: flex; align-items: center; gap: 0.5rem; }
+        .qty-btn {
+            width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(201,162,74,0.4);
+            background: rgba(201,162,74,0.1); color: var(--gold-300); font-weight: 800; cursor: pointer; font-size: 0.9rem;
+        }
+        .qty-val { min-width: 1.2rem; text-align: center; color: #fff; font-weight: 700; font-size: 0.9rem; }
+
+        .payment-options { display: flex; gap: 0.6rem; margin-top: 1.1rem; margin-bottom: 0.9rem; }
+        .payment-opt {
+            flex: 1; padding: 0.65rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.03); color: var(--cream-200); font-size: 0.8rem; font-weight: 600;
+            text-align: center; cursor: pointer; transition: all 0.2s ease;
+        }
+        .payment-opt.selected { border-color: var(--gold-500); background: rgba(201,162,74,0.15); color: var(--gold-300); }
+        .payment-info-panel {
+            border: 1px dashed rgba(201,162,74,0.4); border-radius: 10px; padding: 0.9rem 1rem;
+            margin-bottom: 1rem; font-size: 0.8rem; color: var(--cream-200); line-height: 1.6;
+        }
+        .payment-info-panel img { display: block; max-width: 10rem; margin: 0 auto 0.6rem; border-radius: 8px; }
+        .payment-info-panel .pi-title { color: var(--gold-300); font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+        .payment-info-panel .pi-row { display: flex; justify-content: space-between; gap: 0.5rem; }
+        .payment-info-panel .pi-row + .pi-row { margin-top: 0.2rem; }
+        .order-error { color: #FCA5A5; font-size: 0.8rem; margin-top: 0.6rem; display: none; }
+
+        .pedido-foot { padding: 1.1rem 1.3rem 1.4rem; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(10,20,38,0.4); }
+        .order-total {
+            display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.9rem;
+        }
+        .order-total .label { font-size: 0.8rem; color: var(--cream-200); }
+        .order-total .value { font-size: 1.5rem; font-weight: 800; color: var(--gold-300); font-family: var(--serif); font-variant-numeric: tabular-nums; }
+        .submit-btn {
+            width: 100%; padding: 0.95rem; border-radius: 8px; border: none; cursor: pointer;
+            background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); color: var(--navy-950);
+            font-weight: 800; font-size: 0.95rem; font-family: var(--sans);
+            box-shadow: 0 10px 24px -10px rgba(201,162,74,0.5); transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .sent-confirm { display: none; text-align: center; padding: 3rem 1.6rem; }
+        .sent-confirm.show { display: block; }
+        .sent-confirm .check { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .sent-confirm h3 { font-family: var(--serif); color: var(--gold-300); font-size: 1.3rem; margin: 0; }
+        .sent-confirm p { color: var(--cream-200); font-size: 0.88rem; margin-top: 0.5rem; line-height: 1.6; }
+        .sent-confirm button {
+            margin-top: 1.5rem; background: none; border: 1px solid rgba(201,162,74,0.4); color: var(--gold-300);
+            padding: 0.6rem 1.2rem; border-radius: 999px; cursor: pointer; font-family: var(--sans); font-weight: 600; font-size: 0.82rem;
+        }
+
+        .fallback-note { font-size: 0.8rem; color: var(--cream-200); text-align: center; margin: 0; }
+        .fallback-note a { color: var(--gold-300); font-weight: 600; text-decoration: none; }
+        .fallback-note a:hover { text-decoration: underline; }
+
+        footer { text-align: center; padding: 1.5rem 1.5rem 2rem; font-size: 0.74rem; color: rgba(246,241,228,0.5); }
+
+        a:focus-visible, button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 3px; }
+    </style>
+</head>
+<body>
+
+    <header class="top-nav">
+        <a class="brand" href="/">
+            <img src="/img/logo-192.png" alt="" width="30" height="30">
+            <span>Casa Lucenzo</span>
+        </a>
+        <a class="back-link" href="/">Ver sitio completo</a>
+    </header>
+
+    <main>
+        <div class="pedido-card" id="pedido-card">
+            <div class="pedido-head">
+                <p class="eyebrow">Pastelitos · Bebidas · Dulces</p>
+                <h1>Hacer tu Pedido</h1>
+                <p class="sub">Armá tu pedido, elegí cómo vas a pagar, y te confirmamos por WhatsApp los detalles.</p>
+            </div>
+
+            <div id="pedido-order-wrap">
+                <div class="filter-row" id="category-filter-row">
+                    <div class="filter-pill active" data-cat="todos">Todo</div>
+                    <div class="filter-pill" data-cat="pastelitos">Pastelitos</div>
+                    <div class="filter-pill" data-cat="bebidas">Bebidas</div>
+                    <div class="filter-pill" data-cat="dulces">Dulces</div>
+                </div>
+
+                <div class="pedido-body">
+                    <div class="order-loading" id="order-loading">Cargando el menú del día…</div>
+                    <form id="order-form" style="display:none;">
+                        <div class="form-fields">
+                            <label class="field-label" for="c-name">Tu nombre</label>
+                            <input class="field-input" id="c-name" placeholder="Ej: María Pérez" required>
+
+                            <label class="field-label" for="c-phone">Tu teléfono</label>
+                            <input class="field-input" id="c-phone" placeholder="Ej: 0412-1234567" required>
+                        </div>
+
+                        <div id="product-list"></div>
+
+                        <div class="payment-options">
+                            <div class="payment-opt selected" data-pago="Pago Móvil">Pago Móvil</div>
+                            <div class="payment-opt" data-pago="Transferencia">Transferencia</div>
+                        </div>
+
+                        <div class="payment-info-panel" id="payment-info-panel"></div>
+
+                        <div class="order-error" id="order-error"></div>
+                    </form>
+                </div>
+
+                <div class="pedido-foot">
+                    <div class="order-total">
+                        <span class="label">Total del pedido</span>
+                        <span class="value" id="order-total-val">$0.00</span>
+                    </div>
+                    <button type="submit" form="order-form" class="submit-btn" id="btn-submit-order" disabled>Enviar Pedido</button>
+                </div>
+            </div>
+
+            <div class="sent-confirm" id="sent-confirm">
+                <div class="check">✅</div>
+                <h3>¡Pedido enviado!</h3>
+                <p>Casa Lucenzo lo recibió al instante. Te confirmamos por WhatsApp los datos para el pago y cuándo pasarlo a buscar.</p>
+                <button type="button" id="btn-new-order">Hacer otro pedido</button>
+            </div>
+        </div>
+
+        <p class="fallback-note">¿Preferís coordinar por chat? Escribinos directo por <a href="https://wa.me/584120839311?text=%C2%A1Hola%20Casa%20Lucenzo!%20%F0%9F%91%8B%20Quiero%20hacer%20un%20pedido." target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
+    </main>
+
+    <footer>El Tigre 6050, Anzoátegui · Todos los días 6:00 am – 2:00 pm</footer>
+
+    <!-- Carga el menú real y envía el pedido a Supabase -- misma lógica que el
+         popup "Hacer Pedido" de casalucenzo.com, servida como página propia
+         para que el QR de mesa abra solo esto, sin el resto del sitio detrás. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+    (function () {
+        const form = document.getElementById('order-form');
+
+        const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+
+        const PAYMENT_INFO = {
+            'Pago Móvil': {
+                qrUrl: '',
+                fallback: 'Te compartiremos el QR de Pago Móvil junto con la confirmación de tu pedido.'
+            },
+            'Transferencia': {
+                banco: '', titular: '', cuenta: '', rif: '',
+                fallback: 'Te compartiremos los datos de la cuenta junto con la confirmación de tu pedido.'
+            }
+        };
+
+        const wrapEl = document.getElementById('pedido-order-wrap');
+        const productList = document.getElementById('product-list');
+        const loadingEl = document.getElementById('order-loading');
+        const totalEl = document.getElementById('order-total-val');
+        const submitBtn = document.getElementById('btn-submit-order');
+        const errorEl = document.getElementById('order-error');
+        const confirmEl = document.getElementById('sent-confirm');
+        const paymentInfoPanel = document.getElementById('payment-info-panel');
+        let selectedPago = 'Pago Móvil';
+
+        function renderPaymentInfo() {
+            const info = PAYMENT_INFO[selectedPago];
+            if (selectedPago === 'Pago Móvil') {
+                paymentInfoPanel.innerHTML = info.qrUrl
+                    ? `<div class="pi-title">Escaneá para pagar</div><img src="${info.qrUrl}" alt="QR de Pago Móvil Casa Lucenzo">`
+                    : `<div class="pi-title">Pago Móvil</div>${info.fallback}`;
+            } else {
+                paymentInfoPanel.innerHTML = info.banco
+                    ? `<div class="pi-title">Datos para Transferencia</div>
+                       <div class="pi-row"><span>Banco</span><strong>${info.banco}</strong></div>
+                       <div class="pi-row"><span>Titular</span><strong>${info.titular}</strong></div>
+                       <div class="pi-row"><span>Cuenta</span><strong>${info.cuenta}</strong></div>
+                       <div class="pi-row"><span>RIF/Cédula</span><strong>${info.rif}</strong></div>`
+                    : `<div class="pi-title">Transferencia</div>${info.fallback}`;
+            }
+        }
+
+        function recalc() {
+            let total = 0;
+            let totalQty = 0;
+            productList.querySelectorAll('.product-row').forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+                totalQty += qty;
+                total += qty * parseFloat(row.dataset.price);
+            });
+            totalEl.textContent = '$' + total.toFixed(2);
+            const nameOk = document.getElementById('c-name').value.trim().length > 0;
+            const phoneOk = document.getElementById('c-phone').value.trim().length > 0;
+            submitBtn.disabled = !(totalQty > 0 && nameOk && phoneOk);
+        }
+
+        function renderProducts(products) {
+            productList.innerHTML = '';
+            products.forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'product-row';
+                row.dataset.name = p.name;
+                row.dataset.price = p.price;
+                row.dataset.cat = p.category || 'otros';
+                row.innerHTML =
+                    '<div><div class="name"></div><div class="price"></div></div>' +
+                    '<div class="qty-control">' +
+                    '<button type="button" class="qty-btn" data-dir="-1">−</button>' +
+                    '<span class="qty-val">0</span>' +
+                    '<button type="button" class="qty-btn" data-dir="1">+</button>' +
+                    '</div>';
+                row.querySelector('.name').textContent = p.name;
+                row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                productList.appendChild(row);
+            });
+
+            productList.querySelectorAll('.qty-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const row = btn.closest('.product-row');
+                    const valEl = row.querySelector('.qty-val');
+                    let val = parseInt(valEl.textContent, 10) + parseInt(btn.dataset.dir, 10);
+                    if (val < 0) val = 0;
+                    valEl.textContent = val;
+                    recalc();
+                });
+            });
+        }
+
+        async function loadMenu() {
+            try {
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { data, error } = await client
+                    .from('products')
+                    .select('name, price, category, stock')
+                    .gt('stock', 0)
+                    .order('category')
+                    .order('name');
+                if (error) throw error;
+                if (!data || data.length === 0) throw new Error('empty');
+
+                renderProducts(data);
+                loadingEl.style.display = 'none';
+                form.style.display = 'block';
+
+                window._pedidoClient = client;
+            } catch (e) {
+                loadingEl.textContent = 'No pudimos cargar el menú ahora mismo. Escribinos directo por WhatsApp para hacer tu pedido 🙂';
+            }
+        }
+
+        document.querySelectorAll('#category-filter-row .filter-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                const cat = pill.dataset.cat;
+                productList.querySelectorAll('.product-row').forEach(row => {
+                    row.style.display = (cat === 'todos' || row.dataset.cat === cat) ? 'flex' : 'none';
+                });
+            });
+        });
+
+        document.querySelectorAll('.payment-opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedPago = opt.dataset.pago;
+                renderPaymentInfo();
+            });
+        });
+        renderPaymentInfo();
+
+        document.getElementById('c-name').addEventListener('input', recalc);
+        document.getElementById('c-phone').addEventListener('input', recalc);
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            errorEl.style.display = 'none';
+
+            const items = [];
+            let total = 0;
+            productList.querySelectorAll('.product-row').forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+                if (qty > 0) {
+                    const price = parseFloat(row.dataset.price);
+                    items.push({ name: row.dataset.name, qty, price });
+                    total += qty * price;
+                }
+            });
+            if (items.length === 0 || !window._pedidoClient) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando…';
+
+            const orderPayload = {
+                customer_name: document.getElementById('c-name').value.trim(),
+                customer_phone: document.getElementById('c-phone').value.trim(),
+                items: items,
+                total: Math.round(total * 100) / 100,
+                payment_method: selectedPago
+            };
+
+            try {
+                const { error } = await window._pedidoClient.from('pedidos_online').insert(orderPayload);
+                if (error) throw error;
+
+                wrapEl.style.display = 'none';
+                confirmEl.classList.add('show');
+
+                fetch('/api/notify-pedido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderPayload)
+                }).catch(() => {});
+            } catch (err) {
+                errorEl.textContent = 'No pudimos enviar el pedido. Probá de nuevo, o escribinos por WhatsApp.';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar Pedido';
+            }
+        });
+
+        document.getElementById('btn-new-order').addEventListener('click', () => {
+            form.reset();
+            productList.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
+            productList.querySelectorAll('.product-row').forEach(row => row.style.display = 'flex');
+            document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
+            document.querySelector('#category-filter-row .filter-pill[data-cat="todos"]').classList.add('active');
+            document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
+            document.querySelector('.payment-opt[data-pago="Pago Móvil"]').classList.add('selected');
+            selectedPago = 'Pago Móvil';
+            renderPaymentInfo();
+            recalc();
+            submitBtn.textContent = 'Enviar Pedido';
+            confirmEl.classList.remove('show');
+            wrapEl.style.display = 'block';
+        });
+
+        loadMenu();
+    })();
+    </script>
+</body>
+</html>

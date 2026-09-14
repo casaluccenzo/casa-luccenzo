@@ -7,6 +7,7 @@ const destDir = path.resolve(srcDir, 'www');
 // List of files/directories to copy
 const assetsToCopy = [
     'index.html',
+    'pedido.html',
     'sistema',
     'manifest.json',
     'sw.js',

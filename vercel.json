@@ -9,6 +9,10 @@
     {
       "path": "/api/sales-monitor",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/daily-restock",
+      "schedule": "0 6 * * *"
     }
   ],
   "headers": [

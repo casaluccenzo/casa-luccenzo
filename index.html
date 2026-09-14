@@ -638,6 +638,11 @@
             if (e.key === 'Escape' && backdrop.classList.contains('open')) closePedidoModal();
         });
 
+        // QR de mesa: casalucenzo.com/?pedido=1 abre el pedido directo, sin pasar por el menú estático.
+        if (new URLSearchParams(location.search).get('pedido') === '1') {
+            openPedidoModal();
+        }
+
         function renderPaymentInfo() {
             const info = PAYMENT_INFO[selectedPago];
             if (selectedPago === 'Pago Móvil') {

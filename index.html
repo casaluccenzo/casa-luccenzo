@@ -710,7 +710,14 @@
 
         async function loadMenu() {
             try {
-                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                // cache: 'no-store' -- sin esto, un navegador (sobre todo el
+                // embebido de WhatsApp) puede reusar una respuesta vieja de
+                // /rest/v1/products en vez de pedirla de nuevo, y el cliente
+                // ve precios/stock desactualizados aunque la base de datos
+                // ya esté al día.
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) }
+                });
                 const { data, error } = await client
                     .from('products')
                     .select('name, price, category, stock')
@@ -855,7 +862,12 @@
 
         (async function () {
             try {
-                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                // Same no-store guard as the order modal's loadMenu() -- keeps
+                // the always-visible menu from showing a cached, stale
+                // products response too.
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) }
+                });
                 const { data, error } = await client
                     .from('products')
                     .select('name, price, category, stock')

@@ -23,11 +23,13 @@ async function main() {
         errorCorrectionLevel: 'H',
         width: SIZE,
         margin: 2,
-        color: { dark: '#0f2137', light: '#f6f1e4' }
+        // light module = transparente (no '#f6f1e4' opaco): así el fondo crema
+        // de la tarjeta (qr-mesa.html) se ve a través del QR sin depender de
+        // que dos renders del mismo crema (CSS vs. este PNG) coincidan a ojo.
+        color: { dark: '#0f2137', light: '#f6f1e400' }
     });
 
     const logoSize = Math.round(SIZE * LOGO_RATIO);
-    const padSize = Math.round(logoSize * 1.18); // aro crema detrás del logo
 
     const circleMask = Buffer.from(
         `<svg width="${logoSize}" height="${logoSize}"><circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="#fff"/></svg>`
@@ -39,16 +41,16 @@ async function main() {
         .png()
         .toBuffer();
 
-    const padCircleSvg = Buffer.from(
-        `<svg width="${padSize}" height="${padSize}"><circle cx="${padSize / 2}" cy="${padSize / 2}" r="${padSize / 2}" fill="#f6f1e4"/></svg>`
-    );
-
+    // Nada de relleno propio detrás del logo: todo lo que no es un módulo
+    // oscuro del QR o el logo queda transparente, así el único crema que se
+    // ve es el fondo de la tarjeta/página (CSS) por detrás -- sin esto, el
+    // crema "propio" del PNG y el crema de la tarjeta podían no coincidir
+    // a ojo (perfil de color / compresión distintos) y se notaba un borde.
     await sharp({
         create: { width: SIZE, height: SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
     })
         .composite([
             { input: qrBuffer, top: 0, left: 0 },
-            { input: padCircleSvg, top: Math.round((SIZE - padSize) / 2), left: Math.round((SIZE - padSize) / 2) },
             { input: logo, top: Math.round((SIZE - logoSize) / 2), left: Math.round((SIZE - logoSize) / 2) }
         ])
         .png()

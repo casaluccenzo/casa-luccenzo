@@ -48,6 +48,12 @@
             padding: 0.9cm 0.7cm 0.7cm;
             text-align: center;
             box-shadow: 0 20px 40px -20px rgba(0,0,0,0.35);
+            /* Sin esto, la mayoría de los navegadores omiten los fondos de
+               CSS al imprimir (para ahorrar tinta) salvo que el usuario tilde
+               "Gráficos de fondo" a mano en el diálogo de impresión -- esto
+               lo fuerza para que la tarjeta salga crema igual que en pantalla. */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .card .eyebrow {
             font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
@@ -75,6 +81,7 @@
 
         @media print {
             @page { size: A4; margin: 1.5cm; }
+            html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body { background: #fff; padding: 0; display: block; }
             .toolbar { display: none; }
             .cut-frame { border-color: #bbb; }

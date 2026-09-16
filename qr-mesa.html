@@ -109,8 +109,13 @@
             /* Cada tarjeta a su propia hoja -- página 1 = frente (QR), página
                2 = dorso (historia). Así sirve tanto para imprimir a doble faz
                (una sola hoja, frente y dorso) como para imprimir dos hojas
-               sueltas y pegarlas espalda con espalda. */
-            .cut-frame + .cut-frame { page-break-before: always; }
+               sueltas y pegarlas espalda con espalda.
+               Nota: no se puede usar ".cut-frame + .cut-frame" acá -- el <p
+               class="page-label"> entre las dos tarjetas rompe la adyacencia
+               en el DOM aunque esté oculto (display:none no lo saca del
+               árbol), así que el selector nunca matcheaba y todo salía en
+               una sola página. Por eso la clase explícita .page-back. */
+            .page-back { page-break-before: always; }
         }
     </style>
 </head>
@@ -143,7 +148,7 @@
     </div>
 
     <p class="page-label">Dorso</p>
-    <div class="cut-frame">
+    <div class="cut-frame page-back">
         <div class="card">
             <div class="back-content">
                 <p class="eyebrow">Nuestra historia</p>

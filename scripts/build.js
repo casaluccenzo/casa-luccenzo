@@ -8,6 +8,7 @@ const destDir = path.resolve(srcDir, 'www');
 const assetsToCopy = [
     'index.html',
     'pedido.html',
+    'qr-mesa.html',
     'sistema',
     'manifest.json',
     'sw.js',

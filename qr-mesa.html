@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR de Mesa — Casa Lucenzo</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-950: #0f2137;
+            --navy-900: #142a44;
+            --gold-500: #c9a24a;
+            --gold-300: #e4cd93;
+            --cream-100: #f6f1e4;
+            --serif: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; font-family: var(--sans);
+            background: #ddd; display: flex; flex-direction: column; align-items: center;
+            padding: 2rem 1rem 3rem;
+        }
+        .toolbar {
+            width: 100%; max-width: 40rem; display: flex; justify-content: space-between; align-items: center;
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .toolbar p { font-size: 0.85rem; color: #333; margin: 0; }
+        .toolbar button {
+            background: var(--navy-950); color: var(--cream-100); border: none; border-radius: 8px;
+            padding: 0.7rem 1.3rem; font-family: var(--sans); font-weight: 700; font-size: 0.9rem; cursor: pointer;
+        }
+        .toolbar button:hover { background: var(--navy-900); }
+
+        .cut-frame {
+            padding: 0.7rem; border: 1px dashed #999; border-radius: 4px;
+        }
+
+        .card {
+            width: 9cm; height: 13cm;
+            background: var(--cream-100);
+            border: 2px solid var(--navy-950);
+            border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            padding: 0.9cm 0.7cm 0.7cm;
+            text-align: center;
+            box-shadow: 0 20px 40px -20px rgba(0,0,0,0.35);
+        }
+        .card .eyebrow {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+            color: var(--gold-500); margin: 0 0 0.3rem;
+        }
+        .card h1 {
+            font-family: var(--serif); font-weight: 900; color: var(--navy-950);
+            font-size: 1.55rem; line-height: 1.15; margin: 0;
+        }
+        .card .qr-wrap {
+            width: 5.6cm; height: 5.6cm; margin: 0.5cm 0;
+        }
+        .card .qr-wrap img { width: 100%; height: 100%; display: block; }
+        .card .sub {
+            font-size: 0.82rem; color: var(--navy-900); line-height: 1.5; margin: 0; max-width: 7.2cm;
+        }
+        .card .brand {
+            font-family: var(--serif); font-weight: 800; font-size: 0.95rem; color: var(--navy-950);
+            border-top: 1px solid rgba(15,33,55,0.15); padding-top: 0.4cm; width: 100%;
+        }
+        .card .brand small {
+            display: block; font-family: var(--sans); font-weight: 500; font-size: 0.68rem;
+            color: #555; margin-top: 0.15cm; letter-spacing: 0.01em;
+        }
+
+        @media print {
+            @page { size: A4; margin: 1.5cm; }
+            body { background: #fff; padding: 0; display: block; }
+            .toolbar { display: none; }
+            .cut-frame { border-color: #bbb; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <p>Tamaño tarjeta: 9 × 13 cm. Imprimí y recortá por la línea punteada.</p>
+        <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <div class="cut-frame">
+        <div class="card">
+            <div>
+                <p class="eyebrow">Pastelitos · Bebidas · Dulces</p>
+                <h1>Escaneá para pedir</h1>
+            </div>
+
+            <div class="qr-wrap">
+                <img src="/img/qr-pedido.png" alt="Código QR para hacer un pedido en Casa Lucenzo">
+            </div>
+
+            <p class="sub">Armá tu pedido desde el celular y te confirmamos por WhatsApp los detalles.</p>
+
+            <div class="brand">
+                Casa Lucenzo
+                <small>El Tigre 6050, Anzoátegui</small>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

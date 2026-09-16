@@ -78,16 +78,36 @@
         .pedido-head h1 { font-size: clamp(1.5rem, 5vw, 1.85rem); font-weight: 800; color: #fff; }
         .pedido-head .sub { font-size: 0.85rem; color: var(--cream-200); line-height: 1.55; margin: 0.6rem 0 0; }
 
-        .filter-row { display: flex; gap: 0.4rem; padding: 0.9rem 1.3rem; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
-        .filter-row::-webkit-scrollbar { display: none; }
-        .filter-pill {
-            flex: 0 0 auto; min-width: 4.6rem; text-align: center;
-            font-size: 0.76rem; font-weight: 700; color: var(--cream-200);
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 999px; padding: 0.5rem 0.95rem; cursor: pointer; transition: all 0.15s ease;
+        .menu-tabs-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem 1.1rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .menu-tabs { flex: 1; display: flex; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
+        .menu-tabs::-webkit-scrollbar { display: none; }
+        .menu-tab {
+            flex: 0 0 auto; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+            color: rgba(238,228,205,0.55); padding: 0 0 0.75rem; border-bottom: 2px solid transparent;
+            cursor: pointer; white-space: nowrap; transition: color 0.15s ease, border-color 0.15s ease;
         }
-        .filter-pill:hover { background: rgba(255,255,255,0.08); }
-        .filter-pill.active { background: linear-gradient(180deg, var(--gold-300), var(--gold-500)); border-color: var(--gold-500); color: var(--navy-950); }
+        .menu-tab:hover { color: var(--cream-200); }
+        .menu-tab.active { color: #fff; border-color: var(--gold-500); }
+        .search-toggle {
+            flex: 0 0 auto; width: 30px; height: 30px; margin-bottom: 0.75rem; border-radius: 50%;
+            border: 1px solid rgba(201,162,74,0.35); background: rgba(201,162,74,0.08); color: var(--gold-300);
+            font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .search-toggle:hover { background: rgba(201,162,74,0.16); }
+
+        .search-row { max-height: 0; overflow: hidden; padding: 0 1.3rem; transition: max-height 0.2s ease; }
+        .search-row.open { max-height: 4rem; padding-top: 0.9rem; }
+        .search-input {
+            width: 100%; padding: 0.6rem 0.85rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05); color: #fff; font-family: var(--sans); font-size: 0.85rem;
+        }
+        .search-input::placeholder { color: rgba(246,241,228,0.4); }
+        .search-input:focus { outline: none; border-color: var(--gold-500); }
+
+        .menu-cat-title {
+            font-family: var(--serif); font-weight: 800; color: var(--gold-300); font-size: 1.05rem;
+            text-transform: uppercase; letter-spacing: 0.04em; margin: 1.1rem 0 0.7rem; padding: 0 1.3rem;
+        }
 
         .pedido-body { padding: 0 1.3rem; }
         .order-loading { text-align: center; color: var(--cream-200); font-size: 0.85rem; padding: 2.5rem 0; }
@@ -101,19 +121,34 @@
         .field-input::placeholder { color: rgba(246,241,228,0.4); }
         .field-input:focus { outline: none; border-color: var(--gold-500); }
 
-        .product-row {
-            display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-            padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+        .product-card {
+            display: flex; border-radius: 16px; overflow: hidden; margin-bottom: 0.8rem;
+            border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);
+            transition: border-color 0.2s ease;
         }
-        .product-row:last-child { border-bottom: none; }
-        .product-row .name { font-size: 0.88rem; color: #fff; font-weight: 600; }
-        .product-row .price { font-size: 0.78rem; color: var(--gold-300); font-variant-numeric: tabular-nums; }
-        .qty-control { display: flex; align-items: center; gap: 0.5rem; }
+        .product-card.has-qty { border-color: var(--gold-500); background: rgba(201,162,74,0.06); }
+        .pc-info { flex: 1 1 58%; min-width: 0; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+        .pc-name { font-size: 0.86rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.01em; line-height: 1.3; }
+        .pc-price { font-family: var(--serif); font-size: 1rem; font-weight: 800; color: var(--gold-300); font-variant-numeric: tabular-nums; }
+        .qty-control { display: flex; align-items: center; gap: 0.55rem; margin-top: auto; padding-top: 0.3rem; }
         .qty-btn {
             width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(201,162,74,0.4);
             background: rgba(201,162,74,0.1); color: var(--gold-300); font-weight: 800; cursor: pointer; font-size: 0.9rem;
         }
         .qty-val { min-width: 1.2rem; text-align: center; color: #fff; font-weight: 700; font-size: 0.9rem; }
+        .pc-visual {
+            flex: 0 0 34%; position: relative; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at 30% 20%, rgba(201,162,74,0.32), transparent 65%),
+                        linear-gradient(160deg, var(--navy-900), var(--navy-950));
+        }
+        .pc-icon { font-size: 2.2rem; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); }
+        .pc-badge {
+            position: absolute; bottom: 0.4rem; right: 0.4rem; min-width: 1.35rem; height: 1.35rem; padding: 0 0.3rem;
+            border-radius: 999px; background: linear-gradient(180deg, var(--gold-300), var(--gold-500));
+            color: var(--navy-950); font-weight: 800; font-size: 0.72rem; display: none;
+            align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        .product-card.has-qty .pc-badge { display: flex; }
 
         .payment-options { display: flex; gap: 0.6rem; margin-top: 1.1rem; margin-bottom: 0.9rem; }
         .payment-opt {
@@ -185,12 +220,19 @@
             </div>
 
             <div id="pedido-order-wrap">
-                <div class="filter-row" id="category-filter-row">
-                    <div class="filter-pill active" data-cat="todos">Todo</div>
-                    <div class="filter-pill" data-cat="pastelitos">Pastelitos</div>
-                    <div class="filter-pill" data-cat="bebidas">Bebidas</div>
-                    <div class="filter-pill" data-cat="dulces">Dulces</div>
+                <div class="menu-tabs-row">
+                    <div class="menu-tabs" id="category-filter-row">
+                        <div class="menu-tab active" data-cat="todos">Todo</div>
+                        <div class="menu-tab" data-cat="pastelitos">Pastelitos</div>
+                        <div class="menu-tab" data-cat="bebidas">Bebidas</div>
+                        <div class="menu-tab" data-cat="dulces">Dulces</div>
+                    </div>
+                    <button type="button" class="search-toggle" id="search-toggle" aria-label="Buscar en el menú">🔍</button>
                 </div>
+                <div class="search-row" id="search-row">
+                    <input type="search" class="search-input" id="search-input" placeholder="Buscar en el menú…">
+                </div>
+                <h2 class="menu-cat-title" id="menu-cat-title">Todo el menú</h2>
 
                 <div class="pedido-body">
                     <div class="order-loading" id="order-loading">Cargando el menú del día…</div>
@@ -287,13 +329,19 @@
             }
         }
 
+        const CATEGORY_ICON = { pastelitos: '🥐', bebidas: '🥤', dulces: '🍬' };
+        const CATEGORY_LABEL = { todos: 'Todo el menú', pastelitos: 'Pastelitos', bebidas: 'Bebidas', dulces: 'Dulces' };
+
         function recalc() {
             let total = 0;
             let totalQty = 0;
-            productList.querySelectorAll('.product-row').forEach(row => {
-                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+            productList.querySelectorAll('.product-card').forEach(card => {
+                const valEl = card.querySelector('.qty-val');
+                const qty = parseInt(valEl.textContent, 10);
                 totalQty += qty;
-                total += qty * parseFloat(row.dataset.price);
+                total += qty * parseFloat(card.dataset.price);
+                card.classList.toggle('has-qty', qty > 0);
+                card.querySelector('.pc-badge').textContent = qty;
             });
             totalEl.textContent = '$' + total.toFixed(2);
             const nameOk = document.getElementById('c-name').value.trim().length > 0;
@@ -304,32 +352,52 @@
         function renderProducts(products) {
             productList.innerHTML = '';
             products.forEach(p => {
-                const row = document.createElement('div');
-                row.className = 'product-row';
-                row.dataset.name = p.name;
-                row.dataset.price = p.price;
-                row.dataset.cat = p.category || 'otros';
-                row.innerHTML =
-                    '<div><div class="name"></div><div class="price"></div></div>' +
+                const cat = p.category || 'otros';
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.dataset.name = p.name;
+                card.dataset.price = p.price;
+                card.dataset.cat = cat;
+                card.innerHTML =
+                    '<div class="pc-info">' +
+                    '<div class="pc-name"></div>' +
+                    '<div class="pc-price"></div>' +
                     '<div class="qty-control">' +
                     '<button type="button" class="qty-btn" data-dir="-1">−</button>' +
                     '<span class="qty-val">0</span>' +
                     '<button type="button" class="qty-btn" data-dir="1">+</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="pc-visual">' +
+                    '<span class="pc-icon"></span>' +
+                    '<span class="pc-badge">0</span>' +
                     '</div>';
-                row.querySelector('.name').textContent = p.name;
-                row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
-                productList.appendChild(row);
+                card.querySelector('.pc-name').textContent = p.name;
+                card.querySelector('.pc-price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                card.querySelector('.pc-icon').textContent = CATEGORY_ICON[cat] || '🍽️';
+                productList.appendChild(card);
             });
 
             productList.querySelectorAll('.qty-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const row = btn.closest('.product-row');
-                    const valEl = row.querySelector('.qty-val');
+                    const card = btn.closest('.product-card');
+                    const valEl = card.querySelector('.qty-val');
                     let val = parseInt(valEl.textContent, 10) + parseInt(btn.dataset.dir, 10);
                     if (val < 0) val = 0;
                     valEl.textContent = val;
                     recalc();
                 });
+            });
+        }
+
+        function applyFilters() {
+            const activeTab = document.querySelector('#category-filter-row .menu-tab.active');
+            const cat = activeTab ? activeTab.dataset.cat : 'todos';
+            const term = searchInput.value.trim().toLowerCase();
+            productList.querySelectorAll('.product-card').forEach(card => {
+                const matchesCat = (cat === 'todos' || card.dataset.cat === cat);
+                const matchesTerm = !term || card.dataset.name.toLowerCase().includes(term);
+                card.style.display = (matchesCat && matchesTerm) ? 'flex' : 'none';
             });
         }
 
@@ -362,16 +430,30 @@
             }
         }
 
-        document.querySelectorAll('#category-filter-row .filter-pill').forEach(pill => {
-            pill.addEventListener('click', () => {
-                document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-                const cat = pill.dataset.cat;
-                productList.querySelectorAll('.product-row').forEach(row => {
-                    row.style.display = (cat === 'todos' || row.dataset.cat === cat) ? 'flex' : 'none';
-                });
+        const searchToggle = document.getElementById('search-toggle');
+        const searchRow = document.getElementById('search-row');
+        const searchInput = document.getElementById('search-input');
+        const catTitle = document.getElementById('menu-cat-title');
+
+        document.querySelectorAll('#category-filter-row .menu-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('#category-filter-row .menu-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                catTitle.textContent = CATEGORY_LABEL[tab.dataset.cat] || tab.textContent;
+                applyFilters();
             });
         });
+
+        searchToggle.addEventListener('click', () => {
+            searchRow.classList.toggle('open');
+            if (searchRow.classList.contains('open')) {
+                searchInput.focus();
+            } else {
+                searchInput.value = '';
+                applyFilters();
+            }
+        });
+        searchInput.addEventListener('input', applyFilters);
 
         document.querySelectorAll('.payment-opt').forEach(opt => {
             opt.addEventListener('click', () => {
@@ -392,11 +474,11 @@
 
             const items = [];
             let total = 0;
-            productList.querySelectorAll('.product-row').forEach(row => {
-                const qty = parseInt(row.querySelector('.qty-val').textContent, 10);
+            productList.querySelectorAll('.product-card').forEach(card => {
+                const qty = parseInt(card.querySelector('.qty-val').textContent, 10);
                 if (qty > 0) {
-                    const price = parseFloat(row.dataset.price);
-                    items.push({ name: row.dataset.name, qty, price });
+                    const price = parseFloat(card.dataset.price);
+                    items.push({ name: card.dataset.name, qty, price });
                     total += qty * price;
                 }
             });
@@ -436,9 +518,12 @@
         document.getElementById('btn-new-order').addEventListener('click', () => {
             form.reset();
             productList.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
-            productList.querySelectorAll('.product-row').forEach(row => row.style.display = 'flex');
-            document.querySelectorAll('#category-filter-row .filter-pill').forEach(p => p.classList.remove('active'));
-            document.querySelector('#category-filter-row .filter-pill[data-cat="todos"]').classList.add('active');
+            searchInput.value = '';
+            searchRow.classList.remove('open');
+            document.querySelectorAll('#category-filter-row .menu-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('#category-filter-row .menu-tab[data-cat="todos"]').classList.add('active');
+            catTitle.textContent = CATEGORY_LABEL.todos;
+            applyFilters();
             document.querySelectorAll('.payment-opt').forEach(o => o.classList.remove('selected'));
             document.querySelector('.payment-opt[data-pago="Pago Móvil"]').classList.add('selected');
             selectedPago = 'Pago Móvil';

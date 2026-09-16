@@ -10,6 +10,12 @@ const path = require('path');
 const QRCode = require('qrcode');
 const sharp = require('sharp');
 
+// El QR ya está impreso y pegado en las mesas: esta URL es lo único que el
+// papel "sabe" -- el menú, los precios y el diseño de pedido.html se leen en
+// vivo cada vez que alguien lo escanea, así que se pueden seguir cambiando
+// libremente SIN reimprimir nada. Lo único que invalidaría el QR ya impreso
+// es tocar esta URL en sí (cambiar de dominio, o mover/renombrar
+// pedido.html) -- si eso pasa alguna vez, hay que reimprimir la tarjeta.
 const URL_PEDIDO = 'https://casalucenzo.com/pedido.html';
 const OUTPUT_PATH = path.join(__dirname, '..', 'img', 'qr-pedido.png');
 const LOGO_PATH = path.join(__dirname, '..', 'img', 'logo-512.png');

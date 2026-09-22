@@ -77,7 +77,32 @@ no es trivial (patrón de `010_close_public_rls_ROLLBACK.sql`).
   gratis (`casa-lucenzo-dev`) con las 24 migraciones de producción ya aplicadas,
   donde corren las migraciones 025-032 sin tocar producción.
 
-- [ ] **Step 1: Crear la rama git**
+> **Estado (2026-09-22): Task 0 completa.** Notas de la ejecución real, para
+> quien retome Plan A:
+> - **`DEV_PROJECT_ID` = `kzthbjjfguivguppqeuq`** (`casa-lucenzo-dev`, región
+>   `us-west-1` — el MCP de Supabase no ofrece `us-west-2`, la región real de
+>   producción, así que se usó la más cercana disponible).
+> - No se creó la rama `feature/offline-first`: este trabajo corrió en una
+>   sesión de Claude Code con una rama de sesión ya asignada
+>   (`claude/beautiful-hopper-kpgra4`), así que el scaffold de Step 1 se hizo
+>   directo sobre esa rama en vez de una rama nueva.
+> - **`list_migrations` de producción NO coincide con los 24 archivos del repo.**
+>   `010_close_public_rls.sql`, `011_close_anon_reads.sql` y
+>   `014_close_anon_activity_logs.sql` están vivas en producción (verificado
+>   contra las políticas RLS reales) pero se aplicaron a mano en su momento, sin
+>   quedar registradas en la tabla de tracking de Supabase. `013` y `015` NO
+>   están aplicadas, tal como dicen sus propios headers ("NO APLICAR TODAVÍA").
+>   Y producción tiene una migración `multi_tenant_locations` (`location_id` en
+>   12 tablas + tabla `locations` + `get_user_location()`) que **nunca se
+>   commiteó** — se reconstruyó ahora como
+>   `supabase/migrations/016b_multi_tenant_locations.sql` a partir del esquema
+>   real de producción. El proyecto dev se sembró replicando este estado real
+>   (000-012, 014, 016, 016b, 017-024; saltando 013 y 015 a propósito), no la
+>   lista corta que asumía este Step.
+> - Verificado con `get_advisors` (security) que dev y producción devuelven
+>   exactamente los mismos hallazgos — mismo esquema efectivo.
+
+- [x] **Step 1: Crear la rama git**
 
 ```bash
 git checkout main && git pull origin main
@@ -86,7 +111,7 @@ mkdir -p supabase/tests
 git commit --allow-empty -m "chore: start offline-first Phase 1 (Plan A)"
 ```
 
-- [ ] **Step 2: El usuario crea el 2º proyecto**
+- [x] **Step 2: El usuario crea el 2º proyecto**
 
 El usuario crea desde el dashboard un proyecto gratis `casa-lucenzo-dev`, misma
 región (`us-west-2`), y pasa el `project_id`. (No lo crea el agente salvo que el
@@ -94,7 +119,7 @@ usuario lo pida explícitamente.) Anotar el `DEV_PROJECT_ID` — TODAS las
 migraciones y aserciones de Plan A van contra ese id, nunca contra
 `xttpaqokeyywjaajvjyu` (producción).
 
-- [ ] **Step 3: Clonar el esquema de producción al proyecto dev**
+- [x] **Step 3: Clonar el esquema de producción al proyecto dev**
 
 El proyecto dev arranca vacío. Aplicar las 24 migraciones existentes en orden
 (`001` … `024_pin_functions_search_path`) vía MCP `apply_migration` contra
@@ -107,7 +132,7 @@ puede quedar activo escribiendo `app_config` cada hora. Tras aplicarlas, correr
 en dev: `SELECT cron.unschedule('sync-bcv-rate');` para que no ensucie los
 tests de stock con writes de fondo.
 
-- [ ] **Step 4: Sembrar datos de ejemplo para el backfill**
+- [x] **Step 4: Sembrar datos de ejemplo para el backfill**
 
 El proyecto dev no tiene los datos de prod. Insertar ~6 productos
 representativos (mix de `pastelitos` y `bebidas`/`dulces`, con `stock` e
@@ -129,7 +154,7 @@ INSERT INTO public.debts (uuid, client_name, amount) VALUES
   ('seed-debt-c','Cliente Frecuente', 8.00);
 ```
 
-- [ ] **Step 5: Commit del scaffold**
+- [x] **Step 5: Commit del scaffold**
 
 ```bash
 git add supabase/tests/planA_seed.sql

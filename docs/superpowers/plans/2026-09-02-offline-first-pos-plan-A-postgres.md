@@ -77,7 +77,32 @@ no es trivial (patrón de `010_close_public_rls_ROLLBACK.sql`).
   gratis (`casa-lucenzo-dev`) con las 24 migraciones de producción ya aplicadas,
   donde corren las migraciones 025-032 sin tocar producción.
 
-- [ ] **Step 1: Crear la rama git**
+> **Estado (2026-09-22): Task 0 completa.** Notas de la ejecución real, para
+> quien retome Plan A:
+> - **`DEV_PROJECT_ID` = `kzthbjjfguivguppqeuq`** (`casa-lucenzo-dev`, región
+>   `us-west-1` — el MCP de Supabase no ofrece `us-west-2`, la región real de
+>   producción, así que se usó la más cercana disponible).
+> - No se creó la rama `feature/offline-first`: este trabajo corrió en una
+>   sesión de Claude Code con una rama de sesión ya asignada
+>   (`claude/beautiful-hopper-kpgra4`), así que el scaffold de Step 1 se hizo
+>   directo sobre esa rama en vez de una rama nueva.
+> - **`list_migrations` de producción NO coincide con los 24 archivos del repo.**
+>   `010_close_public_rls.sql`, `011_close_anon_reads.sql` y
+>   `014_close_anon_activity_logs.sql` están vivas en producción (verificado
+>   contra las políticas RLS reales) pero se aplicaron a mano en su momento, sin
+>   quedar registradas en la tabla de tracking de Supabase. `013` y `015` NO
+>   están aplicadas, tal como dicen sus propios headers ("NO APLICAR TODAVÍA").
+>   Y producción tiene una migración `multi_tenant_locations` (`location_id` en
+>   12 tablas + tabla `locations` + `get_user_location()`) que **nunca se
+>   commiteó** — se reconstruyó ahora como
+>   `supabase/migrations/016b_multi_tenant_locations.sql` a partir del esquema
+>   real de producción. El proyecto dev se sembró replicando este estado real
+>   (000-012, 014, 016, 016b, 017-024; saltando 013 y 015 a propósito), no la
+>   lista corta que asumía este Step.
+> - Verificado con `get_advisors` (security) que dev y producción devuelven
+>   exactamente los mismos hallazgos — mismo esquema efectivo.
+
+- [x] **Step 1: Crear la rama git**
 
 ```bash
 git checkout main && git pull origin main
@@ -86,7 +111,7 @@ mkdir -p supabase/tests
 git commit --allow-empty -m "chore: start offline-first Phase 1 (Plan A)"
 ```
 
-- [ ] **Step 2: El usuario crea el 2º proyecto**
+- [x] **Step 2: El usuario crea el 2º proyecto**
 
 El usuario crea desde el dashboard un proyecto gratis `casa-lucenzo-dev`, misma
 región (`us-west-2`), y pasa el `project_id`. (No lo crea el agente salvo que el
@@ -94,7 +119,7 @@ usuario lo pida explícitamente.) Anotar el `DEV_PROJECT_ID` — TODAS las
 migraciones y aserciones de Plan A van contra ese id, nunca contra
 `xttpaqokeyywjaajvjyu` (producción).
 
-- [ ] **Step 3: Clonar el esquema de producción al proyecto dev**
+- [x] **Step 3: Clonar el esquema de producción al proyecto dev**
 
 El proyecto dev arranca vacío. Aplicar las 24 migraciones existentes en orden
 (`001` … `024_pin_functions_search_path`) vía MCP `apply_migration` contra
@@ -107,7 +132,7 @@ puede quedar activo escribiendo `app_config` cada hora. Tras aplicarlas, correr
 en dev: `SELECT cron.unschedule('sync-bcv-rate');` para que no ensucie los
 tests de stock con writes de fondo.
 
-- [ ] **Step 4: Sembrar datos de ejemplo para el backfill**
+- [x] **Step 4: Sembrar datos de ejemplo para el backfill**
 
 El proyecto dev no tiene los datos de prod. Insertar ~6 productos
 representativos (mix de `pastelitos` y `bebidas`/`dulces`, con `stock` e
@@ -129,7 +154,7 @@ INSERT INTO public.debts (uuid, client_name, amount) VALUES
   ('seed-debt-c','Cliente Frecuente', 8.00);
 ```
 
-- [ ] **Step 5: Commit del scaffold**
+- [x] **Step 5: Commit del scaffold**
 
 ```bash
 git add supabase/tests/planA_seed.sql
@@ -149,7 +174,7 @@ git commit -m "chore: Plan A dev-project seed data"
    device_id text, created_at timestamptz, location_id uuid, note text`.
   `type ∈ ('load','sale','sale_return','count_down','open_carry')`.
 
-- [ ] **Step 1: Escribir la aserción de que la tabla NO existe todavía**
+- [x] **Step 1: Escribir la aserción de que la tabla NO existe todavía**
 
 En `supabase/tests/planA_assertions.sql`, agregar al principio:
 
@@ -165,7 +190,7 @@ END $$;
 Correr ese bloque solo vía `execute_sql` contra el proyecto dev. Expected: pasa (no
 lanza) porque la tabla aún no existe.
 
-- [ ] **Step 2: Escribir la migración 025**
+- [x] **Step 2: Escribir la migración 025**
 
 ```sql
 -- Migration 025: stock_movements — registro append-only de movimientos de vitrina
@@ -206,12 +231,12 @@ CREATE POLICY "Venta y cocina y admin insertan movimientos" ON public.stock_move
 COMMIT;
 ```
 
-- [ ] **Step 3: Aplicar la migración al proyecto dev**
+- [x] **Step 3: Aplicar la migración al proyecto dev**
 
 MCP `apply_migration` contra `DEV_PROJECT_ID`, `name: "025_stock_movements"`.
 Expected: `{"success": true}`.
 
-- [ ] **Step 4: Aserciones de estructura**
+- [x] **Step 4: Aserciones de estructura**
 
 Agregar a `planA_assertions.sql` y correr vía `execute_sql`:
 
@@ -229,7 +254,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/migrations/025_stock_movements.sql supabase/tests/planA_assertions.sql
@@ -253,7 +278,7 @@ git commit -m "feat(db): stock_movements append-only table (dormant)"
     `SECURITY DEFINER`, `SET search_path=public`. Es la frontera que usa el
     recálculo de stock (Task 6).
 
-- [ ] **Step 1: Escribir la migración 026**
+- [x] **Step 1: Escribir la migración 026**
 
 ```sql
 -- Migration 026: day_closes — cada cierre de jornada es una fila (append-only).
@@ -298,11 +323,11 @@ REVOKE EXECUTE ON FUNCTION public.last_close_at() FROM PUBLIC, anon;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "026_day_closes"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserciones**
+- [x] **Step 3: Aserciones**
 
 Agregar a `planA_assertions.sql`:
 
@@ -324,7 +349,7 @@ DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');
 Expected: no lanza. (El `DELETE` de limpieza es válido acá porque es el proyecto dev de
 test y estas filas son sintéticas; en producción `day_closes` es append-only.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/026_day_closes.sql supabase/tests/planA_assertions.sql
@@ -347,7 +372,7 @@ git commit -m "feat(db): day_closes table + last_close_at() boundary fn"
   `debt_payments` vacía y `debts.amount` = el remanente actual (los abonos
   viejos viven en `sales` como `product_id='abono'`, no se pueden re-linkear).
 
-- [ ] **Step 1: Escribir la migración 027**
+- [x] **Step 1: Escribir la migración 027**
 
 ```sql
 -- Migration 027: debt_payments — abonos append-only.
@@ -380,11 +405,11 @@ CREATE POLICY "Venta y admin registran abonos" ON public.debt_payments
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "027_debt_payments"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción de saldo**
+- [x] **Step 3: Aserción de saldo**
 
 Agregar a `planA_assertions.sql`:
 
@@ -406,7 +431,7 @@ DELETE FROM public.debts WHERE uuid = 't-debt-1';
 
 Expected: no lanza.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/027_debt_payments.sql supabase/tests/planA_assertions.sql
@@ -425,7 +450,7 @@ git commit -m "feat(db): debt_payments append-only table (dormant)"
   Los reportes filtrarán `voided_at IS NULL` (eso lo hace Plan B en el cliente;
   acá solo se agregan las columnas, nulas).
 
-- [ ] **Step 1: Escribir la migración 028**
+- [x] **Step 1: Escribir la migración 028**
 
 ```sql
 -- Migration 028: anulacion de ventas por marca, no por DELETE (spec §5.2).
@@ -437,11 +462,11 @@ CREATE INDEX IF NOT EXISTS idx_sales_active
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "028_sales_void_columns"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción**
+- [x] **Step 3: Aserción**
 
 ```sql
 DO $$ BEGIN
@@ -454,7 +479,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/028_sales_void_columns.sql
@@ -474,7 +499,7 @@ git commit -m "feat(db): sales.voided_at / void_reason columns"
   llena. La app NO las lee todavía (Plan B). Comparar sombra vs real es el
   criterio de "modo sombra OK" del spec §10.
 
-- [ ] **Step 1: Escribir la migración 029**
+- [x] **Step 1: Escribir la migración 029**
 
 ```sql
 -- Migration 029: columnas sombra. El trigger de 030 las mantiene; la app las
@@ -486,7 +511,7 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS max_computed           inte
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar + aserción**
+- [x] **Step 2: Aplicar + aserción**
 
 MCP `apply_migration`, `name: "029_products_shadow_columns"`.
 
@@ -499,7 +524,7 @@ DO $$ BEGIN
 END $$;
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/029_products_shadow_columns.sql
@@ -524,7 +549,7 @@ git commit -m "feat(db): products shadow-compute columns"
   - trigger `trg_day_close_recompute` AFTER INSERT ON `day_closes`
     FOR EACH STATEMENT → recalcula TODOS los productos (cambió la frontera).
 
-- [ ] **Step 1: Escribir la migración 030**
+- [x] **Step 1: Escribir la migración 030**
 
 ```sql
 -- Migration 030: recalculo de stock sombra desde stock_movements (§5.1a).
@@ -615,11 +640,11 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.tg_day_close_recompute();
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "030_stock_recompute"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Test de cálculo — pastelito, un día sin cierre**
+- [x] **Step 3: Test de cálculo — pastelito, un día sin cierre**
 
 Agregar a `planA_assertions.sql`:
 
@@ -647,7 +672,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 4: Test de cálculo — el cierre resetea el pastelito**
+- [x] **Step 4: Test de cálculo — el cierre resetea el pastelito**
 
 ```sql
 INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-A', now());
@@ -663,7 +688,14 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 5: Test de cálculo — bebida (empaquetado) cruza el cierre**
+- [x] **Step 5: Test de cálculo — bebida (empaquetado) cruza el cierre**
+
+> Ejecutado con la opción (a) implícita: `b1`/`b2` con `now() - interval` (antes
+> del cierre) y `b3`/`b4` con `now()` (después, corrido en una llamada
+> `execute_sql` posterior a la del cierre) en vez de los literales
+> `2026-09-02T...` del plan -- esas fechas eran relativas a cuándo se escribió
+> el plan, no al momento real de ejecución. El orden relativo es lo único que
+> importa para el cálculo; ver la nota en `planA_assertions.sql`.
 
 ```sql
 INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
@@ -702,7 +734,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 6: Limpieza de datos de prueba**
+- [x] **Step 6: Limpieza de datos de prueba**
 
 ```sql
 DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
@@ -710,7 +742,7 @@ DELETE FROM public.day_closes WHERE id = 't-close-A';
 DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add supabase/migrations/030_stock_recompute.sql supabase/tests/planA_assertions.sql
@@ -729,7 +761,7 @@ git commit -m "feat(db): stock recompute fn + triggers (shadow columns)"
 - Produces: vista `public.v_stock_alerts (product_id, name, stock_computed, faltante)`
   con las filas donde `stock_computed < 0`. La lee el panel admin (Plan B).
 
-- [ ] **Step 1: Escribir la migración 031**
+- [x] **Step 1: Escribir la migración 031**
 
 ```sql
 -- Migration 031: alerta de stock negativo para el admin (spec §5.1a).
@@ -747,7 +779,7 @@ GRANT SELECT ON public.v_stock_alerts TO authenticated;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar + test**
+- [x] **Step 2: Aplicar + test**
 
 MCP `apply_migration`, `name: "031_stock_alerts_view"`.
 
@@ -769,7 +801,7 @@ DELETE FROM public.products WHERE id='t-neg-1';
 
 Expected: no lanza.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/031_stock_alerts_view.sql supabase/tests/planA_assertions.sql
@@ -790,7 +822,7 @@ git commit -m "feat(db): v_stock_alerts view for negative stock"
   `recompute_product_stock` deje `stock_computed = stock` e
   `initial_stock_computed = initial_stock` (spec §5.1a "Backfill").
 
-- [ ] **Step 1: Escribir la migración 032**
+- [x] **Step 1: Escribir la migración 032**
 
 ```sql
 -- Migration 032: backfill. Por producto:
@@ -829,11 +861,11 @@ WHERE p.stock < p.initial_stock;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "032_backfill_stock_movements"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción — sombra == real para TODOS los productos**
+- [x] **Step 3: Aserción — sombra == real para TODOS los productos**
 
 Agregar a `planA_assertions.sql`:
 
@@ -852,7 +884,7 @@ END $$;
 Expected: no lanza. **Si lanza, el backfill o el recálculo están mal — parar y
 revisar antes de seguir.**
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/032_backfill_stock_movements.sql supabase/tests/planA_assertions.sql
@@ -871,7 +903,7 @@ git commit -m "feat(db): backfill stock_movements to match current products stat
   proyecto dev recién migrado sin lanzar ninguna excepción, y deja la DB sin filas de
   prueba (`t-*`, `m*`, `b*`, `n*`).
 
-- [ ] **Step 1: Ordenar el archivo**
+- [x] **Step 1: Ordenar el archivo**
 
 Reordenar los bloques agregados en las tasks 1-8 en este orden: estructura
 (1,2,3,4,5) → cálculo pastelito (6.3) → cierre (6.4) → empaquetado (6.5) →
@@ -884,13 +916,24 @@ limpieza (6.6) → alerta (7.2) → backfill sombra==real (8.3). Encabezar con:
 -- con id que empiece en 't-', 'm', 'b', 'n', 'backfill-'.
 ```
 
-- [ ] **Step 2: Correr la suite entera**
+- [x] **Step 2: Correr la suite entera**
 
 Pegar el archivo completo en `execute_sql` contra `DEV_PROJECT_ID`.
 Expected: sin error. Si alguna aserción lanza, arreglar la migración
 correspondiente, re-aplicar (recrear el proyecto dev o borrar a mano las tablas 025-032), re-correr.
 
-- [ ] **Step 3: Verificar que no quedó basura de test**
+> **Hallazgo real al correrlo:** la primera corrida completa SÍ lanzó ("5
+> productos con sombra != real"). Causa: el trigger de `day_closes` recalcula
+> TODOS los productos por statement, no solo los de prueba -- así que los
+> bloques de test de las Tasks 2 y 6 (que insertan y después borran filas de
+> `day_closes`) pisaban temporalmente las columnas sombra de los 6 productos
+> reales ya backfillados (Task 8), y el `DELETE` de limpieza no lo deshacía
+> (no hay trigger `AFTER DELETE`). Fix: agregar, después de cada limpieza de
+> `day_closes` de prueba, un loop que vuelve a llamar
+> `recompute_product_stock()` sobre todos los productos reales -- ver
+> `planA_assertions.sql`. Con eso la corrida completa pasó limpia.
+
+- [x] **Step 3: Verificar que no quedó basura de test**
 
 ```sql
 SELECT 'movimientos' AS t, count(*) FROM public.stock_movements WHERE id LIKE 't-%' OR id ~ '^[mbn][0-9]'
@@ -903,7 +946,7 @@ UNION ALL SELECT 'products test', count(*) FROM public.products WHERE id LIKE 't
 Expected: todas las cuentas en 0. (Las filas `backfill-*` de `stock_movements` SÍ
 quedan — son el backfill real, no test.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/tests/planA_assertions.sql
@@ -929,7 +972,16 @@ iterás). Cuando pasa, se aplican 025-032 a producción (son aditivas/dormidas,
 la app no cambia) y se corre el mismo diff sombra-vs-real contra los 29
 productos reales. Ese segundo diff en 0 es el OK definitivo.
 
-- [ ] **Step 1: Diff sombra vs real en los productos reales**
+> **Estado (2026-09-23): AMBAS corridas completas y en verde — Plan A
+> (Fase 1) cerrado.** `025`-`032` aplicadas a producción
+> (`xttpaqokeyywjaajvjyu`) con confirmación explícita del usuario; diff final
+> sobre los 29 productos reales = 0 filas; 0 triggers nuevos en las tablas que
+> la app ya escribe. Ver `docs/superpowers/plans/planA-shadow-report.md` para
+> el detalle completo de ambas corridas. Sigue en modo sombra/dormido: el
+> frontend no lee ni escribe nada de esto todavía (eso es Plan B, sin
+> escribir).
+
+- [x] **Step 1: Diff sombra vs real en los productos reales** (corrida 1 dev + corrida 2 producción, ambas 0 filas)
 
 ```sql
 SELECT id, name, category,
@@ -942,7 +994,7 @@ SELECT id, name, category,
 
 Expected: 0 filas.
 
-- [ ] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron**
+- [x] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron** (dev vs prod pre-migración, y prod post-migración — las 3 comparaciones en 0)
 
 Revisar que ninguna migración 025-032 hizo `ALTER` sobre `products.stock`,
 `products.initial_stock`, `products.max`, ni agregó triggers `BEFORE`/`AFTER`
@@ -960,14 +1012,14 @@ SELECT tgname, tgrelid::regclass, tgenabled
 Expected: la MISMA lista que en producción antes de Plan A (comparar contra
 `xttpaqokeyywjaajvjyu`). Ningún trigger nuevo.
 
-- [ ] **Step 3: Escribir el reporte de gate**
+- [x] **Step 3: Escribir el reporte de gate** (documenta ambas corridas, dev y producción)
 
 Crear `docs/superpowers/plans/planA-shadow-report.md` con: fecha, project_id de
 el DEV_PROJECT_ID, el resultado del step 1 (0 filas), el diff de triggers (sin cambios), y
 la lista de migraciones aplicadas. Este archivo es el "OK para mergear Plan A a
 producción" — pero el merge real y el arranque de PowerSync son Plan B.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers/plans/planA-shadow-report.md

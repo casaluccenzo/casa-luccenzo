@@ -64,3 +64,14 @@ BEGIN
 END $$;
 DELETE FROM public.debt_payments WHERE debt_uuid = 't-debt-1';
 DELETE FROM public.debts WHERE uuid = 't-debt-1';
+
+-- ---------------------------------------------------------------------------
+-- Task 4: sales.voided_at / void_reason
+-- ---------------------------------------------------------------------------
+
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='sales'
+            AND column_name IN ('voided_at','void_reason')) = 2,
+         'planA: faltan columnas de anulacion en sales';
+END $$;

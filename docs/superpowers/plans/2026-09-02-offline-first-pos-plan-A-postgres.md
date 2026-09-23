@@ -450,7 +450,7 @@ git commit -m "feat(db): debt_payments append-only table (dormant)"
   Los reportes filtrarán `voided_at IS NULL` (eso lo hace Plan B en el cliente;
   acá solo se agregan las columnas, nulas).
 
-- [ ] **Step 1: Escribir la migración 028**
+- [x] **Step 1: Escribir la migración 028**
 
 ```sql
 -- Migration 028: anulacion de ventas por marca, no por DELETE (spec §5.2).
@@ -462,11 +462,11 @@ CREATE INDEX IF NOT EXISTS idx_sales_active
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "028_sales_void_columns"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción**
+- [x] **Step 3: Aserción**
 
 ```sql
 DO $$ BEGIN
@@ -479,7 +479,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/028_sales_void_columns.sql

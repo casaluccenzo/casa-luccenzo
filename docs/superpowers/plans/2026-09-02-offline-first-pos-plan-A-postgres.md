@@ -761,7 +761,7 @@ git commit -m "feat(db): stock recompute fn + triggers (shadow columns)"
 - Produces: vista `public.v_stock_alerts (product_id, name, stock_computed, faltante)`
   con las filas donde `stock_computed < 0`. La lee el panel admin (Plan B).
 
-- [ ] **Step 1: Escribir la migración 031**
+- [x] **Step 1: Escribir la migración 031**
 
 ```sql
 -- Migration 031: alerta de stock negativo para el admin (spec §5.1a).
@@ -779,7 +779,7 @@ GRANT SELECT ON public.v_stock_alerts TO authenticated;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar + test**
+- [x] **Step 2: Aplicar + test**
 
 MCP `apply_migration`, `name: "031_stock_alerts_view"`.
 
@@ -801,7 +801,7 @@ DELETE FROM public.products WHERE id='t-neg-1';
 
 Expected: no lanza.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/031_stock_alerts_view.sql supabase/tests/planA_assertions.sql

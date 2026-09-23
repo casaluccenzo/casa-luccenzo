@@ -972,7 +972,14 @@ iterás). Cuando pasa, se aplican 025-032 a producción (son aditivas/dormidas,
 la app no cambia) y se corre el mismo diff sombra-vs-real contra los 29
 productos reales. Ese segundo diff en 0 es el OK definitivo.
 
-- [ ] **Step 1: Diff sombra vs real en los productos reales**
+> **Estado (2026-09-23): corrida 1 (dev) completa y en verde. Corrida 2
+> (producción) PENDIENTE de confirmación explícita del usuario** — aplicar
+> `025`-`032` a `xttpaqokeyywjaajvjyu` es la línea que el propio Task 0 marca
+> como el punto de no-retorno de la Fase 1, y toca la base real de un negocio
+> en operación. Ver `docs/superpowers/plans/planA-shadow-report.md` para el
+> detalle completo y los pasos que faltan.
+
+- [x] **Step 1: Diff sombra vs real en los productos reales** (corrida 1, dev)
 
 ```sql
 SELECT id, name, category,
@@ -985,7 +992,7 @@ SELECT id, name, category,
 
 Expected: 0 filas.
 
-- [ ] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron**
+- [x] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron** (corrida 1, dev vs prod)
 
 Revisar que ninguna migración 025-032 hizo `ALTER` sobre `products.stock`,
 `products.initial_stock`, `products.max`, ni agregó triggers `BEFORE`/`AFTER`
@@ -1003,14 +1010,14 @@ SELECT tgname, tgrelid::regclass, tgenabled
 Expected: la MISMA lista que en producción antes de Plan A (comparar contra
 `xttpaqokeyywjaajvjyu`). Ningún trigger nuevo.
 
-- [ ] **Step 3: Escribir el reporte de gate**
+- [x] **Step 3: Escribir el reporte de gate** (documenta corrida 1; corrida 2 queda como pendiente explícito dentro del propio reporte)
 
 Crear `docs/superpowers/plans/planA-shadow-report.md` con: fecha, project_id de
 el DEV_PROJECT_ID, el resultado del step 1 (0 filas), el diff de triggers (sin cambios), y
 la lista de migraciones aplicadas. Este archivo es el "OK para mergear Plan A a
 producción" — pero el merge real y el arranque de PowerSync son Plan B.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers/plans/planA-shadow-report.md

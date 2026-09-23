@@ -278,7 +278,7 @@ git commit -m "feat(db): stock_movements append-only table (dormant)"
     `SECURITY DEFINER`, `SET search_path=public`. Es la frontera que usa el
     recálculo de stock (Task 6).
 
-- [ ] **Step 1: Escribir la migración 026**
+- [x] **Step 1: Escribir la migración 026**
 
 ```sql
 -- Migration 026: day_closes — cada cierre de jornada es una fila (append-only).
@@ -323,11 +323,11 @@ REVOKE EXECUTE ON FUNCTION public.last_close_at() FROM PUBLIC, anon;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "026_day_closes"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserciones**
+- [x] **Step 3: Aserciones**
 
 Agregar a `planA_assertions.sql`:
 
@@ -349,7 +349,7 @@ DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');
 Expected: no lanza. (El `DELETE` de limpieza es válido acá porque es el proyecto dev de
 test y estas filas son sintéticas; en producción `day_closes` es append-only.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/026_day_closes.sql supabase/tests/planA_assertions.sql

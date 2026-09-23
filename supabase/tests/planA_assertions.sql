@@ -27,3 +27,22 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM pg_policies WHERE tablename='stock_movements') = 2,
          'planA: stock_movements debe tener 2 politicas';
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Task 2: day_closes + last_close_at()
+-- ---------------------------------------------------------------------------
+
+DO $$ BEGIN
+  ASSERT public.last_close_at() = '-infinity'::timestamptz,
+         'planA: last_close_at() con day_closes vacia debe dar -infinity';
+END $$;
+
+-- Filas sintéticas: insertar, verificar el MAX, y limpiar -- válido solo en
+-- el proyecto dev de test; en producción day_closes es append-only.
+INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-1', '2026-09-01T23:00:00Z');
+INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-2', '2026-09-02T22:00:00Z');
+DO $$ BEGIN
+  ASSERT public.last_close_at() = '2026-09-02T22:00:00Z'::timestamptz,
+         'planA: last_close_at() debe dar el MAX(closed_at)';
+END $$;
+DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');

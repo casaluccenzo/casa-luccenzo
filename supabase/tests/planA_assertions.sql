@@ -174,3 +174,17 @@ BEGIN
 END $$;
 DELETE FROM public.stock_movements WHERE product_id='t-neg-1';
 DELETE FROM public.products WHERE id='t-neg-1';
+
+-- ---------------------------------------------------------------------------
+-- Task 8: backfill — sombra == real para TODOS los productos
+-- ---------------------------------------------------------------------------
+
+DO $$
+DECLARE bad int;
+BEGIN
+  SELECT count(*) INTO bad FROM public.products
+   WHERE stock_computed IS DISTINCT FROM stock
+      OR initial_stock_computed IS DISTINCT FROM initial_stock;
+  ASSERT bad = 0,
+    'planA: ' || bad || ' productos con sombra != real tras el backfill';
+END $$;

@@ -822,7 +822,7 @@ git commit -m "feat(db): v_stock_alerts view for negative stock"
   `recompute_product_stock` deje `stock_computed = stock` e
   `initial_stock_computed = initial_stock` (spec §5.1a "Backfill").
 
-- [ ] **Step 1: Escribir la migración 032**
+- [x] **Step 1: Escribir la migración 032**
 
 ```sql
 -- Migration 032: backfill. Por producto:
@@ -861,11 +861,11 @@ WHERE p.stock < p.initial_stock;
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "032_backfill_stock_movements"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción — sombra == real para TODOS los productos**
+- [x] **Step 3: Aserción — sombra == real para TODOS los productos**
 
 Agregar a `planA_assertions.sql`:
 
@@ -884,7 +884,7 @@ END $$;
 Expected: no lanza. **Si lanza, el backfill o el recálculo están mal — parar y
 revisar antes de seguir.**
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/032_backfill_stock_movements.sql supabase/tests/planA_assertions.sql

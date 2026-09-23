@@ -372,7 +372,7 @@ git commit -m "feat(db): day_closes table + last_close_at() boundary fn"
   `debt_payments` vacía y `debts.amount` = el remanente actual (los abonos
   viejos viven en `sales` como `product_id='abono'`, no se pueden re-linkear).
 
-- [ ] **Step 1: Escribir la migración 027**
+- [x] **Step 1: Escribir la migración 027**
 
 ```sql
 -- Migration 027: debt_payments — abonos append-only.
@@ -405,11 +405,11 @@ CREATE POLICY "Venta y admin registran abonos" ON public.debt_payments
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "027_debt_payments"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Aserción de saldo**
+- [x] **Step 3: Aserción de saldo**
 
 Agregar a `planA_assertions.sql`:
 
@@ -431,7 +431,7 @@ DELETE FROM public.debts WHERE uuid = 't-debt-1';
 
 Expected: no lanza.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/027_debt_payments.sql supabase/tests/planA_assertions.sql

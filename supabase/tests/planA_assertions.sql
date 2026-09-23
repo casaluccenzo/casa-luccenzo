@@ -46,3 +46,21 @@ DO $$ BEGIN
          'planA: last_close_at() debe dar el MAX(closed_at)';
 END $$;
 DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');
+
+-- ---------------------------------------------------------------------------
+-- Task 3: debt_payments
+-- ---------------------------------------------------------------------------
+
+INSERT INTO public.debts (uuid, client_name, amount) VALUES ('t-debt-1', 'Test', 100);
+INSERT INTO public.debt_payments (id, debt_uuid, amount) VALUES ('t-pay-1', 't-debt-1', 30);
+INSERT INTO public.debt_payments (id, debt_uuid, amount) VALUES ('t-pay-2', 't-debt-1', 20);
+DO $$
+DECLARE saldo numeric;
+BEGIN
+  SELECT d.amount - COALESCE(SUM(p.amount),0) INTO saldo
+    FROM public.debts d LEFT JOIN public.debt_payments p ON p.debt_uuid = d.uuid
+   WHERE d.uuid = 't-debt-1' GROUP BY d.amount;
+  ASSERT saldo = 50, 'planA: saldo esperado 50, dio ' || saldo;
+END $$;
+DELETE FROM public.debt_payments WHERE debt_uuid = 't-debt-1';
+DELETE FROM public.debts WHERE uuid = 't-debt-1';

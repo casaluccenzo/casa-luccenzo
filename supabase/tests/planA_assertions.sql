@@ -1,6 +1,9 @@
--- planA_assertions.sql — suite de aserciones de Plan A (offline-first POS)
--- Se corre a mano vía execute_sql contra el proyecto dev (casa-lucenzo-dev),
--- NUNCA contra producción (xttpaqokeyywjaajvjyu). No es una migración.
+-- planA_assertions.sql — correr entero vía execute_sql contra la RAMA de
+-- desarrollo (casa-lucenzo-dev, NO producción / xttpaqokeyywjaajvjyu). No es
+-- una migración. Cada bloque que pasa no imprime nada; una falla lanza
+-- EXCEPTION con prefijo 'planA:'. Al final no debe quedar ninguna fila con id
+-- que empiece en 't-', 'm', 'b', 'n' (las 'backfill-*' de stock_movements SÍ
+-- quedan -- son el backfill real de la Task 8, no basura de test).
 -- Ver docs/superpowers/plans/2026-09-02-offline-first-pos-plan-A-postgres.md
 
 -- ---------------------------------------------------------------------------
@@ -47,6 +50,20 @@ DO $$ BEGIN
 END $$;
 DELETE FROM public.day_closes WHERE id IN ('t-close-1','t-close-2');
 
+-- El trigger de day_closes recalcula TODOS los productos por statement (no
+-- solo los de prueba) -- incluye los productos reales sembrados en Task 0 /
+-- ya backfillados en Task 8. El DELETE de arriba no dispara recálculo (no hay
+-- trigger AFTER DELETE), así que sus columnas sombra quedan pisadas con el
+-- resultado de la frontera de prueba. Se restauran acá para no romper la
+-- aserción sombra==real de la Task 8, más adelante en este mismo archivo.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT id FROM public.products LOOP
+    PERFORM public.recompute_product_stock(r.id);
+  END LOOP;
+END $$;
+
 -- ---------------------------------------------------------------------------
 -- Task 3: debt_payments
 -- ---------------------------------------------------------------------------
@@ -91,15 +108,15 @@ END $$;
 -- Task 6: recompute_product_stock() + triggers
 --
 -- NOTA: el plan original fechaba los movimientos "despues del cierre" con
--- literales '2026-09-02T21:00:00Z' (la fecha en que se escribió el plan).
--- Acá se usan timestamps relativos a now() en su lugar, para que el test siga
--- siendo válido corra cuando corra -- lo único que importa es el orden real
--- (antes/después de t-close-A), no la fecha absoluta. Por eso este bloque se
--- corre en 4 pasos separados (no todo en una sola transacción): cada uno debe
--- ver un now() que ya avanzó respecto al paso anterior.
+-- literales '2026-09-02T21:00:00Z' (la fecha en que se escribió el plan, ya
+-- en el pasado para cualquier corrida futura). Acá se usan offsets relativos
+-- a now() para "antes" (now() - interval) y "despues" (now() + interval) del
+-- cierre en vez de fechas absolutas o de confiar en que el reloj real avance
+-- entre statements -- dentro de una sola transacción (p.ej. todo este archivo
+-- pegado de una vez en execute_sql) now() es constante, así que "despues"
+-- tiene que forzarse con +interval, no alcanza con volver a llamar now().
 -- ---------------------------------------------------------------------------
 
--- Paso A: pastelito, un día sin cierre.
 INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
 VALUES ('t-past-1','Test Pastelito',0,2,20,1.5,'pastelitos',0,0.5);
 
@@ -118,7 +135,7 @@ BEGIN
   ASSERT i = 12, 'planA: pastelito initial_stock_computed esperado 12, dio ' || i;
 END $$;
 
--- Paso B: el cierre resetea el pastelito (correr después de A, en un execute_sql aparte).
+-- El cierre resetea el pastelito.
 INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-A', now());
 DO $$
 DECLARE s int; i int;
@@ -129,19 +146,16 @@ BEGIN
   ASSERT i = 0, 'planA: tras el cierre initial del pastelito debe dar 0, dio ' || i;
 END $$;
 
--- Paso C: bebida (empaquetado), movimientos ANTES del cierre (correr después de B).
+-- Bebida (empaquetado): movimientos antes Y despues del cierre, ambos con
+-- offset explícito respecto al mismo now() de esta transacción.
 INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
 VALUES ('t-beb-1','Test Bebida',0,1,50,2.0,'bebidas',0,1.0);
 
 INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
   ('b1','t-beb-1', 24,'load', now() - interval '2 hours'),
-  ('b2','t-beb-1', -4,'sale', now() - interval '90 minutes');
-
--- Paso D: movimientos DESPUÉS del cierre (correr después de C, en un execute_sql
--- aparte -- el now() de este paso ya es posterior a closed_at del paso B).
-INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
-  ('b3','t-beb-1', 12,'load', now()),
-  ('b4','t-beb-1', -3,'sale', now());
+  ('b2','t-beb-1', -4,'sale', now() - interval '90 minutes'),
+  ('b3','t-beb-1', 12,'load', now() + interval '1 minute'),
+  ('b4','t-beb-1', -3,'sale', now() + interval '2 minutes');
 
 DO $$
 DECLARE s int; i int;
@@ -156,6 +170,17 @@ END $$;
 DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
 DELETE FROM public.day_closes WHERE id = 't-close-A';
 DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');
+
+-- Mismo motivo que en la Task 2: t-close-A recalculó TODOS los productos
+-- (incluye los reales, ya backfillados) con su propia frontera de prueba, y
+-- el DELETE de arriba no lo deshace. Restaurar antes de seguir.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT id FROM public.products LOOP
+    PERFORM public.recompute_product_stock(r.id);
+  END LOOP;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- Task 7: v_stock_alerts

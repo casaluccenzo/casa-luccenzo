@@ -903,7 +903,7 @@ git commit -m "feat(db): backfill stock_movements to match current products stat
   proyecto dev recién migrado sin lanzar ninguna excepción, y deja la DB sin filas de
   prueba (`t-*`, `m*`, `b*`, `n*`).
 
-- [ ] **Step 1: Ordenar el archivo**
+- [x] **Step 1: Ordenar el archivo**
 
 Reordenar los bloques agregados en las tasks 1-8 en este orden: estructura
 (1,2,3,4,5) → cálculo pastelito (6.3) → cierre (6.4) → empaquetado (6.5) →
@@ -916,13 +916,24 @@ limpieza (6.6) → alerta (7.2) → backfill sombra==real (8.3). Encabezar con:
 -- con id que empiece en 't-', 'm', 'b', 'n', 'backfill-'.
 ```
 
-- [ ] **Step 2: Correr la suite entera**
+- [x] **Step 2: Correr la suite entera**
 
 Pegar el archivo completo en `execute_sql` contra `DEV_PROJECT_ID`.
 Expected: sin error. Si alguna aserción lanza, arreglar la migración
 correspondiente, re-aplicar (recrear el proyecto dev o borrar a mano las tablas 025-032), re-correr.
 
-- [ ] **Step 3: Verificar que no quedó basura de test**
+> **Hallazgo real al correrlo:** la primera corrida completa SÍ lanzó ("5
+> productos con sombra != real"). Causa: el trigger de `day_closes` recalcula
+> TODOS los productos por statement, no solo los de prueba -- así que los
+> bloques de test de las Tasks 2 y 6 (que insertan y después borran filas de
+> `day_closes`) pisaban temporalmente las columnas sombra de los 6 productos
+> reales ya backfillados (Task 8), y el `DELETE` de limpieza no lo deshacía
+> (no hay trigger `AFTER DELETE`). Fix: agregar, después de cada limpieza de
+> `day_closes` de prueba, un loop que vuelve a llamar
+> `recompute_product_stock()` sobre todos los productos reales -- ver
+> `planA_assertions.sql`. Con eso la corrida completa pasó limpia.
+
+- [x] **Step 3: Verificar que no quedó basura de test**
 
 ```sql
 SELECT 'movimientos' AS t, count(*) FROM public.stock_movements WHERE id LIKE 't-%' OR id ~ '^[mbn][0-9]'
@@ -935,7 +946,7 @@ UNION ALL SELECT 'products test', count(*) FROM public.products WHERE id LIKE 't
 Expected: todas las cuentas en 0. (Las filas `backfill-*` de `stock_movements` SÍ
 quedan — son el backfill real, no test.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/tests/planA_assertions.sql

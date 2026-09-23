@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "mcp__github__pull_request_read",
+      "mcp__Supabase__get_advisors"
+    ]
+  }
+}

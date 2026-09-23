@@ -86,3 +86,73 @@ DO $$ BEGIN
             AND column_name LIKE '%_computed') = 3,
          'planA: faltan columnas sombra en products';
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Task 6: recompute_product_stock() + triggers
+--
+-- NOTA: el plan original fechaba los movimientos "despues del cierre" con
+-- literales '2026-09-02T21:00:00Z' (la fecha en que se escribió el plan).
+-- Acá se usan timestamps relativos a now() en su lugar, para que el test siga
+-- siendo válido corra cuando corra -- lo único que importa es el orden real
+-- (antes/después de t-close-A), no la fecha absoluta. Por eso este bloque se
+-- corre en 4 pasos separados (no todo en una sola transacción): cada uno debe
+-- ver un now() que ya avanzó respecto al paso anterior.
+-- ---------------------------------------------------------------------------
+
+-- Paso A: pastelito, un día sin cierre.
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
+VALUES ('t-past-1','Test Pastelito',0,2,20,1.5,'pastelitos',0,0.5);
+
+INSERT INTO public.stock_movements (id,product_id,delta,type) VALUES
+  ('m1','t-past-1', 12,'load'),
+  ('m2','t-past-1', -1,'sale'),
+  ('m3','t-past-1', -1,'sale'),
+  ('m4','t-past-1', -2,'count_down');
+
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s, i
+    FROM public.products WHERE id='t-past-1';
+  ASSERT s = 8,  'planA: pastelito stock_computed esperado 8, dio ' || s;
+  ASSERT i = 12, 'planA: pastelito initial_stock_computed esperado 12, dio ' || i;
+END $$;
+
+-- Paso B: el cierre resetea el pastelito (correr después de A, en un execute_sql aparte).
+INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-A', now());
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s, i
+    FROM public.products WHERE id='t-past-1';
+  ASSERT s = 0, 'planA: tras el cierre el pastelito debe dar stock 0, dio ' || s;
+  ASSERT i = 0, 'planA: tras el cierre initial del pastelito debe dar 0, dio ' || i;
+END $$;
+
+-- Paso C: bebida (empaquetado), movimientos ANTES del cierre (correr después de B).
+INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
+VALUES ('t-beb-1','Test Bebida',0,1,50,2.0,'bebidas',0,1.0);
+
+INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
+  ('b1','t-beb-1', 24,'load', now() - interval '2 hours'),
+  ('b2','t-beb-1', -4,'sale', now() - interval '90 minutes');
+
+-- Paso D: movimientos DESPUÉS del cierre (correr después de C, en un execute_sql
+-- aparte -- el now() de este paso ya es posterior a closed_at del paso B).
+INSERT INTO public.stock_movements (id,product_id,delta,type,created_at) VALUES
+  ('b3','t-beb-1', 12,'load', now()),
+  ('b4','t-beb-1', -3,'sale', now());
+
+DO $$
+DECLARE s int; i int;
+BEGIN
+  SELECT stock_computed, initial_stock_computed INTO s, i
+    FROM public.products WHERE id='t-beb-1';
+  ASSERT s = 29, 'planA: bebida stock_computed esperado 29, dio ' || s;
+  ASSERT i = 32, 'planA: bebida initial esperado 32, dio ' || i;
+END $$;
+
+-- Limpieza
+DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
+DELETE FROM public.day_closes WHERE id = 't-close-A';
+DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');

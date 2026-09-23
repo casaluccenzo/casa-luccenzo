@@ -549,7 +549,7 @@ git commit -m "feat(db): products shadow-compute columns"
   - trigger `trg_day_close_recompute` AFTER INSERT ON `day_closes`
     FOR EACH STATEMENT → recalcula TODOS los productos (cambió la frontera).
 
-- [ ] **Step 1: Escribir la migración 030**
+- [x] **Step 1: Escribir la migración 030**
 
 ```sql
 -- Migration 030: recalculo de stock sombra desde stock_movements (§5.1a).
@@ -640,11 +640,11 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.tg_day_close_recompute();
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar al proyecto dev**
+- [x] **Step 2: Aplicar al proyecto dev**
 
 MCP `apply_migration`, `name: "030_stock_recompute"`. Expected: `{"success": true}`.
 
-- [ ] **Step 3: Test de cálculo — pastelito, un día sin cierre**
+- [x] **Step 3: Test de cálculo — pastelito, un día sin cierre**
 
 Agregar a `planA_assertions.sql`:
 
@@ -672,7 +672,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 4: Test de cálculo — el cierre resetea el pastelito**
+- [x] **Step 4: Test de cálculo — el cierre resetea el pastelito**
 
 ```sql
 INSERT INTO public.day_closes (id, closed_at) VALUES ('t-close-A', now());
@@ -688,7 +688,14 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 5: Test de cálculo — bebida (empaquetado) cruza el cierre**
+- [x] **Step 5: Test de cálculo — bebida (empaquetado) cruza el cierre**
+
+> Ejecutado con la opción (a) implícita: `b1`/`b2` con `now() - interval` (antes
+> del cierre) y `b3`/`b4` con `now()` (después, corrido en una llamada
+> `execute_sql` posterior a la del cierre) en vez de los literales
+> `2026-09-02T...` del plan -- esas fechas eran relativas a cuándo se escribió
+> el plan, no al momento real de ejecución. El orden relativo es lo único que
+> importa para el cálculo; ver la nota en `planA_assertions.sql`.
 
 ```sql
 INSERT INTO public.products (id,name,stock,min,max,price,category,initial_stock,cost)
@@ -727,7 +734,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 6: Limpieza de datos de prueba**
+- [x] **Step 6: Limpieza de datos de prueba**
 
 ```sql
 DELETE FROM public.stock_movements WHERE product_id IN ('t-past-1','t-beb-1');
@@ -735,7 +742,7 @@ DELETE FROM public.day_closes WHERE id = 't-close-A';
 DELETE FROM public.products WHERE id IN ('t-past-1','t-beb-1');
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add supabase/migrations/030_stock_recompute.sql supabase/tests/planA_assertions.sql

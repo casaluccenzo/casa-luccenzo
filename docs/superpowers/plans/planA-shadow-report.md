@@ -62,25 +62,47 @@ corre de punta a punta sin excepción y sin dejar filas de prueba (Task 9).
 
 **Conclusión de la corrida 1: Plan A pasa el gate en dev.**
 
-## Corrida 2: producción (`xttpaqokeyywjaajvjyu`) — ⏸ PENDIENTE
+## Corrida 2: producción (`xttpaqokeyywjaajvjyu`) — ✅ OK
 
-**No ejecutada.** Aplicar `025`-`032` a producción es la línea que el propio
-plan marca como el punto de no-retorno de la Fase 1 ("Nada de esto se aplica
-al proyecto de producción... hasta que Plan A entero pase sus aserciones en
-el proyecto dev" — Task 0, Global Constraints). La corrida 1 ya cumplió esa
-condición, pero aplicar a producción toca la base de datos real de un negocio
-en operación, así que se dejó pendiente de confirmación explícita del usuario
-antes de proceder, en vez de asumirla a partir de "tomá las aceptaciones solo"
-(esa instrucción se dio en el contexto de iterar en el proyecto dev, no en el
-de escribir en producción).
+**Fecha:** 2026-09-23, con confirmación explícita del usuario para aplicar a
+producción.
 
-Cuando se confirme:
-1. Aplicar `025`-`032` (en el mismo orden que en dev) a `xttpaqokeyywjaajvjyu`
-   vía `apply_migration`.
-2. Correr el Step 1 (diff sombra vs real) sobre los ~29 productos reales.
-   Expected: 0 filas.
-3. Correr el Step 2 (triggers) contra producción post-migración y confirmar
-   que sigue dando la misma lista que antes (0 filas en las 6 tablas).
-4. Actualizar este reporte con el resultado de la corrida 2. Ese segundo diff
-   en 0 es el OK definitivo de Plan A — el merge real a la app y el arranque
-   de PowerSync quedan para Plan B, que ni siquiera está escrito todavía.
+**Migraciones aplicadas** (mismo orden y mismo SQL que en dev): `025_stock_movements`,
+`026_day_closes`, `027_debt_payments`, `028_sales_void_columns`,
+`029_products_shadow_columns`, `030_stock_recompute`, `031_stock_alerts_view`,
+`032_backfill_stock_movements`. Todas `{"success": true}`.
+
+**Step 1 — diff sombra vs real** sobre los 29 productos reales:
+
+```sql
+SELECT id, name, category, stock, stock_computed, initial_stock, initial_stock_computed
+  FROM public.products
+ WHERE stock_computed IS DISTINCT FROM stock
+    OR initial_stock_computed IS DISTINCT FROM initial_stock;
+```
+
+**Resultado: 0 filas.**
+
+**Step 2 — triggers** sobre `products`, `sales`, `debts`, `expenses`,
+`replenishments`, `app_config`, post-migración:
+
+**Resultado: 0 filas — idéntico al baseline pre-migración.** Ningún trigger
+nuevo tocó las tablas que la app ya escribe; los dos triggers nuevos
+(`trg_stock_movements_recompute`, `trg_day_close_recompute`) viven únicamente
+en las tablas nuevas.
+
+`get_advisors` (security) post-migración: mismos hallazgos que antes de Plan A,
+más `last_close_at()` apareciendo en la lista de funciones `SECURITY DEFINER`
+ejecutables por `authenticated` — esperado y a propósito, tal como documenta
+la migración 026 ("`authenticated` lo necesita: lo llaman las vistas de
+reporte del cliente"). No es un hallazgo nuevo sin explicar.
+
+**Conclusión de la corrida 2 (OK definitivo de Plan A):** las 29 columnas
+sombra de producción coinciden exactamente con las columnas reales que la app
+sigue leyendo y escribiendo hoy, y el esquema que ve `casalucenzo.com` no
+cambió de comportamiento. Plan A — Fase 1 (modelo de datos append-only) queda
+**completo y verificado en producción**, en modo sombra/dormido. El frontend
+NO lee ni escribe ninguna de estas tablas/columnas todavía: conectar el
+cliente (POS, cierre de jornada, abonos, anulaciones) a `stock_movements`,
+`day_closes`, `debt_payments`, `voided_at` y las columnas `*_computed` es
+**Plan B**, que a la fecha de este reporte ni siquiera está escrito.

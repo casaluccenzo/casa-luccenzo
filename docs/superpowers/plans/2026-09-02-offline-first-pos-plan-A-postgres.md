@@ -972,14 +972,16 @@ iterás). Cuando pasa, se aplican 025-032 a producción (son aditivas/dormidas,
 la app no cambia) y se corre el mismo diff sombra-vs-real contra los 29
 productos reales. Ese segundo diff en 0 es el OK definitivo.
 
-> **Estado (2026-09-23): corrida 1 (dev) completa y en verde. Corrida 2
-> (producción) PENDIENTE de confirmación explícita del usuario** — aplicar
-> `025`-`032` a `xttpaqokeyywjaajvjyu` es la línea que el propio Task 0 marca
-> como el punto de no-retorno de la Fase 1, y toca la base real de un negocio
-> en operación. Ver `docs/superpowers/plans/planA-shadow-report.md` para el
-> detalle completo y los pasos que faltan.
+> **Estado (2026-09-23): AMBAS corridas completas y en verde — Plan A
+> (Fase 1) cerrado.** `025`-`032` aplicadas a producción
+> (`xttpaqokeyywjaajvjyu`) con confirmación explícita del usuario; diff final
+> sobre los 29 productos reales = 0 filas; 0 triggers nuevos en las tablas que
+> la app ya escribe. Ver `docs/superpowers/plans/planA-shadow-report.md` para
+> el detalle completo de ambas corridas. Sigue en modo sombra/dormido: el
+> frontend no lee ni escribe nada de esto todavía (eso es Plan B, sin
+> escribir).
 
-- [x] **Step 1: Diff sombra vs real en los productos reales** (corrida 1, dev)
+- [x] **Step 1: Diff sombra vs real en los productos reales** (corrida 1 dev + corrida 2 producción, ambas 0 filas)
 
 ```sql
 SELECT id, name, category,
@@ -992,7 +994,7 @@ SELECT id, name, category,
 
 Expected: 0 filas.
 
-- [x] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron** (corrida 1, dev vs prod)
+- [x] **Step 2: Confirmar que las columnas/t’ablas que la app escribe hoy no cambiaron** (dev vs prod pre-migración, y prod post-migración — las 3 comparaciones en 0)
 
 Revisar que ninguna migración 025-032 hizo `ALTER` sobre `products.stock`,
 `products.initial_stock`, `products.max`, ni agregó triggers `BEFORE`/`AFTER`
@@ -1010,7 +1012,7 @@ SELECT tgname, tgrelid::regclass, tgenabled
 Expected: la MISMA lista que en producción antes de Plan A (comparar contra
 `xttpaqokeyywjaajvjyu`). Ningún trigger nuevo.
 
-- [x] **Step 3: Escribir el reporte de gate** (documenta corrida 1; corrida 2 queda como pendiente explícito dentro del propio reporte)
+- [x] **Step 3: Escribir el reporte de gate** (documenta ambas corridas, dev y producción)
 
 Crear `docs/superpowers/plans/planA-shadow-report.md` con: fecha, project_id de
 el DEV_PROJECT_ID, el resultado del step 1 (0 filas), el diff de triggers (sin cambios), y

@@ -174,7 +174,7 @@ git commit -m "chore: Plan A dev-project seed data"
    device_id text, created_at timestamptz, location_id uuid, note text`.
   `type ∈ ('load','sale','sale_return','count_down','open_carry')`.
 
-- [ ] **Step 1: Escribir la aserción de que la tabla NO existe todavía**
+- [x] **Step 1: Escribir la aserción de que la tabla NO existe todavía**
 
 En `supabase/tests/planA_assertions.sql`, agregar al principio:
 
@@ -190,7 +190,7 @@ END $$;
 Correr ese bloque solo vía `execute_sql` contra el proyecto dev. Expected: pasa (no
 lanza) porque la tabla aún no existe.
 
-- [ ] **Step 2: Escribir la migración 025**
+- [x] **Step 2: Escribir la migración 025**
 
 ```sql
 -- Migration 025: stock_movements — registro append-only de movimientos de vitrina
@@ -231,12 +231,12 @@ CREATE POLICY "Venta y cocina y admin insertan movimientos" ON public.stock_move
 COMMIT;
 ```
 
-- [ ] **Step 3: Aplicar la migración al proyecto dev**
+- [x] **Step 3: Aplicar la migración al proyecto dev**
 
 MCP `apply_migration` contra `DEV_PROJECT_ID`, `name: "025_stock_movements"`.
 Expected: `{"success": true}`.
 
-- [ ] **Step 4: Aserciones de estructura**
+- [x] **Step 4: Aserciones de estructura**
 
 Agregar a `planA_assertions.sql` y correr vía `execute_sql`:
 
@@ -254,7 +254,7 @@ END $$;
 
 Expected: no lanza.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/migrations/025_stock_movements.sql supabase/tests/planA_assertions.sql

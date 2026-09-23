@@ -75,3 +75,14 @@ DO $$ BEGIN
             AND column_name IN ('voided_at','void_reason')) = 2,
          'planA: faltan columnas de anulacion en sales';
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Task 5: columnas sombra en products
+-- ---------------------------------------------------------------------------
+
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='products'
+            AND column_name LIKE '%_computed') = 3,
+         'planA: faltan columnas sombra en products';
+END $$;

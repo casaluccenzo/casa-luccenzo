@@ -499,7 +499,7 @@ git commit -m "feat(db): sales.voided_at / void_reason columns"
   llena. La app NO las lee todavía (Plan B). Comparar sombra vs real es el
   criterio de "modo sombra OK" del spec §10.
 
-- [ ] **Step 1: Escribir la migración 029**
+- [x] **Step 1: Escribir la migración 029**
 
 ```sql
 -- Migration 029: columnas sombra. El trigger de 030 las mantiene; la app las
@@ -511,7 +511,7 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS max_computed           inte
 COMMIT;
 ```
 
-- [ ] **Step 2: Aplicar + aserción**
+- [x] **Step 2: Aplicar + aserción**
 
 MCP `apply_migration`, `name: "029_products_shadow_columns"`.
 
@@ -524,7 +524,7 @@ DO $$ BEGIN
 END $$;
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/029_products_shadow_columns.sql

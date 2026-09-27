@@ -14,7 +14,10 @@ const assetsToCopy = [
     'sw.js',
     'css',
     'js',
-    'img'
+    'img',
+    // Digital Asset Links del APK Android (android/): sin esto Chrome abre la
+    // app con barra de URL en vez de a pantalla completa.
+    '.well-known'
 ];
 
 console.log('🧹 Cleaning www folder...');

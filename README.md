@@ -66,6 +66,19 @@ Shell de Electron (`desktop/`) que empaqueta una copia congelada de `www/` — n
 
 ---
 
+## 📱 App Android (tablets)
+
+APK en `android/`: una [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) que abre `https://www.casalucenzo.com/sistema/` en Chrome a pantalla completa, con ícono propio en el launcher. A diferencia del `.exe`, **no** lleva una copia de `www/`: carga el sitio en vivo, así que cada deploy de Vercel llega solo a las tablets y el modo offline (service worker + PowerSync) funciona exactamente igual que en Chrome.
+
+**Descargar**: [casa-lucenzo.apk](https://github.com/casaluccenzo/casa-luccenzo/releases/download/android-latest/casa-lucenzo.apk) → abrirlo en la tablet → permitir "instalar apps de origen desconocido" la primera vez. Requiere Chrome instalado (si no está, cae a un WebView).
+
+- **Actualizaciones**: las pantallas se actualizan con cada deploy, sin reinstalar. El APK en sí solo cambia si cambia algo de `android/`; en ese caso el workflow `.github/workflows/android.yml` lo recompila al hacer push a `main` y lo republica en el release fijo `android-latest` (pre-release, para no pisar el "latest" que usa el auto-update del `.exe`). Se instala encima del anterior sin perder datos.
+- **Firma**: el APK se firma con una llave que vive solo en los secrets de GitHub (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Si se pierde, los APK nuevos no se pueden instalar encima de los viejos. Su huella SHA-256 está publicada en `.well-known/assetlinks.json` (lo sirve la web); si no coincide, Chrome muestra la barra de URL arriba.
+- **Íconos**: `node scripts/android-icons.js` los regenera desde `img/logo-512.png`.
+- **Otro negocio**: `./gradlew assembleRelease -PtwaHost=<dominio> -PtwaAppId=<id> -PtwaName="<nombre>"`, y agregar ese `package_name` + huella a `.well-known/assetlinks.json`.
+
+---
+
 ## 🔑 Autenticación & Roles
 
 El sistema utiliza **Supabase Auth** respaldado por la tabla `public.profiles` protegida por **Row Level Security (RLS)**:

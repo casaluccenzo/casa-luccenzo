@@ -1,0 +1,85 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'com.android.application'
+}
+
+// Todo lo que cambia por negocio se puede pisar con -P al compilar
+// (./gradlew assembleRelease -PtwaHost=otro.dominio.com ...). Sin nada, sale
+// el APK de Casa Lucenzo.
+def prop = { String name, String fallback -> project.findProperty(name)?.toString() ?: fallback }
+
+def twa = [
+    applicationId  : prop('twaAppId', 'com.casaluccenzo.pos'),
+    hostName       : prop('twaHost', 'www.casalucenzo.com'),
+    launchUrl      : prop('twaLaunchPath', '/sistema/index.html'),
+    name           : prop('twaName', 'Casa Lucenzo'),
+    themeColor     : '#000A14',
+    backgroundColor: '#000F20',
+]
+
+// Misma versión que la web y la app de escritorio (package.json de la raíz).
+// versionCode tiene que subir en cada APK para que Android acepte instalarlo
+// encima del anterior: en CI es el número de corrida del workflow.
+def webVersion = new JsonSlurper().parse(rootProject.file('../package.json')).version
+def buildNumber = prop('versionCode', '1').toInteger()
+
+android {
+    namespace 'com.casaluccenzo.pos'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId twa.applicationId
+        minSdk 23
+        targetSdk 35
+        versionCode buildNumber
+        versionName webVersion
+
+        manifestPlaceholders = [
+            hostName: twa.hostName,
+            launchUrl: "https://${twa.hostName}${twa.launchUrl}",
+        ]
+
+        resValue 'string', 'appName', twa.name
+        resValue 'string', 'launcherName', twa.name
+        resValue 'string', 'providerAuthority', "${twa.applicationId}.fileprovider"
+        // Digital Asset Links: la web tiene que publicar el mismo vínculo en
+        // /.well-known/assetlinks.json para que Chrome oculte la barra de URL.
+        resValue 'string', 'assetStatements', """
+            [{ \\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"],
+               \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://${twa.hostName}\\"}}]
+        """.stripIndent().trim()
+        resValue 'color', 'colorPrimary', twa.themeColor
+        resValue 'color', 'backgroundColor', twa.backgroundColor
+    }
+
+    signingConfigs {
+        release {
+            // Llave de firma: la entrega el workflow desde los secrets de
+            // GitHub. Nunca se commitea (el repo es público).
+            def ks = System.getenv('ANDROID_KEYSTORE_FILE')
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv('ANDROID_KEYSTORE_FILE') ? signingConfigs.release : null
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

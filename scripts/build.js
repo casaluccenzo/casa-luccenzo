@@ -94,6 +94,24 @@ if (brand) {
                 content = content.replace(/Casa Luc{1,2}enzo/g, meta.displayName);
                 fs.writeFileSync(p, content, 'utf8');
             }
+
+            // Optional: some tenants only run the POS internally and have no
+            // use for the public landing page (online menu/ordering) --
+            // redirect "/" straight to "/sistema/" instead of leaving it as
+            // dead weight. A client-side redirect (not a vercel.json rule)
+            // because vercel.json is shared across every tenant's deploy;
+            // this stays scoped to brand.json like everything else here.
+            if (meta.redirectHomeToSistema) {
+                const indexPath = path.join(destDir, 'index.html');
+                if (fs.existsSync(indexPath)) {
+                    let indexContent = fs.readFileSync(indexPath, 'utf8');
+                    const redirectScript = '<script>location.replace("/sistema/");</script>';
+                    indexContent = indexContent.replace('<head>', `<head>\n    ${redirectScript}`);
+                    fs.writeFileSync(indexPath, indexContent, 'utf8');
+                    console.log('↪️  index.html redirige a /sistema/');
+                }
+            }
+
             console.log(`🎨 Branding "${brand}" aplicado (${meta.displayName})`);
         } else {
             console.log(`🎨 Branding "${brand}" aplicado (solo imágenes, sin brand.json)`);

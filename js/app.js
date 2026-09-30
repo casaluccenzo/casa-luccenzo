@@ -2883,7 +2883,13 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
         window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
         if (currentRole === 'admin') {
-            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            // Cada fila de sales es UNA unidad con su propio uuid; una cuenta de
+            // 3 mechadas son 3 filas con el mismo timestamp y producto. Se
+            // identifica solo por uuid: deduplicar por timestamp+producto
+            // colapsaba esas 3 en 1, y el DELETE por timestamp borraba la
+            // cuenta entera. Una anulación llega como UPDATE con voided_at y
+            // tiene que salir de las stats (fetchStatsData ya las excluye).
+            if ((eventType === 'INSERT' || eventType === 'UPDATE') && !newRow.voided_at) {
                 const statFormatted = {
                     uuid: newRow.uuid,
                     productId: newRow.product_id,
@@ -2891,14 +2897,15 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                     price: parseFloat(newRow.price) || 0,
                     timestamp: newRow.timestamp
                 };
-                const idx = adminStatsSales.findIndex(s => (s.uuid && s.uuid === statFormatted.uuid) || (s.timestamp === statFormatted.timestamp && s.productId === statFormatted.productId));
+                const idx = adminStatsSales.findIndex(s => s.uuid === statFormatted.uuid);
                 if (idx !== -1) {
                     adminStatsSales[idx] = statFormatted;
                 } else {
                     adminStatsSales.push(statFormatted);
                 }
-            } else if (eventType === 'DELETE') {
-                adminStatsSales = adminStatsSales.filter(s => s.uuid !== oldRow.uuid && s.timestamp !== oldRow.timestamp);
+            } else if (eventType === 'UPDATE' || eventType === 'DELETE') {
+                const goneUuid = eventType === 'DELETE' ? oldRow.uuid : newRow.uuid;
+                adminStatsSales = adminStatsSales.filter(s => s.uuid !== goneUuid);
             }
             // `expenses` (turno actual) se mantiene como tercer argumento para
             // no alterar los totales que ya pintaba; el delta usa el cache de

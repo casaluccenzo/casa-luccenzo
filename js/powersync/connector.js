@@ -35,6 +35,15 @@ function pkColumnFor(table) {
     return UUID_KEYED_TABLES.has(table) ? 'uuid' : 'id';
 }
 
+// Tablas append-only (migraciones 025/026/027): solo tienen politica INSERT,
+// ninguna UPDATE. Un upsert normal es INSERT ... ON CONFLICT DO UPDATE, y si
+// PowerSync reenvia una fila que ya llego (se perdio la respuesta, o fallo
+// una op posterior de la misma transaccion) la rama DO UPDATE choca con RLS
+// (42501), que no es 22/23 -> se reintenta para siempre y traba toda la cola
+// de ese equipo. Con ignoreDuplicates es ON CONFLICT DO NOTHING: el reenvio
+// es un no-op, que es lo correcto para filas inmutables.
+const APPEND_ONLY_TABLES = new Set(['stock_movements', 'day_closes', 'debt_payments']);
+
 function getPowerSyncUrl() {
     const prefs = window.StorageManager ? window.StorageManager.loadPreferences() : {};
     if (prefs.powerSyncUrl) return prefs.powerSyncUrl;
@@ -76,7 +85,10 @@ class SupabaseConnector {
                 switch (op.op) {
                     case 'PUT': {
                         const record = { ...(op.opData ?? {}), [pk]: op.id };
-                        const { error } = await table.upsert(record);
+                        const upsertOpts = APPEND_ONLY_TABLES.has(op.table)
+                            ? { onConflict: pk, ignoreDuplicates: true }
+                            : undefined;
+                        const { error } = await table.upsert(record, upsertOpts);
                         if (error) throw error;
                         break;
                     }

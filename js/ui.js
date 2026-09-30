@@ -1318,12 +1318,19 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
         }
 
         const items = Array.isArray(pedido.items) ? pedido.items : [];
-        const itemsHtml = items.map(it => `
+        // pedidos_online.items is jsonb written by the anonymous public order
+        // page, so every field here is untrusted: coerce qty/price to numbers
+        // instead of interpolating them raw into innerHTML.
+        const itemsHtml = items.map(it => {
+            const qty = Number(it && it.qty) || 0;
+            const price = Number(it && it.price) || 0;
+            return `
             <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #E2E8F0; padding: 0.2rem 0;">
-                <span>${it.qty}&times; ${escapeHtml(it.name)}</span>
-                <span style="font-family: monospace; color: var(--color-text-muted);">$${(it.qty * it.price).toFixed(2)}</span>
+                <span>${qty}&times; ${escapeHtml(String((it && it.name) ?? ''))}</span>
+                <span style="font-family: monospace; color: var(--color-text-muted);">$${(qty * price).toFixed(2)}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         const waPhone = normalizeVePhoneForWhatsapp(pedido.customer_phone);
         const waMsg = encodeURIComponent(`¡Hola ${pedido.customer_name}! Te escribimos de Casa Lucenzo sobre tu pedido por $${Number(pedido.total).toFixed(2)} (${pedido.payment_method}).`);

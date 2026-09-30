@@ -3958,6 +3958,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         
                         installingWorker.onstatechange = () => {
+                            // A failed install (e.g. the network dropping
+                            // mid-download of the multi-MB .wasm assets) ends
+                            // in 'redundant' and never reaches 'installed' --
+                            // without this the full-screen overlay (no button,
+                            // z-index 999999) blocked the POS until a manual
+                            // reload.
+                            if (installingWorker.state === 'redundant') {
+                                const overlay = document.getElementById('pwa-update-overlay');
+                                if (overlay) overlay.remove();
+                                return;
+                            }
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
                                     console.log('New update installed, performing auto-reload.');

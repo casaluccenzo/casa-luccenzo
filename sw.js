@@ -104,6 +104,12 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('supabase.co')) return;
+  // Live exchange-rate APIs (js/exchange-rate.js): serving these
+  // stale-while-revalidate handed fetchLiveRate() the PREVIOUS response --
+  // possibly hours or days old -- stamped as a fresh rate, and that stale
+  // rate went into sales and the day close. Always hit the network.
+  const host = new URL(event.request.url).hostname;
+  if (host === 'rates.dolarvzla.com' || host === 've.dolarapi.com') return;
 
   event.respondWith(
     caches.match(event.request)

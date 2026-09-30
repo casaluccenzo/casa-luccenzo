@@ -1054,7 +1054,11 @@ function deliverProduct(id, customAmount = null) {
                 return false;
             });
             if (targetIng) {
-                const calculatedDeduction = (recipeItem.amount / (product.max - product.stock || 1)) * amountToSend;
+                // calculateIngredients devuelve 'g' por debajo de 1000 g y 'kg'
+                // desde ahi, pero la alacena esta en kg: restar 750 "g" como si
+                // fueran kg dejaba la harina en 0 segun el tamano del lote.
+                const amountKg = recipeItem.unit === 'g' ? recipeItem.amount / 1000 : recipeItem.amount;
+                const calculatedDeduction = (amountKg / (product.max - product.stock || 1)) * amountToSend;
                 targetIng.stock = Math.max(0, targetIng.stock - calculatedDeduction);
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.upsertIngredient(targetIng);

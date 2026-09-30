@@ -1988,7 +1988,7 @@ async function closeDayAndResetLogs() {
     // re-entrancy guard as handleCheckoutCart, on a heavier operation.
     if (closeDayAndResetLogs._inProgress) {
         window.UIManager.showToast("⏳ El cierre ya se está procesando, esperá un momento.", "fa-solid fa-hourglass-half");
-        return;
+        return false;
     }
     closeDayAndResetLogs._inProgress = true;
 
@@ -2004,7 +2004,12 @@ async function closeDayAndResetLogs() {
         if (window.SupabaseManager.isConfigured()) {
             if (window.SupabaseManager.getDbSupportsLastClose()) {
                 console.log("Saving last day close timestamp to Supabase app_config...");
-                await window.SupabaseManager.upsertAppConfig({ lastCloseTime: nowStr });
+                // upsertAppConfig swallows its own errors, so without checking
+                // the result a failed write still ran the local reset below
+                // and the WhatsApp report went out for a day the server never
+                // closed.
+                const saved = await window.SupabaseManager.upsertAppConfig({ lastCloseTime: nowStr });
+                if (saved === false) throw new Error('No se pudo registrar el cierre (app_config.last_close_time).');
             } else {
                 console.log("Database does not support last_close_time. Voiding daily sales and clearing expenses from Supabase as fallback...");
                 await Promise.all(salesLog.map(s => window.SupabaseManager.voidSale(s.uuid, "Cierre de jornada (sin soporte de last_close_time)")));
@@ -2102,9 +2107,11 @@ async function closeDayAndResetLogs() {
         }
 
         window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
+        return true;
     } catch (e) {
         console.error("Failed to reset logs during day close", e);
         window.UIManager.showToast("❌ Error al cerrar la jornada. No se cerró -- revisá la conexión y probá de nuevo.", "fa-solid fa-circle-xmark");
+        return false;
     } finally {
         closeDayAndResetLogs._inProgress = false;
     }
@@ -4518,7 +4525,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // closed day before the database had agreed to it -- if the close
             // then failed, the report was already sent and the day was still open.
             if (!currentReportData.isHistory) {
-                await closeDayAndResetLogs();
+                const closed = await closeDayAndResetLogs();
+                if (!closed) {
+                    // The close didn't commit (its own toast says why) -- don't
+                    // announce it on WhatsApp.
+                    if (waTab) waTab.close();
+                    return;
+                }
             }
 
             const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;

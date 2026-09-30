@@ -1544,10 +1544,11 @@ async function upsertAppConfig(config) {
             await localDb.execute(`UPDATE app_config SET ${sets.join(', ')} WHERE id = 1`, params);
         } catch (e) {
             console.error("PowerSync local upsertAppConfig failed:", e);
+            return false;
         }
-        return;
+        return true;
     }
-    if (!client) return;
+    if (!client) return false;
     // Partial upsert: only touch the columns the caller actually passed.
     // This used to unconditionally write bcv_rate + use_auto_bcv, so a call
     // that only meant to set last_close_time (the day close) clobbered the
@@ -1581,8 +1582,10 @@ async function upsertAppConfig(config) {
     try {
         const { error } = await client.from('app_config').upsert(payload);
         if (error) throw error;
+        return true;
     } catch (e) {
         console.error("Supabase upsertAppConfig failed:", e);
+        return false;
     }
 }
 

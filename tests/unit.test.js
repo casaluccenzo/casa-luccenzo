@@ -167,6 +167,21 @@ function runCoreUnitTests() {
     console.log("✅ TEST PASSED: REAL validateStockAdjustment: Adding stock to 5 by 1 should result in 6");
     console.log("✅ TEST PASSED: REAL validateStockAdjustment: Selling item with 0 stock should be blocked");
 
+    // localStorage corrupto no debe tumbar la carga de ventas/gastos/fiados.
+    const Storage = require('../js/storage.js');
+    const realGetItem = global.localStorage.getItem;
+    global.localStorage.getItem = () => '{"truncado":';
+    const origConsoleError = console.error;
+    console.error = () => {};
+    try {
+        assert.deepStrictEqual(Storage.loadSalesLog(), [], "REAL loadSalesLog: JSON corrupto se trata como vacío");
+        assert.deepStrictEqual(Storage.loadDebts(), [], "REAL loadDebts: JSON corrupto se trata como vacío");
+    } finally {
+        global.localStorage.getItem = realGetItem;
+        console.error = origConsoleError;
+    }
+    console.log("✅ TEST PASSED: REAL StorageManager: localStorage corrupto no rompe la carga");
+
     // 2b. Daily stock load: `initial_stock` is the day's baseline and every
     // "vendidos reales" figure is `initial_stock - stock`, so a load must move
     // both or the day's totals silently collapse to zero.

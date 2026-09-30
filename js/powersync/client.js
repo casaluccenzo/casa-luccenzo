@@ -69,7 +69,14 @@ async function connect() {
         throw new Error('PowerSync: window.PowerSyncConnector no esta disponible -- confirmar que connector.js cargo antes que client.js.');
     }
     connectPromise = database.connect(new ConnectorClass());
-    await connectPromise;
+    try {
+        await connectPromise;
+    } catch (e) {
+        // Sin esto, un connect() fallido quedaba cacheado y todo reintento
+        // posterior devolvia el mismo rechazo hasta recargar la pagina.
+        connectPromise = null;
+        throw e;
+    }
     return connectPromise;
 }
 

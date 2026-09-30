@@ -118,11 +118,30 @@ function resetToDefaults() {
     return JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
 }
 
+/**
+ * Reads a JSON array from localStorage. A corrupted value (truncated write,
+ * manual edit) used to throw straight out of loadSalesLog & co. on every sync
+ * cycle, so renderAllViews never ran and the POS stayed stuck; treat it as
+ * empty instead -- the server copy repopulates it on the next fetch.
+ * @param {string} key localStorage key
+ * @returns {Array}
+ */
+function loadStoredArray(key) {
+    const saved = localStorage.getItem(key);
+    if (!saved) return [];
+    try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        console.error(`localStorage "${key}" corrupto, se ignora.`, e);
+        return [];
+    }
+}
+
 // ================= SALES =================
 
 function loadSalesLog() {
-    const saved = localStorage.getItem(SALES_LOG_KEY);
-    return saved ? JSON.parse(saved) : [];
+    return loadStoredArray(SALES_LOG_KEY);
 }
 
 function saveSalesLog(log) {
@@ -136,8 +155,7 @@ function clearSalesLog() {
 // ================= EXPENSES =================
 
 function loadExpenses() {
-    const saved = localStorage.getItem(EXPENSES_KEY);
-    return saved ? JSON.parse(saved) : [];
+    return loadStoredArray(EXPENSES_KEY);
 }
 
 function saveExpenses(expenses) {
@@ -151,8 +169,7 @@ function clearExpenses() {
 // ================= DEBTS (FIADOS) =================
 
 function loadDebts() {
-    const saved = localStorage.getItem(DEBTS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    return loadStoredArray(DEBTS_KEY);
 }
 
 function saveDebts(debts) {
@@ -166,8 +183,7 @@ function clearDebts() {
 // ================= REPLENISHMENTS (DISPATCHES) =================
 
 function loadReplenishments() {
-    const saved = localStorage.getItem(REPLENISHMENTS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    return loadStoredArray(REPLENISHMENTS_KEY);
 }
 
 function saveReplenishments(repls) {

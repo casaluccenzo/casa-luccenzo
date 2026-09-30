@@ -561,6 +561,23 @@ function handleRemoveFromCart(productId) {
 }
 
 /**
+ * Put every item of `cart` back into vitrina stock, recording a 'sale_return'
+ * movement for each -- the inverse of what handleAddToCart did when the items
+ * went into the cart.
+ * @param {Array} cart Cart items ({productId, quantity})
+ */
+function returnCartItemsToVitrina(cart) {
+    cart.forEach(cartItem => {
+        const product = products.find(p => p.id === cartItem.productId);
+        if (product) {
+            const beforeClear = product.stock;
+            product.stock = product.stock >= product.max ? product.stock + cartItem.quantity : Math.min(product.max, product.stock + cartItem.quantity);
+            recordStockMovement(product, product.stock - beforeClear, 'sale_return');
+        }
+    });
+}
+
+/**
  * Empty the current cart, returning all items back to vitrina stock
  */
 async function handleClearCart() {
@@ -568,31 +585,29 @@ async function handleClearCart() {
 
     triggerHaptic(20);
     if (confirm("¿Estás seguro de que quieres vaciar la cuenta del cliente? Todos los productos se devolverán a la vitrina.")) {
-        currentCart.forEach(cartItem => {
-            const product = products.find(p => p.id === cartItem.productId);
-            if (product) {
-                const beforeClear = product.stock;
-                product.stock = product.stock >= product.max ? product.stock + cartItem.quantity : Math.min(product.max, product.stock + cartItem.quantity);
-                recordStockMovement(product, product.stock - beforeClear, 'sale_return');
-            }
-        });
-
         // Delete old sales from Supabase if we were editing an existing account.
         // Same timestamp-keyed delete as handleCheckoutCart -- a stale uuid list
         // could otherwise leave the account undeleted while the screen clears
         // locally, so it silently reappears in Cuentas Activas on the next sync.
+        // Void FIRST and only return stock once it's confirmed: returning the
+        // pieces to the vitrina while the old sales stay live counted them
+        // twice (sold AND back on the shelf). Same abort-on-failure contract
+        // as handleCheckoutCart.
         const editingSalesStr = sessionStorage.getItem('casa_lucenzo_editing_sales');
         const editingTimestampForClear = sessionStorage.getItem('casa_lucenzo_editing_timestamp');
         if (editingSalesStr && editingTimestampForClear) {
             if (window.SupabaseManager.isConfigured()) {
                 const voided = await window.SupabaseManager.voidSalesByTimestamp(editingTimestampForClear, "Cuenta vaciada durante edición");
                 if (!voided) {
-                    window.UIManager.showToast("⚠️ No se pudo confirmar el vaciado por falta de conexión. La cuenta podría reaparecer -- revisala en Cuentas Activas.", "fa-solid fa-triangle-exclamation");
+                    window.UIManager.showToast("⚠️ No se pudo anular la cuenta original (sin conexión). No se vació nada: intentá de nuevo cuando vuelva la conexión.", "fa-solid fa-triangle-exclamation");
+                    return;
                 }
             }
             sessionStorage.removeItem('casa_lucenzo_editing_sales');
             sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
         }
+
+        returnCartItemsToVitrina(currentCart);
         sessionStorage.removeItem('casa_lucenzo_editing_client_name');
 
         currentCart = [];
@@ -837,9 +852,19 @@ async function handleEditSale(timestamp) {
     }
 
     if (currentCart.length > 0) {
+        // Replacing an in-progress edit would drop its editing_timestamp, so
+        // the original account would never get voided or replaced.
+        if (sessionStorage.getItem('casa_lucenzo_editing_timestamp')) {
+            alert("Terminá o vaciá la cuenta que estás modificando antes de abrir otra.");
+            return;
+        }
         if (!confirm("Ya tienes productos en la cuenta activa. ¿Deseas vaciarla para cargar esta cuenta del historial?")) {
             return;
         }
+        // The discarded cart's items already left the vitrina (with a 'sale'
+        // movement) when they were added -- put them back, same as "Vaciar".
+        returnCartItemsToVitrina(currentCart);
+        window.StorageManager.saveProducts(products);
     }
 
     triggerHaptic(15);

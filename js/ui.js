@@ -1477,7 +1477,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                     <div class="summary-row" style="font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
                         <div>
                             <span style="font-weight: 700; color: var(--color-gold); margin-right: 0.25rem;">${data.count}x</span>
-                            <span style="color: var(--color-white);">${name}</span>
+                            <span style="color: var(--color-white);">${escapeHtml(name)}</span>
                             <span style="font-size: 10px; color: var(--color-text-muted); margin-left: 0.35rem;">($${data.price.toFixed(2)} c/u)</span>
                         </div>
                         <div style="text-align: right;">
@@ -2163,7 +2163,7 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
                 return `
                     <div class="admin-favorite-item">
                         <div class="admin-favorite-header">
-                            <span class="admin-favorite-name">${index + 1}. ${prodName}</span>
+                            <span class="admin-favorite-name">${index + 1}. ${escapeHtml(prodName)}</span>
                             <span class="admin-favorite-qty">${count} unid.</span>
                         </div>
                         <div class="admin-favorite-bar-bg">
@@ -2200,7 +2200,7 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
                 return `
                     <div class="admin-favorite-item">
                         <div class="admin-favorite-header">
-                            <span class="admin-favorite-name">${index + 1}. ${prodName}</span>
+                            <span class="admin-favorite-name">${index + 1}. ${escapeHtml(prodName)}</span>
                             <span class="admin-favorite-qty">${count} unid.</span>
                         </div>
                         <div class="admin-favorite-bar-bg">
@@ -2636,7 +2636,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
                 <div style="display: flex; flex-direction: column; gap: 0.35rem; line-height: 1.4;">
                     ${Object.entries(grouped).map(([name, data]) => `
                         <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--color-white); opacity: 0.9;">${data.count}x ${name}</span>
+                            <span style="color: var(--color-white); opacity: 0.9;">${data.count}x ${escapeHtml(name)}</span>
                             <span style="font-weight: 700; color: var(--color-gold);">$${data.total.toFixed(2)}</span>
                         </div>
                     `).join('')}
@@ -3242,7 +3242,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                         ${flavorsList.length > 0
                             ? flavorsList.map(f => `
                                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                                    <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
+                                    <span style="font-weight: 700; color: var(--color-white);">${escapeHtml(f.name)}</span>
                                     <div style="display: flex; gap: 0.5rem; align-items: center; font-family: monospace;">
                                         <span style="color: var(--color-gold); font-weight: 800;">${f.qty} ${cat.unitLabel}</span>
                                         <span style="color: var(--color-success); font-weight: 800;">${formatUSD(f.usd)}</span>
@@ -3339,7 +3339,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                     matchHtml += `
                         <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 0.5rem 0.75rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
                             <div>
-                                <div style="font-weight: bold; color: var(--color-white);">${item.product.name}</div>
+                                <div style="font-weight: bold; color: var(--color-white);">${escapeHtml(item.product.name)}</div>
                                 <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 2px;">
                                     Inicial: ${item.max} | Quedan: ${item.stock} | Registrado: ${item.logged}
                                 </div>
@@ -3519,16 +3519,16 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         card.style.gap = '0.5rem';
         card.style.padding = '0.75rem';
 
-        const itemsSummary = group.items.map(it => `${it.quantity}x ${it.name}`).join(', ');
+        const itemsSummary = group.items.map(it => `${it.quantity}x ${escapeHtml(it.name)}`).join(', ');
 
-        const statusBadge = `<span class="client-status-badge paid">Pagado (${group.paymentMethod || 'Efectivo'})</span>`;
+        const statusBadge = `<span class="client-status-badge paid">Pagado (${escapeHtml(group.paymentMethod || 'Efectivo')})</span>`;
 
         card.innerHTML = `
             <!-- Header: Name, Status -->
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <h4 style="font-size: 13px; font-weight: 800; color: var(--color-gold); margin: 0; display: flex; align-items: center; gap: 0.3rem;">
-                    <i class="fa-solid fa-user-tag" style="font-size: 11px; opacity: 0.8;"></i> ${group.clientName}
-                    ${group.clientRif ? `<span style="font-size: 10px; color: var(--color-text-muted); font-weight: bold;">(${group.clientRif})</span>` : ''}
+                    <i class="fa-solid fa-user-tag" style="font-size: 11px; opacity: 0.8;"></i> ${escapeHtml(group.clientName)}
+                    ${group.clientRif ? `<span style="font-size: 10px; color: var(--color-text-muted); font-weight: bold;">(${escapeHtml(group.clientRif)})</span>` : ''}
                 </h4>
                 ${statusBadge}
             </div>
@@ -3713,7 +3713,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
         <!-- Total Header Banner -->
         <div style="background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; padding: 0.75rem; margin-bottom: 1rem; text-align: center;">
             <div style="font-size: 0.8rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">
-                Cliente: <strong style="color: var(--color-white);">${safeClientName}</strong> ${safeClientRif ? '('+safeClientRif+')' : ''}
+                Cliente: <strong style="color: var(--color-white);">${escapeHtml(safeClientName)}</strong> ${safeClientRif ? '('+escapeHtml(safeClientRif)+')' : ''}
             </div>
             <div style="font-size: 1.4rem; font-weight: 900; color: var(--color-gold); margin-top: 0.2rem;">
                 $${totalUSD.toFixed(2)} USD
@@ -3748,11 +3748,11 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.75rem;">
             <div style="margin-bottom: 0.5rem;">
                 <label style="display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Nombre / Razón Social:</label>
-                <input type="text" id="pay-client-name-input" value="${safeClientName}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
+                <input type="text" id="pay-client-name-input" value="${escapeHtml(safeClientName)}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
             </div>
             <div>
                 <label style="display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Cédula / RIF (Opcional):</label>
-                <input type="text" id="pay-client-rif-input" value="${safeClientRif}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
+                <input type="text" id="pay-client-rif-input" value="${escapeHtml(safeClientRif)}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
             </div>
         </div>
 
@@ -3929,11 +3929,11 @@ function showPosReceiptModal({
             <div style="font-size: 0.72rem; margin-bottom: 0.35rem;">
                 <div style="display: flex; justify-content: space-between;">
                     <span>RIF/C.I.:</span>
-                    <span style="font-weight: bold;">${clientRif}</span>
+                    <span style="font-weight: bold;">${escapeHtml(clientRif)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
                     <span>RAZON SOCIAL:</span>
-                    <span style="font-weight: bold;">${clientName}</span>
+                    <span style="font-weight: bold;">${escapeHtml(clientName)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
                     <span>DIR.:</span>
@@ -3978,7 +3978,7 @@ function showPosReceiptModal({
                     return `
                         <div style="margin-bottom: 0.35rem;">
                             <div style="display: flex; justify-content: space-between; font-weight: 800;">
-                                <span>${qty}x ${displayName}</span>
+                                <span>${qty}x ${escapeHtml(displayName)}</span>
                                 <span>$${itemTotalUSD.toFixed(2)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; margin-top: 0.05rem;">
@@ -4183,6 +4183,9 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
 
     let html = '';
     sessions.forEach(sess => {
+        // active_sessions es escribible por cualquier usuario autenticado
+        // (migración 002), así que device_name/device_id son texto no confiable.
+        const devName = String(sess.device_name || 'Dispositivo');
         const isMe = sess.device_id === currentDeviceId;
         const isTrusted = sess.is_trusted === true;
         const meBadge = isMe ? '<span style="font-size: 8px; background: rgba(201, 162, 74, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">ESTE DISPOSITIVO</span>' : '';
@@ -4199,11 +4202,11 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.625rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-sm);">
                 <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1;">
                     <div style="font-size: 1.15rem; color: ${isMe ? 'var(--color-gold)' : isTrusted ? '#34D399' : 'var(--color-text-muted)'};">
-                        <i class="${sess.device_name.includes('Phone') || sess.device_name.includes('iPad') ? 'fa-solid fa-mobile-screen-button' : 'fa-solid fa-desktop'}"></i>
+                        <i class="${devName.includes('Phone') || devName.includes('iPad') ? 'fa-solid fa-mobile-screen-button' : 'fa-solid fa-desktop'}"></i>
                     </div>
                     <div style="min-width: 0; flex: 1;">
                         <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-white); display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem;">
-                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;">${sess.device_name}</span>
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;">${escapeHtml(devName)}</span>
                             ${statusDot} ${meBadge} ${trustBadge}
                         </div>
                         <div style="font-size: 9px; color: var(--color-text-muted);">
@@ -4213,13 +4216,13 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
                 </div>
                 <div style="display: flex; gap: 0.35rem; align-items: center;">
                     <!-- Botón de Autorización (Verde) -->
-                    <button class="btn-trust-device" data-id="${sess.device_id}" data-trusted="${isTrusted}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid ${isTrusted ? 'var(--color-success)' : 'rgba(16, 185, 129, 0.3)'}; background: ${isTrusted ? 'rgba(16, 185, 129, 0.15)' : 'transparent'}; color: ${isTrusted ? '#34D399' : 'rgba(16, 185, 129, 0.7)'}; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: all 0.2s;">
+                    <button class="btn-trust-device" data-id="${escapeHtml(sess.device_id)}" data-trusted="${isTrusted}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid ${isTrusted ? 'var(--color-success)' : 'rgba(16, 185, 129, 0.3)'}; background: ${isTrusted ? 'rgba(16, 185, 129, 0.15)' : 'transparent'}; color: ${isTrusted ? '#34D399' : 'rgba(16, 185, 129, 0.7)'}; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: all 0.2s;">
                         <i class="${isTrusted ? 'fa-solid fa-shield-halved' : 'fa-solid fa-shield'}" style="font-size: 0.75rem;"></i>
                     </button>
 
                     <!-- Botón de Expulsión (Rojo) -->
                     ${!isMe ? `
-                        <button class="btn-eject-device" data-id="${sess.device_id}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
+                        <button class="btn-eject-device" data-id="${escapeHtml(sess.device_id)}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
                             <i class="fa-solid fa-right-from-bracket" style="font-size: 0.75rem;"></i>
                         </button>
                     ` : ''}
@@ -5037,7 +5040,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         pastelesItems.forEach(([name, data]) => {
             productRowsHtml += `
                 <tr>
-                    <td style="padding-left: 1.5rem;">${name}</td>
+                    <td style="padding-left: 1.5rem;">${escapeHtml(name)}</td>
                     <td>${data.count} uds.</td>
                     <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
                     <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
@@ -5057,7 +5060,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         bebidasItems.forEach(([name, data]) => {
             productRowsHtml += `
                 <tr>
-                    <td style="padding-left: 1.5rem;">${name}</td>
+                    <td style="padding-left: 1.5rem;">${escapeHtml(name)}</td>
                     <td>${data.count} uds.</td>
                     <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
                     <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
@@ -5077,7 +5080,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         dulcesItems.forEach(([name, data]) => {
             productRowsHtml += `
                 <tr>
-                    <td style="padding-left: 1.5rem;">${name}</td>
+                    <td style="padding-left: 1.5rem;">${escapeHtml(name)}</td>
                     <td>${data.count} uds.</td>
                     <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
                     <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
@@ -5111,7 +5114,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     expenses.forEach(exp => {
         expenseRowsHtml += `
             <tr>
-                <td>${exp.description}</td>
+                <td>${escapeHtml(exp.description)}</td>
                 <td style="color: #ef4444; font-weight: 600;">-$${exp.amount.toFixed(2)}</td>
                 <td style="color: #64748b;">Bs. ${(exp.amount * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
             </tr>

@@ -1749,7 +1749,10 @@ async function fetchReportDays(days = 30) {
         const uniqueDays = new Set();
         (data || []).forEach(s => {
             const d = window.parseUTCTimestamp ? window.parseUTCTimestamp(s.timestamp) : new Date(s.timestamp);
-            uniqueDays.add(d.toISOString().split('T')[0]);
+            // Dia local (Caracas), no UTC: fetchDayReport abre cada dia desde
+            // la medianoche local, asi que agrupar en UTC corria las ventas
+            // de despues de las 20:00 a un "dia siguiente" inexistente.
+            uniqueDays.add(window.localDateStr ? window.localDateStr(d) : d.toISOString().split('T')[0]);
         });
 
         return Array.from(uniqueDays).sort().reverse();

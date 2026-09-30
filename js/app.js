@@ -1346,7 +1346,7 @@ function requireOnline(featureName) {
 async function loadAndRenderExpensesTab(forceRefetch = false) {
     if (currentRole !== 'admin') return;
     const monthInput = document.getElementById('admin-expense-filter-month');
-    const month = (monthInput && monthInput.value) || new Date().toISOString().slice(0, 7);
+    const month = (monthInput && monthInput.value) || window.localDateStr().slice(0, 7);
     expensesTabFilter.month = month;
     expensesTabFilter.bcvRate = window.bcvRate || 1;
 
@@ -1361,7 +1361,7 @@ async function loadAndRenderExpensesTab(forceRefetch = false) {
             // window (Task 5's local-first expenses) -- complete for the
             // current month, but silently partial for any other month. The
             // toast above is what keeps that from reading as "gastos: $0".
-            expensesTabCache[month] = expenses.filter(e => (e.timestamp || '').slice(0, 7) === month);
+            expensesTabCache[month] = expenses.filter(e => e.timestamp && window.localDateStr(window.parseUTCTimestamp(e.timestamp)).slice(0, 7) === month);
         }
     }
     window.UIManager.renderAdminExpenses(expensesTabCache[month], expensesTabFilter, handleDeleteAdminExpense);
@@ -1430,7 +1430,7 @@ function addAdminExpense(e) {
 
 function setAdminExpenseDateDefault() {
     const el = document.getElementById('admin-expense-date');
-    if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+    if (el && !el.value) el.value = window.localDateStr();
 }
 
 // ================= ADMIN GANANCIAS TAB (RESUMEN DE GANANCIAS) =================
@@ -1892,7 +1892,7 @@ async function openReportHistoryModal() {
         const d = new Date(dateStr + 'T12:00:00');
         const dayName = dayNames[d.getDay()];
         const displayDate = d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
-        const today = new Date().toISOString().split('T')[0];
+        const today = window.localDateStr();
         const isToday = dateStr === today;
         const badge = isToday ? '<span style="font-size: 9px; background: var(--color-gold); color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 800; margin-left: 0.35rem;">HOY</span>' : '';
 
@@ -3634,9 +3634,9 @@ async function updateAdminDashboard() {
         const today = new Date();
         const lastWeek = new Date(today);
         lastWeek.setDate(today.getDate() - 7);
-        const lastWeekStr = lastWeek.toISOString().slice(0, 10);
+        const lastWeekStr = window.localDateStr(lastWeek);
 
-        const lastWeekSales = allSales.filter(s => (s.timestamp || '').startsWith(lastWeekStr));
+        const lastWeekSales = allSales.filter(s => s.timestamp && window.localDateStr(window.parseUTCTimestamp(s.timestamp)) === lastWeekStr);
         if (lastWeekSales.length > 0) {
             previousWeekTotal = lastWeekSales.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
         }
@@ -4853,7 +4853,7 @@ function initAdminDashboardListeners() {
             activateTab(tabExpensesBtn, panelExpenses);
             setAdminExpenseDateDefault();
             const mi = document.getElementById('admin-expense-filter-month');
-            if (mi && !mi.value) mi.value = new Date().toISOString().slice(0, 7);
+            if (mi && !mi.value) mi.value = window.localDateStr().slice(0, 7);
             loadAndRenderExpensesTab();
         });
     }

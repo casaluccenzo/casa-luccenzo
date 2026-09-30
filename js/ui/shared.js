@@ -25,9 +25,25 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+/**
+ * Calendar date (YYYY-MM-DD) of `d` in the device's local time zone. Use this
+ * instead of `toISOString().slice(0, 10)`, which is the UTC date: in Caracas
+ * (UTC-4) that flips to "tomorrow" from 20:00 on, so evening expenses landed
+ * in the next day/month and report days drifted by one.
+ * @param {Date} [d] Date to format (defaults to now)
+ * @returns {string} e.g. "2026-09-30"
+ */
+function localDateStr(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 if (typeof window !== 'undefined') {
     window.escapeHtml = escapeHtml;
+    window.localDateStr = localDateStr;
 }
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escapeHtml };
+    module.exports = { escapeHtml, localDateStr };
 }

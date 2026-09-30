@@ -228,6 +228,13 @@ function runCoreUnitTests() {
     assert.strictEqual(bcvRateChangedEnough(732.48, 0), false, "REAL bcvRateChangedEnough: a failed fetch (0) never counts as a change");
     assert.strictEqual(bcvRateChangedEnough(0, 795.10), true, "REAL bcvRateChangedEnough: first real rate over an unset baseline is a change");
     console.log("✅ TEST PASSED: REAL bcvRateChangedEnough: only a real rate move triggers sync + re-render");
+
+    // Fecha local, no UTC: a las 21:00 del 30/09 en el equipo sigue siendo
+    // 30/09 (toISOString() en Caracas ya da 01/10 desde las 20:00).
+    const { localDateStr } = require('../js/ui/shared.js');
+    assert.strictEqual(localDateStr(new Date(2026, 8, 30, 21, 0, 0)), '2026-09-30', "REAL localDateStr: la noche sigue siendo el mismo día local");
+    assert.strictEqual(localDateStr(new Date(2026, 0, 5, 0, 30, 0)), '2026-01-05', "REAL localDateStr: rellena mes y día con cero");
+    console.log("✅ TEST PASSED: REAL localDateStr: fecha del día en hora local, no UTC");
 }
 
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation

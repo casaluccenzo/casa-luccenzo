@@ -39,7 +39,7 @@ if (typeof global.navigator === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough, applyDebtPayment } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -597,6 +597,19 @@ function runPlanBAggregationTests() {
     assert.strictEqual(computeDebtBalance(10, multiPaid.get('d2') || 0), 5, "computeDebtBalance: deuda d2 solo ve sus propios abonos (5 de 10)");
     assert.strictEqual(computeDebtBalance(30, multiPaid.get('d3') || 0), 30, "computeDebtBalance: una deuda sin ningún abono queda en su monto original");
     console.log("✅ TEST PASSED: multiple debts keep independent balances grouped by debt_uuid");
+
+    // Abonos de fiados en centavos: 10 - 1.12 en float es 8.879999..., y el
+    // prompt sugiere "8.88" -- ese abono exacto tiene que saldar la deuda.
+    const afterFirst = applyDebtPayment(10, 1.12);
+    assert.strictEqual(afterFirst.ok, true, "REAL applyDebtPayment: un abono parcial válido se acepta");
+    assert.strictEqual(afterFirst.newBalance, 8.88, "REAL applyDebtPayment: el saldo queda en centavos exactos");
+    const settled = applyDebtPayment(10 - 1.12, 8.88);
+    assert.strictEqual(settled.ok, true, "REAL applyDebtPayment: pagar el saldo sugerido (8.88) sobre 8.879999... se acepta");
+    assert.strictEqual(settled.newBalance, 0, "REAL applyDebtPayment: pagar el saldo exacto deja la deuda en 0");
+    assert.strictEqual(applyDebtPayment(5, 5.01).ok, false, "REAL applyDebtPayment: no se puede abonar más que la deuda");
+    assert.strictEqual(applyDebtPayment(5, 0).ok, false, "REAL applyDebtPayment: abono 0 se rechaza");
+    assert.strictEqual(applyDebtPayment(5, NaN).ok, false, "REAL applyDebtPayment: abono no numérico se rechaza");
+    console.log("✅ TEST PASSED: REAL applyDebtPayment: abonos en centavos saldan la deuda exacta");
 
     // --- computeLastCloseAt: mirrors last_close_at() (migration 026) ---
     function computeLastCloseAt(dayCloses) {

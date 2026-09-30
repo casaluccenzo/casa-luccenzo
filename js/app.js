@@ -1572,6 +1572,24 @@ function addDebt(e) {
 }
 
 /**
+ * Validates an abono against the current balance and returns the new balance,
+ * working in whole cents: debts accumulate float residue (10 - 1.12 =
+ * 8.879999...), so comparing raw floats rejected paying the exact balance the
+ * prompt itself suggests ("8.88") and could leave an unpayable $0.01.
+ * @param {number} balance Current outstanding balance in USD
+ * @param {number} payment Amount being paid in USD
+ * @returns {{ok: boolean, newBalance: number}}
+ */
+function applyDebtPayment(balance, payment) {
+    const balC = Math.round((Number(balance) || 0) * 100);
+    const payC = Math.round(Number(payment) * 100);
+    if (!Number.isFinite(payC) || payC <= 0 || payC > balC) {
+        return { ok: false, newBalance: balC / 100 };
+    }
+    return { ok: true, newBalance: (balC - payC) / 100 };
+}
+
+/**
  * Settle customer payments, subtracting from debt ledger and adding cash to register
  * @param {string} uuid Client ledger unique identifier
  */
@@ -1585,7 +1603,8 @@ function settleDebtPayment(uuid) {
     if (paymentPrompt === null) return;
 
     const paymentAmount = parseFloat(paymentPrompt);
-    if (isNaN(paymentAmount) || paymentAmount <= 0 || paymentAmount > client.amount) {
+    const debtResult = applyDebtPayment(client.amount, paymentAmount);
+    if (!debtResult.ok) {
         alert("Monto inválido. No puede ser mayor que la deuda actual.");
         return;
     }
@@ -1600,7 +1619,7 @@ function settleDebtPayment(uuid) {
     // refetch). El monto sí se mantiene optimista en memoria para feedback
     // instantáneo -- fetchDebts vuelve a calcular el mismo valor apenas
     // insertDebtPayment sube.
-    client.amount = Math.max(0, client.amount - paymentAmount);
+    client.amount = debtResult.newBalance;
 
     const saleItem = {
         uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
@@ -5446,6 +5465,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyStockLoad,
         applyStockCount,
         resolveVitrinaCapacity,
-        bcvRateChangedEnough
+        bcvRateChangedEnough,
+        applyDebtPayment
     };
 }

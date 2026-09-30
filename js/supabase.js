@@ -201,7 +201,10 @@ function mapExpenseRow(e) {
 // real base to add onto, not an already-paid-down number.
 function mapDebtRow(d, paidAmount = 0) {
     const originalAmount = toNum(d.amount);
-    return { ...d, clientName: d.client_name, originalAmount, amount: Math.max(0, originalAmount - paidAmount) };
+    // Redondeo a centavos: sin esto el saldo arrastra residuos de float
+    // (10 - 1.12 = 8.879999...) y el abono exacto sugerido se rechaza.
+    const balance = Math.round((originalAmount - paidAmount) * 100) / 100;
+    return { ...d, clientName: d.client_name, originalAmount, amount: Math.max(0, balance) };
 }
 
 async function fetchProducts() {

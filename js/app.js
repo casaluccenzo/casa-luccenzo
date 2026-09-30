@@ -2961,23 +2961,17 @@ async function handleRealtimeDbUpdate(tableName, payload) {
     } else if (tableName === 'debts') {
         if (eventType === 'DELETE') {
             debts = debts.filter(d => d.uuid !== oldRow.uuid);
+            window.StorageManager.saveDebts(debts);
+            window.UIManager.renderDebts(debts, settleDebtPayment);
         } else {
-            const idx = debts.findIndex(d => d.uuid === newRow.uuid);
-            const formatted = {
-                uuid: newRow.uuid,
-                clientName: newRow.client_name,
-                amount: parseFloat(newRow.amount) || 0,
-                description: newRow.description,
-                timestamp: newRow.timestamp
-            };
-            if (idx !== -1) {
-                debts[idx] = formatted;
-            } else {
-                debts.push(formatted);
-            }
+            // debts.amount es la deuda ORIGINAL (Plan B, Task 8): el saldo que
+            // se muestra y contra el que valida settleDebtPayment es original -
+            // abonos, y eso solo lo calcula fetchDebts (mapDebtRow). Armar la
+            // fila a mano desde el evento mostraba el monto original como
+            // saldo (ej. $11 en vez de $5 tras $6 abonados), permitía cobrar
+            // de más y perdía originalAmount. Refetch en vez de mapear.
+            await performFullFetch('debts');
         }
-        window.StorageManager.saveDebts(debts);
-        window.UIManager.renderDebts(debts, settleDebtPayment);
     } else if (tableName === 'replenishments') {
         if (eventType === 'DELETE') {
             replenishments = replenishments.filter(r => r.uuid !== oldRow.uuid);

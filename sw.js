@@ -108,8 +108,7 @@ self.addEventListener('fetch', event => {
   // stale-while-revalidate handed fetchLiveRate() the PREVIOUS response --
   // possibly hours or days old -- stamped as a fresh rate, and that stale
   // rate went into sales and the day close. Always hit the network.
-  const host = new URL(event.request.url).hostname;
-  if (host === 'rates.dolarvzla.com' || host === 've.dolarapi.com') return;
+  if (/^https:\/\/(rates\.dolarvzla\.com|ve\.dolarapi\.com)\//.test(event.request.url)) return;
 
   event.respondWith(
     caches.match(event.request)

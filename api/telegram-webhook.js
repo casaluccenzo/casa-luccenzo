@@ -1,4 +1,5 @@
 const { SupabaseRest, getTelegramAuthorizationLevel, handleIncomingMessage } = require('../lib/bot-shared');
+const { safeEqual } = require('../lib/secure-compare');
 
 /**
  * Main Vercel Serverless Function Endpoint: /api/telegram-webhook
@@ -26,7 +27,7 @@ const handler = async (req, res) => {
         return res.status(500).json({ error: 'Server misconfiguration: TELEGRAM_WEBHOOK_SECRET missing' });
     }
     const receivedSecret = req.headers['x-telegram-bot-api-secret-token'];
-    if (receivedSecret !== expectedSecret) {
+    if (!safeEqual(receivedSecret, expectedSecret)) {
         console.warn('❌ Telegram Webhook secret token mismatch');
         return res.status(403).json({ error: 'Invalid secret token' });
     }

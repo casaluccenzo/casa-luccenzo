@@ -10,10 +10,10 @@
  * string, 16+ chars) so this endpoint can't be triggered by anyone who finds
  * the URL -- without it configured, every request is rejected.
  */
+const { hasValidCronSecret } = require('../lib/secure-compare');
+
 module.exports = async (req, res) => {
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers['authorization'] || '';
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!hasValidCronSecret(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 

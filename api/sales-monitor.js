@@ -8,6 +8,7 @@
 process.env.TZ = 'America/Caracas';
 
 const { SupabaseRest, sendWhatsAppMessage, normalizePhone } = require('../lib/bot-shared');
+const { hasValidCronSecret } = require('../lib/secure-compare');
 const {
     parseTimestamp,
     aggregateSalesByDay,
@@ -52,9 +53,7 @@ function buildMonitorMessage({ todayTotal, todayComparison, topFlavorToday, insi
  * this once a day via the "crons" entry in vercel.json.
  */
 module.exports = async (req, res) => {
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers['authorization'] || '';
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!hasValidCronSecret(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 

@@ -709,6 +709,21 @@ async function verifyTelegramBot() {
     assert.strictEqual(resSecret.getStatusCode(), 403, "REAL Telegram Bot: Wrong secret token returns HTTP 403");
     console.log("✅ TEST PASSED: REAL Telegram Bot: Invalid secret token correctly rejected with HTTP 403");
 
+    // Secretos de cron comparados en tiempo constante, y sin CRON_SECRET no entra nadie.
+    const { safeEqual, hasValidCronSecret } = require('../lib/secure-compare');
+    assert.strictEqual(safeEqual('abc', 'abc'), true, "REAL safeEqual: iguales");
+    assert.strictEqual(safeEqual('abd', 'abc'), false, "REAL safeEqual: distintos");
+    assert.strictEqual(safeEqual('ab', 'abc'), false, "REAL safeEqual: largo distinto");
+    assert.strictEqual(safeEqual(undefined, 'abc'), false, "REAL safeEqual: header ausente");
+    const prevCron = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    assert.strictEqual(hasValidCronSecret({ headers: { authorization: 'Bearer ' } }), false, "REAL hasValidCronSecret: sin CRON_SECRET se rechaza todo");
+    process.env.CRON_SECRET = 'test_cron_secret_123';
+    assert.strictEqual(hasValidCronSecret({ headers: { authorization: 'Bearer test_cron_secret_123' } }), true, "REAL hasValidCronSecret: Bearer correcto");
+    assert.strictEqual(hasValidCronSecret({ headers: {} }), false, "REAL hasValidCronSecret: sin header");
+    if (prevCron === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = prevCron;
+    console.log("✅ TEST PASSED: REAL secure-compare: secretos de cron en tiempo constante");
+
     // 2. Unauthorized sender rejection
     const { req: rUnauth, res: resUnauth } = createMockTelegramReqRes({ message: { chat: { id: 2 }, from: { id: 111222333 }, text: 'hola' } });
     await tgWebhookHandler(rUnauth, resUnauth);

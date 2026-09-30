@@ -1,6 +1,7 @@
 process.env.TZ = 'America/Caracas';
 
 const { SupabaseRest } = require('../lib/bot-shared');
+const { hasValidCronSecret } = require('../lib/secure-compare');
 
 /**
  * Pastelitos sell out or get zeroed by "Cierre de Jornada" (js/app.js,
@@ -32,9 +33,7 @@ const { SupabaseRest } = require('../lib/bot-shared');
 const DAILY_VITRINA_STOCK = 15;
 
 module.exports = async (req, res) => {
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers['authorization'] || '';
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!hasValidCronSecret(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 

@@ -39,7 +39,7 @@ if (typeof global.navigator === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough, pastelitoUsdPrice } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -228,6 +228,12 @@ function runCoreUnitTests() {
     assert.strictEqual(bcvRateChangedEnough(732.48, 0), false, "REAL bcvRateChangedEnough: a failed fetch (0) never counts as a change");
     assert.strictEqual(bcvRateChangedEnough(0, 795.10), true, "REAL bcvRateChangedEnough: first real rate over an unset baseline is a change");
     console.log("✅ TEST PASSED: REAL bcvRateChangedEnough: only a real rate move triggers sync + re-render");
+    [875.65, 732.48, 1200].forEach(rate => {
+        const bs = pastelitoUsdPrice(rate) * rate;
+        assert.ok(Math.abs(bs - 1900) < 0.005, `REAL pastelitoUsdPrice: at ${rate} Bs/$ a pastelito charges Bs 1900 (got ${bs})`);
+    });
+    assert.strictEqual(pastelitoUsdPrice(0), null, "REAL pastelitoUsdPrice: no rate means no reprice");
+    console.log("✅ TEST PASSED: REAL pastelitoUsdPrice: pastelitos always charge Bs 1900 at the current rate");
 }
 
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation

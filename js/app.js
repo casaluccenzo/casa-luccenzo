@@ -2521,6 +2521,10 @@ async function loadAllDataFromSupabase() {
         ingredients = window.StorageManager.loadIngredients();
     }
 
+    // Keep pastelitos at Bs PASTELITO_PRECIO_BS against the shared rate just
+    // loaded, in case they were last priced off an older one.
+    repricePastelitosToBs();
+
     renderAllViews();
     markSyncFresh();
 }
@@ -3763,7 +3767,39 @@ async function handleTrustDevice(deviceId, isTrusted) {
 /**
  * Saves BCV configuration locally and updates Supabase
  */
+// Los pastelitos se venden a un precio fijo en bolívares. La caja guarda
+// precios en dólares, así que cada vez que cambia la tasa se recalcula su
+// precio en dólares para que precio × tasa siga dando PASTELITO_PRECIO_BS.
+// Seis decimales para que el monto en Bs cuadre al céntimo. Exported for tests.
+const PASTELITO_PRECIO_BS = 1900;
+
+function pastelitoUsdPrice(rate) {
+    if (!(rate > 0)) return null;
+    return Math.round((PASTELITO_PRECIO_BS / rate) * 1e6) / 1e6;
+}
+
+// Same admin/local gate as the app_config write below -- other roles can't
+// write products. Returns true when any price actually moved.
+function repricePastelitosToBs() {
+    if (currentRole !== 'admin' && currentRole !== 'local') return false;
+    const target = pastelitoUsdPrice(bcvRate);
+    if (target === null) return false;
+    let changed = false;
+    products.forEach(p => {
+        if (p.category !== 'pastelitos') return;
+        if (Math.abs((parseFloat(p.price) || 0) - target) < 1e-6) return;
+        p.price = target;
+        changed = true;
+        if (window.SupabaseManager.isConfigured()) {
+            window.SupabaseManager.upsertProduct(p);
+        }
+    });
+    if (changed) window.StorageManager.saveProducts(products);
+    return changed;
+}
+
 function saveAndSyncBcvConfig() {
+    repricePastelitosToBs();
     window.StorageManager.saveBcvPreferences(bcvRate, useAutoBcv);
     // Only admin/local are allowed to write app_config per RLS (DB role 'venta'
     // maps to frontend role 'local' -- see handleUserLogin's mappedRole) --
@@ -3891,6 +3927,11 @@ async function fetchBcvRate(force = false) {
                 renderAllViews();
             } else {
                 console.log(`BCV Rate unchanged (${bcvRate} Bs) -- skipping sync + re-render.`);
+                // Covers pastelitos still priced off an older rate (e.g. the
+                // first load after this rule shipped) without a rate move.
+                if (repricePastelitosToBs()) {
+                    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+                }
             }
         }
     } catch (e) {
@@ -5446,6 +5487,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyStockLoad,
         applyStockCount,
         resolveVitrinaCapacity,
-        bcvRateChangedEnough
+        bcvRateChangedEnough,
+        pastelitoUsdPrice
     };
 }

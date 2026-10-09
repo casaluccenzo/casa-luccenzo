@@ -848,14 +848,19 @@
 
         function money(n) { return '$' + parseFloat(n).toFixed(2); }
 
-        function renderList(listEl, items) {
+        // Pastelitos se anuncian en la web a un precio único en bolívares.
+        // Solo cambia lo que se muestra aquí; la caja sigue usando el precio
+        // en dólares de la tabla `products`.
+        const PASTELITO_PRECIO_BS = 'Bs 1.900';
+
+        function renderList(listEl, items, formatPrice) {
             if (items.length === 0) return;
             listEl.innerHTML = '';
             items.forEach(p => {
                 const li = document.createElement('li');
                 li.innerHTML = '<span></span><span class="li-price"></span>';
                 li.querySelector('span').textContent = p.name;
-                li.querySelector('.li-price').textContent = money(p.price);
+                li.querySelector('.li-price').textContent = formatPrice(p);
                 listEl.appendChild(li);
             });
         }
@@ -876,8 +881,8 @@
                     .order('name');
                 if (error || !data || data.length === 0) return;
 
-                renderList(pastelitosList, data.filter(p => p.category === 'pastelitos'));
-                renderList(bebidasList, data.filter(p => p.category === 'bebidas' || p.category === 'dulces'));
+                renderList(pastelitosList, data.filter(p => p.category === 'pastelitos'), () => PASTELITO_PRECIO_BS);
+                renderList(bebidasList, data.filter(p => p.category === 'bebidas' || p.category === 'dulces'), p => money(p.price));
             } catch (e) {
                 // Static fallback text already in the HTML stays as-is.
             }

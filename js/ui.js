@@ -3856,12 +3856,11 @@ function showPosReceiptModal({
     const totalUSD = cart.reduce((sum, item) => sum + getItemTotalUSD(item), 0);
     const totalVES = totalUSD * rate;
 
-    // Optional 16% IVA surcharge for clients that request a factura.
-    // Normal sales stay at totalVES/totalUSD; checking the toggle below
-    // adds 16% on top to reach the invoiced total (SENIAT).
-    const iva16VES = totalVES * 0.16;
-    const totalConIvaVES = totalVES + iva16VES;
-    const totalConIvaUSD = totalUSD * 1.16;
+    // Prices already include the 16% IVA. When a client asks for a factura,
+    // the toggle below only breaks the same total down into base imponible
+    // + IVA (SENIAT) -- the amount charged never changes.
+    const baseImponibleVES = totalVES / 1.16;
+    const iva16VES = totalVES - baseImponibleVES;
 
     let timeStr = 'Ahora';
     let dateStr = new Date().toLocaleDateString('es-VE');
@@ -3905,7 +3904,7 @@ function showPosReceiptModal({
             <span style="color: var(--color-text-muted); font-weight: 600;">¿Cliente pidió factura?</span>
             <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
                 <input type="checkbox" id="toggle-pos-iva" style="cursor: pointer;">
-                <span style="font-weight: 700; color: var(--color-gold);">Facturar con IVA (+16%)</span>
+                <span style="font-weight: 700; color: var(--color-gold);">Facturar con IVA (16% incluido)</span>
             </label>
         </div>
 
@@ -3999,7 +3998,7 @@ function showPosReceiptModal({
                 <div id="pos-iva-rows" style="display: none;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
                         <span>BASE IMPONIBLE:</span>
-                        <span>${formatVES(totalVES)}</span>
+                        <span>${formatVES(baseImponibleVES)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
                         <span>IVA (16%):</span>
@@ -4058,18 +4057,9 @@ function showPosReceiptModal({
 
     const ivaCheckbox = modalBody.querySelector('#toggle-pos-iva');
     const ivaRows = modalBody.querySelector('#pos-iva-rows');
-    const totalVesEl = modalBody.querySelector('#pos-total-ves-value');
-    const totalUsdEl = modalBody.querySelector('#pos-total-usd-value');
-    const pagoEl = modalBody.querySelector('#pos-pago-value');
     if (ivaCheckbox) {
         ivaCheckbox.addEventListener('change', (e) => {
-            const withIva = e.target.checked;
-            if (ivaRows) ivaRows.style.display = withIva ? 'block' : 'none';
-            const shownVES = withIva ? totalConIvaVES : totalVES;
-            const shownUSD = withIva ? totalConIvaUSD : totalUSD;
-            if (totalVesEl) totalVesEl.textContent = formatVES(shownVES);
-            if (totalUsdEl) totalUsdEl.textContent = '$' + shownUSD.toFixed(2);
-            if (pagoEl) pagoEl.textContent = formatVES(shownVES);
+            if (ivaRows) ivaRows.style.display = e.target.checked ? 'block' : 'none';
         });
     }
 

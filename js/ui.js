@@ -2470,6 +2470,23 @@ function renderQuickConversionTable() {
 }
 
 /**
+ * Split a total whose prices already include the 16% IVA into base + IVA.
+ * Rounds the base to cents and derives IVA from it, so the two shown
+ * amounts always add back up to the total charged.
+ */
+function splitIvaIncluded(totalUSD, totalVES) {
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const baseUSD = round2(totalUSD / 1.16);
+    const baseVES = round2(totalVES / 1.16);
+    return {
+        baseUSD,
+        ivaUSD: round2(totalUSD - baseUSD),
+        baseVES,
+        ivaVES: round2(totalVES - baseVES),
+    };
+}
+
+/**
  * Render active customer account / cart card
  * @param {Array} cart Current items in cart
  * @param {Function} onAdd Callback to add 1 quantity
@@ -2491,6 +2508,8 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
 
     const totalUSD = cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
     const totalVES = totalUSD * (window.bcvRate || 1);
+    // Prices already include the 16% IVA -- only break the same total down.
+    const iva = splitIvaIncluded(totalUSD, totalVES);
 
     container.innerHTML = `
         <div class="active-cart-card">
@@ -2528,6 +2547,14 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                 </div>
                 <div class="cart-total-row" style="justify-content: flex-end;">
                     <span class="cart-total-val-ves">Bs. ${totalVES.toFixed(2)} VES</span>
+                </div>
+                <div class="cart-iva-row">
+                    <span>Base imponible:</span>
+                    <span>$${iva.baseUSD.toFixed(2)} &bull; Bs. ${iva.baseVES.toFixed(2)}</span>
+                </div>
+                <div class="cart-iva-row">
+                    <span>IVA (16% incluido):</span>
+                    <span>$${iva.ivaUSD.toFixed(2)} &bull; Bs. ${iva.ivaVES.toFixed(2)}</span>
                 </div>
             </div>
 
@@ -2571,6 +2598,9 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
         msg += `💰 *TOTAL A PAGAR:* *$${total.toFixed(2)} USD*\n`;
         msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
         msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
+        const shareIva = splitIvaIncluded(total, total * (window.bcvRate || 1));
+        msg += `🧾 Base imponible: $${shareIva.baseUSD.toFixed(2)} / Bs. ${shareIva.baseVES.toFixed(2)}\n`;
+        msg += `🧾 IVA (16% incluido): $${shareIva.ivaUSD.toFixed(2)} / Bs. ${shareIva.ivaVES.toFixed(2)}\n`;
         msg += `--------------------------------------\n`;
         msg += `¡Muchas gracias por su compra! 🌟`;
 

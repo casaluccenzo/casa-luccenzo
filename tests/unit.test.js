@@ -749,6 +749,26 @@ const SUITES = [
     }
 
     if (failures.length === 0) {
+        // Factura carta Tipo A: dibuja lo que manda la base, sin recalcular.
+        const InvoiceRenderer = require('../js/invoice');
+        const sampleInvoice = {
+            number: 46, control_number: '00-00000046', verify_code: 'AB12CD34',
+            issued_at: '2026-10-17T12:15:00Z', client_name: 'María <b>Fernández</b>', client_rif: 'V-12.345.678',
+            payment_method: 'Pago Móvil', bcv_rate: 880.12,
+            items: [{ desc: 'Pastelito de Carne', qty: 4, price: 2.5, total: 10 }],
+            total_usd: 10, base_usd: 8.62, iva_usd: 1.38, total_bs: 8801.2, base_bs: 7587.24, iva_bs: 1213.96, status: 'emitida'
+        };
+        const invoiceHtml = InvoiceRenderer.render(sampleInvoice, { origin: 'https://www.casalucenzo.com' });
+        assert.ok(invoiceHtml.includes('>00046<'), 'Invoice: number must be zero-padded to 5 digits');
+        assert.ok(invoiceHtml.includes('00-00000046'), 'Invoice: control number must be printed');
+        assert.ok(invoiceHtml.includes('8.801,20'), 'Invoice: Bs total in es-VE format');
+        assert.ok(invoiceHtml.includes('7.587,24') && invoiceHtml.includes('1.213,96'), 'Invoice: base imponible + IVA in Bs');
+        assert.ok(invoiceHtml.includes('17-10-2026') && invoiceHtml.includes('08:15'), 'Invoice: date/time in Venezuela time');
+        assert.ok(!invoiceHtml.includes('<b>Fernández</b>'), 'Invoice: client name must be HTML-escaped');
+        assert.strictEqual(InvoiceRenderer.verifyUrl(sampleInvoice, 'https://www.casalucenzo.com'),
+            'https://www.casalucenzo.com/factura/?n=46&c=AB12CD34', 'Invoice: verification link');
+        console.log("✅ TEST PASSED: Factura carta Tipo A renders invoice data");
+
         console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
         process.exit(0);
     }

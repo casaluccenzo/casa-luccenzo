@@ -4069,6 +4069,9 @@ function showPosReceiptModal({
             <button class="btn-print-pos-ticket" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); width: 100%;">
                 <i class="fa-solid fa-print"></i> IMPRIMIR TICKET (80MM/58MM)
             </button>
+            <button class="btn-open-invoice-a" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); cursor: pointer; background: rgba(212,175,55,0.12); color: var(--color-gold); width: 100%;">
+                <i class="fa-solid fa-file-invoice-dollar"></i> FACTURA CARTA (TIPO A)
+            </button>
         </div>
     `;
 
@@ -4095,6 +4098,218 @@ function showPosReceiptModal({
 
     modalBody.querySelector('.btn-print-pos-ticket').addEventListener('click', () => {
         window.print();
+    });
+
+    modalBody.querySelector('.btn-open-invoice-a').addEventListener('click', () => {
+        showInvoiceModal({ cart, clientName, clientRif, timestamp, payMethod, rate });
+    });
+}
+
+// qrcode-generator (global `qrcode`) solo hace falta para el QR de la factura
+// carta, así que se carga recién la primera vez que se abre una. Si no carga
+// (sin internet) la factura sale igual, sin el QR.
+let qrLibPromise = null;
+function loadQrLib() {
+    if (typeof window.qrcode === 'function') return Promise.resolve(true);
+    if (!qrLibPromise) {
+        qrLibPromise = new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => { qrLibPromise = null; resolve(false); };
+            document.head.appendChild(script);
+            setTimeout(() => resolve(typeof window.qrcode === 'function'), 4000);
+        });
+    }
+    return qrLibPromise;
+}
+
+// "0414-555.1234" -> "584145551234" para wa.me; vacío si no parece un número.
+function toWhatsAppNumber(phone = '') {
+    let digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('0')) digits = '58' + digits.slice(1);
+    else if (digits.length === 10) digits = '58' + digits;
+    return digits.length >= 11 ? digits : '';
+}
+
+/**
+ * Factura formato carta "Tipo A" de una cuenta: si la cuenta ya tiene
+ * factura la muestra para reimprimir/enviar; si no, pide los datos fiscales
+ * del cliente y la emite con el siguiente correlativo (lo reparte la base,
+ * ver supabase/migrations/039_invoices.sql).
+ */
+async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', timestamp, payMethod = '', rate = null }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    Object.assign(overlay.style, {
+        position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', display: 'flex',
+        alignItems: 'flex-start', justifyContent: 'center', zIndex: '3100', padding: '1rem',
+        boxSizing: 'border-box', overflowY: 'auto'
+    });
+    const panel = document.createElement('div');
+    Object.assign(panel.style, {
+        width: '100%', maxWidth: '880px', backgroundColor: '#111827', border: '1px solid rgba(212,175,55,0.4)',
+        borderRadius: '14px', color: '#FFFFFF', padding: '1rem', boxSizing: 'border-box', margin: 'auto 0'
+    });
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    const effectiveRate = (rate && !isNaN(parseFloat(rate)) && parseFloat(rate) > 0) ? parseFloat(rate) : (window.bcvRate || 0);
+    const items = cart.map(item => {
+        const qty = item.quantity || 1;
+        const total = getItemTotalUSD(item);
+        return { desc: cleanProductName(item.name), qty, price: Math.round((total / qty) * 100) / 100 };
+    });
+    const totalUSD = items.reduce((s, it) => s + it.qty * it.price, 0);
+
+    const header = (title) => `
+        <div class="inv-noprint" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 0.9rem;">
+            <h3 style="font-family: var(--font-serif); font-size: 1rem; color: var(--color-gold); font-weight: 900; margin: 0; text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-file-invoice-dollar"></i> ${title}
+            </h3>
+            <button class="btn-close-invoice" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.25rem; cursor: pointer;" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>`;
+    const bindClose = () => panel.querySelector('.btn-close-invoice').addEventListener('click', close);
+
+    const showInvoice = async (inv) => {
+        await loadQrLib();
+        const origin = window.location.origin;
+        panel.innerHTML = `
+            ${header(`Factura N° ${window.InvoiceRenderer.pad5(inv.number)}`)}
+            ${inv.reissued ? `<div class="inv-noprint" style="font-size: 0.75rem; color: var(--color-text-muted); margin: -0.4rem 0 0.75rem;">Esta cuenta ya tenía factura: se muestra la misma para reimprimir o reenviar.</div>` : ''}
+            <div class="inv-noprint" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; margin-bottom: 0.9rem;">
+                <button class="btn-inv-print" style="height: 40px; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.8rem;">
+                    <i class="fa-solid fa-print"></i> Imprimir / PDF
+                </button>
+                <button class="btn-inv-whatsapp" style="height: 40px; border-radius: 8px; border: none; cursor: pointer; background: #25D366; color: #06281a; font-weight: 900; font-size: 0.8rem;">
+                    <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+                </button>
+                <button class="btn-inv-email" style="height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: rgba(255,255,255,0.05); color: var(--color-white); font-weight: 800; font-size: 0.8rem;">
+                    <i class="fa-solid fa-envelope"></i> Enviar por correo
+                </button>
+                <button class="btn-inv-copy" style="height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: rgba(255,255,255,0.05); color: var(--color-white); font-weight: 800; font-size: 0.8rem;">
+                    <i class="fa-solid fa-link"></i> Copiar enlace
+                </button>
+            </div>
+            <div class="inv-paper-stage" style="width: 100%;"></div>`;
+        bindClose();
+
+        const stage = panel.querySelector('.inv-paper-stage');
+        const fit = window.InvoiceRenderer.mount(stage, inv, { origin });
+        window.addEventListener('resize', fit);
+        const observer = new window.MutationObserver(() => {
+            if (!document.body.contains(overlay)) {
+                window.removeEventListener('resize', fit);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
+
+        const text = window.InvoiceRenderer.shareText(inv, origin);
+        const link = window.InvoiceRenderer.verifyUrl(inv, origin);
+        panel.querySelector('.btn-inv-print').addEventListener('click', () => window.InvoiceRenderer.print(overlay));
+        panel.querySelector('.btn-inv-whatsapp').addEventListener('click', () => {
+            const num = toWhatsAppNumber(inv.client_phone);
+            window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank');
+        });
+        panel.querySelector('.btn-inv-email').addEventListener('click', () => {
+            const subject = `Factura N° ${window.InvoiceRenderer.pad5(inv.number)} - Casa Lucenzo`;
+            window.location.href = `mailto:${encodeURIComponent(inv.client_email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text.replace(/\*/g, ''))}`;
+        });
+        panel.querySelector('.btn-inv-copy').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(link);
+                showToast('🔗 Enlace de la factura copiado.', 'fa-solid fa-link');
+            } catch {
+                window.prompt('Copie el enlace de la factura:', link);
+            }
+        });
+    };
+
+    panel.innerHTML = `${header('Factura carta')}<div style="padding: 2rem 0; text-align: center; color: var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Buscando si esta cuenta ya tiene factura...</div>`;
+    bindClose();
+
+    if (!window.SupabaseManager || !window.SupabaseManager.isConfigured() || !navigator.onLine) {
+        panel.innerHTML = `${header('Factura carta')}<div style="padding: 1.5rem 0; text-align: center; color: var(--color-text-muted); font-size: 0.85rem;">Para emitir la factura hace falta internet: el número de factura lo asigna el servidor para que no se repita entre cajas. Vuelva a intentarlo cuando haya conexión.</div>`;
+        bindClose();
+        return;
+    }
+
+    const existing = await window.SupabaseManager.fetchInvoiceForSale(timestamp);
+    if (existing) {
+        await showInvoice({ ...existing, reissued: true });
+        return;
+    }
+
+    const inputStyle = 'width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; color: var(--color-white); font-weight: 700; font-size: 0.85rem;';
+    const labelStyle = 'display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.25rem; font-size: 0.72rem; text-transform: uppercase;';
+    panel.style.maxWidth = '460px';
+    panel.innerHTML = `
+        ${header('Emitir factura carta')}
+        <div style="background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; padding: 0.6rem 0.75rem; margin-bottom: 0.9rem; font-size: 0.8rem;">
+            ${items.map(it => `<div style="display: flex; justify-content: space-between; gap: 0.5rem;"><span>${it.qty}x ${escapeHtml(it.desc)}</span><span>$${(it.qty * it.price).toFixed(2)}</span></div>`).join('')}
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(212,175,55,0.3); margin-top: 0.4rem; padding-top: 0.4rem; font-weight: 900; color: var(--color-gold);">
+                <span>Total (IVA incluido)</span><span>$${totalUSD.toFixed(2)}</span>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.2rem;">Tasa BCV: Bs ${effectiveRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Pago: ${escapeHtml(payMethod || '—')}</div>
+        </div>
+        <form class="inv-issue-form" style="display: grid; gap: 0.6rem;">
+            <div><label style="${labelStyle}" for="inv-client-name">Nombre o razón social *</label><input id="inv-client-name" required maxlength="200" style="${inputStyle}" value="${escapeHtml(clientName && clientName !== 'Cliente' ? clientName : '')}"></div>
+            <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF *</label><input id="inv-client-rif" required maxlength="30" placeholder="V-12.345.678 o J-12345678-9" style="${inputStyle}" value="${escapeHtml(clientRif)}"></div>
+            <div><label style="${labelStyle}" for="inv-client-address">Domicilio fiscal</label><input id="inv-client-address" maxlength="300" style="${inputStyle}"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                <div><label style="${labelStyle}" for="inv-client-phone">Teléfono (WhatsApp)</label><input id="inv-client-phone" type="tel" maxlength="30" placeholder="0414-1234567" style="${inputStyle}"></div>
+                <div><label style="${labelStyle}" for="inv-client-email">Correo</label><input id="inv-client-email" type="email" maxlength="120" style="${inputStyle}"></div>
+            </div>
+            <div class="inv-issue-error" style="display: none; color: #FCA5A5; font-size: 0.78rem; font-weight: 700;"></div>
+            <button type="submit" class="btn-inv-issue" style="height: 46px; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.9rem;">
+                <i class="fa-solid fa-file-circle-check"></i> EMITIR FACTURA
+            </button>
+            <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center;">Se le asigna el siguiente número de factura y no se puede repetir. Revise los datos antes de emitir.</div>
+        </form>`;
+    bindClose();
+
+    const form = panel.querySelector('.inv-issue-form');
+    const errorBox = panel.querySelector('.inv-issue-error');
+    const submitBtn = panel.querySelector('.btn-inv-issue');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const val = (id) => panel.querySelector(id).value.trim();
+        const name = val('#inv-client-name');
+        const rif = val('#inv-client-rif');
+        const showError = (msg) => { errorBox.textContent = msg; errorBox.style.display = 'block'; };
+        if (!name) return showError('Falta el nombre o la razón social.');
+        if (rif.replace(/\D/g, '').length < 5) return showError('La cédula o el RIF no parece válido.');
+        if (!(effectiveRate > 0)) return showError('No hay tasa BCV cargada. Actualice la tasa y vuelva a intentar.');
+        errorBox.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Emitiendo...';
+
+        const { invoice, error } = await window.SupabaseManager.issueInvoice({
+            saleTimestamp: timestamp,
+            clientName: name,
+            clientRif: rif,
+            clientAddress: val('#inv-client-address'),
+            clientPhone: val('#inv-client-phone'),
+            clientEmail: val('#inv-client-email'),
+            paymentMethod: payMethod,
+            bcvRate: effectiveRate,
+            items
+        });
+        if (!invoice) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-file-circle-check"></i> EMITIR FACTURA';
+            return showError(error || 'No se pudo emitir la factura. Intente de nuevo.');
+        }
+        panel.style.maxWidth = '880px';
+        showToast(`🧾 Factura N° ${window.InvoiceRenderer.pad5(invoice.number)} emitida.`, 'fa-solid fa-file-invoice-dollar');
+        await showInvoice(invoice);
     });
 }
 
@@ -6538,6 +6753,7 @@ window.UIManager = {
     renderClientesView,
     showPaymentMethodModal,
     showPosReceiptModal,
+    showInvoiceModal,
     showUpdateOverlay,
     updateOverlayStatusSuccess,
     renderActiveDevices,

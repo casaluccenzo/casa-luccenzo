@@ -9,6 +9,8 @@ const assetsToCopy = [
     'index.html',
     'pedido.html',
     'qr-mesa.html',
+    // Verificación y descarga pública de facturas (casalucenzo.com/factura).
+    'factura',
     'sistema',
     'manifest.json',
     'sw.js',

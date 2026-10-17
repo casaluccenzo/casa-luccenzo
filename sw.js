@@ -24,6 +24,7 @@ const SCRIPTS = [
   'audio.js',
   'share.js',
   'agent.js',
+  'invoice.js',
   'ui.js',
   'app.js',
   'desktop.js'
@@ -70,7 +71,8 @@ const ASSETS_TO_CACHE = [
   '/js/powersync/schema.js',
   ...POWERSYNC_VENDORED,
   '/img/logo-192.png',
-  '/img/logo-512.png'
+  '/img/logo-512.png',
+  '/img/logo-factura.png'
 ];
 
 // Install Event - cache assets

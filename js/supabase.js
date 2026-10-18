@@ -1193,6 +1193,49 @@ function getClient() {
     return client;
 }
 
+/**
+ * Emite la factura carta de una cuenta (o devuelve la que ya tenía: la base
+ * nunca le da dos números a la misma cuenta). Necesita conexión: el
+ * correlativo lo reparte la base para que dos cajas no choquen.
+ * @returns {Promise<{invoice: Object|null, error: string|null}>}
+ */
+async function issueInvoice({ saleTimestamp, clientName, clientRif, clientAddress, clientPhone, clientEmail, paymentMethod, bcvRate, items }) {
+    if (!client) return { invoice: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('issue_invoice', {
+            p_sale_timestamp: saleTimestamp,
+            p_client_name: clientName,
+            p_client_rif: clientRif,
+            p_client_address: clientAddress || '',
+            p_client_phone: clientPhone || '',
+            p_client_email: clientEmail || '',
+            p_payment_method: paymentMethod || '',
+            p_bcv_rate: bcvRate,
+            p_items: items
+        });
+        if (error) throw error;
+        return { invoice: data, error: null };
+    } catch (err) {
+        console.error('issueInvoice:', err);
+        return { invoice: null, error: err.message || 'No se pudo emitir la factura.' };
+    }
+}
+
+/**
+ * Factura ya emitida para una cuenta, o null si todavía no tiene.
+ */
+async function fetchInvoiceForSale(saleTimestamp) {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.rpc('get_invoice_for_sale', { p_sale_timestamp: saleTimestamp });
+        if (error) throw error;
+        return data || null;
+    } catch (err) {
+        console.error('fetchInvoiceForSale:', err);
+        return null;
+    }
+}
+
 async function getUserProfile(userId) {
     if (!client || !userId) return null;
     try {
@@ -2054,6 +2097,8 @@ window.SupabaseManager = {
     upsertAppConfig,
     insertDayClose,
     getClient,
+    issueInvoice,
+    fetchInvoiceForSale,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificar factura — Casa Lucenzo</title>
+    <meta name="description" content="Verifique que su factura de Casa Lucenzo es válida y descárguela con el número de factura y su cédula o RIF.">
+    <meta name="robots" content="noindex">
+    <link rel="apple-touch-icon" href="/img/logo-192.png">
+    <link rel="icon" href="/img/logo-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-950: #0f2137;
+            --navy-900: #142a44;
+            --gold-500: #c9a24a;
+            --gold-300: #e4cd93;
+            --cream-100: #f6f1e4;
+            --muted: #a9b4c6;
+            --ok: #34d399;
+            --bad: #fca5a5;
+            --serif: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--sans);
+            color: var(--cream-100);
+            background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201,162,74,0.16), transparent 60%),
+                        linear-gradient(180deg, var(--navy-950), var(--navy-900) 55%, #0c1b2c);
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrap { max-width: 880px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
+        header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+        header img { width: 58px; height: 58px; }
+        header h1 { font-family: var(--serif); font-size: 1.5rem; margin: 0; line-height: 1.1; }
+        header p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+        .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(201,162,74,0.35); border-radius: 14px; padding: 18px; max-width: 520px; }
+        .card h2 { margin: 0 0 6px; font-size: 1.05rem; color: var(--gold-300); }
+        .card .hint { margin: 0 0 14px; color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
+        form { display: grid; gap: 12px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 460px) { .row { grid-template-columns: 1fr; } }
+        label { display: block; font-size: 0.74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+        input { width: 100%; font: 600 1rem var(--sans); padding: 11px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: var(--cream-100); }
+        input:focus { outline: 2px solid var(--gold-500); outline-offset: 1px; }
+        button { font: 800 0.95rem var(--sans); border-radius: 9px; border: none; cursor: pointer; padding: 12px 16px; }
+        .primary { background: var(--gold-500); color: var(--navy-950); }
+        .primary:disabled { opacity: .6; cursor: wait; }
+        .ghost { background: rgba(255,255,255,0.06); color: var(--cream-100); border: 1px solid rgba(255,255,255,0.2); }
+        .msg { font-size: 0.88rem; font-weight: 600; line-height: 1.45; }
+        .msg.bad { color: var(--bad); }
+        #result { margin-top: 26px; }
+        .status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; }
+        .status.ok { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.45); }
+        .status.void { background: rgba(252,165,165,0.12); border: 1px solid rgba(252,165,165,0.45); }
+        .status strong { display: block; font-size: 1.05rem; }
+        .status.ok strong { color: var(--ok); }
+        .status.void strong { color: var(--bad); }
+        .status span { color: var(--muted); font-size: 0.86rem; }
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .paper-stage { width: 100%; }
+        footer { margin-top: 30px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="wrap inv-noprint" id="top">
+        <header>
+            <img src="/img/logo-factura.png" alt="Casa Lucenzo">
+            <div>
+                <h1>Verificar factura</h1>
+                <p>Casa Lucenzo · Emprendimiento Kaira Blanco · RIF J-50818313-4</p>
+            </div>
+        </header>
+
+        <section class="card">
+            <h2>Consulte su factura</h2>
+            <p class="hint">Escriba el número de su factura y la cédula o RIF con la que la pidió. Si la factura es válida podrá verla y descargarla en PDF.</p>
+            <form id="verify-form" novalidate>
+                <div class="row">
+                    <div>
+                        <label for="inv-number">N° de factura</label>
+                        <input id="inv-number" inputmode="numeric" autocomplete="off" placeholder="00046" required>
+                    </div>
+                    <div>
+                        <label for="inv-rif">Cédula o RIF</label>
+                        <input id="inv-rif" autocomplete="off" placeholder="V-12.345.678" required>
+                    </div>
+                </div>
+                <div id="form-msg" class="msg bad" hidden></div>
+                <button type="submit" class="primary" id="verify-btn">Verificar factura</button>
+            </form>
+        </section>
+    </div>
+
+    <div id="result" class="wrap" hidden>
+        <div class="status inv-noprint" id="status"></div>
+        <div class="paper-stage" id="paper"></div>
+    </div>
+
+    <footer class="inv-noprint">¿No le llegó su factura? Pídala en caja o escríbanos al (0412) 083.9311.</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script src="/js/invoice.js?v=__APP_VERSION__"></script>
+    <script>
+    (function () {
+        const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+
+        const form = document.getElementById('verify-form');
+        const numberInput = document.getElementById('inv-number');
+        const rifInput = document.getElementById('inv-rif');
+        const msg = document.getElementById('form-msg');
+        const btn = document.getElementById('verify-btn');
+        const result = document.getElementById('result');
+        const statusBox = document.getElementById('status');
+        const paper = document.getElementById('paper');
+        let fit = null;
+
+        const REASONS = {
+            no_encontrada: 'No encontramos una factura con ese número y esa cédula o RIF. Revise los datos e intente de nuevo.',
+            datos_incompletos: 'Escriba el número de factura y la cédula o RIF.',
+            demasiados_intentos: 'Hubo demasiados intentos con ese número de factura. Espere una hora o use el enlace o el QR de su factura.'
+        };
+
+        function showMsg(text) {
+            msg.textContent = text;
+            msg.hidden = !text;
+        }
+
+        let client = null;
+        function getClient() {
+            if (!client && window.supabase) {
+                client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+            }
+            return client;
+        }
+
+        function showInvoice(inv) {
+            const R = window.InvoiceRenderer;
+            const { fecha, hora } = R.dateParts(inv.issued_at);
+            const isVoid = inv.status === 'anulada';
+            statusBox.className = 'status inv-noprint ' + (isVoid ? 'void' : 'ok');
+            statusBox.innerHTML = `
+                <div>
+                    <strong>${isVoid ? 'Factura anulada' : '✓ Factura válida'}</strong>
+                    <span>N° ${R.pad5(inv.number)} · Control ${inv.control_number} · emitida el ${fecha} a las ${hora}</span>
+                </div>
+                <div class="actions">
+                    <button type="button" class="primary" id="btn-pdf">Descargar PDF</button>
+                    <button type="button" class="ghost" id="btn-share">Compartir</button>
+                </div>`;
+            result.hidden = false;
+            fit = R.mount(paper, inv);
+            document.getElementById('btn-pdf').addEventListener('click', () => R.print(result));
+            document.getElementById('btn-share').addEventListener('click', async () => {
+                const url = R.verifyUrl(inv);
+                try {
+                    if (navigator.share) await navigator.share({ title: `Factura N° ${R.pad5(inv.number)}`, url });
+                    else { await navigator.clipboard.writeText(url); statusBox.querySelector('#btn-share').textContent = 'Enlace copiado'; }
+                } catch { /* el cliente canceló el menú de compartir */ }
+            });
+            result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function verify(number, rif, code) {
+            const db = getClient();
+            if (!db) { showMsg('No se pudo conectar. Revise su internet e intente de nuevo.'); return; }
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+            showMsg('');
+            try {
+                const { data, error } = await db.rpc('verify_invoice', { p_number: number, p_rif: rif || null, p_code: code || null });
+                if (error) throw error;
+                if (data && data.ok) showInvoice(data.invoice);
+                else { result.hidden = true; showMsg(REASONS[data && data.reason] || REASONS.no_encontrada); }
+            } catch (err) {
+                console.error(err);
+                showMsg('No se pudo verificar en este momento. Intente de nuevo en unos minutos.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Verificar factura';
+            }
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const number = parseInt(numberInput.value.replace(/\D/g, ''), 10);
+            const rif = rifInput.value.trim();
+            if (!number || rif.replace(/\D/g, '').length < 5) { showMsg(REASONS.datos_incompletos); return; }
+            verify(number, rif, null);
+        });
+
+        window.addEventListener('resize', () => { if (fit) fit(); });
+
+        // Enlace del QR / WhatsApp: /factura/?n=46&c=CODIGO verifica sola.
+        const params = new URLSearchParams(location.search);
+        const n = parseInt(params.get('n') || '', 10);
+        const c = (params.get('c') || '').trim();
+        if (n) numberInput.value = String(n).padStart(5, '0');
+        if (n && c) verify(n, null, c);
+    })();
+    </script>
+</body>
+</html>

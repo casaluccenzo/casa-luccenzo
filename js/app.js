@@ -348,6 +348,16 @@ function recordStockMovement(product, delta, type, sourceUuid) {
 }
 
 /**
+ * Heads-up when a sale leaves the vitrina below zero. The sale itself still
+ * goes through; the negative count is what tells the cashier a recount is due.
+ * @param {Object} product Product just sold
+ */
+function warnIfOversold(product) {
+    if (product.stock >= 0) return;
+    window.UIManager.showToast(`⚠️ "${product.name}" quedó en ${product.stock}. Se vendió igual; corrige la vitrina cuando puedas.`, "fa-solid fa-triangle-exclamation");
+}
+
+/**
  * Handle stock adjustments, records transactions, triggers vibrations and floating numbers
  * @param {string} id Product identifier
  * @param {number} amount Change amount (+1 or -1)
@@ -358,13 +368,9 @@ function adjustStock(id, amount, event) {
     if (!product) return;
 
     if (amount === -1) {
-        // Adding 1 to cart / selling
-        if (product.stock <= 0) {
-            triggerHaptic(30);
-            window.UIManager.showToast(`⚠️ "${product.name}" no tiene stock en vitrina.`, "fa-solid fa-triangle-exclamation");
-            return;
-        }
-
+        // Adding 1 to cart / selling. An empty (or negative) vitrina no longer
+        // blocks the sale: the count on screen can lag the shelf, and refusing
+        // a real sale is worse than a negative number to fix with a recount.
         // Spawn floating number indicator on tap coordinates
         if (event && event.clientX !== undefined) {
             window.UIManager.spawnFloatingIndicator(event.clientX, event.clientY, `-1`, 'float-minus');
@@ -387,10 +393,11 @@ function adjustStock(id, amount, event) {
         localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
 
         const originalStock = product.stock;
-        product.stock = Math.max(0, product.stock - 1);
+        product.stock = product.stock - 1;
         window.StorageManager.saveProducts(products);
 
         recordStockMovement(product, product.stock - originalStock, 'sale');
+        warnIfOversold(product);
 
         // Audio warning if stock falls under threshold
         if (product.stock <= product.min && originalStock > product.min) {
@@ -437,15 +444,6 @@ function handleCartQtyChange(id, newQty) {
     const cartItem = currentCart.find(item => item.productId === id);
     const q_old = cartItem ? cartItem.quantity : 0;
     
-    // Total available stock that can be placed in cart for this product
-    const max_qty = product.stock + q_old;
-
-    if (newQty > max_qty) {
-        newQty = max_qty;
-        triggerHaptic(30);
-        window.UIManager.showToast(`⚠️ Stock insuficiente. Solo puedes cargar un máximo de ${max_qty} piezas.`, "fa-solid fa-triangle-exclamation");
-    }
-
     if (newQty < 0 || isNaN(newQty)) {
         newQty = 0;
     }
@@ -456,10 +454,11 @@ function handleCartQtyChange(id, newQty) {
     triggerHaptic(15);
 
     const originalStock = product.stock;
-    product.stock = Math.max(0, product.stock - diff);
+    product.stock = product.stock - diff;
     window.StorageManager.saveProducts(products);
 
     recordStockMovement(product, product.stock - originalStock, diff > 0 ? 'sale' : 'sale_return');
+    if (diff > 0) warnIfOversold(product);
 
     // Update cart items array
     if (newQty === 0) {
@@ -500,11 +499,7 @@ function handleCartQtyChange(id, newQty) {
  */
 function handleAddToCart(productId) {
     const product = products.find(p => p.id === productId);
-    if (!product || product.stock <= 0) {
-        triggerHaptic(30);
-        window.UIManager.showToast(`⚠️ No hay más "${product ? product.name : ''}" en vitrina.`, "fa-solid fa-triangle-exclamation");
-        return;
-    }
+    if (!product) return;
 
     triggerHaptic(15);
 
@@ -522,10 +517,11 @@ function handleAddToCart(productId) {
     localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
 
     const beforeAdd = product.stock;
-    product.stock = Math.max(0, product.stock - 1);
+    product.stock = product.stock - 1;
     window.StorageManager.saveProducts(products);
 
     recordStockMovement(product, product.stock - beforeAdd, 'sale');
+    warnIfOversold(product);
 
     window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -5172,6 +5168,7 @@ function initAdminDashboardListeners() {
             }
 
             const oldMax = product.max || 0;
+            const beforeCount = product.stock || 0;
 
             product.name = newName;
             product.price = newPrice;
@@ -5182,7 +5179,10 @@ function initAdminDashboardListeners() {
             // Typing a higher stock here is how the day's batch gets loaded, so
             // it has to move the baseline exactly like any other load -- this
             // was the path that left `initial_stock` at 0 all day.
-            applyStockCount(product, stockVal);
+            // Only a retyped count moves stock: editing just the price of a
+            // product sitting at -3 must not silently clamp it back to 0.
+            if (stockVal !== beforeCount) applyStockCount(product, stockVal);
+            const countDelta = product.stock - beforeCount;
 
             // An explicitly retyped max wins; otherwise capacity just follows
             // the shelf (it used to be incremented on every edit and grew
@@ -5194,6 +5194,11 @@ function initAdminDashboardListeners() {
             if (window.SupabaseManager.isConfigured()) {
                 window.SupabaseManager.upsertProduct(product);
             }
+
+            // Postgres recalcula products.stock desde stock_movements en cada
+            // movimiento nuevo (migración 033). Sin esta fila, el stock escrito
+            // arriba se borraba con la siguiente venta y volvía al negativo.
+            recordStockMovement(product, countDelta, countDelta > 0 ? 'load' : 'count_down');
 
             // Close modal
             document.getElementById('edit-product-modal').classList.add('hidden');

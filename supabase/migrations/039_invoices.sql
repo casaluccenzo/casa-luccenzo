@@ -1,4 +1,4 @@
--- Migration 039: facturas (formato carta "Tipo A") con correlativo propio.
+-- Migration 039: facturas (formato carta estilo talonario) con correlativo propio.
 --
 -- Cada cuenta cobrada (sales agrupadas por timestamp) puede tener a lo sumo
 -- UNA factura: pedirla de nuevo devuelve la misma (reimpresión), nunca un

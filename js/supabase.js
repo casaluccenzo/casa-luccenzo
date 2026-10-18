@@ -1194,7 +1194,7 @@ function getClient() {
 }
 
 /**
- * Emite la factura Tipo A de una cuenta (o devuelve la que ya tenía: la base
+ * Emite la factura carta de una cuenta (o devuelve la que ya tenía: la base
  * nunca le da dos números a la misma cuenta). Necesita conexión: el
  * correlativo lo reparte la base para que dos cajas no choquen.
  * @returns {Promise<{invoice: Object|null, error: string|null}>}

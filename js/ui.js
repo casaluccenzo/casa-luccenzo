@@ -4070,7 +4070,7 @@ function showPosReceiptModal({
                 <i class="fa-solid fa-print"></i> IMPRIMIR TICKET (80MM/58MM)
             </button>
             <button class="btn-open-invoice-a" style="height: 42px; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 900; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); cursor: pointer; background: rgba(212,175,55,0.12); color: var(--color-gold); width: 100%;">
-                <i class="fa-solid fa-file-invoice-dollar"></i> FACTURA CARTA (TIPO A)
+                <i class="fa-solid fa-file-invoice-dollar"></i> FACTURA (TALONARIO)
             </button>
         </div>
     `;
@@ -4133,7 +4133,7 @@ function toWhatsAppNumber(phone = '') {
 }
 
 /**
- * Factura formato carta "Tipo A" de una cuenta: si la cuenta ya tiene
+ * Factura formato carta estilo talonario de una cuenta: si la cuenta ya tiene
  * factura la muestra para reimprimir/enviar; si no, pide los datos fiscales
  * del cliente y la emite con el siguiente correlativo (lo reparte la base,
  * ver supabase/migrations/039_invoices.sql).

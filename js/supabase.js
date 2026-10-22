@@ -1468,7 +1468,7 @@ async function setProfileActive(id, active) {
     }
 }
 
-// SQLite has no boolean type -- PowerSync stores use_auto_bcv/totp_enabled
+// SQLite has no boolean type -- PowerSync stores use_auto_bcv
 // as 0/1 (see js/powersync/schema.js). Several call sites compare these with
 // `!== false`, which is true for either 0 or 1 (different type, so never
 // strictly equal to the boolean `false`) -- silently always "on" once read
@@ -1478,7 +1478,6 @@ function mapAppConfigRow(data) {
     return {
         ...data,
         use_auto_bcv: !!data.use_auto_bcv,
-        totp_enabled: !!data.totp_enabled,
         bcv_rate: toNum(data.bcv_rate)
     };
 }

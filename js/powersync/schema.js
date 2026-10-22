@@ -79,8 +79,6 @@ const app_config = new Table({
     bcv_rate: column.text,
     use_auto_bcv: column.integer,
     updated_at: column.text,
-    totp_secret: column.text,
-    totp_enabled: column.integer,
     last_close_time: column.text,
     location_id: column.text
 });

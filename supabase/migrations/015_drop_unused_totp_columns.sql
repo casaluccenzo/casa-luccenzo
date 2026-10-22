@@ -1,5 +1,8 @@
 -- Migration 015: Drop the unused TOTP columns from app_config
 --
+-- REEMPLAZADA por 040_drop_totp_columns.sql (misma idea, con guarda). No
+-- aplicar esta; aplicar la 040. Es inofensiva si se corre igual (IF EXISTS).
+--
 -- NOT APPLIED YET -- ON PURPOSE. Deliberately held back from the v284 batch
 -- (2026-08-14, the night before reopening): this is an irreversible schema
 -- change whose benefit today is exactly zero, so there is no reason for it to

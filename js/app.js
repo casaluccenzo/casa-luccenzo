@@ -2327,7 +2327,7 @@ function updateSyncFreshnessDisplay() {
 async function loadAllDataFromSupabase() {
     console.log("Loading dashboard statistics and logs from Supabase...");
     
-    // 1. Fetch app configuration first (to get exchange rate, 2FA status, and day close timestamps)
+    // 1. Fetch app configuration first (to get exchange rate and day close timestamps)
     const supConfig = await window.SupabaseManager.fetchAppConfig();
     if (supConfig) {
         bcvRate = parseFloat(supConfig.bcv_rate) || 732.48;

@@ -180,6 +180,7 @@ function mapProductRow(p) {
         ...p,
         price: toNum(p.price),
         cost: toNum(p.cost),
+        price_bs: toNum(p.price_bs),
         initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined) ? p.initial_stock : p.stock
     };
 }
@@ -228,7 +229,7 @@ async function fetchProducts() {
             const rows = await localDb.getAll(`
                 SELECT
                     p.id, p.name, p.min, p.max, p.unit, p.price, p.category, p.updated_at,
-                    p.cost, p.location_id, p.stock_computed, p.initial_stock_computed, p.max_computed,
+                    p.cost, p.price_bs, p.location_id, p.stock_computed, p.initial_stock_computed, p.max_computed,
                     CASE WHEN p.category = 'pastelitos' THEN
                         COALESCE((
                             SELECT SUM(sm.delta) FROM stock_movements sm
@@ -466,11 +467,13 @@ async function upsertProduct(product) {
             );
             await localDb.execute(
                 `INSERT OR REPLACE INTO products
-                   (id, name, stock, min, max, unit, price, cost, category, initial_stock, updated_at,
+                   (id, name, stock, min, max, unit, price, cost, price_bs, category, initial_stock, updated_at,
                     location_id, stock_computed, initial_stock_computed, max_computed)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [product.id, product.name, product.stock, product.min, product.max, product.unit,
-                 String(product.price), String(product.cost || 0), product.category, initialStock,
+                 String(product.price), String(product.cost || 0),
+                 product.price_bs > 0 ? String(product.price_bs) : null,
+                 product.category, initialStock,
                  new Date().toISOString(), DEFAULT_LOCATION_ID,
                  existing ? existing.stock_computed : null,
                  existing ? existing.initial_stock_computed : null,
@@ -491,6 +494,7 @@ async function upsertProduct(product) {
         unit: product.unit,
         price: product.price,
         cost: product.cost || 0,
+        price_bs: product.price_bs > 0 ? product.price_bs : null,
         category: product.category,
         initial_stock: initialStock,
         updated_at: new Date().toISOString()

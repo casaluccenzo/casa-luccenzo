@@ -23,7 +23,7 @@
 //     `real` de SQLite es punto flotante (double) y puede redondear mal
 //     (ej. 19.99 -> 19.989999999999998). El texto conserva el valor exacto;
 //     Tasks 4-9 convierten a Number() en JS solo al hacer aritmetica, no al
-//     guardar. Afecta: products.price/cost, sales.price/bcv_rate/
+//     guardar. Afecta: products.price/cost/price_bs, sales.price/bcv_rate/
 //     cost_at_sale, expenses.amount/bcv_rate, debts.amount,
 //     debt_payments.amount, ingredients.stock, app_config.bcv_rate.
 //   jsonb         -> text (JSON.stringify/parse del lado de la app)
@@ -41,6 +41,8 @@ const products = new Table(
         updated_at: column.text,
         initial_stock: column.integer,
         cost: column.text,
+        // Precio fijo en Bs, opcional (migracion 040). NULL = se cobra price.
+        price_bs: column.text,
         location_id: column.text,
         // Columnas sombra (migracion 029). Plan A las mantiene siempre
         // iguales a las reales desde la migracion 033 (Task 2) -- dejarlas

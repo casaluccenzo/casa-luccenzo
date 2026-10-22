@@ -692,7 +692,7 @@
                     '<button type="button" class="qty-btn" data-dir="1">+</button>' +
                     '</div>';
                 row.querySelector('.name').textContent = p.name;
-                row.querySelector('.price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                row.querySelector('.price').textContent = (p.fixedBs ? 'Bs ' + p.fixedBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (≈$' + parseFloat(p.price).toFixed(2) + ')' : '$' + parseFloat(p.price).toFixed(2));
                 productList.appendChild(row);
             });
 
@@ -720,12 +720,26 @@
                 });
                 const { data, error } = await client
                     .from('products')
-                    .select('name, price, category, stock')
+                    .select('name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
                 if (error) throw error;
                 if (!data || data.length === 0) throw new Error('empty');
+
+                // Productos con precio fijo en Bs (products.price_bs): el
+                // pedido se arma en dólares, así que se convierte con la tasa
+                // del día que usa la caja (app_config.bcv_rate).
+                if (data.some(p => p.price_bs > 0)) {
+                    const { data: cfg } = await client.from('app_config').select('bcv_rate').limit(1);
+                    const rate = cfg && cfg[0] ? parseFloat(cfg[0].bcv_rate) : 0;
+                    data.forEach(p => {
+                        if (p.price_bs > 0 && rate > 0) {
+                            p.fixedBs = parseFloat(p.price_bs);
+                            p.price = Math.round(p.fixedBs / rate * 100) / 100;
+                        }
+                    });
+                }
 
                 renderProducts(data);
                 loadingEl.style.display = 'none';
@@ -855,7 +869,7 @@
                 const li = document.createElement('li');
                 li.innerHTML = '<span></span><span class="li-price"></span>';
                 li.querySelector('span').textContent = p.name;
-                li.querySelector('.li-price').textContent = money(p.price);
+                li.querySelector('.li-price').textContent = p.fixedBs ? 'Bs ' + p.fixedBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : money(p.price);
                 listEl.appendChild(li);
             });
         }
@@ -870,11 +884,25 @@
                 });
                 const { data, error } = await client
                     .from('products')
-                    .select('name, price, category, stock')
+                    .select('name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
                 if (error || !data || data.length === 0) return;
+
+                // Productos con precio fijo en Bs (products.price_bs): el
+                // pedido se arma en dólares, así que se convierte con la tasa
+                // del día que usa la caja (app_config.bcv_rate).
+                if (data.some(p => p.price_bs > 0)) {
+                    const { data: cfg } = await client.from('app_config').select('bcv_rate').limit(1);
+                    const rate = cfg && cfg[0] ? parseFloat(cfg[0].bcv_rate) : 0;
+                    data.forEach(p => {
+                        if (p.price_bs > 0 && rate > 0) {
+                            p.fixedBs = parseFloat(p.price_bs);
+                            p.price = Math.round(p.fixedBs / rate * 100) / 100;
+                        }
+                    });
+                }
 
                 renderList(pastelitosList, data.filter(p => p.category === 'pastelitos'));
                 renderList(bebidasList, data.filter(p => p.category === 'bebidas' || p.category === 'dulces'));

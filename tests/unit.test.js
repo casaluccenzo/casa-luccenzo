@@ -39,7 +39,7 @@ if (typeof global.navigator === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough, saleUsdPrice } = require('../js/app');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -228,6 +228,18 @@ function runCoreUnitTests() {
     assert.strictEqual(bcvRateChangedEnough(732.48, 0), false, "REAL bcvRateChangedEnough: a failed fetch (0) never counts as a change");
     assert.strictEqual(bcvRateChangedEnough(0, 795.10), true, "REAL bcvRateChangedEnough: first real rate over an unset baseline is a change");
     console.log("✅ TEST PASSED: REAL bcvRateChangedEnough: only a real rate move triggers sync + re-render");
+
+    // 5. Fixed bolívar price -- a product with price_bs charges exactly that in
+    // Bs at any rate, and products.price (dollars) is never what moves.
+    const pastel = { id: 'pollo', price: 2.5, price_bs: 2200 };
+    const usdToday = saleUsdPrice(pastel, 884.7496);
+    assert.strictEqual((usdToday * 884.7496).toFixed(2), '2200.00', "REAL saleUsdPrice: Bs 2.200 fijo cobra Bs 2.200 a la tasa de hoy");
+    assert.strictEqual((saleUsdPrice(pastel, 1000) * 1000).toFixed(2), '2200.00', "REAL saleUsdPrice: sigue en Bs 2.200 si sube la tasa");
+    assert.strictEqual((10 * saleUsdPrice(pastel, 931.17) * 931.17).toFixed(2), '22000.00', "REAL saleUsdPrice: 10 pasteles suman Bs 22.000 exactos");
+    assert.strictEqual(pastel.price, 2.5, "REAL saleUsdPrice: nunca toca products.price");
+    assert.strictEqual(saleUsdPrice({ price: 1.2, price_bs: null }, 884.7496), 1.2, "REAL saleUsdPrice: sin precio fijo cobra el precio en dólares");
+    assert.strictEqual(saleUsdPrice(pastel, 0), 2.5, "REAL saleUsdPrice: sin tasa válida cae al precio en dólares");
+    console.log("✅ TEST PASSED: REAL saleUsdPrice: precio fijo en Bs sin tocar el precio en dólares");
 }
 
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation

@@ -389,8 +389,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                 <p class="product-stock-desc">
                     Quedan: <span class="${stockStyle}">${product.stock}</span> ${stockOfMaxText}
                     <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
-                        $${(product.price || 0).toFixed(2)} 
-                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>
+                        ${product.price_bs > 0
+                            ? `Bs. ${product.price_bs.toFixed(2)}
+                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(fijo &bull; ≈ $${(product.price_bs / (window.bcvRate || 1)).toFixed(2)})</span>`
+                            : `$${(product.price || 0).toFixed(2)} 
+                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>`}
                     </span>
                 </p>
             </div>
@@ -1678,7 +1681,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
             <div class="settings-product-info">
                 <span class="settings-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
                 <span class="settings-product-details">
-                    Precio: $${(p.price || 0).toFixed(2)} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${escapeHtml(p.unit)}
+                    Precio: $${(p.price || 0).toFixed(2)}${p.price_bs > 0 ? ` (fijo Bs. ${p.price_bs.toFixed(2)})` : ''} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${escapeHtml(p.unit)}
                 </span>
             </div>
             <div class="settings-actions">

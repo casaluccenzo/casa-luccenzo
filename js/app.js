@@ -348,6 +348,22 @@ function recordStockMovement(product, delta, type, sourceUuid) {
 }
 
 /**
+ * Dollar price a sale is recorded at. A product with a fixed bolívar price
+ * (price_bs, set by hand in "Editar producto") charges price_bs / rate, with
+ * six decimals so the Bs total lands on the cent. products.price is never
+ * touched -- it stays the fallback for every product without price_bs.
+ * Exported for tests.
+ * @param {Object} product Product being sold
+ * @param {number} rate BCV rate in Bs per dollar
+ * @returns {number}
+ */
+function saleUsdPrice(product, rate) {
+    const bs = parseFloat(product && product.price_bs);
+    if (bs > 0 && rate > 0) return Math.round((bs / rate) * 1e6) / 1e6;
+    return (product && product.price) || 0;
+}
+
+/**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
  * goes through; the negative count is what tells the cashier a recount is due.
  * @param {Object} product Product just sold
@@ -386,7 +402,7 @@ function adjustStock(id, amount, event) {
             currentCart.push({
                 productId: product.id,
                 name: product.name,
-                price: product.price || 0,
+                price: saleUsdPrice(product, bcvRate),
                 quantity: 1
             });
         }
@@ -473,7 +489,7 @@ function handleCartQtyChange(id, newQty) {
             currentCart.push({
                 productId: product.id,
                 name: product.name,
-                price: product.price || 0,
+                price: saleUsdPrice(product, bcvRate),
                 quantity: newQty
             });
         }
@@ -510,7 +526,7 @@ function handleAddToCart(productId) {
         currentCart.push({
             productId: product.id,
             name: product.name,
-            price: product.price || 0,
+            price: saleUsdPrice(product, bcvRate),
             quantity: 1
         });
     }
@@ -782,7 +798,7 @@ async function handleAutocorrectSales(discrepancyList) {
                 uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                 productId: item.product.id,
                 name: `${item.product.name} [Ajuste Inventario]`,
-                price: item.product.price || 0,
+                price: saleUsdPrice(item.product, bcvRate),
                 cost: item.product.cost || 0,
                 timestamp: timestamp
             };
@@ -2210,6 +2226,7 @@ function editProductPrompt(id) {
     document.getElementById('edit-prod-name').value = product.name;
     document.getElementById('edit-prod-price').value = product.price !== undefined ? product.price : 1.50;
     document.getElementById('edit-prod-cost').value = product.cost !== undefined ? product.cost : 0;
+    document.getElementById('edit-prod-price-bs-fixed').value = product.price_bs > 0 ? product.price_bs : '';
     document.getElementById('edit-prod-category').value = product.category || 'pastelitos';
     document.getElementById('edit-prod-stock').value = product.stock !== undefined ? product.stock : 0;
     document.getElementById('edit-prod-max').value = product.max !== undefined ? product.max : 20;
@@ -2228,6 +2245,15 @@ function updateEditPriceBsPreview() {
         const rate = window.bcvRate || bcvRate || 1;
         const bsVal = price * rate;
         bsEl.innerHTML = `<i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. ${bsVal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    const fixedEl = document.getElementById('edit-prod-price-bs-fixed');
+    const hintEl = document.getElementById('edit-prod-price-bs-fixed-hint');
+    if (fixedEl && hintEl) {
+        const fixed = parseFloat(fixedEl.value) || 0;
+        const rate = window.bcvRate || bcvRate || 0;
+        hintEl.textContent = fixed > 0 && rate > 0
+            ? `Se cobra Bs. ${fixed.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} fijo. Hoy ≈ $${(fixed / rate).toFixed(2)}. El precio en $ no cambia.`
+            : 'Vacío: se cobra el precio en dólares.';
     }
 }
 
@@ -5074,6 +5100,10 @@ function initAdminDashboardListeners() {
     if (editPriceInput) {
         editPriceInput.addEventListener('input', updateEditPriceBsPreview);
     }
+    const editPriceBsFixedInput = document.getElementById('edit-prod-price-bs-fixed');
+    if (editPriceBsFixedInput) {
+        editPriceBsFixedInput.addEventListener('input', updateEditPriceBsPreview);
+    }
 
     // Steppers (-) and (+) for Stock, Max Vitrina, and Alerta Mínima
     const bindEditStepper = (btnMinusId, btnPlusId, inputId, minVal = 0) => {
@@ -5156,6 +5186,7 @@ function initAdminDashboardListeners() {
             const newName = document.getElementById('edit-prod-name').value.trim();
             const newPrice = parseFloat(document.getElementById('edit-prod-price').value) || 0;
             const newCost = parseFloat(document.getElementById('edit-prod-cost').value) || 0;
+            const newPriceBs = Math.round((parseFloat(document.getElementById('edit-prod-price-bs-fixed').value) || 0) * 100) / 100;
             const newCategory = document.getElementById('edit-prod-category').value;
             const stockVal = parseInt(document.getElementById('edit-prod-stock').value) || 0;
             const maxValRaw = parseInt(document.getElementById('edit-prod-max').value);
@@ -5173,6 +5204,7 @@ function initAdminDashboardListeners() {
             product.name = newName;
             product.price = newPrice;
             product.cost = newCost;
+            product.price_bs = newPriceBs > 0 ? newPriceBs : null;
             product.category = newCategory;
             product.min = minVal;
 
@@ -5206,7 +5238,7 @@ function initAdminDashboardListeners() {
             window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
             window.UIManager.showToast("✏️ Producto editado correctamente.", "fa-solid fa-pen-to-square");
-            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}, Costo: Bs.${newCost.toFixed(2)}, Cat: ${newCategory})`);
+            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}${product.price_bs ? `, Precio fijo: Bs.${product.price_bs.toFixed(2)}` : ''}, Costo: Bs.${newCost.toFixed(2)}, Cat: ${newCategory})`);
         });
     }
 
@@ -5451,6 +5483,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyStockLoad,
         applyStockCount,
         resolveVitrinaCapacity,
-        bcvRateChangedEnough
+        bcvRateChangedEnough,
+        saleUsdPrice
     };
 }

@@ -124,6 +124,7 @@
             <p style="margin:10px 0 0"><button class="copy" id="copy" type="button">Copiar clave</button></p>
         </div>
         <p class="sub" id="no-clave" hidden>Pide la clave del wifi en caja. Ya quedaste registrado.</p>
+        <p class="sub" id="conectado" hidden>Ya estás conectado al wifi. Disfruta tu visita.</p>
         <p class="note">Gracias por acompañarnos. Si te gustaron nuestros pastelitos, etiquétanos en tus fotos con <b>@casalucenzo</b>.</p>
     </div>
 
@@ -143,6 +144,16 @@
         telefono_invalido: 'Revisa el número de WhatsApp o déjalo vacío.',
         demasiados_intentos: 'Hay muchas personas registrándose. Intenta en un minuto o pide la clave en caja.'
     };
+    // Desde el portal del router (Redireccionar → /wifi?portal=1) el cliente
+    // ya tiene internet: no hace falta mostrarle la clave.
+    const PORTAL = new URLSearchParams(location.search).has('portal');
+    if (PORTAL) {
+        TITLES[0] = '¡Ya tienes wifi!';
+        TITLES[2] = '¡Bienvenido!';
+        $('title').textContent = TITLES[0];
+        $('sub').textContent = 'Cuéntanos quién eres en 30 segundos y entérate de nuestras promociones.';
+        $('conn').textContent = 'Ya los sigo, terminar';
+    }
     let red = null;
 
     function step(n) {
@@ -191,9 +202,10 @@
                 p_acepta: $('acepta').checked
             });
             if (error) throw error;
-            const clave = data && data.clave;
+            const clave = !PORTAL && data && data.clave;
             $('has-clave').hidden = !clave;
-            $('no-clave').hidden = !!clave;
+            $('no-clave').hidden = PORTAL || !!clave;
+            $('conectado').hidden = !PORTAL;
             if (clave) {
                 $('red').textContent = data.red;
                 $('clave').textContent = clave;
@@ -203,7 +215,7 @@
             const code = Object.keys(ERRORS).find((k) => String(err && err.message).includes(k));
             show($('m2'), code ? ERRORS[code] : 'No pudimos registrarte. Revisa tu conexión o pide la clave en caja.');
             btn.disabled = false;
-            btn.textContent = 'Ya los sigo, ver la clave';
+            btn.textContent = PORTAL ? 'Ya los sigo, terminar' : 'Ya los sigo, ver la clave';
         }
     });
 

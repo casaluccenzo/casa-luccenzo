@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Wifi gratis — Casa Lucenzo</title>
+    <meta name="description" content="Regístrate en 30 segundos y te damos la clave del wifi de Casa Lucenzo.">
+    <meta name="robots" content="noindex">
+    <link rel="apple-touch-icon" href="/img/logo-192.png">
+    <link rel="icon" href="/img/logo-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-950: #0f2137;
+            --navy-900: #142a44;
+            --gold-500: #c9a24a;
+            --gold-300: #e4cd93;
+            --cream-100: #f6f1e4;
+            --muted: #a9b4c6;
+            --ok: #7fd6a5;
+            --bad: #fca5a5;
+            --serif: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--sans);
+            color: var(--cream-100);
+            background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201,162,74,0.16), transparent 60%),
+                        linear-gradient(180deg, var(--navy-950), var(--navy-900) 55%, #0c1b2c);
+            -webkit-font-smoothing: antialiased;
+        }
+        main {
+            max-width: 26rem; margin: 0 auto;
+            padding: max(24px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 40px max(18px, env(safe-area-inset-left, 0px));
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        .logo { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto; display: block; box-shadow: 0 0 0 1px rgba(201,162,74,0.5); }
+        h1 { font-family: var(--serif); font-size: 1.85rem; line-height: 1.15; text-align: center; margin: 4px 0 0; text-wrap: balance; }
+        .sub { text-align: center; color: var(--muted); margin: 0; line-height: 1.5; }
+        .steps { display: flex; justify-content: center; gap: 8px; margin: 2px 0 4px; }
+        .steps i { width: 28px; height: 4px; border-radius: 4px; background: rgba(246,241,228,0.18); }
+        .steps i.on { background: var(--gold-500); }
+        form, .panel { display: flex; flex-direction: column; gap: 12px; }
+        label.f { display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; font-weight: 700; letter-spacing: .03em; color: var(--gold-300); }
+        label.f small { font-weight: 400; color: var(--muted); letter-spacing: 0; }
+        input[type=text], input[type=tel] {
+            font: 500 16px var(--sans); color: var(--cream-100);
+            background: rgba(0,0,0,0.28); border: 1px solid rgba(246,241,228,0.2);
+            border-radius: 12px; padding: 12px 14px;
+        }
+        input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+        .check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.85rem; line-height: 1.45; color: var(--muted); }
+        .check input { margin-top: 3px; accent-color: var(--gold-500); width: 18px; height: 18px; flex: none; }
+        .btn { font: 800 1rem var(--sans); border: 0; border-radius: 14px; padding: 14px; cursor: pointer; background: var(--gold-500); color: var(--navy-950); }
+        .btn:disabled { opacity: .45; cursor: not-allowed; }
+        .social {
+            display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+            background: rgba(0,0,0,0.22); border: 1px solid rgba(246,241,228,0.14);
+            color: var(--cream-100); text-decoration: none;
+        }
+        .social .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; flex: none; font-weight: 800; font-size: 0.8rem; color: #fff; }
+        .ig .ic { background: linear-gradient(45deg, #f09433, #dc2743 50%, #bc1888); }
+        .tt .ic { background: #000; box-shadow: inset -2px 0 #25f4ee, inset 2px 0 #fe2c55; }
+        .social b { display: block; }
+        .social .who { font-size: 0.85rem; color: var(--muted); }
+        .social .go { margin-left: auto; font-weight: 800; color: var(--gold-500); }
+        .social.done .go { color: var(--ok); }
+        .msg { color: var(--bad); font-size: 0.85rem; font-weight: 600; margin: 0; }
+        .note { font-size: 0.8rem; color: var(--muted); line-height: 1.5; text-align: center; margin: 0; }
+        .ok { text-align: center; }
+        .ok .big { font-family: var(--serif); font-size: 2rem; color: var(--gold-300); margin: 0; }
+        .ticket { border: 1px dashed rgba(201,162,74,0.6); border-radius: 14px; padding: 14px; text-align: left; line-height: 1.7; }
+        .ticket .clave { font-size: 1.25rem; letter-spacing: .04em; word-break: break-all; }
+        .copy { font: 700 0.85rem var(--sans); background: transparent; color: var(--gold-300); border: 1px solid rgba(201,162,74,0.55); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+        footer { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.5; margin-top: 10px; }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+<main>
+    <img class="logo" src="/img/logo-512.png" alt="Casa Lucenzo">
+    <h1 id="title">Wifi gratis en Casa Lucenzo</h1>
+    <p class="sub" id="sub">Regístrate en 30 segundos y te damos la clave.</p>
+    <div class="steps" aria-hidden="true"><i class="on" id="d1"></i><i id="d2"></i><i id="d3"></i></div>
+
+    <form id="s1" novalidate>
+        <label class="f" for="nombre">Tu nombre
+            <input type="text" id="nombre" autocomplete="name" maxlength="80" placeholder="Ej. María Pérez" required>
+        </label>
+        <label class="f" for="tel">WhatsApp <small>(opcional, para promos y sabores nuevos)</small>
+            <input type="tel" id="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="0414 123 4567">
+        </label>
+        <label class="check" for="acepta"><input type="checkbox" id="acepta">
+            <span>Acepto que Casa Lucenzo guarde mi nombre y teléfono para enviarme promociones. Puedo pedir en caja que los borren cuando quiera.</span></label>
+        <p class="msg" id="m1" hidden></p>
+        <button class="btn" type="submit">Continuar</button>
+    </form>
+
+    <div class="panel" id="s2" hidden>
+        <p class="sub">Síguenos en una de nuestras redes y te damos la clave. Ahí publicamos sabores nuevos y promociones.</p>
+        <a class="social ig" data-red="instagram" href="https://www.instagram.com/casalucenzo" target="_blank" rel="noopener">
+            <span class="ic">IG</span><span><b>Instagram</b><span class="who">@casalucenzo</span></span><span class="go">Seguir</span></a>
+        <a class="social tt" data-red="tiktok" href="https://www.tiktok.com/@casalucenzo" target="_blank" rel="noopener">
+            <span class="ic">TT</span><span><b>TikTok</b><span class="who">@casalucenzo</span></span><span class="go">Seguir</span></a>
+        <p class="msg" id="m2" hidden></p>
+        <button class="btn" id="conn" type="button" disabled>Ya los sigo, ver la clave</button>
+        <p class="note" id="hint2">Toca una red para habilitar el botón.</p>
+    </div>
+
+    <div class="panel ok" id="s3" hidden>
+        <p class="big">¡Listo, <span id="nm"></span>!</p>
+        <div id="has-clave">
+            <p class="sub" style="margin-bottom:12px">Conéctate a esta red con esta clave:</p>
+            <div class="ticket">
+                Red: <b id="red"></b><br>
+                Clave: <b class="clave" id="clave"></b>
+            </div>
+            <p style="margin:10px 0 0"><button class="copy" id="copy" type="button">Copiar clave</button></p>
+        </div>
+        <p class="sub" id="no-clave" hidden>Pide la clave del wifi en caja. Ya quedaste registrado.</p>
+        <p class="note">Gracias por acompañarnos. Si te gustaron nuestros pastelitos, etiquétanos en tus fotos con <b>@casalucenzo</b>.</p>
+    </div>
+
+    <footer>Casa Lucenzo · 80 años de historia y tradición.</footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+    const SUPABASE_URL = 'https://xttpaqokeyywjaajvjyu.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ZkI5REhQ3HMJFat15ENjsQ_fyd66_TX';
+    const $ = (id) => document.getElementById(id);
+    const TITLES = ['Wifi gratis en Casa Lucenzo', 'Un último paso', 'Tu clave de wifi'];
+    const ERRORS = {
+        falta_consentimiento: 'Marca la casilla para aceptar el uso de tus datos.',
+        nombre_invalido: 'Escribe tu nombre para continuar.',
+        telefono_invalido: 'Revisa el número de WhatsApp o déjalo vacío.',
+        demasiados_intentos: 'Hay muchas personas registrándose. Intenta en un minuto o pide la clave en caja.'
+    };
+    let red = null;
+
+    function step(n) {
+        [1, 2, 3].forEach((i) => {
+            $('s' + i).hidden = i !== n;
+            $('d' + i).classList.toggle('on', i <= n);
+        });
+        $('title').textContent = TITLES[n - 1];
+        $('sub').hidden = n !== 1;
+    }
+    function show(el, text) { el.textContent = text; el.hidden = !text; }
+
+    $('s1').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nombre = $('nombre').value.trim();
+        const digits = $('tel').value.replace(/[^0-9]/g, '');
+        if (nombre.length < 2) return show($('m1'), ERRORS.nombre_invalido);
+        if (digits && (digits.length < 7 || digits.length > 15)) return show($('m1'), ERRORS.telefono_invalido);
+        if (!$('acepta').checked) return show($('m1'), ERRORS.falta_consentimiento);
+        show($('m1'), '');
+        $('nm').textContent = nombre.split(' ')[0];
+        step(2);
+    });
+
+    document.querySelectorAll('.social').forEach((a) => {
+        a.addEventListener('click', () => {
+            red = red || a.dataset.red;
+            a.classList.add('done');
+            a.querySelector('.go').textContent = 'Abierto ✓';
+            $('conn').disabled = false;
+            $('hint2').hidden = true;
+        });
+    });
+
+    $('conn').addEventListener('click', async () => {
+        const btn = $('conn');
+        btn.disabled = true;
+        btn.textContent = 'Un momento…';
+        show($('m2'), '');
+        try {
+            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+            const { data, error } = await client.rpc('wifi_registrar', {
+                p_nombre: $('nombre').value,
+                p_telefono: $('tel').value || null,
+                p_red_social: red,
+                p_acepta: $('acepta').checked
+            });
+            if (error) throw error;
+            const clave = data && data.clave;
+            $('has-clave').hidden = !clave;
+            $('no-clave').hidden = !!clave;
+            if (clave) {
+                $('red').textContent = data.red;
+                $('clave').textContent = clave;
+            }
+            step(3);
+        } catch (err) {
+            const code = Object.keys(ERRORS).find((k) => String(err && err.message).includes(k));
+            show($('m2'), code ? ERRORS[code] : 'No pudimos registrarte. Revisa tu conexión o pide la clave en caja.');
+            btn.disabled = false;
+            btn.textContent = 'Ya los sigo, ver la clave';
+        }
+    });
+
+    $('copy').addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText($('clave').textContent);
+            $('copy').textContent = 'Copiada ✓';
+        } catch (_) {
+            const range = document.createRange();
+            range.selectNodeContents($('clave'));
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    });
+})();
+</script>
+</body>
+</html>

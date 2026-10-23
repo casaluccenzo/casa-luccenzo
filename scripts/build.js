@@ -11,6 +11,8 @@ const assetsToCopy = [
     'qr-mesa.html',
     // Verificación y descarga pública de facturas (casalucenzo.com/factura).
     'factura',
+    // Registro de clientes para la clave del wifi (casalucenzo.com/wifi).
+    'wifi',
     'sistema',
     'manifest.json',
     'sw.js',

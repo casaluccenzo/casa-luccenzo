@@ -99,6 +99,7 @@
     <script type="module" src="/js/powersync/client.js?v=__APP_VERSION__"></script>
     <script src="/js/invoice.js?v=__APP_VERSION__"></script>
     <script src="/js/ui.js?v=__APP_VERSION__"></script>
+    <script src="/js/wifi.js?v=__APP_VERSION__"></script>
     <script src="/js/app.js?v=__APP_VERSION__"></script>
     <script src="/js/desktop.js?v=__APP_VERSION__"></script>
     
@@ -573,6 +574,27 @@
 
                 <div id="pedidos-online-list" style="margin-top: 1rem;">
                     <!-- Dynamic items from js/ui.js -->
+                </div>
+
+                <!-- Wifi de clientes (js/wifi.js): clave de la red de invitados y registros de casalucenzo.com/wifi -->
+                <div id="wifi-panel" class="card-pantry" style="padding: 1.25rem; margin-top: 2rem;">
+                    <h3 style="margin: 0 0 0.25rem; font-size: 1.05rem;"><i class="fa-solid fa-wifi" style="color: var(--color-gold);"></i> Wifi de clientes <span id="wifi-count" style="color: var(--color-text-muted); font-weight: 500;"></span></h3>
+                    <p class="section-subtitle" style="margin: 0 0 1rem;">Los clientes escanean el QR, se registran en casalucenzo.com/wifi y la página les muestra esta clave. Cámbiala aquí cuando la cambies en el router.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; align-items: end;">
+                        <label style="display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.75rem; color: var(--color-text-muted);">Nombre de la red
+                            <input id="wifi-red" type="text" maxlength="32" class="form-input" placeholder="Casa Lucenzo Invitados">
+                        </label>
+                        <label style="display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.75rem; color: var(--color-text-muted);">Clave del wifi
+                            <input id="wifi-clave" type="text" maxlength="63" class="form-input" autocomplete="off" placeholder="Mínimo 8 caracteres">
+                        </label>
+                        <button id="wifi-save" type="button" class="btn-form-submit" style="margin-top: 0;">Guardar clave</button>
+                    </div>
+                    <p id="wifi-msg" class="hidden" style="margin: 0.75rem 0 0; font-size: 0.8rem; font-weight: 600;"></p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
+                        <strong style="font-size: 0.9rem;">Clientes registrados</strong>
+                        <button id="wifi-export" type="button" class="btn-action-small"><i class="fa-solid fa-download"></i> Descargar lista</button>
+                    </div>
+                    <div id="wifi-registros-list" style="margin-top: 0.5rem;"></div>
                 </div>
             </section>
             <!-- Page Footer with Copyright & Seal -->

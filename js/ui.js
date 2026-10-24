@@ -1330,6 +1330,26 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
             </div>
         `).join('');
 
+        // Entrega (migración 042). Pedidos de antes de correrla traen la
+        // dirección en notes, así que también se muestra.
+        let entregaHtml = '';
+        if (pedido.delivery_method === 'retiro') {
+            entregaHtml = `<div style="font-size: 0.8rem; color: #E2E8F0;"><i class="fa-solid fa-store" style="color: var(--color-gold); margin-right: 0.35rem;"></i>Retiro en el local</div>`;
+        } else if (pedido.delivery_method === 'delivery') {
+            entregaHtml = `
+                <div style="font-size: 0.8rem; color: #E2E8F0; line-height: 1.5;">
+                    <div><i class="fa-solid fa-motorcycle" style="color: var(--color-gold); margin-right: 0.35rem;"></i><strong>Delivery:</strong> ${escapeHtml(pedido.delivery_address || '')}</div>
+                    ${pedido.delivery_reference ? `<div><i class="fa-solid fa-location-dot" style="color: var(--color-gold); margin-right: 0.35rem;"></i><strong>Referencia:</strong> ${escapeHtml(pedido.delivery_reference)}</div>` : ''}
+                    <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.15rem;">El delivery se cobra aparte.</div>
+                </div>`;
+        }
+        if (pedido.notes) {
+            entregaHtml += `<div style="font-size: 0.8rem; color: #E2E8F0;"><i class="fa-regular fa-note-sticky" style="color: var(--color-gold); margin-right: 0.35rem;"></i>${escapeHtml(pedido.notes)}</div>`;
+        }
+        if (entregaHtml) {
+            entregaHtml = `<div style="display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0.6rem; border-radius: var(--radius-md); background: rgba(201, 162, 74, 0.06); border: 1px solid rgba(201, 162, 74, 0.2);">${entregaHtml}</div>`;
+        }
+
         const waPhone = normalizeVePhoneForWhatsapp(pedido.customer_phone);
         const waMsg = encodeURIComponent(`¡Hola ${pedido.customer_name}! Te escribimos de Casa Lucenzo sobre tu pedido por $${Number(pedido.total).toFixed(2)} (${pedido.payment_method}).`);
 
@@ -1350,6 +1370,8 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
                 </div>
                 <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.25rem 0.55rem; border-radius: 999px; background: ${meta.bg}; border: 1px solid ${meta.border}; color: ${meta.color}; white-space: nowrap;">${meta.label}</span>
             </div>
+
+            ${entregaHtml}
 
             <div>${itemsHtml}</div>
 

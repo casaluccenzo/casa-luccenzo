@@ -400,6 +400,10 @@ function cartKeyOf(item) {
 function addComboToCart(comboId, flavorIds) {
     const combo = Combos && Combos.COMBOS.find(c => c.id === comboId);
     if (!combo) return;
+    if (!Combos.isComboDay()) {
+        window.UIManager.showToast(`Los combos solo se venden los ${Combos.COMBO_DAYS_LABEL}.`, "fa-solid fa-calendar-xmark");
+        return;
+    }
     const drink = Combos.findDrink(combo, products);
     if (!drink) {
         window.UIManager.showToast(`⚠️ No encuentro "${combo.drink}" en los productos. Revisa el nombre en Configuración.`, "fa-solid fa-triangle-exclamation");

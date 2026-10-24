@@ -3,8 +3,13 @@
 // así que no depende de nada más. La promo solo aplica a productos que ya
 // tienen precio fijo en Bs (products.price_bs, que pone Gustavo a mano).
 (function (root) {
-    // Martes y miércoles el pastel con precio fijo cuesta Bs 2.000.
-    const PROMO = { category: 'pastelitos', days: [2, 3], priceBs: 2000, label: 'martes y miércoles' };
+    // Promo del pastel suelto con precio fijo: Bs 2.000 los días de `days`
+    // (0 = domingo). Vacío = sin promo; el pastel queda a su price_bs siempre.
+    const PROMO = { category: 'pastelitos', days: [], priceBs: 2000, label: 'martes y miércoles' };
+
+    // Los combos solo se muestran y se venden estos días (martes y miércoles).
+    const COMBO_DAYS = [2, 3];
+    const COMBO_DAYS_LABEL = 'martes y miércoles';
 
     // Cada combo: pasteles del sabor que elija el cliente + una bebida. El
     // pastel se cobra a su precio fijo del día y la bebida a `drinkBs`, así
@@ -31,6 +36,10 @@
         return PROMO.days.includes(caracasWeekday(date));
     }
 
+    function isComboDay(date) {
+        return COMBO_DAYS.includes(caracasWeekday(date));
+    }
+
     /** Precio fijo en Bs del producto hoy (con la promo si toca), o 0 si no tiene. */
     function fixedBsPrice(product, date) {
         const bs = parseFloat(product && product.price_bs);
@@ -53,6 +62,6 @@
         return pastelBs * combo.pasteles + combo.drinkBs;
     }
 
-    root.Combos = { PROMO, COMBOS, caracasWeekday, isPromoDay, fixedBsPrice, findDrink, comboBsToday };
+    root.Combos = { PROMO, COMBOS, COMBO_DAYS, COMBO_DAYS_LABEL, caracasWeekday, isPromoDay, isComboDay, fixedBsPrice, findDrink, comboBsToday };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

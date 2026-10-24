@@ -247,6 +247,13 @@ function runCoreUnitTests() {
     const lunes = new Date('2026-10-26T15:00:00Z');      // lunes 11:00 en Caracas
     const martes = new Date('2026-10-27T15:00:00Z');     // martes 11:00
     const miercolesNoche = new Date('2026-10-29T03:30:00Z'); // miércoles 23:30 en Caracas (jueves en UTC)
+    assert.strictEqual(Combos.isComboDay(lunes), false, "REAL Combos: el lunes no hay combos");
+    assert.strictEqual(Combos.isComboDay(martes), true, "REAL Combos: el martes hay combos");
+    assert.strictEqual(Combos.isComboDay(miercolesNoche), true, "REAL Combos: día de combos en hora de Caracas");
+    assert.strictEqual(Combos.isComboDay(new Date('2026-10-24T15:00:00Z')), false, "REAL Combos: el sábado no hay combos");
+    // Promo del pastel suelto: se prueba con martes y miércoles activos y se deja como estaba.
+    const promoDaysBefore = Combos.PROMO.days.slice();
+    Combos.PROMO.days.splice(0, Combos.PROMO.days.length, 2, 3);
     assert.strictEqual(Combos.fixedBsPrice(pollo, lunes), 2200, "REAL Combos: lunes el pastel va a Bs 2.200");
     assert.strictEqual(Combos.fixedBsPrice(pollo, martes), 2000, "REAL Combos: martes el pastel va a Bs 2.000");
     assert.strictEqual(Combos.fixedBsPrice(pollo, miercolesNoche), 2000, "REAL Combos: el día se cuenta en hora de Caracas");
@@ -259,6 +266,8 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.comboBsToday(byId('pana'), pollo, lunes), 5000, "REAL Combos: Pana Bs 5.000");
     Combos.COMBOS.forEach(c => assert.strictEqual(c.drinkBs + 2200 * c.pasteles, c.priceBs, `REAL Combos: ${c.name} suma su precio`));
     assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, martes), 2800, "REAL Combos: en promo el combo también baja");
+    Combos.PROMO.days.splice(0, Combos.PROMO.days.length, ...promoDaysBefore);
+    assert.strictEqual(Combos.fixedBsPrice(pollo, martes), promoDaysBefore.includes(2) ? 2000 : 2200, "REAL Combos: el martes el pastel va al precio configurado");
     assert.strictEqual(Combos.findDrink(byId('mananero'), [{ name: 'Café negro' }]).name, 'Café negro', "REAL Combos: encuentra la bebida");
     assert.strictEqual(Combos.findDrink(byId('clasico'), [{ name: 'MALTA RETORNABLE ' }]).name, 'MALTA RETORNABLE ', "REAL Combos: el nombre no distingue mayúsculas");
     assert.strictEqual(cartKeyOf({ productId: 'pollo' }), 'pollo', "REAL cartKeyOf: línea suelta");

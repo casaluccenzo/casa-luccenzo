@@ -2540,8 +2540,8 @@ function renderCombosBar(products) {
     if (!bar || !window.Combos) return;
     const pasteles = products.filter(p => p.category === 'pastelitos');
     const sample = pasteles.find(p => fixedBsOf(p) > 0);
-    if (!sample) {
-        // Combos are priced in fixed Bs; without a fixed-price pastel there's nothing to offer.
+    if (!sample || !window.Combos.isComboDay()) {
+        // Combos are priced in fixed Bs and only sold on combo days (martes y miércoles).
         bar.innerHTML = '';
         bar.classList.add('hidden');
         return;

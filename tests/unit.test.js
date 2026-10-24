@@ -805,6 +805,26 @@ const SUITES = [
             'https://www.casalucenzo.com/factura/?n=46&c=AB12CD34', 'Invoice: verification link');
         console.log("✅ TEST PASSED: Factura carta (talonario) renders invoice data");
 
+        // Pedido web: entrega + datos del Pago Móvil en el WhatsApp del cliente.
+        const PedidoDelivery = require('../js/pedido-delivery');
+        const pedidoWeb = {
+            customer_name: 'María Pérez', customer_phone: '0412-1234567',
+            items: [{ name: 'Pastel de Pollo', qty: 2, price: 2.5 }], total: 5, payment_method: 'Pago Móvil',
+            delivery_method: 'delivery', delivery_address: '  Urb. Las Acacias,\n calle 5 ', delivery_reference: 'frente a la farmacia'
+        };
+        const waText = PedidoDelivery.buildWhatsappText({ ...pedidoWeb, total_bs: 4400 });
+        assert.ok(waText.includes('Total: $5.00 (Bs 4.400)'), 'PedidoDelivery: total en Bs para el Pago Móvil');
+        assert.ok(waText.includes('Delivery: Urb. Las Acacias, calle 5'), 'PedidoDelivery: dirección limpia en el WhatsApp');
+        assert.ok(waText.includes('Referencia: frente a la farmacia'), 'PedidoDelivery: punto de referencia');
+        assert.ok(waText.includes('se cobra aparte'), 'PedidoDelivery: nota del costo del delivery');
+        assert.ok(waText.includes('Banco Plaza') && waText.includes('J-508183134') && waText.includes('0412-0839311') && waText.includes('comprobante'),
+            'PedidoDelivery: datos del Pago Móvil y pedido de comprobante');
+        const waRetiro = PedidoDelivery.buildWhatsappText({ ...pedidoWeb, delivery_method: 'retiro', payment_method: 'Transferencia' });
+        assert.ok(waRetiro.includes('Retiro en el local') && !waRetiro.includes('Banco Plaza') && !waRetiro.includes('cobra aparte'),
+            'PedidoDelivery: retiro sin dirección ni datos de Pago Móvil');
+        assert.ok(PedidoDelivery.whatsappUrl(pedidoWeb).startsWith('https://wa.me/584120839311?text='), 'PedidoDelivery: va al WhatsApp de comprobantes');
+        console.log("✅ TEST PASSED: Pedido web con dirección y Pago Móvil en el WhatsApp");
+
         console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
         process.exit(0);
     }

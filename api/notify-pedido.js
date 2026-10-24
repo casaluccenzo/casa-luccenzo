@@ -3,6 +3,8 @@ const { sendWhatsAppMessage, normalizePhone } = require('../lib/bot-shared');
 const VALID_PAYMENT_METHODS = ['Pago Móvil', 'Transferencia'];
 const MAX_ITEMS = 50;
 const MAX_NAME_LEN = 200;
+const VALID_DELIVERY_METHODS = ['delivery', 'retiro'];
+const MAX_DELIVERY_LEN = 300;
 
 // This endpoint is unauthenticated by design (the customer ordering from the
 // public landing page has no account), so it is throttled per client IP to stop
@@ -45,11 +47,24 @@ function isValidOrderPayload(body) {
     if (typeof body.total !== 'number' || !isFinite(body.total) || body.total < 0) return false;
     if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > MAX_ITEMS) return false;
 
+    if (body.delivery_method !== undefined && body.delivery_method !== null && !VALID_DELIVERY_METHODS.includes(body.delivery_method)) return false;
+    for (const key of ['delivery_address', 'delivery_reference']) {
+        const v = body[key];
+        if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > MAX_DELIVERY_LEN)) return false;
+    }
+
     return body.items.every(it =>
         it && typeof it.name === 'string' && it.name.trim() && it.name.length <= MAX_NAME_LEN &&
         typeof it.qty === 'number' && Number.isInteger(it.qty) && it.qty > 0 && it.qty <= 9999 &&
         typeof it.price === 'number' && isFinite(it.price) && it.price >= 0
     );
+}
+
+function deliveryText(order) {
+    if (order.delivery_method === 'retiro') return `🏠 Retiro en el local\n`;
+    if (order.delivery_method !== 'delivery') return '';
+    return `🛵 Delivery: ${order.delivery_address || '(sin dirección)'}\n` +
+        (order.delivery_reference ? `📍 Ref: ${order.delivery_reference}\n` : '');
 }
 
 function buildNotificationText(order) {
@@ -59,7 +74,8 @@ function buildNotificationText(order) {
 
     return `🛍️ *Nuevo pedido online*\n\n` +
         `👤 ${order.customer_name}\n` +
-        `📞 ${order.customer_phone}\n\n` +
+        `📞 ${order.customer_phone}\n` +
+        deliveryText(order) + `\n` +
         `${itemsText}\n\n` +
         `💳 ${order.payment_method}\n` +
         `*Total: $${order.total.toFixed(2)}*\n\n` +

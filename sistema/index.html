@@ -97,6 +97,7 @@
          '@powersync/web') reads it back via window.PowerSyncConnector. -->
     <script src="/js/powersync/connector.js?v=__APP_VERSION__"></script>
     <script type="module" src="/js/powersync/client.js?v=__APP_VERSION__"></script>
+    <script src="/js/combos.js?v=__APP_VERSION__"></script>
     <script src="/js/invoice.js?v=__APP_VERSION__"></script>
     <script src="/js/ui.js?v=__APP_VERSION__"></script>
     <script src="/js/wifi.js?v=__APP_VERSION__"></script>
@@ -260,6 +261,9 @@
                                 <!-- Dynamic tabs from js/ui.js -->
                             </div>
                         </div>
+
+                        <!-- Combos en Bs fijos (js/combos.js), dibujados por renderCombosBar -->
+                        <div id="combos-bar" class="combos-bar hidden"></div>
 
                         <!-- Main dynamic stock control list -->
                         <div class="inventory-list" id="inventory-list">

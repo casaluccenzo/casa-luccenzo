@@ -24,6 +24,7 @@ const SCRIPTS = [
   'audio.js',
   'share.js',
   'agent.js',
+  'combos.js',
   'invoice.js',
   'ui.js',
   'wifi.js',

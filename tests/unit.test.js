@@ -39,7 +39,8 @@ if (typeof global.navigator === 'undefined') {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough, saleUsdPrice } = require('../js/app');
+const { calculateTotals, validateStockAdjustment, checkRolePermission, handleUserLogin, applyStockLoad, applyStockCount, resolveVitrinaCapacity, bcvRateChangedEnough, saleUsdPrice, cartKeyOf } = require('../js/app');
+const Combos = require('../js/combos');
 const waWebhookHandler = require('../api/whatsapp-webhook');
 const tgWebhookHandler = require('../api/telegram-webhook');
 const {
@@ -240,6 +241,29 @@ function runCoreUnitTests() {
     assert.strictEqual(saleUsdPrice({ price: 1.2, price_bs: null }, 884.7496), 1.2, "REAL saleUsdPrice: sin precio fijo cobra el precio en dólares");
     assert.strictEqual(saleUsdPrice(pastel, 0), 2.5, "REAL saleUsdPrice: sin tasa válida cae al precio en dólares");
     console.log("✅ TEST PASSED: REAL saleUsdPrice: precio fijo en Bs sin tocar el precio en dólares");
+
+    // 6. Promo martes/miércoles y combos (js/combos.js), en hora de Caracas.
+    const pollo = { id: 'pollo', category: 'pastelitos', price: 2.5, price_bs: 2200 };
+    const lunes = new Date('2026-10-26T15:00:00Z');      // lunes 11:00 en Caracas
+    const martes = new Date('2026-10-27T15:00:00Z');     // martes 11:00
+    const miercolesNoche = new Date('2026-10-29T03:30:00Z'); // miércoles 23:30 en Caracas (jueves en UTC)
+    assert.strictEqual(Combos.fixedBsPrice(pollo, lunes), 2200, "REAL Combos: lunes el pastel va a Bs 2.200");
+    assert.strictEqual(Combos.fixedBsPrice(pollo, martes), 2000, "REAL Combos: martes el pastel va a Bs 2.000");
+    assert.strictEqual(Combos.fixedBsPrice(pollo, miercolesNoche), 2000, "REAL Combos: el día se cuenta en hora de Caracas");
+    assert.strictEqual(Combos.fixedBsPrice({ category: 'pastelitos', price: 2.5 }, martes), 0, "REAL Combos: sin precio fijo no hay promo");
+    assert.strictEqual(Combos.fixedBsPrice({ category: 'bebidas', price_bs: 900 }, martes), 900, "REAL Combos: la promo es solo del pastel");
+    assert.strictEqual((saleUsdPrice(pollo, 884.7496, martes) * 884.7496).toFixed(2), '2000.00', "REAL saleUsdPrice: martes cobra Bs 2.000 exactos");
+    const byId = id => Combos.COMBOS.find(c => c.id === id);
+    assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, lunes), 3000, "REAL Combos: Clásico Bs 3.000");
+    assert.strictEqual(Combos.comboBsToday(byId('mananero'), pollo, lunes), 2700, "REAL Combos: Mañanero Bs 2.700");
+    assert.strictEqual(Combos.comboBsToday(byId('pana'), pollo, lunes), 5000, "REAL Combos: Pana Bs 5.000");
+    Combos.COMBOS.forEach(c => assert.strictEqual(c.drinkBs + 2200 * c.pasteles, c.priceBs, `REAL Combos: ${c.name} suma su precio`));
+    assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, martes), 2800, "REAL Combos: en promo el combo también baja");
+    assert.strictEqual(Combos.findDrink(byId('mananero'), [{ name: 'Café negro' }]).name, 'Café negro', "REAL Combos: encuentra la bebida");
+    assert.strictEqual(Combos.findDrink(byId('clasico'), [{ name: 'MALTA RETORNABLE ' }]).name, 'MALTA RETORNABLE ', "REAL Combos: el nombre no distingue mayúsculas");
+    assert.strictEqual(cartKeyOf({ productId: 'pollo' }), 'pollo', "REAL cartKeyOf: línea suelta");
+    assert.strictEqual(cartKeyOf({ productId: 'pollo', combo: 'clasico' }), 'pollo|clasico', "REAL cartKeyOf: línea de combo aparte");
+    console.log("✅ TEST PASSED: REAL Combos: promo martes/miércoles y combos en Bs fijos");
 }
 
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation

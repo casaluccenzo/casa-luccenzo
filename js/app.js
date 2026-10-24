@@ -1,6 +1,8 @@
 // Main App Orchestration Module
 
 // Local app state
+// Fixed-Bs promo and combos (js/combos.js, loaded before this file; required in tests).
+const Combos = (typeof window !== 'undefined' && window.Combos) || (typeof require === 'function' ? require('./combos') : null);
 let products = [];
 let salesLog = [];
 let expenses = [];
@@ -357,11 +359,90 @@ function recordStockMovement(product, delta, type, sourceUuid) {
  * @param {number} rate BCV rate in Bs per dollar
  * @returns {number}
  */
-function saleUsdPrice(product, rate) {
-    const bs = parseFloat(product && product.price_bs);
-    if (bs > 0 && rate > 0) return Math.round((bs / rate) * 1e6) / 1e6;
-    return (product && product.price) || 0;
+function saleUsdPrice(product, rate, date) {
+    const bs = fixedBsToday(product, date);
+    return bsToUsd(bs, rate) || (product && product.price) || 0;
 }
+
+/** Bs -> $ with six decimals so the Bs total lands on the cent; 0 if it can't. */
+function bsToUsd(bs, rate) {
+    if (bs > 0 && rate > 0) return Math.round((bs / rate) * 1e6) / 1e6;
+    return 0;
+}
+
+/**
+ * Fixed bolívar price for today: price_bs, or the weekday promo from
+ * js/combos.js (Bs 2.000 martes y miércoles for pastelitos) when it applies.
+ * @returns {number} 0 when the product has no fixed Bs price
+ */
+function fixedBsToday(product, date) {
+    if (Combos) return Combos.fixedBsPrice(product, date);
+    const bs = parseFloat(product && product.price_bs);
+    return bs > 0 ? bs : 0;
+}
+
+/**
+ * Cart line identity. A combo line ("Pollo · Combo Clásico") is the same
+ * product as a loose one but a different price, so it keeps its own line.
+ */
+function cartKeyOf(item) {
+    return item.combo ? `${item.productId}|${item.combo}` : item.productId;
+}
+
+/**
+ * Adds one combo to the active cart: one line per pastel flavor at its fixed
+ * price of the day plus the drink at the combo's price, each tagged with the
+ * combo so the cart keeps them apart from loose items. Stock is taken from
+ * every product, the same way a loose sale does.
+ * @param {string} comboId Combos.COMBOS[].id
+ * @param {string[]} flavorIds One pastelito product id per pastel in the combo
+ */
+function addComboToCart(comboId, flavorIds) {
+    const combo = Combos && Combos.COMBOS.find(c => c.id === comboId);
+    if (!combo) return;
+    const drink = Combos.findDrink(combo, products);
+    if (!drink) {
+        window.UIManager.showToast(`⚠️ No encuentro "${combo.drink}" en los productos. Revisa el nombre en Configuración.`, "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    if (!(bcvRate > 0)) {
+        window.UIManager.showToast("⚠️ Falta la tasa BCV del día para cobrar el combo en Bs.", "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    const pasteles = flavorIds.map(id => products.find(p => p.id === id)).filter(Boolean);
+    if (pasteles.length !== combo.pasteles) return;
+
+    triggerHaptic(15);
+    const lines = pasteles.map(p => ({ product: p, price: saleUsdPrice(p, bcvRate) }));
+    lines.push({ product: drink, price: bsToUsd(combo.drinkBs, bcvRate) });
+
+    lines.forEach(({ product, price }) => {
+        const key = `${product.id}|${combo.id}`;
+        const cartItem = currentCart.find(item => cartKeyOf(item) === key);
+        if (cartItem) {
+            cartItem.quantity++;
+        } else {
+            currentCart.push({
+                productId: product.id,
+                name: `${product.name} · ${combo.name}`,
+                price,
+                quantity: 1,
+                combo: combo.id
+            });
+        }
+        const before = product.stock;
+        product.stock = product.stock - 1;
+        recordStockMovement(product, product.stock - before, 'sale');
+        warnIfOversold(product);
+    });
+    window.StorageManager.saveProducts(products);
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.showToast(`🥟 ${combo.name} agregado a la cuenta.`, "fa-solid fa-circle-check");
+}
+window.addComboToCart = addComboToCart;
 
 /**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
@@ -395,7 +476,7 @@ function adjustStock(id, amount, event) {
         triggerHaptic(15);
 
         // Add to active cart
-        const cartItem = currentCart.find(item => item.productId === id);
+        const cartItem = currentCart.find(item => item.productId === id && !item.combo);
         if (cartItem) {
             cartItem.quantity++;
         } else {
@@ -457,7 +538,7 @@ function handleCartQtyChange(id, newQty) {
     const product = products.find(p => p.id === id);
     if (!product) return;
 
-    const cartItem = currentCart.find(item => item.productId === id);
+    const cartItem = currentCart.find(item => item.productId === id && !item.combo);
     const q_old = cartItem ? cartItem.quantity : 0;
     
     if (newQty < 0 || isNaN(newQty)) {
@@ -478,7 +559,7 @@ function handleCartQtyChange(id, newQty) {
 
     // Update cart items array
     if (newQty === 0) {
-        const cartItemIndex = currentCart.findIndex(item => item.productId === id);
+        const cartItemIndex = currentCart.findIndex(item => item.productId === id && !item.combo);
         if (cartItemIndex !== -1) {
             currentCart.splice(cartItemIndex, 1);
         }
@@ -514,12 +595,16 @@ function handleCartQtyChange(id, newQty) {
  * Increment cart item quantity (taking from vitrina stock)
  */
 function handleAddToCart(productId) {
+    // The quick-access bar hands over the product itself.
+    if (productId && typeof productId === 'object') productId = productId.id;
+    // "+" is hidden on combo lines; another combo goes through the combo picker.
+    if (String(productId).includes('|')) return;
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
     triggerHaptic(15);
 
-    const cartItem = currentCart.find(item => item.productId === productId);
+    const cartItem = currentCart.find(item => item.productId === productId && !item.combo);
     if (cartItem) {
         cartItem.quantity++;
     } else {
@@ -546,14 +631,14 @@ function handleAddToCart(productId) {
 /**
  * Decrement cart item quantity (returning to vitrina stock)
  */
-function handleRemoveFromCart(productId) {
-    const cartItemIndex = currentCart.findIndex(item => item.productId === productId);
+function handleRemoveFromCart(cartKey) {
+    const cartItemIndex = currentCart.findIndex(item => cartKeyOf(item) === cartKey);
     if (cartItemIndex === -1) return;
 
     triggerHaptic(15);
 
     const cartItem = currentCart[cartItemIndex];
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id === cartItem.productId);
 
     if (product) {
         const beforeRemove = product.stock;
@@ -863,17 +948,22 @@ async function handleEditSale(timestamp) {
     // 1. Group matching sales by product_id to reconstruct the cart
     const cartReconstructed = [];
     matchingSales.forEach(sale => {
-        const existing = cartReconstructed.find(item => item.productId === sale.productId);
+        const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
+        // "Pollo · Combo Clásico" comes back as a combo line, not a loose one.
+        const comboMatch = Combos && cleanName.match(/ · (Combo .+)$/);
+        const comboDef = comboMatch && Combos.COMBOS.find(c => c.name === comboMatch[1]);
+        const existing = cartReconstructed.find(item => item.productId === sale.productId && item.name === cleanName);
         if (existing) {
             existing.quantity++;
         } else {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
-            cartReconstructed.push({
+            const line = {
                 productId: sale.productId,
                 name: cleanName,
                 price: sale.price || 0,
                 quantity: 1
-            });
+            };
+            if (comboDef) line.combo = comboDef.id;
+            cartReconstructed.push(line);
         }
     });
 
@@ -5484,6 +5574,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyStockCount,
         resolveVitrinaCapacity,
         bcvRateChangedEnough,
-        saleUsdPrice
+        saleUsdPrice,
+        cartKeyOf
     };
 }

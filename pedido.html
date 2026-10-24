@@ -283,6 +283,7 @@
     <!-- Carga el menú real y envía el pedido a Supabase -- misma lógica que el
          popup "Hacer Pedido" de casalucenzo.com, servida como página propia
          para que el QR de mesa abra solo esto, sin el resto del sitio detrás. -->
+    <script src="/js/combos.js?v=__APP_VERSION__"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
     (function () {
@@ -373,7 +374,7 @@
                     '<span class="pc-badge">0</span>' +
                     '</div>';
                 card.querySelector('.pc-name').textContent = p.name;
-                card.querySelector('.pc-price').textContent = '$' + parseFloat(p.price).toFixed(2);
+                card.querySelector('.pc-price').textContent = (p.fixedBs ? 'Bs ' + p.fixedBs.toLocaleString('es-VE') + ' (≈$' + parseFloat(p.price).toFixed(2) + ')' : '$' + parseFloat(p.price).toFixed(2));
                 card.querySelector('.pc-icon').textContent = CATEGORY_ICON[cat] || '🍽️';
                 productList.appendChild(card);
             });
@@ -413,12 +414,27 @@
                 });
                 const { data, error } = await client
                     .from('products')
-                    .select('name, price, category, stock')
+                    .select('name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
                 if (error) throw error;
                 if (!data || data.length === 0) throw new Error('empty');
+
+                // Productos con precio fijo en Bs (products.price_bs): el
+                // pedido se arma en dólares, así que se convierte con la tasa
+                // del día que usa la caja (app_config.bcv_rate).
+                if (data.some(p => p.price_bs > 0)) {
+                    const { data: cfg } = await client.from('app_config').select('bcv_rate').limit(1);
+                    const rate = cfg && cfg[0] ? parseFloat(cfg[0].bcv_rate) : 0;
+                    data.forEach(p => {
+                        const bs = window.Combos ? window.Combos.fixedBsPrice(p) : parseFloat(p.price_bs);
+                        if (bs > 0 && rate > 0) {
+                            p.fixedBs = bs;
+                            p.price = Math.round(p.fixedBs / rate * 100) / 100;
+                        }
+                    });
+                }
 
                 renderProducts(data);
                 loadingEl.style.display = 'none';

@@ -97,6 +97,7 @@
          '@powersync/web') reads it back via window.PowerSyncConnector. -->
     <script src="/js/powersync/connector.js?v=__APP_VERSION__"></script>
     <script type="module" src="/js/powersync/client.js?v=__APP_VERSION__"></script>
+    <script src="/js/combos.js?v=__APP_VERSION__"></script>
     <script src="/js/invoice.js?v=__APP_VERSION__"></script>
     <script src="/js/ui.js?v=__APP_VERSION__"></script>
     <script src="/js/wifi.js?v=__APP_VERSION__"></script>
@@ -260,6 +261,9 @@
                                 <!-- Dynamic tabs from js/ui.js -->
                             </div>
                         </div>
+
+                        <!-- Combos en Bs fijos (js/combos.js), dibujados por renderCombosBar -->
+                        <div id="combos-bar" class="combos-bar hidden"></div>
 
                         <!-- Main dynamic stock control list -->
                         <div class="inventory-list" id="inventory-list">
@@ -1384,6 +1388,17 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             <i class="fa-solid fa-hand-holding-dollar" style="color: #F87171;"></i> COSTO PRODUCCIÓN (Bs)
                         </label>
                         <input type="number" id="edit-prod-cost" step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #F87171; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                    </div>
+
+                    <!-- Optional fixed bolívar price: when set, the caja charges this in Bs and leaves PRECIO ($) untouched -->
+                    <div class="form-field">
+                        <label class="form-label with-icon">
+                            <i class="fa-solid fa-lock" style="color: #10B981;"></i> PRECIO FIJO EN BS (opcional)
+                        </label>
+                        <input type="number" id="edit-prod-price-bs-fixed" step="0.01" min="0" placeholder="Vacío = se cobra el precio en $" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #10B981; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                        <div id="edit-prod-price-bs-fixed-hint" style="font-size: 11px; font-weight: 700; color: var(--color-text-muted); margin-top: 0.35rem; font-family: var(--font-mono);">
+                            Vacío: se cobra el precio en dólares.
+                        </div>
                     </div>
 
                     <!-- Color-Coded Metrics: Stock (Green), Max (Gold), Alert Min (Amber) with Stepper (-) and (+) buttons -->

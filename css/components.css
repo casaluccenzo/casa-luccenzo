@@ -2958,3 +2958,19 @@ input[type="number"] {
 
 
 
+
+/* Combos en Bs fijos (js/combos.js) */
+.combos-bar { margin: 0.5rem 0 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid rgba(201, 162, 74, 0.45); border-radius: var(--radius-lg, 12px); background: rgba(201, 162, 74, 0.08); }
+.combos-bar-title { font-size: 12px; font-weight: 800; color: var(--color-gold); margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.combos-promo { font-size: 10.5px; font-weight: 700; color: #0A1426; background: var(--color-gold); padding: 0.1rem 0.45rem; border-radius: 999px; }
+.combos-bar-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.45rem; }
+.btn-combo { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.5rem 0.6rem; border-radius: 10px; border: 1px solid var(--color-gold); background: rgba(10, 20, 38, 0.85); color: #FFF; cursor: pointer; text-align: left; }
+.btn-combo:active { transform: scale(0.98); }
+.btn-combo-name { font-weight: 800; font-size: 12.5px; }
+.btn-combo-desc { font-size: 10.5px; opacity: 0.75; }
+.btn-combo-price { font-weight: 800; font-size: 13px; color: var(--color-gold); }
+.btn-combo-close { background: none; border: none; color: #FFF; font-size: 1.1rem; cursor: pointer; }
+.combo-picker-hint { font-size: 12.5px; margin: 0 0 0.75rem; opacity: 0.85; }
+.combo-flavor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+.btn-combo-flavor { display: flex; flex-direction: column; align-items: flex-start; padding: 0.7rem; border-radius: 10px; border: 1px solid rgba(201, 162, 74, 0.6); background: rgba(201, 162, 74, 0.1); color: #FFF; font-weight: 700; font-size: 13px; cursor: pointer; text-align: left; }
+.btn-combo-flavor small { font-weight: 400; opacity: 0.7; font-size: 10.5px; }

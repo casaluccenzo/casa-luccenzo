@@ -321,6 +321,8 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         `;
     }
     
+    renderCombosBar(products);
+
     listContainer.innerHTML = '';
 
     // Apply category filter
@@ -376,7 +378,7 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         }
 
         // Find current quantity of this product in the active cart
-        const cartItem = (window.currentCart || []).find(item => item.productId === product.id);
+        const cartItem = (window.currentCart || []).find(item => item.productId === product.id && !item.combo);
         const cartQty = cartItem ? cartItem.quantity : 0;
         const cartQtyDisplay = cartQty > 0 ? cartQty : '';
 
@@ -389,8 +391,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
                 <p class="product-stock-desc">
                     Quedan: <span class="${stockStyle}">${product.stock}</span> ${stockOfMaxText}
                     <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
-                        $${(product.price || 0).toFixed(2)} 
-                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>
+                        ${fixedBsOf(product) > 0
+                            ? `Bs. ${fixedBsOf(product).toFixed(2)}
+                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(${fixedBsOf(product) < product.price_bs ? 'promo hoy' : 'fijo'} &bull; ≈ $${(fixedBsOf(product) / (window.bcvRate || 1)).toFixed(2)})</span>`
+                            : `$${(product.price || 0).toFixed(2)} 
+                        <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${((product.price || 0) * (window.bcvRate || 1)).toFixed(2)})</span>`}
                     </span>
                 </p>
             </div>
@@ -1678,7 +1683,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
             <div class="settings-product-info">
                 <span class="settings-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
                 <span class="settings-product-details">
-                    Precio: $${(p.price || 0).toFixed(2)} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${escapeHtml(p.unit)}
+                    Precio: $${(p.price || 0).toFixed(2)}${p.price_bs > 0 ? ` (fijo Bs. ${p.price_bs.toFixed(2)})` : ''} | ${catLabel} | Máx: ${p.max} | Alerta: &le;${p.min} | ${escapeHtml(p.unit)}
                 </span>
             </div>
             <div class="settings-actions">
@@ -2494,6 +2499,98 @@ function splitIvaIncluded(totalUSD, totalVES) {
  * @param {Function} onClear Callback to empty the cart
  * @param {Function} onCheckout Callback to checkout
  */
+/** Fixed Bs price shown today (with the weekday promo), or 0. */
+function fixedBsOf(product) {
+    if (window.Combos) return window.Combos.fixedBsPrice(product);
+    return product && product.price_bs > 0 ? product.price_bs : 0;
+}
+
+function formatBsWhole(n) {
+    return 'Bs ' + Math.round(n).toLocaleString('es-VE');
+}
+
+/**
+ * Combo buttons above the vitrina (js/combos.js). Shows each combo's Bs price
+ * for today; tapping one opens the flavor picker.
+ */
+function renderCombosBar(products) {
+    const bar = document.getElementById('combos-bar');
+    if (!bar || !window.Combos) return;
+    const pasteles = products.filter(p => p.category === 'pastelitos');
+    const sample = pasteles.find(p => fixedBsOf(p) > 0);
+    if (!sample) {
+        // Combos are priced in fixed Bs; without a fixed-price pastel there's nothing to offer.
+        bar.innerHTML = '';
+        bar.classList.add('hidden');
+        return;
+    }
+    bar.classList.remove('hidden');
+    const promo = window.Combos.isPromoDay();
+    bar.innerHTML = `
+        <div class="combos-bar-title"><i class="fa-solid fa-gift"></i> Combos${promo ? ` <span class="combos-promo">Promo ${escapeHtml(window.Combos.PROMO.label)}: pastel ${formatBsWhole(window.Combos.PROMO.priceBs)}</span>` : ''}</div>
+        <div class="combos-bar-list">
+            ${window.Combos.COMBOS.map(c => `
+                <button type="button" class="btn-combo" data-combo="${c.id}">
+                    <span class="btn-combo-name">${escapeHtml(c.name)}</span>
+                    <span class="btn-combo-desc">${c.pasteles === 1 ? 'Pastel' : `${c.pasteles} pasteles`} + ${escapeHtml(c.drink)}</span>
+                    <span class="btn-combo-price">${formatBsWhole(window.Combos.comboBsToday(c, sample))}</span>
+                </button>`).join('')}
+        </div>`;
+    bar.querySelectorAll('.btn-combo').forEach(btn => {
+        btn.addEventListener('click', () => openComboPicker(btn.getAttribute('data-combo'), products));
+    });
+}
+
+/**
+ * Flavor picker for a combo: one tap per pastel (the same flavor can be
+ * picked twice), then the combo goes to the cart via window.addComboToCart.
+ */
+function openComboPicker(comboId, products) {
+    const combo = window.Combos.COMBOS.find(c => c.id === comboId);
+    if (!combo) return;
+    const pasteles = products.filter(p => p.category === 'pastelitos');
+    const picked = [];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <strong>${escapeHtml(combo.name)}</strong>
+                <button type="button" class="btn-combo-close" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="combo-picker-hint"></p>
+                <div class="combo-flavor-grid">
+                    ${pasteles.map(p => `<button type="button" class="btn-combo-flavor" data-id="${escapeHtml(p.id)}">${escapeHtml(p.name)}<small>Quedan ${p.stock}</small></button>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    const hint = overlay.querySelector('.combo-picker-hint');
+    const updateHint = () => {
+        const names = picked.map(id => (pasteles.find(p => p.id === id) || {}).name).filter(Boolean);
+        hint.textContent = combo.pasteles === 1
+            ? `Elige el sabor del pastel. Va con ${combo.drink}.`
+            : `Elige ${combo.pasteles} sabores (puede repetirse): ${picked.length}/${combo.pasteles}${names.length ? ' · ' + names.join(', ') : ''}. Va con ${combo.drink}.`;
+    };
+    updateHint();
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.btn-combo-close').addEventListener('click', close);
+    overlay.querySelectorAll('.btn-combo-flavor').forEach(btn => {
+        btn.addEventListener('click', () => {
+            picked.push(btn.getAttribute('data-id'));
+            if (picked.length >= combo.pasteles) {
+                close();
+                if (window.addComboToCart) window.addComboToCart(combo.id, picked);
+            } else {
+                updateHint();
+            }
+        });
+    });
+    document.body.appendChild(overlay);
+}
+
 function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     const container = document.getElementById('active-cart-container');
     if (!container) return;
@@ -2532,9 +2629,9 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                             </span>
                         </div>
                         <div class="cart-item-controls">
-                            <button class="btn-cart-adjust-circle minus" data-id="${item.productId}" data-action="minus">-</button>
+                            <button class="btn-cart-adjust-circle minus" data-id="${escapeHtml(item.combo ? `${item.productId}|${item.combo}` : item.productId)}" data-action="minus">-</button>
                             <span class="cart-qty-badge">${item.quantity}</span>
-                            <button class="btn-cart-adjust-circle plus" data-id="${item.productId}" data-action="plus">+</button>
+                            ${item.combo ? '' : `<button class="btn-cart-adjust-circle plus" data-id="${escapeHtml(item.productId)}" data-action="plus">+</button>`}
                         </div>
                     </div>
                 `).join('')}

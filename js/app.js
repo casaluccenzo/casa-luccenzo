@@ -1,6 +1,8 @@
 // Main App Orchestration Module
 
 // Local app state
+// Fixed-Bs promo and combos (js/combos.js, loaded before this file; required in tests).
+const Combos = (typeof window !== 'undefined' && window.Combos) || (typeof require === 'function' ? require('./combos') : null);
 let products = [];
 let salesLog = [];
 let expenses = [];
@@ -348,6 +350,101 @@ function recordStockMovement(product, delta, type, sourceUuid) {
 }
 
 /**
+ * Dollar price a sale is recorded at. A product with a fixed bolívar price
+ * (price_bs, set by hand in "Editar producto") charges price_bs / rate, with
+ * six decimals so the Bs total lands on the cent. products.price is never
+ * touched -- it stays the fallback for every product without price_bs.
+ * Exported for tests.
+ * @param {Object} product Product being sold
+ * @param {number} rate BCV rate in Bs per dollar
+ * @returns {number}
+ */
+function saleUsdPrice(product, rate, date) {
+    const bs = fixedBsToday(product, date);
+    return bsToUsd(bs, rate) || (product && product.price) || 0;
+}
+
+/** Bs -> $ with six decimals so the Bs total lands on the cent; 0 if it can't. */
+function bsToUsd(bs, rate) {
+    if (bs > 0 && rate > 0) return Math.round((bs / rate) * 1e6) / 1e6;
+    return 0;
+}
+
+/**
+ * Fixed bolívar price for today: price_bs, or the weekday promo from
+ * js/combos.js (Bs 2.000 martes y miércoles for pastelitos) when it applies.
+ * @returns {number} 0 when the product has no fixed Bs price
+ */
+function fixedBsToday(product, date) {
+    if (Combos) return Combos.fixedBsPrice(product, date);
+    const bs = parseFloat(product && product.price_bs);
+    return bs > 0 ? bs : 0;
+}
+
+/**
+ * Cart line identity. A combo line ("Pollo · Combo Clásico") is the same
+ * product as a loose one but a different price, so it keeps its own line.
+ */
+function cartKeyOf(item) {
+    return item.combo ? `${item.productId}|${item.combo}` : item.productId;
+}
+
+/**
+ * Adds one combo to the active cart: one line per pastel flavor at its fixed
+ * price of the day plus the drink at the combo's price, each tagged with the
+ * combo so the cart keeps them apart from loose items. Stock is taken from
+ * every product, the same way a loose sale does.
+ * @param {string} comboId Combos.COMBOS[].id
+ * @param {string[]} flavorIds One pastelito product id per pastel in the combo
+ */
+function addComboToCart(comboId, flavorIds) {
+    const combo = Combos && Combos.COMBOS.find(c => c.id === comboId);
+    if (!combo) return;
+    const drink = Combos.findDrink(combo, products);
+    if (!drink) {
+        window.UIManager.showToast(`⚠️ No encuentro "${combo.drink}" en los productos. Revisa el nombre en Configuración.`, "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    if (!(bcvRate > 0)) {
+        window.UIManager.showToast("⚠️ Falta la tasa BCV del día para cobrar el combo en Bs.", "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    const pasteles = flavorIds.map(id => products.find(p => p.id === id)).filter(Boolean);
+    if (pasteles.length !== combo.pasteles) return;
+
+    triggerHaptic(15);
+    const lines = pasteles.map(p => ({ product: p, price: saleUsdPrice(p, bcvRate) }));
+    lines.push({ product: drink, price: bsToUsd(combo.drinkBs, bcvRate) });
+
+    lines.forEach(({ product, price }) => {
+        const key = `${product.id}|${combo.id}`;
+        const cartItem = currentCart.find(item => cartKeyOf(item) === key);
+        if (cartItem) {
+            cartItem.quantity++;
+        } else {
+            currentCart.push({
+                productId: product.id,
+                name: `${product.name} · ${combo.name}`,
+                price,
+                quantity: 1,
+                combo: combo.id
+            });
+        }
+        const before = product.stock;
+        product.stock = product.stock - 1;
+        recordStockMovement(product, product.stock - before, 'sale');
+        warnIfOversold(product);
+    });
+    window.StorageManager.saveProducts(products);
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.showToast(`🥟 ${combo.name} agregado a la cuenta.`, "fa-solid fa-circle-check");
+}
+window.addComboToCart = addComboToCart;
+
+/**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
  * goes through; the negative count is what tells the cashier a recount is due.
  * @param {Object} product Product just sold
@@ -379,14 +476,14 @@ function adjustStock(id, amount, event) {
         triggerHaptic(15);
 
         // Add to active cart
-        const cartItem = currentCart.find(item => item.productId === id);
+        const cartItem = currentCart.find(item => item.productId === id && !item.combo);
         if (cartItem) {
             cartItem.quantity++;
         } else {
             currentCart.push({
                 productId: product.id,
                 name: product.name,
-                price: product.price || 0,
+                price: saleUsdPrice(product, bcvRate),
                 quantity: 1
             });
         }
@@ -441,7 +538,7 @@ function handleCartQtyChange(id, newQty) {
     const product = products.find(p => p.id === id);
     if (!product) return;
 
-    const cartItem = currentCart.find(item => item.productId === id);
+    const cartItem = currentCart.find(item => item.productId === id && !item.combo);
     const q_old = cartItem ? cartItem.quantity : 0;
     
     if (newQty < 0 || isNaN(newQty)) {
@@ -462,7 +559,7 @@ function handleCartQtyChange(id, newQty) {
 
     // Update cart items array
     if (newQty === 0) {
-        const cartItemIndex = currentCart.findIndex(item => item.productId === id);
+        const cartItemIndex = currentCart.findIndex(item => item.productId === id && !item.combo);
         if (cartItemIndex !== -1) {
             currentCart.splice(cartItemIndex, 1);
         }
@@ -473,7 +570,7 @@ function handleCartQtyChange(id, newQty) {
             currentCart.push({
                 productId: product.id,
                 name: product.name,
-                price: product.price || 0,
+                price: saleUsdPrice(product, bcvRate),
                 quantity: newQty
             });
         }
@@ -498,19 +595,23 @@ function handleCartQtyChange(id, newQty) {
  * Increment cart item quantity (taking from vitrina stock)
  */
 function handleAddToCart(productId) {
+    // The quick-access bar hands over the product itself.
+    if (productId && typeof productId === 'object') productId = productId.id;
+    // "+" is hidden on combo lines; another combo goes through the combo picker.
+    if (String(productId).includes('|')) return;
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
     triggerHaptic(15);
 
-    const cartItem = currentCart.find(item => item.productId === productId);
+    const cartItem = currentCart.find(item => item.productId === productId && !item.combo);
     if (cartItem) {
         cartItem.quantity++;
     } else {
         currentCart.push({
             productId: product.id,
             name: product.name,
-            price: product.price || 0,
+            price: saleUsdPrice(product, bcvRate),
             quantity: 1
         });
     }
@@ -530,14 +631,14 @@ function handleAddToCart(productId) {
 /**
  * Decrement cart item quantity (returning to vitrina stock)
  */
-function handleRemoveFromCart(productId) {
-    const cartItemIndex = currentCart.findIndex(item => item.productId === productId);
+function handleRemoveFromCart(cartKey) {
+    const cartItemIndex = currentCart.findIndex(item => cartKeyOf(item) === cartKey);
     if (cartItemIndex === -1) return;
 
     triggerHaptic(15);
 
     const cartItem = currentCart[cartItemIndex];
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id === cartItem.productId);
 
     if (product) {
         const beforeRemove = product.stock;
@@ -782,7 +883,7 @@ async function handleAutocorrectSales(discrepancyList) {
                 uuid: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                 productId: item.product.id,
                 name: `${item.product.name} [Ajuste Inventario]`,
-                price: item.product.price || 0,
+                price: saleUsdPrice(item.product, bcvRate),
                 cost: item.product.cost || 0,
                 timestamp: timestamp
             };
@@ -847,17 +948,22 @@ async function handleEditSale(timestamp) {
     // 1. Group matching sales by product_id to reconstruct the cart
     const cartReconstructed = [];
     matchingSales.forEach(sale => {
-        const existing = cartReconstructed.find(item => item.productId === sale.productId);
+        const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
+        // "Pollo · Combo Clásico" comes back as a combo line, not a loose one.
+        const comboMatch = Combos && cleanName.match(/ · (Combo .+)$/);
+        const comboDef = comboMatch && Combos.COMBOS.find(c => c.name === comboMatch[1]);
+        const existing = cartReconstructed.find(item => item.productId === sale.productId && item.name === cleanName);
         if (existing) {
             existing.quantity++;
         } else {
-            const cleanName = sale.name.replace(/\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/, '');
-            cartReconstructed.push({
+            const line = {
                 productId: sale.productId,
                 name: cleanName,
                 price: sale.price || 0,
                 quantity: 1
-            });
+            };
+            if (comboDef) line.combo = comboDef.id;
+            cartReconstructed.push(line);
         }
     });
 
@@ -2210,6 +2316,7 @@ function editProductPrompt(id) {
     document.getElementById('edit-prod-name').value = product.name;
     document.getElementById('edit-prod-price').value = product.price !== undefined ? product.price : 1.50;
     document.getElementById('edit-prod-cost').value = product.cost !== undefined ? product.cost : 0;
+    document.getElementById('edit-prod-price-bs-fixed').value = product.price_bs > 0 ? product.price_bs : '';
     document.getElementById('edit-prod-category').value = product.category || 'pastelitos';
     document.getElementById('edit-prod-stock').value = product.stock !== undefined ? product.stock : 0;
     document.getElementById('edit-prod-max').value = product.max !== undefined ? product.max : 20;
@@ -2228,6 +2335,15 @@ function updateEditPriceBsPreview() {
         const rate = window.bcvRate || bcvRate || 1;
         const bsVal = price * rate;
         bsEl.innerHTML = `<i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. ${bsVal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    const fixedEl = document.getElementById('edit-prod-price-bs-fixed');
+    const hintEl = document.getElementById('edit-prod-price-bs-fixed-hint');
+    if (fixedEl && hintEl) {
+        const fixed = parseFloat(fixedEl.value) || 0;
+        const rate = window.bcvRate || bcvRate || 0;
+        hintEl.textContent = fixed > 0 && rate > 0
+            ? `Se cobra Bs. ${fixed.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} fijo. Hoy ≈ $${(fixed / rate).toFixed(2)}. El precio en $ no cambia.`
+            : 'Vacío: se cobra el precio en dólares.';
     }
 }
 
@@ -5074,6 +5190,10 @@ function initAdminDashboardListeners() {
     if (editPriceInput) {
         editPriceInput.addEventListener('input', updateEditPriceBsPreview);
     }
+    const editPriceBsFixedInput = document.getElementById('edit-prod-price-bs-fixed');
+    if (editPriceBsFixedInput) {
+        editPriceBsFixedInput.addEventListener('input', updateEditPriceBsPreview);
+    }
 
     // Steppers (-) and (+) for Stock, Max Vitrina, and Alerta Mínima
     const bindEditStepper = (btnMinusId, btnPlusId, inputId, minVal = 0) => {
@@ -5156,6 +5276,7 @@ function initAdminDashboardListeners() {
             const newName = document.getElementById('edit-prod-name').value.trim();
             const newPrice = parseFloat(document.getElementById('edit-prod-price').value) || 0;
             const newCost = parseFloat(document.getElementById('edit-prod-cost').value) || 0;
+            const newPriceBs = Math.round((parseFloat(document.getElementById('edit-prod-price-bs-fixed').value) || 0) * 100) / 100;
             const newCategory = document.getElementById('edit-prod-category').value;
             const stockVal = parseInt(document.getElementById('edit-prod-stock').value) || 0;
             const maxValRaw = parseInt(document.getElementById('edit-prod-max').value);
@@ -5173,6 +5294,7 @@ function initAdminDashboardListeners() {
             product.name = newName;
             product.price = newPrice;
             product.cost = newCost;
+            product.price_bs = newPriceBs > 0 ? newPriceBs : null;
             product.category = newCategory;
             product.min = minVal;
 
@@ -5206,7 +5328,7 @@ function initAdminDashboardListeners() {
             window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
             window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
             window.UIManager.showToast("✏️ Producto editado correctamente.", "fa-solid fa-pen-to-square");
-            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}, Costo: Bs.${newCost.toFixed(2)}, Cat: ${newCategory})`);
+            logActivity("Producto Editado", `Editado: ${product.name} (Stock: ${stockVal}, Max: ${maxVal}, Precio: $${newPrice.toFixed(2)}${product.price_bs ? `, Precio fijo: Bs.${product.price_bs.toFixed(2)}` : ''}, Costo: Bs.${newCost.toFixed(2)}, Cat: ${newCategory})`);
         });
     }
 
@@ -5451,6 +5573,8 @@ if (typeof module !== 'undefined' && module.exports) {
         applyStockLoad,
         applyStockCount,
         resolveVitrinaCapacity,
-        bcvRateChangedEnough
+        bcvRateChangedEnough,
+        saleUsdPrice,
+        cartKeyOf
     };
 }

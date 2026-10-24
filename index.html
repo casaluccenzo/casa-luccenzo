@@ -960,7 +960,8 @@
             const card = document.getElementById('menu-card-combos');
             const C = window.Combos;
             const pastel = items.find(p => p.category === 'pastelitos' && p.price_bs > 0);
-            if (!card || !C || !pastel) return;
+            // Los combos solo se ofrecen sus días (martes y miércoles); el resto, ni se nombran.
+            if (!card || !C || !pastel || !C.isComboDay()) return;
             const bs = n => 'Bs ' + Math.round(n).toLocaleString('es-VE');
             const listEl = document.getElementById('menu-list-combos');
             C.COMBOS.forEach(c => {
@@ -973,8 +974,8 @@
             });
             const promo = document.getElementById('menu-promo');
             promo.textContent = C.isPromoDay()
-                ? 'Hoy hay promo: pastel a ' + bs(C.PROMO.priceBs) + ' (' + C.PROMO.label + ').'
-                : 'Los ' + C.PROMO.label + ', pastel a ' + bs(C.PROMO.priceBs) + '.';
+                ? 'Hoy hay combos y el pastel suelto va a ' + bs(C.PROMO.priceBs) + '.'
+                : 'Combos solo los ' + C.COMBO_DAYS_LABEL + '.';
             promo.hidden = false;
             card.hidden = false;
         }

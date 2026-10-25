@@ -1,0 +1,89 @@
+name: Copia de seguridad
+
+# Copia diaria de la base de Supabase (plan gratis = sin backups propios).
+# Corre a las 08:00 UTC = 4:00 am Caracas, despues de la recarga de las 2:17 am
+# (api/daily-restock) para que la copia ya tenga el stock del dia.
+#
+# El repo es PUBLICO: cualquier usuario de GitHub puede bajar los artifacts,
+# por eso el .7z va cifrado (AES-256, nombres incluidos) con BACKUP_PASSPHRASE.
+# Sin esa clave el archivo no sirve. Como restaurar: docs/backups.md.
+#
+# Secretos (Settings -> Secrets and variables -> Actions):
+#   BACKUP_DB_PASSWORD  clave del rol backup_reader (solo lectura),
+#                       la genera supabase/backup_reader.sql
+#   BACKUP_PASSPHRASE   clave para abrir el .7z, la elige Gustavo y la guarda
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PGUSER: backup_reader.xttpaqokeyywjaajvjyu
+      PGDATABASE: postgres
+      PGPORT: '5432'
+      PGPASSWORD: ${{ secrets.BACKUP_DB_PASSWORD }}
+      PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Revisar secretos
+        run: |
+          if [ -z "$PGPASSWORD" ] || [ -z "$PASSPHRASE" ]; then
+            echo "::error::Faltan BACKUP_DB_PASSWORD o BACKUP_PASSPHRASE en los secretos del repo (ver docs/backups.md)"
+            exit 1
+          fi
+
+      # Session pooler (IPv4). El host depende del cluster del proyecto
+      # (aws-0 o aws-1 en us-west-2); se usa el primero que responda.
+      - name: Buscar el pooler
+        run: |
+          for h in aws-0-us-west-2.pooler.supabase.com aws-1-us-west-2.pooler.supabase.com; do
+            if docker run --rm -e PGPASSWORD -e PGUSER -e PGDATABASE -e PGPORT postgres:17 \
+                 psql -h "$h" -tAc 'select 1' >/dev/null 2>err.txt; then
+              echo "PGHOST=$h" >> "$GITHUB_ENV"; echo "pooler: $h"; exit 0
+            fi
+            echo "$h: $(head -c 300 err.txt)"
+          done
+          echo "::error::No se pudo conectar a la base con backup_reader"; exit 1
+
+      - name: Volcar la base
+        run: |
+          mkdir -p out
+          run() { docker run --rm -e PGPASSWORD -e PGUSER -e PGDATABASE -e PGPORT -e PGHOST \
+                    -v "$PWD/out:/out" postgres:17 "$@"; }
+          # public: tablas, datos, funciones, triggers, RLS y GRANTs
+          run pg_dump -n public --no-owner -f /out/public.sql
+          # usuarios del POS (login) y trabajos programados de pg_cron
+          run pg_dump --data-only -n auth --exclude-table=auth.schema_migrations -f /out/auth-data.sql
+          run pg_dump --data-only -t cron.job -f /out/cron-data.sql
+          # conteo de filas por tabla, para comprobar una restauracion
+          run psql -tA -F ' ' -c "select relname, n_live_tup from pg_stat_user_tables where schemaname='public' order by 1" > out/conteos.txt
+          ls -la out
+          test -s out/public.sql && grep -q 'CREATE TABLE public.products' out/public.sql \
+            && grep -q 'COPY public.sales' out/public.sql
+
+      - name: Cifrar
+        run: |
+          stamp=$(TZ=America/Caracas date +%Y-%m-%d)
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+          7z a -t7z -mhe=on -mx=9 -p"$PASSPHRASE" "casa-lucenzo-backup-$stamp.7z" ./out/* >/dev/null
+          rm -rf out
+          7z t -p"$PASSPHRASE" "casa-lucenzo-backup-$stamp.7z" | tail -3
+          ls -la *.7z
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: casa-lucenzo-backup-${{ env.STAMP }}
+          path: casa-lucenzo-backup-*.7z
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error

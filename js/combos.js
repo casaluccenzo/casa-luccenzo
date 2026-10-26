@@ -15,11 +15,10 @@
         { id: 'pana', name: 'Combo Pana', pasteles: 2, drink: 'Malta Retornable', drinkBs: 600, priceBs: 5000 }
     ];
 
-    // Consumo del personal: el pastel al costo (products.cost, en Bs) más el
-    // 16% de IVA, así lo que entra a caja cubre el costo después del impuesto.
-    // La venta lleva " · Consumo personal" en el nombre para que reportes y
-    // cierre la separen de las ventas normales.
-    const STAFF = { category: 'pastelitos', label: 'Consumo personal', iva: 0.16 };
+    // Consumo del personal: el pastel al costo exacto (products.cost, en Bs),
+    // sin IVA ni recargo. La venta lleva " · Consumo personal" en el nombre
+    // para que reportes, cierre y desglose de IVA la separen de las ventas.
+    const STAFF = { category: 'pastelitos', label: 'Consumo personal' };
 
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -59,11 +58,11 @@
         return pastelBs * combo.pasteles + combo.drinkBs;
     }
 
-    /** Precio en Bs para el personal: costo + IVA, o 0 si el producto no aplica o no tiene costo. */
+    /** Precio en Bs para el personal: el costo, o 0 si el producto no aplica o no tiene costo. */
     function staffBsPrice(product) {
         const cost = parseFloat(product && product.cost);
         if (!(cost > 0) || product.category !== STAFF.category) return 0;
-        return Math.round(cost * (1 + STAFF.iva) * 100) / 100;
+        return Math.round(cost * 100) / 100;
     }
 
     /** ¿Esta venta (por su nombre) es consumo del personal? */

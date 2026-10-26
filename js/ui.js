@@ -2510,6 +2510,15 @@ function renderQuickConversionTable() {
 }
 
 /**
+ * Part of a cart/account in $ that carries no IVA: the staff's pastelitos,
+ * sold at cost (Combos.isStaffSale). The rest is split with splitIvaIncluded.
+ */
+function staffExemptUSD(items) {
+    if (!window.Combos) return 0;
+    return (items || []).reduce((sum, item) => sum + (window.Combos.isStaffSale(item) ? (item.price || 0) * (item.quantity || 1) : 0), 0);
+}
+
+/**
  * Split a total whose prices already include the 16% IVA into base + IVA.
  * Rounds the base to cents and derives IVA from it, so the two shown
  * amounts always add back up to the total charged.
@@ -2545,7 +2554,7 @@ function formatBsWhole(n) {
 }
 
 /**
- * Pestaña "Personal" de la vitrina: los pastelitos al costo + IVA para quien
+ * Pestaña "Personal" de la vitrina: los pastelitos al costo, sin IVA, para quien
  * trabaja en el local. Cada toque agrega uno a la cuenta como "Consumo
  * personal" (window.addStaffMealToCart), que descuenta vitrina igual que una
  * venta y sale aparte en el cierre.
@@ -2562,12 +2571,10 @@ function renderStaffMeals(products, listContainer, searchQuery = '') {
         const line = (window.currentCart || []).find(item => item.productId === id && item.combo === 'personal');
         return line ? line.quantity : 0;
     };
-    const ivaPct = Math.round(window.Combos.STAFF.iva * 100);
-
     listContainer.innerHTML = `
         <div class="staff-meals-note">
             <i class="fa-solid fa-user-group"></i>
-            <span>Consumo del personal: cada pastel al costo + ${ivaPct}% de IVA. Se descuenta de la vitrina y sale aparte en el cierre, no como venta.</span>
+            <span>Consumo del personal: cada pastel al costo, sin IVA. Se descuenta de la vitrina y sale aparte en el cierre, no como venta.</span>
         </div>
         ${pasteles.length === 0 ? `
             <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 2rem 0;">
@@ -2587,7 +2594,7 @@ function renderStaffMeals(products, listContainer, searchQuery = '') {
                         Quedan: <span class="stock-value">${p.stock}</span>
                         <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
                             ${formatBsWhole(bs)}
-                            <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(costo ${formatBsWhole(p.cost)} + IVA &bull; ≈ $${(bs / (window.bcvRate || 1)).toFixed(2)})</span>
+                            <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(al costo, sin IVA &bull; ≈ $${(bs / (window.bcvRate || 1)).toFixed(2)})</span>
                         </span>
                     </p>
                 </div>
@@ -2699,7 +2706,10 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     const totalUSD = cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
     const totalVES = totalUSD * (window.bcvRate || 1);
     // Prices already include the 16% IVA -- only break the same total down.
-    const iva = splitIvaIncluded(totalUSD, totalVES);
+    // The staff's pastelitos go at cost with no IVA, so they stay out of it.
+    const exemptUSD = staffExemptUSD(cart);
+    const exemptVES = exemptUSD * (window.bcvRate || 1);
+    const iva = splitIvaIncluded(totalUSD - exemptUSD, totalVES - exemptVES);
 
     container.innerHTML = `
         <div class="active-cart-card">
@@ -2746,6 +2756,11 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                     <span>IVA (16% incluido):</span>
                     <span>$${iva.ivaUSD.toFixed(2)} &bull; Bs. ${iva.ivaVES.toFixed(2)}</span>
                 </div>
+                ${exemptUSD > 0 ? `
+                <div class="cart-iva-row">
+                    <span>Personal (al costo, sin IVA):</span>
+                    <span>$${exemptUSD.toFixed(2)} &bull; Bs. ${exemptVES.toFixed(2)}</span>
+                </div>` : ''}
             </div>
 
             <div class="cart-actions-grid">
@@ -2788,9 +2803,13 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
         msg += `💰 *TOTAL A PAGAR:* *$${total.toFixed(2)} USD*\n`;
         msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
         msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
-        const shareIva = splitIvaIncluded(total, total * (window.bcvRate || 1));
+        const shareExempt = staffExemptUSD(cart);
+        const shareIva = splitIvaIncluded(total - shareExempt, (total - shareExempt) * (window.bcvRate || 1));
         msg += `🧾 Base imponible: $${shareIva.baseUSD.toFixed(2)} / Bs. ${shareIva.baseVES.toFixed(2)}\n`;
         msg += `🧾 IVA (16% incluido): $${shareIva.ivaUSD.toFixed(2)} / Bs. ${shareIva.ivaVES.toFixed(2)}\n`;
+        if (shareExempt > 0) {
+            msg += `🧾 Personal (al costo, sin IVA): $${shareExempt.toFixed(2)} / Bs. ${(shareExempt * (window.bcvRate || 1)).toFixed(2)}\n`;
+        }
         msg += `--------------------------------------\n`;
         msg += `¡Muchas gracias por su compra! 🌟`;
 
@@ -4086,8 +4105,10 @@ function showPosReceiptModal({
     // Prices already include the 16% IVA. When a client asks for a factura,
     // the toggle below only breaks the same total down into base imponible
     // + IVA (SENIAT) -- the amount charged never changes.
-    const baseImponibleVES = totalVES / 1.16;
-    const iva16VES = totalVES - baseImponibleVES;
+    // The staff's pastelitos (at cost) carry no IVA and stay out of the base.
+    const exemptVES = cart.reduce((sum, item) => sum + (window.Combos && window.Combos.isStaffSale(item) ? getItemTotalUSD(item) : 0), 0) * rate;
+    const baseImponibleVES = (totalVES - exemptVES) / 1.16;
+    const iva16VES = totalVES - exemptVES - baseImponibleVES;
 
     let timeStr = 'Ahora';
     let dateStr = new Date().toLocaleDateString('es-VE');

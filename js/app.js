@@ -445,7 +445,7 @@ function addComboToCart(comboId, flavorIds) {
 window.addComboToCart = addComboToCart;
 
 /**
- * Adds one pastel for the staff to the active cart, at cost + IVA (see
+ * Adds one pastel for the staff to the active cart, at cost with no IVA (see
  * Combos.staffBsPrice). It keeps its own cart line ("Pollo · Consumo
  * personal", combo 'personal') so it never merges with a regular sale, and
  * takes stock like any other sale so the vitrina and the cierre still add up.

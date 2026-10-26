@@ -445,6 +445,53 @@ function addComboToCart(comboId, flavorIds) {
 window.addComboToCart = addComboToCart;
 
 /**
+ * Adds one pastel for the staff to the active cart, at cost + IVA (see
+ * Combos.staffBsPrice). It keeps its own cart line ("Pollo · Consumo
+ * personal", combo 'personal') so it never merges with a regular sale, and
+ * takes stock like any other sale so the vitrina and the cierre still add up.
+ * @param {string} productId Pastelito product id
+ */
+function addStaffMealToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product || !Combos) return;
+    const bs = Combos.staffBsPrice(product);
+    if (!(bs > 0)) {
+        window.UIManager.showToast(`⚠️ "${product.name}" no tiene costo cargado. Ponlo en Editar producto → Costo Bs.`, "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    if (!(bcvRate > 0)) {
+        window.UIManager.showToast("⚠️ Falta la tasa BCV del día para cobrar en Bs.", "fa-solid fa-triangle-exclamation");
+        return;
+    }
+
+    triggerHaptic(15);
+    const key = `${product.id}|personal`;
+    const cartItem = currentCart.find(item => cartKeyOf(item) === key);
+    if (cartItem) {
+        cartItem.quantity++;
+    } else {
+        currentCart.push({
+            productId: product.id,
+            name: `${product.name} · ${Combos.STAFF.label}`,
+            price: bsToUsd(bs, bcvRate),
+            quantity: 1,
+            combo: 'personal'
+        });
+    }
+    const before = product.stock;
+    product.stock = product.stock - 1;
+    recordStockMovement(product, product.stock - before, 'sale');
+    warnIfOversold(product);
+    window.StorageManager.saveProducts(products);
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.showToast(`👥 ${product.name} para el personal: Bs ${bs.toLocaleString('es-VE')}.`, "fa-solid fa-circle-check");
+}
+window.addStaffMealToCart = addStaffMealToCart;
+
+/**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
  * goes through; the negative count is what tells the cashier a recount is due.
  * @param {Object} product Product just sold
@@ -963,6 +1010,7 @@ async function handleEditSale(timestamp) {
                 quantity: 1
             };
             if (comboDef) line.combo = comboDef.id;
+            else if (Combos && Combos.isStaffSale(cleanName)) line.combo = 'personal';
             cartReconstructed.push(line);
         }
     });
@@ -1850,7 +1898,11 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
             const product = productsList.find(p => p.id === sale.productId);
             const rawCat = product ? product.category : 'otros';
 
-            if (rawCat === 'pastelitos') {
+            if (Combos && Combos.isStaffSale(sale)) {
+                catKey = 'personal';
+                catLabel = '👥 Consumo del personal (al costo)';
+                sortOrder = 80;
+            } else if (rawCat === 'pastelitos') {
                 const unitPrice = sale.price || (product ? product.price : 0);
                 catKey = `pastelitos_${unitPrice.toFixed(2)}`;
                 catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;

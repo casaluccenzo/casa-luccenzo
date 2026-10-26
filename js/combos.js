@@ -15,6 +15,12 @@
         { id: 'pana', name: 'Combo Pana', pasteles: 2, drink: 'Malta Retornable', drinkBs: 600, priceBs: 5000 }
     ];
 
+    // Consumo del personal: el pastel al costo (products.cost, en Bs) más el
+    // 16% de IVA, así lo que entra a caja cubre el costo después del impuesto.
+    // La venta lleva " · Consumo personal" en el nombre para que reportes y
+    // cierre la separen de las ventas normales.
+    const STAFF = { category: 'pastelitos', label: 'Consumo personal', iva: 0.16 };
+
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
     /** Día de la semana en Caracas (0 = domingo), sin importar la zona del dispositivo. */
@@ -53,6 +59,19 @@
         return pastelBs * combo.pasteles + combo.drinkBs;
     }
 
-    root.Combos = { PROMO, COMBOS, caracasWeekday, isPromoDay, fixedBsPrice, findDrink, comboBsToday };
+    /** Precio en Bs para el personal: costo + IVA, o 0 si el producto no aplica o no tiene costo. */
+    function staffBsPrice(product) {
+        const cost = parseFloat(product && product.cost);
+        if (!(cost > 0) || product.category !== STAFF.category) return 0;
+        return Math.round(cost * (1 + STAFF.iva) * 100) / 100;
+    }
+
+    /** ¿Esta venta (por su nombre) es consumo del personal? */
+    function isStaffSale(sale) {
+        const name = typeof sale === 'string' ? sale : (sale && sale.name);
+        return String(name || '').includes(` · ${STAFF.label}`);
+    }
+
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

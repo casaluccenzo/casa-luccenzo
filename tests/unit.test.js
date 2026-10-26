@@ -266,6 +266,17 @@ function runCoreUnitTests() {
     console.log("✅ TEST PASSED: REAL Combos: promo martes/miércoles y combos en Bs fijos");
 }
 
+{
+    // 7. Consumo del personal: pastel al costo + 16% de IVA, separado de las ventas.
+    assert.strictEqual(Combos.staffBsPrice({ category: 'pastelitos', cost: 1000, price_bs: 2200 }), 1160, "REAL Personal: costo Bs 1.000 + IVA = Bs 1.160");
+    assert.strictEqual(Combos.staffBsPrice({ category: 'pastelitos', cost: 0 }), 0, "REAL Personal: sin costo no se ofrece");
+    assert.strictEqual(Combos.staffBsPrice({ category: 'bebidas', cost: 500 }), 0, "REAL Personal: solo pastelitos");
+    assert.ok(Combos.isStaffSale({ name: 'Pollo · Consumo personal [María] (Pagado - Pago Móvil)' }), "REAL Personal: reconoce la venta del personal");
+    assert.ok(!Combos.isStaffSale({ name: 'Pollo · Combo Clásico [Cliente]' }), "REAL Personal: un combo no es consumo del personal");
+    assert.strictEqual(cartKeyOf({ productId: 'pollo', combo: 'personal' }), 'pollo|personal', "REAL cartKeyOf: línea del personal aparte");
+    console.log("✅ TEST PASSED: REAL Personal: pastel al costo + IVA para el personal");
+}
+
 // Analytics Tests: weekday pattern, flavor ranking, and daily prep recommendation
 function runAnalyticsUnitTests() {
     // Finds the most recent occurrence of `weekday` (0=Domingo..6=Sábado) that

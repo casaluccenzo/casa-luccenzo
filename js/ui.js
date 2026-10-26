@@ -188,6 +188,10 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange, products) {
         { id: 'todos', name: 'Todo' },
         ...allCategories.filter(cat => presentIds.has(cat.id))
     ];
+    // Pestaña del personal: solo si algún pastel tiene costo cargado.
+    if (window.Combos && (products || []).some(p => window.Combos.staffBsPrice(p) > 0)) {
+        categories.push({ id: 'personal', name: '👥 Personal' });
+    }
 
     container.innerHTML = '';
     categories.forEach(cat => {
@@ -321,6 +325,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         `;
     }
     
+    if (activeCategory === 'personal') {
+        renderStaffMeals(products, listContainer, searchQuery);
+        return;
+    }
+
     renderCombosBar(products);
 
     listContainer.innerHTML = '';
@@ -1455,7 +1464,11 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             const product = products.find(p => p.id === sale.productId);
             const rawCat = product ? product.category : 'otros';
 
-            if (rawCat === 'pastelitos') {
+            if (window.Combos && window.Combos.isStaffSale(sale)) {
+                catKey = 'personal';
+                catLabel = '👥 Consumo del personal (al costo)';
+                sortOrder = 80;
+            } else if (rawCat === 'pastelitos') {
                 const unitPrice = sale.price || (product ? product.price : 0);
                 catKey = `pastelitos_${unitPrice.toFixed(2)}`;
                 catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;
@@ -2532,6 +2545,64 @@ function formatBsWhole(n) {
 }
 
 /**
+ * Pestaña "Personal" de la vitrina: los pastelitos al costo + IVA para quien
+ * trabaja en el local. Cada toque agrega uno a la cuenta como "Consumo
+ * personal" (window.addStaffMealToCart), que descuenta vitrina igual que una
+ * venta y sale aparte en el cierre.
+ */
+function renderStaffMeals(products, listContainer, searchQuery = '') {
+    const combosBar = document.getElementById('combos-bar');
+    if (combosBar) {
+        combosBar.innerHTML = '';
+        combosBar.classList.add('hidden');
+    }
+    const query = searchQuery.toLowerCase().trim();
+    const pasteles = products.filter(p => window.Combos.staffBsPrice(p) > 0 && (!query || p.name.toLowerCase().includes(query)));
+    const inCart = (id) => {
+        const line = (window.currentCart || []).find(item => item.productId === id && item.combo === 'personal');
+        return line ? line.quantity : 0;
+    };
+    const ivaPct = Math.round(window.Combos.STAFF.iva * 100);
+
+    listContainer.innerHTML = `
+        <div class="staff-meals-note">
+            <i class="fa-solid fa-user-group"></i>
+            <span>Consumo del personal: cada pastel al costo + ${ivaPct}% de IVA. Se descuenta de la vitrina y sale aparte en el cierre, no como venta.</span>
+        </div>
+        ${pasteles.length === 0 ? `
+            <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 2rem 0;">
+                No se encontraron pastelitos con costo cargado.
+            </div>` : ''}
+        ${pasteles.map(p => {
+            const bs = window.Combos.staffBsPrice(p);
+            const qty = inCart(p.id);
+            return `
+            <div class="product-card staff-meal-card">
+                <div class="product-info">
+                    <div class="product-header-row">
+                        <h3 class="product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
+                        ${qty > 0 ? `<span class="staff-meal-qty">${qty} en cuenta</span>` : ''}
+                    </div>
+                    <p class="product-stock-desc">
+                        Quedan: <span class="stock-value">${p.stock}</span>
+                        <span style="color: var(--color-gold); margin-left: 0.5rem; font-weight: 600;">
+                            ${formatBsWhole(bs)}
+                            <span style="font-size: 0.725rem; font-weight: 400; opacity: 0.8; margin-left: 0.25rem;">(costo ${formatBsWhole(p.cost)} + IVA &bull; ≈ $${(bs / (window.bcvRate || 1)).toFixed(2)})</span>
+                        </span>
+                    </p>
+                </div>
+                <button type="button" data-id="${escapeHtml(p.id)}" class="btn-touch btn-success btn-staff-meal" title="Agregar para el personal">+</button>
+            </div>`;
+        }).join('')}`;
+
+    listContainer.querySelectorAll('.btn-staff-meal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (window.addStaffMealToCart) window.addStaffMealToCart(btn.getAttribute('data-id'));
+        });
+    });
+}
+
+/**
  * Combo buttons above the vitrina (js/combos.js). Shows each combo's Bs price
  * for today; tapping one opens the flavor picker.
  */
@@ -3297,7 +3368,14 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 }
             }
 
-            if (rawCat === 'pastelitos') {
+            if (window.Combos && window.Combos.isStaffSale(s)) {
+                catKey = 'personal';
+                catLabel = 'Consumo del personal (al costo)';
+                icon = 'fa-user-group';
+                color = '#94A3B8';
+                unitLabel = 'piezas';
+                sortOrder = 80;
+            } else if (rawCat === 'pastelitos') {
                 const unitPrice = s.price || (product ? product.price : 0);
                 catKey = `pastelitos_${unitPrice.toFixed(2)}`;
                 catLabel = `Pastelitos ($${unitPrice.toFixed(2)})`;
@@ -5123,7 +5201,8 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const categorySales = {
         'pasteles': { label: '🥐 Pasteles y Repostería', items: {} },
         'bebidas': { label: '🥤 Bebidas', items: {} },
-        'dulces': { label: '🍬 Dulces', items: {} }
+        'dulces': { label: '🍬 Dulces', items: {} },
+        'personal': { label: '👥 Consumo del personal (al costo)', items: {} }
     };
 
     salesLog.forEach(sale => {
@@ -5132,7 +5211,9 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         // Find product category
         const prod = products.find(p => p.id === sale.productId);
         let category = 'pasteles'; // fallback default
-        if (prod && prod.category === 'bebidas') {
+        if (window.Combos && window.Combos.isStaffSale(sale)) {
+            category = 'personal';
+        } else if (prod && prod.category === 'bebidas') {
             category = 'bebidas';
         } else if (prod && prod.category === 'dulces') {
             category = 'dulces';
@@ -5440,7 +5521,27 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         });
     }
 
-    if (pastelesItems.length === 0 && bebidasItems.length === 0 && dulcesItems.length === 0) {
+    // Consumo del personal, aparte: entra a caja pero no es venta al público
+    const personalItems = Object.entries(categorySales['personal'].items);
+    if (personalItems.length > 0) {
+        productRowsHtml += `
+            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+                <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">👥 CONSUMO DEL PERSONAL (AL COSTO)</td>
+            </tr>
+        `;
+        personalItems.forEach(([name, data]) => {
+            productRowsHtml += `
+                <tr>
+                    <td style="padding-left: 1.5rem;">${name}</td>
+                    <td>${data.count} uds.</td>
+                    <td style="font-weight: 600;">$${data.total.toFixed(2)}</td>
+                    <td style="color: #64748b;">Bs. ${(data.total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        });
+    }
+
+    if (pastelesItems.length === 0 && bebidasItems.length === 0 && dulcesItems.length === 0 && personalItems.length === 0) {
         productRowsHtml = '<tr><td colspan="4" style="text-align: center; color: #64748b;">No hubo ventas registradas hoy.</td></tr>';
     }
 

@@ -3,7 +3,8 @@
 // así que no depende de nada más. La promo solo aplica a productos que ya
 // tienen precio fijo en Bs (products.price_bs, que pone Gustavo a mano).
 (function (root) {
-    // Martes y miércoles el pastel con precio fijo cuesta Bs 2.000.
+    // Martes y miércoles el pastel cuesta Bs 2.000, pero SOLO dentro de un
+    // combo. El pastel suelto se cobra siempre a su precio fijo (Bs 2.200).
     const PROMO = { category: 'pastelitos', days: [2, 3], priceBs: 2000, label: 'martes y miércoles' };
 
     // Cada combo: pasteles del sabor que elija el cliente + una bebida. El
@@ -36,9 +37,15 @@
         return PROMO.days.includes(caracasWeekday(date));
     }
 
-    /** Precio fijo en Bs del producto hoy (con la promo si toca), o 0 si no tiene. */
-    function fixedBsPrice(product, date) {
+    /** Precio fijo en Bs del producto suelto (products.price_bs), o 0 si no tiene. Sin promo. */
+    function fixedBsPrice(product) {
         const bs = parseFloat(product && product.price_bs);
+        return bs > 0 ? bs : 0;
+    }
+
+    /** Precio en Bs del pastel dentro de un combo hoy: con la promo si toca, o 0. */
+    function comboPastelBsPrice(product, date) {
+        const bs = fixedBsPrice(product);
         if (!(bs > 0)) return 0;
         if (product.category === PROMO.category && isPromoDay(date) && PROMO.priceBs < bs) return PROMO.priceBs;
         return bs;
@@ -52,9 +59,9 @@
         return (products || []).find(p => norm(p.name) === norm(combo.drink)) || null;
     }
 
-    /** Precio del combo en Bs hoy: pasteles al precio fijo del día + bebida. */
+    /** Precio del combo en Bs hoy: pasteles al precio de combo del día + bebida. */
     function comboBsToday(combo, pastelProduct, date) {
-        const pastelBs = fixedBsPrice(pastelProduct, date) || 0;
+        const pastelBs = comboPastelBsPrice(pastelProduct, date) || 0;
         return pastelBs * combo.pasteles + combo.drinkBs;
     }
 
@@ -71,6 +78,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

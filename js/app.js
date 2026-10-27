@@ -371,8 +371,8 @@ function bsToUsd(bs, rate) {
 }
 
 /**
- * Fixed bolívar price for today: price_bs, or the weekday promo from
- * js/combos.js (Bs 2.000 martes y miércoles for pastelitos) when it applies.
+ * Fixed bolívar price of a loose item: price_bs. The weekday promo from
+ * js/combos.js only applies inside a combo (see addComboToCart).
  * @returns {number} 0 when the product has no fixed Bs price
  */
 function fixedBsToday(product, date) {
@@ -413,7 +413,8 @@ function addComboToCart(comboId, flavorIds) {
     if (pasteles.length !== combo.pasteles) return;
 
     triggerHaptic(15);
-    const lines = pasteles.map(p => ({ product: p, price: saleUsdPrice(p, bcvRate) }));
+    // Inside a combo the pastel takes the weekday promo; loose ones never do.
+    const lines = pasteles.map(p => ({ product: p, price: bsToUsd(Combos.comboPastelBsPrice(p), bcvRate) || saleUsdPrice(p, bcvRate) }));
     lines.push({ product: drink, price: bsToUsd(combo.drinkBs, bcvRate) });
 
     lines.forEach(({ product, price }) => {

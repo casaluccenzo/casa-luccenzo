@@ -2549,7 +2549,7 @@ function splitIvaIncluded(totalUSD, totalVES) {
  * @param {Function} onClear Callback to empty the cart
  * @param {Function} onCheckout Callback to checkout
  */
-/** Fixed Bs price shown today (with the weekday promo), or 0. */
+/** Fixed Bs price of a loose item (no weekday promo; that's only in combos), or 0. */
 function fixedBsOf(product) {
     if (window.Combos) return window.Combos.fixedBsPrice(product);
     return product && product.price_bs > 0 ? product.price_bs : 0;
@@ -2633,7 +2633,7 @@ function renderCombosBar(products) {
     bar.classList.remove('hidden');
     const promo = window.Combos.isPromoDay();
     bar.innerHTML = `
-        <div class="combos-bar-title"><i class="fa-solid fa-gift"></i> Combos${promo ? ` <span class="combos-promo">Promo ${escapeHtml(window.Combos.PROMO.label)}: pastel ${formatBsWhole(window.Combos.PROMO.priceBs)}</span>` : ''}</div>
+        <div class="combos-bar-title"><i class="fa-solid fa-gift"></i> Combos${promo ? ` <span class="combos-promo">Promo ${escapeHtml(window.Combos.PROMO.label)}: pastel en combo ${formatBsWhole(window.Combos.PROMO.priceBs)}</span>` : ''}</div>
         <div class="combos-bar-list">
             ${window.Combos.COMBOS.map(c => `
                 <button type="button" class="btn-combo" data-combo="${c.id}">

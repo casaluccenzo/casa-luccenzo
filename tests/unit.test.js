@@ -248,11 +248,13 @@ function runCoreUnitTests() {
     const martes = new Date('2026-10-27T15:00:00Z');     // martes 11:00
     const miercolesNoche = new Date('2026-10-29T03:30:00Z'); // miércoles 23:30 en Caracas (jueves en UTC)
     assert.strictEqual(Combos.fixedBsPrice(pollo, lunes), 2200, "REAL Combos: lunes el pastel va a Bs 2.200");
-    assert.strictEqual(Combos.fixedBsPrice(pollo, martes), 2000, "REAL Combos: martes el pastel va a Bs 2.000");
-    assert.strictEqual(Combos.fixedBsPrice(pollo, miercolesNoche), 2000, "REAL Combos: el día se cuenta en hora de Caracas");
+    assert.strictEqual(Combos.fixedBsPrice(pollo, martes), 2200, "REAL Combos: martes el pastel SUELTO sigue a Bs 2.200");
+    assert.strictEqual(Combos.comboPastelBsPrice(pollo, lunes), 2200, "REAL Combos: lunes el pastel del combo va a Bs 2.200");
+    assert.strictEqual(Combos.comboPastelBsPrice(pollo, martes), 2000, "REAL Combos: martes el pastel del combo va a Bs 2.000");
+    assert.strictEqual(Combos.comboPastelBsPrice(pollo, miercolesNoche), 2000, "REAL Combos: el día se cuenta en hora de Caracas");
     assert.strictEqual(Combos.fixedBsPrice({ category: 'pastelitos', price: 2.5 }, martes), 0, "REAL Combos: sin precio fijo no hay promo");
     assert.strictEqual(Combos.fixedBsPrice({ category: 'bebidas', price_bs: 900 }, martes), 900, "REAL Combos: la promo es solo del pastel");
-    assert.strictEqual((saleUsdPrice(pollo, 884.7496, martes) * 884.7496).toFixed(2), '2000.00', "REAL saleUsdPrice: martes cobra Bs 2.000 exactos");
+    assert.strictEqual((saleUsdPrice(pollo, 884.7496, martes) * 884.7496).toFixed(2), '2200.00', "REAL saleUsdPrice: martes el suelto cobra Bs 2.200 exactos");
     const byId = id => Combos.COMBOS.find(c => c.id === id);
     assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, lunes), 3000, "REAL Combos: Clásico Bs 3.000");
     assert.strictEqual(Combos.comboBsToday(byId('mananero'), pollo, lunes), 2700, "REAL Combos: Mañanero Bs 2.700");

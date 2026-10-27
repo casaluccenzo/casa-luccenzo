@@ -166,6 +166,12 @@ function renderSearchBar(onSearchChange) {
     });
 }
 
+/** Productos que la caja sigue vendiendo: sin las categorías ocultas (Combos.HIDDEN). */
+function forSale(products) {
+    const C = window.Combos;
+    return (products || []).filter(p => !(C && C.isHiddenFromSale(p)));
+}
+
 /**
  * Render category selector filters
  * @param {string} activeCategory Selected category ID
@@ -187,7 +193,7 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange, products) {
     const presentIds = new Set((products || []).map(p => p.category));
     const categories = [
         { id: 'todos', name: 'Todo' },
-        ...allCategories.filter(cat => presentIds.has(cat.id))
+        ...allCategories.filter(cat => presentIds.has(cat.id) && !(window.Combos && window.Combos.isHiddenCategory(cat.id)))
     ];
     // Pestaña del personal: solo si algún pastel tiene costo cargado.
     if (window.Combos && (products || []).some(p => window.Combos.staffBsPrice(p) > 0)) {
@@ -269,6 +275,7 @@ function renderPendingDispatches(replenishments, onConfirm) {
 function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuery = '') {
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
+    products = forSale(products);
 
     // Render POS Quick Access Bar (Productos Frecuentes)
     const quickBarContainer = document.getElementById('pos-quick-items-list');
@@ -475,7 +482,7 @@ function spawnFloatingIndicator(x, y, text, colorClass) {
  * @param {Array} products Current products list
  */
 function updateKitchenBadge(products) {
-    const neededCount = products.filter(p => p.stock < p.max).length;
+    const neededCount = forSale(products).filter(p => p.stock < p.max).length;
     const badge = document.getElementById('kitchen-badge');
     const wsBtn = document.getElementById('btn-whatsapp-share');
 
@@ -508,6 +515,7 @@ function updateKitchenBadge(products) {
 function renderCocina(products, deliverProduct, replenishments = [], salesLog = []) {
     const container = document.getElementById('kitchen-orders-container');
     if (!container) return;
+    products = forSale(products);
 
     const alertBanner = document.getElementById('kitchen-alert-banner');
     if (alertBanner) {
@@ -1719,6 +1727,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
         if (p.category === 'empanadas') catLabel = 'Empanadas';
         if (p.category === 'bebidas') catLabel = 'Bebidas';
         if (p.category === 'dulces') catLabel = 'Dulces';
+        if (window.Combos && window.Combos.isHiddenFromSale(p)) catLabel += ' (oculto, no se vende)';
 
         item.innerHTML = `
             <div class="settings-product-info">
@@ -4854,7 +4863,7 @@ function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) 
     if (!container) return;
 
     const lowStock = (window.InventoryManager && window.InventoryManager.getLowStockItems)
-        ? window.InventoryManager.getLowStockItems(products)
+        ? window.InventoryManager.getLowStockItems(forSale(products))
         : [];
     // getLowStockItems() usa stock<=min, y trata un mínimo sin configurar (0)
     // como si "0" fuera el umbral real -- así que cualquier producto agotado

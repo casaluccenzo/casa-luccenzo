@@ -21,6 +21,13 @@
     // para que reportes, cierre y desglose de IVA la separen de las ventas.
     const STAFF = { category: 'pastelitos', label: 'Consumo personal' };
 
+    // Categorías que ya no se venden (dulces, desde el 27/10/2026): no salen en
+    // la Vitrina, la cocina, las alertas de stock ni el menú web. Los productos
+    // y sus ventas viejas quedan en la base, así que cierres e informes siguen
+    // sumando igual. `keepInPos`: productos de esa categoría que la caja sigue
+    // cobrando. Para volver a vender la categoría, sacarla de `categories`.
+    const HIDDEN = { categories: ['dulces'], keepInPos: ['caja_chica', 'caja_grande'] };
+
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
     /** Día de la semana en Caracas (0 = domingo), sin importar la zona del dispositivo. */
@@ -72,12 +79,22 @@
         return Math.round(cost * 100) / 100;
     }
 
+    /** ¿La categoría está oculta? (el menú web la oculta entera) */
+    function isHiddenCategory(category) {
+        return HIDDEN.categories.includes(category);
+    }
+
+    /** ¿El producto ya no se vende en la caja? */
+    function isHiddenFromSale(product) {
+        return !!product && isHiddenCategory(product.category) && !HIDDEN.keepInPos.includes(product.id);
+    }
+
     /** ¿Esta venta (por su nombre) es consumo del personal? */
     function isStaffSale(sale) {
         const name = typeof sale === 'string' ? sale : (sale && sale.name);
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

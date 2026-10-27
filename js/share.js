@@ -7,7 +7,7 @@
  * @param {Function} showToast Callback function to display toast notification.
  */
 function shareToWhatsApp(products, showToast) {
-    const neededItems = products.filter(p => p.stock < p.max);
+    const neededItems = products.filter(p => p.stock < p.max && !(window.Combos && window.Combos.isHiddenFromSale(p)));
     
     if (neededItems.length === 0) {
         if (typeof showToast === 'function') {

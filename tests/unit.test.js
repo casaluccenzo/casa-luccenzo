@@ -273,6 +273,10 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.staffBsPrice({ category: 'pastelitos', cost: 1000, price_bs: 2200 }), 1000, "REAL Personal: costo Bs 1.000, sin IVA");
     assert.strictEqual(Combos.staffBsPrice({ category: 'pastelitos', cost: 0 }), 0, "REAL Personal: sin costo no se ofrece");
     assert.strictEqual(Combos.staffBsPrice({ category: 'bebidas', cost: 500 }), 0, "REAL Personal: solo pastelitos");
+    assert.strictEqual(Combos.isHiddenFromSale({ id: 'samba_fresa', category: 'dulces' }), true, "REAL Ocultos: los dulces ya no se venden");
+    assert.strictEqual(Combos.isHiddenFromSale({ id: 'caja_chica', category: 'dulces' }), false, "REAL Ocultos: las cajas se siguen cobrando en la caja");
+    assert.strictEqual(Combos.isHiddenFromSale({ id: 'malta', category: 'bebidas' }), false, "REAL Ocultos: bebidas siguen a la venta");
+    assert.strictEqual(Combos.isHiddenCategory('dulces'), true, "REAL Ocultos: el menú web oculta toda la categoría");
     assert.ok(Combos.isStaffSale({ name: 'Pollo · Consumo personal [María] (Pagado - Pago Móvil)' }), "REAL Personal: reconoce la venta del personal");
     assert.ok(!Combos.isStaffSale({ name: 'Pollo · Combo Clásico [Cliente]' }), "REAL Personal: un combo no es consumo del personal");
     assert.strictEqual(cartKeyOf({ productId: 'pollo', combo: 'personal' }), 'pollo|personal', "REAL cartKeyOf: línea del personal aparte");

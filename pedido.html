@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hacer un Pedido — Casa Lucenzo</title>
-    <meta name="description" content="Pedí tus pastelitos, bebidas y dulces de Casa Lucenzo directo desde la mesa. Elegí, armá tu pedido y te confirmamos por WhatsApp.">
+    <meta name="description" content="Pedí tus pastelitos, empanadas y bebidas de Casa Lucenzo directo desde la mesa. Elegí, armá tu pedido y te confirmamos por WhatsApp.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Hacer un Pedido — Casa Lucenzo">
-    <meta property="og:description" content="Pedí tus pastelitos, bebidas y dulces directo desde la mesa. Confirmación por WhatsApp.">
+    <meta property="og:description" content="Pedí tus pastelitos, empanadas y bebidas directo desde la mesa. Confirmación por WhatsApp.">
     <meta property="og:url" content="https://casalucenzo.com/pedido.html">
     <meta property="og:image" content="https://casalucenzo.com/img/logo-512.png">
     <link rel="apple-touch-icon" href="/img/logo-192.png">
@@ -228,7 +228,7 @@
     <main>
         <div class="pedido-card" id="pedido-card">
             <div class="pedido-head">
-                <p class="eyebrow">Pastelitos · Bebidas · Dulces</p>
+                <p class="eyebrow">Pastelitos · Empanadas · Bebidas</p>
                 <h1>Hacer tu Pedido</h1>
                 <p class="sub">Armá tu pedido, elegí cómo vas a pagar, y te confirmamos por WhatsApp los detalles.</p>
             </div>
@@ -448,12 +448,14 @@
                 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                     global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) }
                 });
-                const { data, error } = await client
+                const { data: rows, error } = await client
                     .from('products')
                     .select('name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
+                // Sin las categorías que ya no se venden (Combos.HIDDEN).
+                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenCategory(p.category)));
                 if (error) throw error;
                 if (!data || data.length === 0) throw new Error('empty');
 
@@ -488,6 +490,11 @@
         const searchRow = document.getElementById('search-row');
         const searchInput = document.getElementById('search-input');
         const catTitle = document.getElementById('menu-cat-title');
+
+        // Pestañas de categorías que ya no se venden (Combos.HIDDEN).
+        document.querySelectorAll('#category-filter-row [data-cat]').forEach(el => {
+            if (window.Combos && window.Combos.isHiddenCategory(el.dataset.cat)) el.remove();
+        });
 
         document.querySelectorAll('#category-filter-row .menu-tab').forEach(tab => {
             tab.addEventListener('click', () => {

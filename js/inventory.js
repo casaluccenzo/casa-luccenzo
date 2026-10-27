@@ -22,7 +22,8 @@ function getLowStockItems(items = []) {
 function updateLowStockUI(products = [], ingredients = [], userRole = '') {
     if (typeof document === 'undefined') return;
 
-    const lowProducts = getLowStockItems(products);
+    // Sin los productos que ya no se venden (Combos.HIDDEN).
+    const lowProducts = getLowStockItems((products || []).filter(p => !(window.Combos && window.Combos.isHiddenFromSale(p))));
     const lowIngredients = getLowStockItems(ingredients);
     const totalLowCount = lowProducts.length + lowIngredients.length;
 

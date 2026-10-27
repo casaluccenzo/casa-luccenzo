@@ -266,7 +266,7 @@ function resolvePnlCategory(sale, productById) {
         const n = (sale.name || '').toLowerCase();
         cat = /malta|refresco|agua|jugo/.test(n) ? 'bebidas' : 'pastelitos';
     }
-    if (cat === 'pastelitos') return 'pasteles';
+    if (cat === 'pastelitos' || cat === 'empanadas') return 'pasteles';
     if (cat === 'bebidas' || cat === 'dulces') return cat;
     return 'otros';
 }

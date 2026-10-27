@@ -180,6 +180,7 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange, products) {
 
     const allCategories = [
         { id: 'pastelitos', name: 'Pastelitos' },
+        { id: 'empanadas', name: 'Empanadas' },
         { id: 'bebidas', name: 'Bebidas' },
         { id: 'dulces', name: 'Dulces' }
     ];
@@ -1473,6 +1474,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 catKey = `pastelitos_${unitPrice.toFixed(2)}`;
                 catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;
                 sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'empanadas') {
+                catKey = 'empanadas';
+                catLabel = '🥟 Empanadas';
+                sortOrder = 40;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
@@ -1711,6 +1716,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
         item.className = "settings-product-item";
 
         let catLabel = 'Pastelitos';
+        if (p.category === 'empanadas') catLabel = 'Empanadas';
         if (p.category === 'bebidas') catLabel = 'Bebidas';
         if (p.category === 'dulces') catLabel = 'Dulces';
 
@@ -3402,6 +3408,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 color = '#FFB085';
                 unitLabel = 'piezas';
                 sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'empanadas') {
+                catKey = 'empanadas';
+                catLabel = 'Empanadas';
+                icon = 'fa-cookie';
+                color = '#F4C27A';
+                unitLabel = 'piezas';
+                sortOrder = 40;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = 'Bebidas';
@@ -5000,6 +5013,7 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
     // 2. Process Categories
     const categories = {
         'pastelitos': { label: '🥐 Pastelitos', count: 0, amount: 0, class: 'fill-category-1' },
+        'empanadas': { label: '🥟 Empanadas', count: 0, amount: 0, class: 'fill-category-1' },
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
         'dulces': { label: '🍬 Dulces', count: 0, amount: 0, class: 'fill-category-5' },
         'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
@@ -5043,11 +5057,13 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
 
 const ANALYTICS_CATEGORY_FILL = {
     pastelitos: 'fill-category-1',
+    empanadas: 'fill-category-1',
     bebidas: 'fill-category-2',
     dulces: 'fill-category-5'
 };
 const ANALYTICS_CATEGORY_LABELS = {
     pastelitos: '🥐 Pastelitos',
+    empanadas: '🥟 Empanadas',
     bebidas: '🥤 Bebidas',
     dulces: '🍬 Dulces',
     otros: '📦 Otros'
@@ -5238,7 +5254,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
             category = 'bebidas';
         } else if (prod && prod.category === 'dulces') {
             category = 'dulces';
-        } else if (prod && prod.category === 'pastelitos') {
+        } else if (prod && (prod.category === 'pastelitos' || prod.category === 'empanadas')) {
             category = 'pasteles';
         } else {
             // Check if name suggests beverage

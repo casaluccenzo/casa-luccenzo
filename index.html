@@ -476,6 +476,7 @@
                     <div class="filter-pill active" data-cat="todos">Todo</div>
                     <div class="filter-pill" data-cat="pastelitos">Pastelitos</div>
                     <div class="filter-pill" data-cat="empanadas">Empanadas</div>
+                    <div class="filter-pill" data-cat="minis">Minis</div>
                     <div class="filter-pill" data-cat="bebidas">Bebidas</div>
                     <div class="filter-pill" data-cat="dulces">Dulces</div>
                 </div>
@@ -975,11 +976,12 @@
             if (!card || !C || !pastel) return;
             const bs = n => 'Bs ' + Math.round(n).toLocaleString('es-VE');
             const listEl = document.getElementById('menu-list-combos');
-            C.COMBOS.forEach(c => {
+            // Solo combos con algo de su categoría en el menú (el Combo Mini sale de los minis).
+            C.COMBOS.filter(c => items.some(p => p.category === C.comboCategory(c))).forEach(c => {
                 const li = document.createElement('li');
                 li.innerHTML = '<span><span class="c-name"></span><small></small></span><span class="li-price"></span>';
                 li.querySelector('.c-name').textContent = c.name;
-                li.querySelector('small').textContent = (c.pasteles === 1 ? 'Pastel' : c.pasteles + ' pasteles') + ' + ' + c.drink;
+                li.querySelector('small').textContent = (c.pasteles === 1 ? 'Pastel' : c.pasteles + ' ' + (c.unit || 'pasteles')) + ' + ' + c.drink;
                 li.querySelector('.li-price').textContent = bs(C.comboBsToday(c, pastel));
                 listEl.appendChild(li);
             });

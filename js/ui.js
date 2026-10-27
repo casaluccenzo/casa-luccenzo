@@ -187,6 +187,7 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange, products) {
     const allCategories = [
         { id: 'pastelitos', name: 'Pastelitos' },
         { id: 'empanadas', name: 'Empanadas' },
+        { id: 'minis', name: 'Minis' },
         { id: 'bebidas', name: 'Bebidas' },
         { id: 'dulces', name: 'Dulces' }
     ];
@@ -1486,6 +1487,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 catKey = 'empanadas';
                 catLabel = '🥟 Empanadas';
                 sortOrder = 40;
+            } else if (rawCat === 'minis') {
+                catKey = 'minis';
+                catLabel = '🥐 Pastelitos mini';
+                sortOrder = 45;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
@@ -1725,6 +1730,7 @@ function renderSettingsProducts(products, editProduct, deleteProduct) {
 
         let catLabel = 'Pastelitos';
         if (p.category === 'empanadas') catLabel = 'Empanadas';
+        if (p.category === 'minis') catLabel = 'Minis';
         if (p.category === 'bebidas') catLabel = 'Bebidas';
         if (p.category === 'dulces') catLabel = 'Dulces';
         if (window.Combos && window.Combos.isHiddenFromSale(p)) catLabel += ' (oculto, no se vende)';
@@ -2631,10 +2637,12 @@ function renderStaffMeals(products, listContainer, searchQuery = '') {
 function renderCombosBar(products) {
     const bar = document.getElementById('combos-bar');
     if (!bar || !window.Combos) return;
-    const pasteles = products.filter(p => p.category === 'pastelitos');
-    const sample = pasteles.find(p => fixedBsOf(p) > 0);
-    if (!sample) {
-        // Combos are priced in fixed Bs; without a fixed-price pastel there's nothing to offer.
+    const C = window.Combos;
+    const sample = products.find(p => p.category === 'pastelitos' && fixedBsOf(p) > 0);
+    // Combos are priced in fixed Bs: one needs a fixed-price pastel (or its own
+    // `pastelBs`) and something in its category to pick from.
+    const offered = C.COMBOS.filter(c => products.some(p => p.category === C.comboCategory(c)) && (c.pastelBs > 0 || sample));
+    if (!offered.length) {
         bar.innerHTML = '';
         bar.classList.add('hidden');
         return;
@@ -2644,10 +2652,10 @@ function renderCombosBar(products) {
     bar.innerHTML = `
         <div class="combos-bar-title"><i class="fa-solid fa-gift"></i> Combos${promo ? ` <span class="combos-promo">Promo ${escapeHtml(window.Combos.PROMO.label)}: pastel en combo ${formatBsWhole(window.Combos.PROMO.priceBs)}</span>` : ''}</div>
         <div class="combos-bar-list">
-            ${window.Combos.COMBOS.map(c => `
+            ${offered.map(c => `
                 <button type="button" class="btn-combo" data-combo="${c.id}">
                     <span class="btn-combo-name">${escapeHtml(c.name)}</span>
-                    <span class="btn-combo-desc">${c.pasteles === 1 ? 'Pastel' : `${c.pasteles} pasteles`} + ${escapeHtml(c.drink)}</span>
+                    <span class="btn-combo-desc">${c.pasteles === 1 ? 'Pastel' : `${c.pasteles} ${c.unit || 'pasteles'}`} + ${escapeHtml(c.drink)}</span>
                     <span class="btn-combo-price">${formatBsWhole(window.Combos.comboBsToday(c, sample))}</span>
                 </button>`).join('')}
         </div>`;
@@ -2663,7 +2671,12 @@ function renderCombosBar(products) {
 function openComboPicker(comboId, products) {
     const combo = window.Combos.COMBOS.find(c => c.id === comboId);
     if (!combo) return;
-    const pasteles = products.filter(p => p.category === 'pastelitos');
+    const pasteles = products.filter(p => p.category === window.Combos.comboCategory(combo));
+    // A single choice (one mini product) needs no picker.
+    if (pasteles.length === 1) {
+        if (window.addComboToCart) window.addComboToCart(combo.id, Array(combo.pasteles).fill(pasteles[0].id));
+        return;
+    }
     const picked = [];
 
     const overlay = document.createElement('div');
@@ -3424,6 +3437,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 color = '#F4C27A';
                 unitLabel = 'piezas';
                 sortOrder = 40;
+            } else if (rawCat === 'minis') {
+                catKey = 'minis';
+                catLabel = 'Pastelitos mini';
+                icon = 'fa-cookie';
+                color = '#FFCBA4';
+                unitLabel = 'piezas';
+                sortOrder = 45;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = 'Bebidas';
@@ -5023,6 +5043,7 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
     const categories = {
         'pastelitos': { label: '🥐 Pastelitos', count: 0, amount: 0, class: 'fill-category-1' },
         'empanadas': { label: '🥟 Empanadas', count: 0, amount: 0, class: 'fill-category-1' },
+        'minis': { label: '🥐 Pastelitos mini', count: 0, amount: 0, class: 'fill-category-1' },
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
         'dulces': { label: '🍬 Dulces', count: 0, amount: 0, class: 'fill-category-5' },
         'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
@@ -5067,12 +5088,14 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
 const ANALYTICS_CATEGORY_FILL = {
     pastelitos: 'fill-category-1',
     empanadas: 'fill-category-1',
+    minis: 'fill-category-1',
     bebidas: 'fill-category-2',
     dulces: 'fill-category-5'
 };
 const ANALYTICS_CATEGORY_LABELS = {
     pastelitos: '🥐 Pastelitos',
     empanadas: '🥟 Empanadas',
+    minis: '🥐 Pastelitos mini',
     bebidas: '🥤 Bebidas',
     dulces: '🍬 Dulces',
     otros: '📦 Otros'
@@ -5263,7 +5286,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
             category = 'bebidas';
         } else if (prod && prod.category === 'dulces') {
             category = 'dulces';
-        } else if (prod && (prod.category === 'pastelitos' || prod.category === 'empanadas')) {
+        } else if (prod && (prod.category === 'pastelitos' || prod.category === 'empanadas' || prod.category === 'minis')) {
             category = 'pasteles';
         } else {
             // Check if name suggests beverage

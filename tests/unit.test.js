@@ -259,7 +259,14 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, lunes), 3000, "REAL Combos: Clásico Bs 3.000");
     assert.strictEqual(Combos.comboBsToday(byId('mananero'), pollo, lunes), 2700, "REAL Combos: Mañanero Bs 2.700");
     assert.strictEqual(Combos.comboBsToday(byId('pana'), pollo, lunes), 5000, "REAL Combos: Pana Bs 5.000");
-    Combos.COMBOS.forEach(c => assert.strictEqual(c.drinkBs + 2200 * c.pasteles, c.priceBs, `REAL Combos: ${c.name} suma su precio`));
+    Combos.COMBOS.forEach(c => assert.strictEqual(c.drinkBs + (c.pastelBs || 2200) * c.pasteles, c.priceBs, `REAL Combos: ${c.name} suma su precio`));
+    const mini = { id: 'pastelito_mini', category: 'minis', price: 1, price_bs: null };
+    assert.strictEqual(Combos.comboBsToday(byId('mini'), mini, lunes), 5400, "REAL Combos: Combo Mini Bs 5.400");
+    assert.strictEqual(Combos.comboBsToday(byId('mini'), mini, martes), 5400, "REAL Combos: Combo Mini sin promo martes/miércoles");
+    assert.strictEqual(Combos.comboPastelBsPrice(pollo, martes, byId('mini')), 750, "REAL Combos: el mini va a su precio fijo de combo");
+    assert.strictEqual(Combos.comboCategory(byId('mini')), 'minis', "REAL Combos: el Combo Mini sale de los minis");
+    assert.strictEqual(Combos.comboCategory(byId('pana')), 'pastelitos', "REAL Combos: los demás salen de los pastelitos");
+    assert.strictEqual(Combos.findDrink(byId('mini'), [{ name: 'Coca-Cola desechable 355ml' }]).name, 'Coca-Cola desechable 355ml', "REAL Combos: encuentra la Coca desechable");
     assert.strictEqual(Combos.comboBsToday(byId('clasico'), pollo, martes), 2800, "REAL Combos: en promo el combo también baja");
     assert.strictEqual(Combos.findDrink(byId('mananero'), [{ name: 'Café negro' }]).name, 'Café negro', "REAL Combos: encuentra la bebida");
     assert.strictEqual(Combos.findDrink(byId('clasico'), [{ name: 'MALTA RETORNABLE ' }]).name, 'MALTA RETORNABLE ', "REAL Combos: el nombre no distingue mayúsculas");

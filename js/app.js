@@ -414,7 +414,7 @@ function addComboToCart(comboId, flavorIds) {
 
     triggerHaptic(15);
     // Inside a combo the pastel takes the weekday promo; loose ones never do.
-    const lines = pasteles.map(p => ({ product: p, price: bsToUsd(Combos.comboPastelBsPrice(p), bcvRate) || saleUsdPrice(p, bcvRate) }));
+    const lines = pasteles.map(p => ({ product: p, price: bsToUsd(Combos.comboPastelBsPrice(p, undefined, combo), bcvRate) || saleUsdPrice(p, bcvRate) }));
     lines.push({ product: drink, price: bsToUsd(combo.drinkBs, bcvRate) });
 
     lines.forEach(({ product, price }) => {
@@ -1912,6 +1912,10 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
                 catKey = 'empanadas';
                 catLabel = '🥟 Empanadas';
                 sortOrder = 40;
+            } else if (rawCat === 'minis') {
+                catKey = 'minis';
+                catLabel = '🥐 Pastelitos mini';
+                sortOrder = 45;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';

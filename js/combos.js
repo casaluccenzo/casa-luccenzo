@@ -10,10 +10,14 @@
     // Cada combo: pasteles del sabor que elija el cliente + una bebida. El
     // pastel se cobra a su precio fijo del día y la bebida a `drinkBs`, así
     // que el combo suma `priceBs` en un día normal (en días de promo, menos).
+    // `category`: de dónde salen los pasteles (por defecto 'pastelitos').
+    // `pastelBs`: precio fijo de cada pastel dentro del combo; con él el combo
+    // cuesta siempre `priceBs`, todos los días y sin la promo.
     const COMBOS = [
         { id: 'clasico', name: 'Combo Clásico', pasteles: 1, drink: 'Malta Retornable', drinkBs: 800, priceBs: 3000 },
         { id: 'mananero', name: 'Combo Mañanero', pasteles: 1, drink: 'Café negro', drinkBs: 500, priceBs: 2700 },
-        { id: 'pana', name: 'Combo Pana', pasteles: 2, drink: 'Malta Retornable', drinkBs: 600, priceBs: 5000 }
+        { id: 'pana', name: 'Combo Pana', pasteles: 2, drink: 'Malta Retornable', drinkBs: 600, priceBs: 5000 },
+        { id: 'mini', name: 'Combo Mini', pasteles: 6, category: 'minis', unit: 'minis', pastelBs: 750, drink: 'Coca-Cola desechable 355ml', drinkBs: 900, priceBs: 5400 }
     ];
 
     // Consumo del personal: el pastel al costo exacto (products.cost, en Bs),
@@ -50,8 +54,14 @@
         return bs > 0 ? bs : 0;
     }
 
+    /** Categoría de la que salen los pasteles del combo. */
+    function comboCategory(combo) {
+        return (combo && combo.category) || 'pastelitos';
+    }
+
     /** Precio en Bs del pastel dentro de un combo hoy: con la promo si toca, o 0. */
-    function comboPastelBsPrice(product, date) {
+    function comboPastelBsPrice(product, date, combo) {
+        if (combo && combo.pastelBs > 0) return combo.pastelBs;
         const bs = fixedBsPrice(product);
         if (!(bs > 0)) return 0;
         if (product.category === PROMO.category && isPromoDay(date) && PROMO.priceBs < bs) return PROMO.priceBs;
@@ -68,7 +78,7 @@
 
     /** Precio del combo en Bs hoy: pasteles al precio de combo del día + bebida. */
     function comboBsToday(combo, pastelProduct, date) {
-        const pastelBs = comboPastelBsPrice(pastelProduct, date) || 0;
+        const pastelBs = comboPastelBsPrice(pastelProduct, date, combo) || 0;
         return pastelBs * combo.pasteles + combo.drinkBs;
     }
 
@@ -95,6 +105,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

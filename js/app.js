@@ -1907,6 +1907,10 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
                 catKey = `pastelitos_${unitPrice.toFixed(2)}`;
                 catLabel = `🥐 Pastelitos ($${unitPrice.toFixed(2)})`;
                 sortOrder = 10 + unitPrice;
+            } else if (rawCat === 'empanadas') {
+                catKey = 'empanadas';
+                catLabel = '🥟 Empanadas';
+                sortOrder = 40;
             } else if (rawCat === 'bebidas') {
                 catKey = 'bebidas';
                 catLabel = '🥤 Bebidas';
@@ -2342,13 +2346,17 @@ function addNewProduct(e) {
     products.push(newProd);
     window.StorageManager.saveProducts(products);
 
+    // Postgres recalcula products.stock desde stock_movements (migración 033):
+    // sin esta carga inicial, la primera venta dejaba el producto en negativo.
+    // Va después del producto para que el movimiento no llegue antes que él.
     if (window.SupabaseManager.isConfigured()) {
-        window.SupabaseManager.upsertProduct(newProd);
+        Promise.resolve(window.SupabaseManager.upsertProduct(newProd))
+            .then(() => recordStockMovement(newProd, max, 'load'));
     }
 
     window.UIManager.renderSettingsProducts(products, editProductPrompt, deleteProduct);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
-    
+
     document.getElementById('add-product-form').reset();
     window.UIManager.showToast(`✨ "${name}" agregado con éxito.`, "fa-solid fa-plus");
     logActivity("Producto Agregado", `Nuevo producto registrado: ${name} (Precio: $${price.toFixed(2)}, Max: ${max})`);

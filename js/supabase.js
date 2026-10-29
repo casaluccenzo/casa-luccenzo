@@ -1785,6 +1785,27 @@ async function fetchDayReport(dateStr) {
 }
 
 /**
+ * PDFs de ventas guardados al cierre (tabla day_reports, migración 044).
+ * Si la tabla todavía no existe devuelve [] y el historial sigue como antes.
+ * @param {number} days Cuántos días hacia atrás
+ */
+async function fetchSavedDayReports(days = 30) {
+    if (!client) return [];
+    try {
+        const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+        const { data, error } = await client.from('day_reports')
+            .select('report_date, generated_at, trigger, accounts, total_bs')
+            .gte('report_date', since)
+            .order('report_date', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    } catch (e) {
+        console.warn("day_reports no disponible:", e);
+        return [];
+    }
+}
+
+/**
  * Fetch list of unique days with sales activity in the last N days
  * @param {number} days Number of days to look back (default 30)
  * @returns {Array} Array of date strings with activity
@@ -2127,6 +2148,7 @@ window.SupabaseManager = {
     fetchPnlData,
     fetchDayReport,
     fetchReportDays,
+    fetchSavedDayReports,
     fetchSalesHistory,
     fetchActiveSessions,
     registerSession,

@@ -1,6 +1,11 @@
 {
   "buildCommand": "node scripts/build.js",
   "outputDirectory": "www",
+  "functions": {
+    "api/cierre-pdf.js": {
+      "includeFiles": "{img/logo-factura.png,js/combos.js,node_modules/pdfkit/js/data/**}"
+    }
+  },
   "crons": [
     {
       "path": "/api/keepalive",
@@ -13,6 +18,10 @@
     {
       "path": "/api/daily-restock",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cierre-pdf",
+      "schedule": "15 4 * * *"
     }
   ],
   "headers": [

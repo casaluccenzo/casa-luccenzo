@@ -2212,7 +2212,8 @@ async function openReportHistoryModal() {
             const report = await window.SupabaseManager.fetchDayReport(dateStr);
             if (report) {
                 const reportRate = report.bcvRate || report.sales?.find(s => s.bcvRate)?.bcvRate || window.bcvRate || bcvRate;
-                const message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, reportRate, products);
+                let message = generateWhatsAppReport(report.sales, report.expenses, formattedDate, reportRate, products);
+                if (pdfByDate.has(dateStr)) message += `\n\n📄 PDF del día: ${dayReportPdfUrl(dateStr)}`;
                 const encodedMessage = encodeURIComponent(message);
                 if (waTab) {
                     waTab.location.href = `https://api.whatsapp.com/send?text=${encodedMessage}`;
@@ -2258,7 +2259,8 @@ async function requestDayReportPdf({ fecha, manual = false } = {}) {
             body: JSON.stringify({ fecha: fecha || caracasDateStr(), manual })
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        window.UIManager.showToast("📄 Reporte PDF del día guardado. Lo ves en Historial de reportes.", "fa-solid fa-file-pdf");
+        if (manual) window.UIManager.showToast("📄 Reporte PDF del día guardado.", "fa-solid fa-file-pdf");
+        else showDayReportShareCard(fecha || caracasDateStr());
         return true;
     } catch (e) {
         console.warn("No se pudo generar el PDF del día; el cron de medianoche lo reintenta.", e);
@@ -2267,8 +2269,62 @@ async function requestDayReportPdf({ fecha, manual = false } = {}) {
     }
 }
 
+/** Enlace fijo al PDF guardado de un día; la API lo cambia por una URL firmada al abrirlo. */
+function dayReportPdfUrl(fecha) {
+    return `https://www.casalucenzo.com/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`;
+}
+
 function openDayReportPdf(fecha) {
     window.open(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`, '_blank');
+}
+
+/**
+ * Tarjeta flotante "Compartir PDF" tras el cierre. El archivo se baja ANTES de
+ * mostrar el botón: el menú de compartir del teléfono solo abre si se llama
+ * directo desde el toque, sin esperas de red en medio. Donde no se pueden
+ * compartir archivos (escritorio) el botón abre el PDF.
+ */
+async function showDayReportShareCard(fecha) {
+    let file = null;
+    try {
+        const resp = await fetch(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`);
+        if (resp.ok) {
+            const blob = await resp.blob();
+            const f = new window.File([blob], `ventas-${fecha}-casa-lucenzo.pdf`, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [f] })) file = f;
+        }
+    } catch (e) {
+        console.warn("No se pudo bajar el PDF para compartir; el botón lo abrirá.", e);
+    }
+
+    document.getElementById('day-report-share-card')?.remove();
+    const card = document.createElement('div');
+    card.id = 'day-report-share-card';
+    card.style.cssText = 'position:fixed;left:50%;bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10050;display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.7rem 0.6rem 0.9rem;border-radius:14px;background:#0f2a52;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.35);font-size:0.8125rem;max-width:calc(100vw - 32px);';
+    card.innerHTML = `
+        <i class="fa-solid fa-file-pdf" style="color:#f87171;"></i>
+        <span style="font-weight:700;white-space:nowrap;">PDF del día listo</span>
+        <button type="button" data-act="share" style="height:34px;padding:0 0.8rem;border:none;border-radius:10px;background:#25d366;color:#fff;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.3rem;">
+            <i class="fa-brands fa-whatsapp"></i> ${file ? 'Compartir' : 'Abrir'}
+        </button>
+        <button type="button" data-act="close" aria-label="Cerrar" style="height:34px;width:34px;border:none;border-radius:10px;background:transparent;color:#cbd5e1;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>`;
+    document.body.appendChild(card);
+
+    const remove = () => card.remove();
+    const timer = setTimeout(remove, 60000);
+    card.querySelector('[data-act="close"]').addEventListener('click', () => { clearTimeout(timer); remove(); });
+    card.querySelector('[data-act="share"]').addEventListener('click', async () => {
+        triggerHaptic(15);
+        if (!file) { openDayReportPdf(fecha); return; }
+        try {
+            await navigator.share({ files: [file], title: `Ventas ${fecha} - Casa Lucenzo` });
+            clearTimeout(timer);
+            remove();
+        } catch (e) {
+            // Cancelado por el usuario: la tarjeta queda para intentar otra vez.
+            if (e && e.name !== 'AbortError') openDayReportPdf(fecha);
+        }
+    });
 }
 
 /**
@@ -4821,7 +4877,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Build the report from whatever data the modal is currently showing.
             const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
             const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
-            const message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
+            let message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
+            // El PDF se arma unos segundos después del cierre; el enlace sirve en cuanto esté.
+            if (!currentReportData.isHistory) message += `\n\n📄 PDF del día: ${dayReportPdfUrl(caracasDateStr())}`;
 
             // Close first, share second. Opening WhatsApp up front announced a
             // closed day before the database had agreed to it -- if the close

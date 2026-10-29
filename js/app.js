@@ -2230,8 +2230,9 @@ async function openReportHistoryModal() {
 
 // ================= REPORTE PDF DEL DÍA =================
 
-// Las apps de Android/escritorio no corren en casalucenzo.com: ahí la API va absoluta.
-const API_BASE = /^https?:$/.test(window.location.protocol) ? '' : 'https://casalucenzo.com';
+// La app de escritorio corre en app://: ahí la API va absoluta, a www (el dominio
+// sin www redirige con 308 y el preflight CORS no sigue redirecciones).
+const API_BASE = /^https?:$/.test(window.location.protocol) ? '' : 'https://www.casalucenzo.com';
 
 /** "AAAA-MM-DD" del día en Caracas (UTC-4), sin importar la zona del equipo. */
 function caracasDateStr(date = new Date()) {

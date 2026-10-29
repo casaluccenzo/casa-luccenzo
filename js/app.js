@@ -2088,7 +2088,13 @@ async function openReportHistoryModal() {
         return;
     }
 
-    const days = await window.SupabaseManager.fetchReportDays(30);
+    const [days, savedPdfs] = await Promise.all([
+        window.SupabaseManager.fetchReportDays(30),
+        window.SupabaseManager.fetchSavedDayReports(30)
+    ]);
+    const pdfByDate = new Map((savedPdfs || []).map(r => [r.report_date, r]));
+    const pdfToday = caracasDateStr();
+    const pdfYesterday = caracasDateStr(new Date(Date.now() - 24 * 3600 * 1000));
 
     if (!days || days.length === 0) {
         body.innerHTML = `
@@ -2118,7 +2124,15 @@ async function openReportHistoryModal() {
                     <div style="font-size: 0.8125rem; font-weight: 700; color: var(--color-white);">${dayName} ${badge}</div>
                     <div style="font-size: 0.6875rem; color: var(--color-text-muted);">${displayDate}</div>
                 </div>
-                <div style="display: flex; gap: 0.375rem;">
+                <div style="display: flex; gap: 0.375rem; flex-wrap: wrap; justify-content: flex-end;">
+                    ${pdfByDate.has(dateStr) ? `
+                    <button class="btn-report-pdf" data-date="${dateStr}" title="PDF guardado al cierre" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: none; background: #c0392b; color: #fff; font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="fa-solid fa-file-pdf" style="font-size: 11px;"></i> PDF
+                    </button>` : ''}
+                    ${(dateStr === pdfToday || dateStr === pdfYesterday) ? `
+                    <button class="btn-report-pdf-regen" data-date="${dateStr}" title="${pdfByDate.has(dateStr) ? 'Volver a generar el PDF con las ventas actuales' : 'Generar el PDF de este día'}" style="height: 34px; padding: 0 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-text-muted); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="fa-solid fa-rotate" style="font-size: 10px;"></i> ${pdfByDate.has(dateStr) ? '' : 'PDF'}
+                    </button>` : ''}
                     <button class="btn-report-view" data-date="${dateStr}" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-gold); background: transparent; color: var(--color-gold); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
                         <i class="fa-solid fa-eye" style="font-size: 10px;"></i> Ver
                     </button>
@@ -2141,6 +2155,26 @@ async function openReportHistoryModal() {
     }
 
     body.innerHTML = html;
+
+    body.querySelectorAll('.btn-report-pdf').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            triggerHaptic(15);
+            openDayReportPdf(e.currentTarget.dataset.date);
+        });
+    });
+
+    body.querySelectorAll('.btn-report-pdf-regen').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const dateStr = e.currentTarget.dataset.date;
+            triggerHaptic(15);
+            if (!requireOnline('Generar el PDF del día')) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            const ok = await requestDayReportPdf({ fecha: dateStr, manual: true });
+            if (ok) openReportHistoryModal();
+            else btn.disabled = false;
+        });
+    });
 
     // Bind view buttons
     body.querySelectorAll('.btn-report-view').forEach(btn => {
@@ -2192,6 +2226,48 @@ async function openReportHistoryModal() {
             btn.innerHTML = '<i class="fa-brands fa-whatsapp" style="font-size: 12px;"></i> Enviar';
         });
     });
+}
+
+// ================= REPORTE PDF DEL DÍA =================
+
+// Las apps de Android/escritorio no corren en casalucenzo.com: ahí la API va absoluta.
+const API_BASE = /^https?:$/.test(window.location.protocol) ? '' : 'https://casalucenzo.com';
+
+/** "AAAA-MM-DD" del día en Caracas (UTC-4), sin importar la zona del equipo. */
+function caracasDateStr(date = new Date()) {
+    return new Date(date.getTime() - 4 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Pide al servidor que arme y guarde el PDF de ventas del día (api/cierre-pdf.js).
+ * El PDF sale de la base, así que primero espera (hasta ~1 min) a que este
+ * equipo termine de subir sus ventas pendientes. Si falla o no hay conexión,
+ * el cron de medianoche lo genera igual; nunca bloquea ni deshace el cierre.
+ */
+async function requestDayReportPdf({ fecha, manual = false } = {}) {
+    try {
+        for (let i = 0; i < 30 && window.PowerSyncManager; i++) {
+            const stats = await window.PowerSyncManager.getUploadQueueStats().catch(() => null);
+            if (!stats || !stats.count) break;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+        const resp = await fetch(`${API_BASE}/api/cierre-pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fecha: fecha || caracasDateStr(), manual })
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        window.UIManager.showToast("📄 Reporte PDF del día guardado. Lo ves en Historial de reportes.", "fa-solid fa-file-pdf");
+        return true;
+    } catch (e) {
+        console.warn("No se pudo generar el PDF del día; el cron de medianoche lo reintenta.", e);
+        if (manual) window.UIManager.showToast("❌ No se pudo generar el PDF. Revisá la conexión.", "fa-solid fa-circle-xmark");
+        return false;
+    }
+}
+
+function openDayReportPdf(fecha) {
+    window.open(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`, '_blank');
 }
 
 /**
@@ -2318,9 +2394,11 @@ async function closeDayAndResetLogs() {
         }
 
         window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
+        return true;
     } catch (e) {
         console.error("Failed to reset logs during day close", e);
         window.UIManager.showToast("❌ Error al cerrar la jornada. No se cerró -- revisá la conexión y probá de nuevo.", "fa-solid fa-circle-xmark");
+        return false;
     } finally {
         closeDayAndResetLogs._inProgress = false;
     }
@@ -4748,7 +4826,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // closed day before the database had agreed to it -- if the close
             // then failed, the report was already sent and the day was still open.
             if (!currentReportData.isHistory) {
-                await closeDayAndResetLogs();
+                const closed = await closeDayAndResetLogs();
+                // Sin await: el PDF se arma en el servidor y no debe demorar WhatsApp.
+                if (closed) requestDayReportPdf();
             }
 
             const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;

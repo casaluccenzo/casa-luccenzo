@@ -1,12 +1,12 @@
 {
   "name": "casa-lucenzo",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Sistema de gestión de inventario y caja para Casa Lucenzo.",
   "main": "index.html",
   "scripts": {
     "dev": "node scripts/devserver.js",
     "build": "node scripts/build.js",
-    "test": "node tests/unit.test.js && node tests/build.test.js",
+    "test": "node tests/unit.test.js && node tests/build.test.js && node tests/day-report.test.js",
     "test:convergence": "node tests/powersync-convergence.test.js",
     "lint": "eslint .",
     "generate:qr": "node scripts/generate-qr.js",
@@ -21,6 +21,7 @@
   "license": "ISC",
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "pdfkit": "^0.17.2",
     "pino": "^10.3.1",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0"

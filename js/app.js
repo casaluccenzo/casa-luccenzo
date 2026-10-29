@@ -4894,6 +4894,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.handleEditSale = handleEditSale;
 window.handleUndoSale = handleUndoSale;
 window.startExtraInvoiceAccount = startExtraInvoiceAccount;
+window.getCurrentRole = () => currentRole;
 window.handleCartQtyChange = handleCartQtyChange;
 window.updateProductStockDirect = updateProductStockDirect;
 

@@ -4466,8 +4466,32 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                     <i class="fa-solid fa-plus"></i> El cliente pide más
                 </button>
             </div>` : ''}
+            ${inv.status !== 'anulada' && window.getCurrentRole && window.getCurrentRole() === 'admin' ? `
+            <div class="inv-noprint" style="text-align: right; margin: -0.4rem 0 0.9rem;">
+                <button class="btn-inv-void" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(252,165,165,0.5); cursor: pointer; background: rgba(239,68,68,0.1); color: #FCA5A5; font-weight: 800; font-size: 0.75rem;">
+                    <i class="fa-solid fa-ban"></i> Anular factura (admin)
+                </button>
+            </div>` : ''}
             <div class="inv-paper-stage" style="width: 100%;"></div>`;
         bindClose();
+        const voidBtn = panel.querySelector('.btn-inv-void');
+        if (voidBtn) {
+            voidBtn.addEventListener('click', async () => {
+                const num = window.InvoiceRenderer.pad5(inv.number);
+                const reason = window.prompt(`Motivo para anular la Factura N° ${num} (queda guardado):`, '');
+                if (reason === null) return;
+                if (reason.trim().length < 3) return showToast('⚠️ Escriba el motivo de la anulación.', 'fa-solid fa-triangle-exclamation');
+                if (!window.confirm(`¿Anular la Factura N° ${num}? El número no se vuelve a usar y la factura queda marcada ANULADA. Esa cuenta podrá corregirse y facturarse de nuevo con otro número.`)) return;
+                voidBtn.disabled = true;
+                const { invoice, error } = await window.SupabaseManager.voidInvoice(inv.number, reason.trim());
+                if (!invoice) {
+                    voidBtn.disabled = false;
+                    return showToast(`⚠️ ${error}`, 'fa-solid fa-triangle-exclamation');
+                }
+                showToast(`🚫 Factura N° ${num} anulada.`, 'fa-solid fa-ban');
+                await showInvoice(invoice);
+            });
+        }
         const extraBtn = panel.querySelector('.btn-inv-extra');
         if (extraBtn) {
             extraBtn.addEventListener('click', () => {

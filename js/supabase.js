@@ -1240,6 +1240,22 @@ async function fetchInvoiceForSale(saleTimestamp) {
     }
 }
 
+/**
+ * Anula una factura emitida (solo admin, lo controla la base). Queda guardada
+ * con su número y marcada ANULADA; ver supabase/migrations/043_void_invoices.sql.
+ */
+async function voidInvoice(number, reason) {
+    if (!client) return { invoice: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('void_invoice', { p_number: number, p_reason: reason });
+        if (error) throw error;
+        return { invoice: data, error: null };
+    } catch (err) {
+        console.error('voidInvoice:', err);
+        return { invoice: null, error: err.message || 'No se pudo anular la factura.' };
+    }
+}
+
 async function getUserProfile(userId) {
     if (!client || !userId) return null;
     try {
@@ -2103,6 +2119,7 @@ window.SupabaseManager = {
     getClient,
     issueInvoice,
     fetchInvoiceForSale,
+    voidInvoice,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,

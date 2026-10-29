@@ -4436,6 +4436,8 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             </button>
         </div>`;
     const bindClose = () => panel.querySelector('.btn-close-invoice').addEventListener('click', close);
+    // Para ir a la Vitrina hay que cerrar también el recibo/cobro que abrió esta factura.
+    const closeAllPosModals = () => document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
 
     const showInvoice = async (inv) => {
         await loadQrLib();
@@ -4457,8 +4459,46 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                     <i class="fa-solid fa-link"></i> Copiar enlace
                 </button>
             </div>
+            ${inv.status !== 'anulada' && window.startExtraInvoiceAccount ? `
+            <div class="inv-noprint" style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; background: rgba(255,255,255,0.04); border: 1px dashed rgba(212,175,55,0.45); border-radius: 10px; padding: 0.55rem 0.7rem; margin-bottom: 0.9rem; font-size: 0.75rem; color: var(--color-text-muted);">
+                <span style="flex: 1; min-width: 200px;">Esta factura ya tiene número y no se modifica. Si el cliente pide algo más, se cobra en una cuenta aparte con su propia factura.</span>
+                <button class="btn-inv-extra" style="height: 36px; padding: 0 0.8rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.78rem;">
+                    <i class="fa-solid fa-plus"></i> El cliente pide más
+                </button>
+            </div>` : ''}
+            ${inv.status !== 'anulada' && window.getCurrentRole && window.getCurrentRole() === 'admin' ? `
+            <div class="inv-noprint" style="text-align: right; margin: -0.4rem 0 0.9rem;">
+                <button class="btn-inv-void" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(252,165,165,0.5); cursor: pointer; background: rgba(239,68,68,0.1); color: #FCA5A5; font-weight: 800; font-size: 0.75rem;">
+                    <i class="fa-solid fa-ban"></i> Anular factura (admin)
+                </button>
+            </div>` : ''}
             <div class="inv-paper-stage" style="width: 100%;"></div>`;
         bindClose();
+        const voidBtn = panel.querySelector('.btn-inv-void');
+        if (voidBtn) {
+            voidBtn.addEventListener('click', async () => {
+                const num = window.InvoiceRenderer.pad5(inv.number);
+                const reason = window.prompt(`Motivo para anular la Factura N° ${num} (queda guardado):`, '');
+                if (reason === null) return;
+                if (reason.trim().length < 3) return showToast('⚠️ Escriba el motivo de la anulación.', 'fa-solid fa-triangle-exclamation');
+                if (!window.confirm(`¿Anular la Factura N° ${num}? El número no se vuelve a usar y la factura queda marcada ANULADA. Esa cuenta podrá corregirse y facturarse de nuevo con otro número.`)) return;
+                voidBtn.disabled = true;
+                const { invoice, error } = await window.SupabaseManager.voidInvoice(inv.number, reason.trim());
+                if (!invoice) {
+                    voidBtn.disabled = false;
+                    return showToast(`⚠️ ${error}`, 'fa-solid fa-triangle-exclamation');
+                }
+                showToast(`🚫 Factura N° ${num} anulada.`, 'fa-solid fa-ban');
+                await showInvoice(invoice);
+            });
+        }
+        const extraBtn = panel.querySelector('.btn-inv-extra');
+        if (extraBtn) {
+            extraBtn.addEventListener('click', () => {
+                closeAllPosModals();
+                window.startExtraInvoiceAccount(inv.client_rif ? `${inv.client_name} - ${inv.client_rif}` : inv.client_name);
+            });
+        }
 
         const stage = panel.querySelector('.inv-paper-stage');
         const fit = window.InvoiceRenderer.mount(stage, inv, { origin });
@@ -4519,6 +4559,10 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             </div>
             <div style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.2rem;">Tasa BCV: Bs ${effectiveRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Pago: ${escapeHtml(payMethod || '—')}</div>
         </div>
+        ${window.handleEditSale ? `
+        <button type="button" class="btn-inv-edit-account" style="width: 100%; height: 40px; margin-bottom: 0.9rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); cursor: pointer; background: rgba(212,175,55,0.12); color: var(--color-gold); font-weight: 900; font-size: 0.8rem;">
+            <i class="fa-solid fa-pen-to-square"></i> MODIFICAR CUENTA ANTES DE FACTURAR
+        </button>` : ''}
         <form class="inv-issue-form" style="display: grid; gap: 0.6rem;">
             <div><label style="${labelStyle}" for="inv-client-name">Nombre o razón social *</label><input id="inv-client-name" required maxlength="200" style="${inputStyle}" value="${escapeHtml(clientName && clientName !== 'Cliente' ? clientName : '')}"></div>
             <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF *</label><input id="inv-client-rif" required maxlength="30" placeholder="V-12.345.678 o J-12345678-9" style="${inputStyle}" value="${escapeHtml(clientRif)}"></div>
@@ -4534,6 +4578,17 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center;">Se le asigna el siguiente número de factura y no se puede repetir. Revise los datos antes de emitir.</div>
         </form>`;
     bindClose();
+
+    const editAccountBtn = panel.querySelector('.btn-inv-edit-account');
+    if (editAccountBtn) {
+        // Reusa "Modificar/Corregir" de Clientes: la cuenta vuelve a la Vitrina
+        // con sus combos y precios en Bs, el stock se ajusta al agregar o quitar,
+        // y al cobrarla se reemplaza la venta (mismo horario, sin duplicarla).
+        editAccountBtn.addEventListener('click', () => {
+            closeAllPosModals();
+            window.handleEditSale(timestamp);
+        });
+    }
 
     const form = panel.querySelector('.inv-issue-form');
     const errorBox = panel.querySelector('.inv-issue-error');

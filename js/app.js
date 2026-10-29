@@ -867,12 +867,64 @@ async function handleCheckoutCart() {
 }
 
 /**
+ * Una cuenta con factura emitida no se puede corregir ni deshacer: la factura
+ * guarda los ítems y el total con un número que no se repite, y quedaría
+ * diciendo otra cosa que la venta. Lo que el cliente pida de más va en una
+ * cuenta nueva con su propia factura (startExtraInvoiceAccount).
+ * Devuelve true si se puede seguir.
+ */
+async function canChangeInvoicedAccount(timestamp, action) {
+    if (!window.SupabaseManager || !window.SupabaseManager.isConfigured()) return true;
+    if (!navigator.onLine) {
+        return confirm(`Sin internet no se puede revisar si esta cuenta ya tiene factura carta. Si ya se le emitió factura, NO la ${action}: abra una cuenta nueva para lo adicional. ¿Continuar igual?`);
+    }
+    const invoice = await window.SupabaseManager.fetchInvoiceForSale(timestamp);
+    if (!invoice || invoice.status === 'anulada') return true;
+    const num = window.InvoiceRenderer ? window.InvoiceRenderer.pad5(invoice.number) : invoice.number;
+    alert(`Esta cuenta ya tiene la Factura N° ${num} emitida, así que no se puede ${action}.\n\nSi el cliente pide algo más: abra la factura y toque "El cliente pide más", cobre lo nuevo en una cuenta aparte y emítale otra factura.`);
+    return false;
+}
+
+/**
+ * Cuenta nueva para lo que el cliente pide después de facturar: deja el
+ * carrito vacío con el nombre del cliente ya puesto, y al cobrarla vuelve a
+ * Clientes, donde se le emite su propia factura.
+ */
+function startExtraInvoiceAccount(clientLabel) {
+    if (currentCart.length > 0 && !confirm("Ya tienes productos en la cuenta activa. ¿Deseas vaciarla para empezar la cuenta adicional?")) {
+        return;
+    }
+    if (currentCart.length > 0) {
+        currentCart.forEach(cartItem => {
+            const product = products.find(p => p.id === cartItem.productId);
+            if (product) {
+                const before = product.stock;
+                product.stock = product.stock >= product.max ? product.stock + cartItem.quantity : Math.min(product.max, product.stock + cartItem.quantity);
+                recordStockMovement(product, product.stock - before, 'sale_return');
+            }
+        });
+        window.StorageManager.saveProducts(products);
+    }
+    currentCart = [];
+    localStorage.removeItem('casa_lucenzo_current_cart');
+    sessionStorage.removeItem('casa_lucenzo_editing_sales');
+    sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
+    sessionStorage.setItem('casa_lucenzo_editing_client_name', clientLabel || 'Cliente');
+
+    window.UIManager.switchView('local');
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
+    window.UIManager.showToast(`➕ Cuenta adicional de "${clientLabel}": agregue lo nuevo, cóbrelo y emita otra factura.`, "fa-solid fa-plus");
+}
+
+/**
  * Undoes a sales transaction by restoring stock and subtracting from register
  * @param {string} timestamp Sales log entry transaction timestamp
  */
-function handleUndoSale(timestamp) {
+async function handleUndoSale(timestamp) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
+    if (!(await canChangeInvoicedAccount(timestamp, 'deshacer'))) return;
 
     triggerHaptic(15);
 
@@ -970,6 +1022,7 @@ window.handleAutocorrectSales = handleAutocorrectSales;
 async function handleEditSale(timestamp) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
+    if (!(await canChangeInvoicedAccount(timestamp, 'modificar'))) return;
 
     // A closed/collected sale is tagged "(Pagado ...)" on every item's name.
     // Reopening one for correction is money-sensitive: the corrected cuenta comes
@@ -4840,6 +4893,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose functions globally for UI callbacks and fallbacks
 window.handleEditSale = handleEditSale;
 window.handleUndoSale = handleUndoSale;
+window.startExtraInvoiceAccount = startExtraInvoiceAccount;
+window.getCurrentRole = () => currentRole;
 window.handleCartQtyChange = handleCartQtyChange;
 window.updateProductStockDirect = updateProductStockDirect;
 

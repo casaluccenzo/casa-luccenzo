@@ -1256,6 +1256,56 @@ async function voidInvoice(number, reason) {
     }
 }
 
+/**
+ * Número que llevará la próxima factura, o null sin conexión.
+ * Ver supabase/migrations/045_invoice_numbering.sql.
+ */
+async function fetchInvoiceNextNumber() {
+    if (!client) return null;
+    try {
+        const { data, error } = await client.rpc('get_invoice_next_number');
+        if (error) throw error;
+        return typeof data === 'number' ? data : null;
+    } catch (err) {
+        console.error('fetchInvoiceNextNumber:', err);
+        return null;
+    }
+}
+
+/**
+ * Cambia el número de la próxima factura (solo admin). La base no deja
+ * ponerlo en un número ya usado ni por debajo de la mayor emitida.
+ */
+async function setInvoiceNextNumber(next) {
+    if (!client) return { next: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('set_invoice_next_number', { p_next: next });
+        if (error) throw error;
+        return { next: data, error: null };
+    } catch (err) {
+        console.error('setInvoiceNextNumber:', err);
+        return { next: null, error: err.message || 'No se pudo cambiar el correlativo.' };
+    }
+}
+
+/**
+ * Corrige el N° y/o el número de control de una factura ya emitida (solo
+ * admin). El cambio queda registrado con el valor anterior y el motivo.
+ */
+async function renumberInvoice(number, newNumber, newControl, reason) {
+    if (!client) return { invoice: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('renumber_invoice', {
+            p_number: number, p_new_number: newNumber, p_new_control: newControl || '', p_reason: reason
+        });
+        if (error) throw error;
+        return { invoice: data, error: null };
+    } catch (err) {
+        console.error('renumberInvoice:', err);
+        return { invoice: null, error: err.message || 'No se pudo corregir la factura.' };
+    }
+}
+
 async function getUserProfile(userId) {
     if (!client || !userId) return null;
     try {
@@ -2141,6 +2191,9 @@ window.SupabaseManager = {
     issueInvoice,
     fetchInvoiceForSale,
     voidInvoice,
+    fetchInvoiceNextNumber,
+    setInvoiceNextNumber,
+    renumberInvoice,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,

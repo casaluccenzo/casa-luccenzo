@@ -4439,6 +4439,10 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
     // Para ir a la Vitrina hay que cerrar también el recibo/cobro que abrió esta factura.
     const closeAllPosModals = () => document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
 
+    const inputStyle = 'width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; color: var(--color-white); font-weight: 700; font-size: 0.85rem;';
+    const labelStyle = 'display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.25rem; font-size: 0.72rem; text-transform: uppercase;';
+    const isAdmin = () => !!(window.getCurrentRole && window.getCurrentRole() === 'admin');
+
     const showInvoice = async (inv) => {
         await loadQrLib();
         const origin = window.location.origin;
@@ -4466,14 +4470,70 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                     <i class="fa-solid fa-plus"></i> El cliente pide más
                 </button>
             </div>` : ''}
-            ${inv.status !== 'anulada' && window.getCurrentRole && window.getCurrentRole() === 'admin' ? `
-            <div class="inv-noprint" style="text-align: right; margin: -0.4rem 0 0.9rem;">
+            ${isAdmin() ? `
+            <div class="inv-noprint" style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin: -0.4rem 0 0.9rem;">
+                <button class="btn-inv-renumber" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); cursor: pointer; background: rgba(212,175,55,0.1); color: var(--color-gold); font-weight: 800; font-size: 0.75rem;">
+                    <i class="fa-solid fa-pen"></i> Corregir número (admin)
+                </button>
+                ${inv.status !== 'anulada' ? `
                 <button class="btn-inv-void" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(252,165,165,0.5); cursor: pointer; background: rgba(239,68,68,0.1); color: #FCA5A5; font-weight: 800; font-size: 0.75rem;">
                     <i class="fa-solid fa-ban"></i> Anular factura (admin)
-                </button>
-            </div>` : ''}
+                </button>` : ''}
+            </div>
+            <form class="inv-noprint inv-renumber-form" style="display: none; background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; padding: 0.7rem; margin-bottom: 0.9rem; font-size: 0.78rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 0.5rem;">
+                    <div><label style="${labelStyle}" for="inv-new-number">N° de factura</label><input id="inv-new-number" type="number" min="1" max="99999999" required style="${inputStyle}" value="${inv.number}"></div>
+                    <div><label style="${labelStyle}" for="inv-new-control">N° de control</label><input id="inv-new-control" maxlength="20" required style="${inputStyle}" value="${escapeHtml(inv.control_number || '')}"></div>
+                </div>
+                <div style="margin-top: 0.5rem;"><label style="${labelStyle}" for="inv-renumber-reason">Motivo (queda guardado)</label><input id="inv-renumber-reason" maxlength="300" required placeholder="Ej.: no coincidía con la libreta" style="${inputStyle}"></div>
+                <div style="color: var(--color-text-muted); margin-top: 0.45rem;">No se puede usar un número que ya tenga otra factura. Si cambia el N°, el QR y el enlace viejos dejan de servir: reimprima o reenvíe la factura.</div>
+                <div class="inv-renumber-error" style="display: none; color: #FCA5A5; font-weight: 700; margin-top: 0.4rem;"></div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.55rem;">
+                    <button type="button" class="btn-inv-renumber-cancel" style="height: 34px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: transparent; color: var(--color-white); font-weight: 800;">Cancelar</button>
+                    <button type="submit" class="btn-inv-renumber-save" style="height: 34px; padding: 0 0.9rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900;">Guardar corrección</button>
+                </div>
+            </form>` : ''}
             <div class="inv-paper-stage" style="width: 100%;"></div>`;
         bindClose();
+        const renumberBtn = panel.querySelector('.btn-inv-renumber');
+        if (renumberBtn) {
+            const rForm = panel.querySelector('.inv-renumber-form');
+            const rError = panel.querySelector('.inv-renumber-error');
+            const numInput = panel.querySelector('#inv-new-number');
+            const ctrlInput = panel.querySelector('#inv-new-control');
+            // Mientras el control siga el formato automático, acompaña al N°.
+            const autoControl = (n) => `00-${String(n).padStart(8, '0')}`;
+            numInput.addEventListener('input', () => {
+                if (ctrlInput.value === autoControl(inv.number) || ctrlInput.dataset.auto === '1') {
+                    ctrlInput.value = autoControl(parseInt(numInput.value, 10) || 0);
+                    ctrlInput.dataset.auto = '1';
+                }
+            });
+            ctrlInput.addEventListener('input', () => { ctrlInput.dataset.auto = '0'; });
+            renumberBtn.addEventListener('click', () => { rForm.style.display = rForm.style.display === 'none' ? 'block' : 'none'; });
+            panel.querySelector('.btn-inv-renumber-cancel').addEventListener('click', () => { rForm.style.display = 'none'; });
+            rForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newNumber = parseInt(numInput.value, 10);
+                const newControl = ctrlInput.value.trim();
+                const reason = panel.querySelector('#inv-renumber-reason').value.trim();
+                const showErr = (msg) => { rError.textContent = msg; rError.style.display = 'block'; };
+                if (!(newNumber > 0)) return showErr('Escriba un número de factura válido.');
+                if (reason.length < 3) return showErr('Escriba el motivo de la corrección.');
+                const oldLabel = window.InvoiceRenderer.pad5(inv.number);
+                const newLabel = window.InvoiceRenderer.pad5(newNumber);
+                if (!window.confirm(`¿Corregir la Factura N° ${oldLabel} (control ${inv.control_number}) a N° ${newLabel} (control ${newControl})?`)) return;
+                const saveBtn = panel.querySelector('.btn-inv-renumber-save');
+                saveBtn.disabled = true;
+                const { invoice, error } = await window.SupabaseManager.renumberInvoice(inv.number, newNumber, newControl, reason);
+                if (!invoice) {
+                    saveBtn.disabled = false;
+                    return showErr(error);
+                }
+                showToast(`✏️ Factura N° ${oldLabel} corregida a N° ${newLabel}.`, 'fa-solid fa-pen');
+                await showInvoice(invoice);
+            });
+        }
         const voidBtn = panel.querySelector('.btn-inv-void');
         if (voidBtn) {
             voidBtn.addEventListener('click', async () => {
@@ -4547,8 +4607,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
         return;
     }
 
-    const inputStyle = 'width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; color: var(--color-white); font-weight: 700; font-size: 0.85rem;';
-    const labelStyle = 'display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.25rem; font-size: 0.72rem; text-transform: uppercase;';
+    const nextNumber = await window.SupabaseManager.fetchInvoiceNextNumber();
     panel.style.maxWidth = '460px';
     panel.innerHTML = `
         ${header('Emitir factura carta')}
@@ -4575,7 +4634,11 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             <button type="submit" class="btn-inv-issue" style="height: 46px; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.9rem;">
                 <i class="fa-solid fa-file-circle-check"></i> EMITIR FACTURA
             </button>
-            <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center;">Se le asigna el siguiente número de factura y no se puede repetir. Revise los datos antes de emitir.</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center;">
+                ${nextNumber ? `Esta factura saldrá con el <strong class="inv-next-label" style="color: var(--color-gold);">N° ${window.InvoiceRenderer.pad5(nextNumber)}</strong> y no se puede repetir.` : 'Se le asigna el siguiente número de factura y no se puede repetir.'}
+                ${nextNumber && isAdmin() ? `<button type="button" class="btn-inv-next-change" style="background: none; border: none; color: var(--color-gold); text-decoration: underline; cursor: pointer; font-weight: 800; font-size: 0.7rem; padding: 0 0.2rem;">Cambiar (admin)</button>` : ''}
+                Revise los datos antes de emitir.
+            </div>
         </form>`;
     bindClose();
 
@@ -4587,6 +4650,20 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
         editAccountBtn.addEventListener('click', () => {
             closeAllPosModals();
             window.handleEditSale(timestamp);
+        });
+    }
+
+    const nextChangeBtn = panel.querySelector('.btn-inv-next-change');
+    if (nextChangeBtn) {
+        nextChangeBtn.addEventListener('click', async () => {
+            const answer = window.prompt('¿Con qué número sale la próxima factura?', String(nextNumber));
+            if (answer === null) return;
+            const next = parseInt(answer.replace(/\D/g, ''), 10);
+            if (!(next > 0)) return showToast('⚠️ Escriba un número válido.', 'fa-solid fa-triangle-exclamation');
+            const { next: saved, error } = await window.SupabaseManager.setInvoiceNextNumber(next);
+            if (!saved) return showToast(`⚠️ ${error}`, 'fa-solid fa-triangle-exclamation');
+            panel.querySelector('.inv-next-label').textContent = `N° ${window.InvoiceRenderer.pad5(saved)}`;
+            showToast(`🧾 La próxima factura sale con el N° ${window.InvoiceRenderer.pad5(saved)}.`, 'fa-solid fa-file-invoice-dollar');
         });
     }
 

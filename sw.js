@@ -28,6 +28,7 @@ const SCRIPTS = [
   'invoice.js',
   'ui.js',
   'wifi.js',
+  'clientes.js',
   'app.js',
   'desktop.js'
 ].map(file => `/js/${file}?v=${APP_VERSION}`);

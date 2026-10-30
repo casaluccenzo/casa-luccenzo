@@ -5065,6 +5065,7 @@ function initAdminDashboardListeners() {
     const tabPnlBtn = document.getElementById('admin-tab-btn-pnl');
     const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
+    const tabClientesBtn = document.getElementById('admin-tab-btn-clientes');
 
     const panelSummary = document.getElementById('admin-panel-summary');
     const panelAnalytics = document.getElementById('admin-panel-analytics');
@@ -5076,11 +5077,12 @@ function initAdminDashboardListeners() {
     const panelPnl = document.getElementById('admin-panel-pnl');
     const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
+    const panelClientes = document.getElementById('admin-panel-clientes');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabAgentBtn, tabPreferencesBtn, tabClientesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelAgent, panelPreferences, panelClientes].filter(Boolean);
 
     // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
     // permanently visible -- these elements are simply display:none there).
@@ -5293,6 +5295,13 @@ function initAdminDashboardListeners() {
     if (tabAgentBtn && panelAgent) {
         tabAgentBtn.addEventListener('click', () => {
             activateTab(tabAgentBtn, panelAgent);
+        });
+    }
+
+    if (tabClientesBtn && panelClientes) {
+        tabClientesBtn.addEventListener('click', () => {
+            activateTab(tabClientesBtn, panelClientes);
+            if (window.ClientesManager) window.ClientesManager.load();
         });
     }
 

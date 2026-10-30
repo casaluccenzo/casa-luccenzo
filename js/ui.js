@@ -3938,6 +3938,76 @@ function getItemTotalUSD(item) {
 /**
  * Shows the dedicated Payment Method Selection Modal when registering payment for an open account card
  */
+// Cédula / RIF con su letra: V- cédula, J- RIF de empresa, E- extranjero.
+// La letra se elige aparte y el número se escribe solo, así no hace falta
+// teclear el guion. G- y P- no se ofrecen pero se respetan si ya venían.
+const RIF_TYPES = [
+    { letter: 'V', label: 'V- Cédula' },
+    { letter: 'J', label: 'J- RIF' },
+    { letter: 'E', label: 'E- Extranjero' }
+];
+
+function splitRif(value = '') {
+    const text = String(value || '').trim();
+    const match = text.match(/^([VJEGP])\s*-?\s*(.*)$/i);
+    if (match) return { letter: match[1].toUpperCase(), number: match[2].trim() };
+    return { letter: 'V', number: text };
+}
+
+function joinRif(letter, number) {
+    const clean = String(number || '').trim().replace(/^[VJEGP]\s*-\s*/i, '');
+    return clean ? `${letter}-${clean}` : '';
+}
+
+function rifFieldHtml(id, value = '', inputStyle = '') {
+    const { letter, number } = splitRif(value);
+    const types = RIF_TYPES.some(t => t.letter === letter) ? RIF_TYPES : [...RIF_TYPES, { letter, label: `${letter}-` }];
+    return `
+        <div style="display: flex; gap: 0.4rem;">
+            <select id="${id}-type" aria-label="Tipo de documento" style="${inputStyle} width: auto; flex: 0 0 auto; cursor: pointer;">
+                ${types.map(t => `<option value="${t.letter}"${t.letter === letter ? ' selected' : ''}>${t.label}</option>`).join('')}
+            </select>
+            <input type="text" id="${id}" inputmode="numeric" maxlength="20" placeholder="Número" value="${escapeHtml(number)}" style="${inputStyle} flex: 1; min-width: 0;">
+        </div>`;
+}
+
+function readRifField(root, id) {
+    return joinRif(root.querySelector(`#${id}-type`).value, root.querySelector(`#${id}`).value);
+}
+
+/**
+ * Pide la cédula / RIF al cobrar (con V-, J- o E- aparte).
+ * Resuelve con el texto ("V-12345678", o '' si se deja vacío) o null si se cancela.
+ */
+function promptClientRif(initial = '') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-backdrop';
+        Object.assign(overlay.style, {
+            position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: '3200', padding: '1rem', boxSizing: 'border-box'
+        });
+        const inputStyle = 'box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; color: var(--color-white); font-weight: 700; font-size: 1rem;';
+        overlay.innerHTML = `
+            <form style="width: 100%; max-width: 380px; background: #111827; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 1.1rem; color: #FFFFFF; box-sizing: border-box;">
+                <div style="font-weight: 900; color: var(--color-gold); margin-bottom: 0.2rem;">Cédula / RIF del cliente</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.75rem;">Opcional. Elija V-, J- o E- y escriba el número.</div>
+                ${rifFieldHtml('checkout-rif', initial, inputStyle)}
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.9rem;">
+                    <button type="button" class="btn-rif-cancel" style="flex: 1; height: 42px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-white); font-weight: 800; cursor: pointer;">Cancelar</button>
+                    <button type="submit" style="flex: 2; height: 42px; border-radius: 8px; border: none; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; cursor: pointer;">Continuar</button>
+                </div>
+            </form>`;
+        document.body.appendChild(overlay);
+        const form = overlay.querySelector('form');
+        const finish = (value) => { overlay.remove(); resolve(value); };
+        overlay.querySelector('.btn-rif-cancel').addEventListener('click', () => finish(null));
+        form.addEventListener('submit', (e) => { e.preventDefault(); finish(readRifField(overlay, 'checkout-rif')); });
+        setTimeout(() => overlay.querySelector('#checkout-rif').focus(), 50);
+    });
+}
+
 function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = new Date().toISOString(), onSelect = null) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-backdrop';
@@ -4040,7 +4110,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
             </div>
             <div>
                 <label style="display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Cédula / RIF (Opcional):</label>
-                <input type="text" id="pay-client-rif-input" value="${safeClientRif}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
+                ${rifFieldHtml('pay-client-rif-input', safeClientRif, 'box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;')}
             </div>
         </div>
 
@@ -4082,7 +4152,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
 
     modalBody.querySelector('.btn-view-pos-receipt').addEventListener('click', () => {
         const currentName = modalBody.querySelector('#pay-client-name-input').value.trim() || safeClientName;
-        const currentRif = modalBody.querySelector('#pay-client-rif-input').value.trim() || safeClientRif;
+        const currentRif = readRifField(modalBody, 'pay-client-rif-input') || safeClientRif;
         showPosReceiptModal({
             cart: items,
             clientName: currentName,
@@ -4096,7 +4166,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
 
     modalBody.querySelector('.btn-confirm-final-pay').addEventListener('click', () => {
         const updatedName = modalBody.querySelector('#pay-client-name-input').value.trim() || 'Cliente';
-        const updatedRif = modalBody.querySelector('#pay-client-rif-input').value.trim() || '';
+        const updatedRif = readRifField(modalBody, 'pay-client-rif-input');
         closeModal();
         if (onSelect) onSelect(selectedMethod, updatedName, updatedRif);
     });
@@ -4624,7 +4694,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
         </button>` : ''}
         <form class="inv-issue-form" style="display: grid; gap: 0.6rem;">
             <div><label style="${labelStyle}" for="inv-client-name">Nombre o razón social *</label><input id="inv-client-name" required maxlength="200" style="${inputStyle}" value="${escapeHtml(clientName && clientName !== 'Cliente' ? clientName : '')}"></div>
-            <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF *</label><input id="inv-client-rif" required maxlength="30" placeholder="V-12.345.678 o J-12345678-9" style="${inputStyle}" value="${escapeHtml(clientRif)}"></div>
+            <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF *</label>${rifFieldHtml('inv-client-rif', clientRif, inputStyle)}</div>
             <div><label style="${labelStyle}" for="inv-client-address">Domicilio fiscal</label><input id="inv-client-address" maxlength="300" style="${inputStyle}"></div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
                 <div><label style="${labelStyle}" for="inv-client-phone">Teléfono (WhatsApp)</label><input id="inv-client-phone" type="tel" maxlength="30" placeholder="0414-1234567" style="${inputStyle}"></div>
@@ -4674,7 +4744,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
         e.preventDefault();
         const val = (id) => panel.querySelector(id).value.trim();
         const name = val('#inv-client-name');
-        const rif = val('#inv-client-rif');
+        const rif = readRifField(panel, 'inv-client-rif');
         const showError = (msg) => { errorBox.textContent = msg; errorBox.style.display = 'block'; };
         if (!name) return showError('Falta el nombre o la razón social.');
         if (rif.replace(/\D/g, '').length < 5) return showError('La cédula o el RIF no parece válido.');
@@ -7175,6 +7245,7 @@ window.UIManager = {
     showPaymentMethodModal,
     showPosReceiptModal,
     showInvoiceModal,
+    promptClientRif,
     showUpdateOverlay,
     updateOverlayStatusSuccess,
     renderActiveDevices,

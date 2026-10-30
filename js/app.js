@@ -2129,7 +2129,7 @@ async function openReportHistoryModal() {
                     <button class="btn-report-pdf" data-date="${dateStr}" title="PDF guardado al cierre" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: none; background: #c0392b; color: #fff; font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
                         <i class="fa-solid fa-file-pdf" style="font-size: 11px;"></i> PDF
                     </button>` : ''}
-                    ${(dateStr === pdfToday || dateStr === pdfYesterday) ? `
+                    ${(dateStr === pdfToday || dateStr === pdfYesterday || !pdfByDate.has(dateStr)) ? `
                     <button class="btn-report-pdf-regen" data-date="${dateStr}" title="${pdfByDate.has(dateStr) ? 'Volver a generar el PDF con las ventas actuales' : 'Generar el PDF de este día'}" style="height: 34px; padding: 0 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-text-muted); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
                         <i class="fa-solid fa-rotate" style="font-size: 10px;"></i> ${pdfByDate.has(dateStr) ? '' : 'PDF'}
                     </button>` : ''}

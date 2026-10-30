@@ -9,8 +9,9 @@ const { caracasDate, dayRangeUtc, buildReport, renderPdf } = require('../lib/day
  *   POST /api/cierre-pdf  { fecha?: "AAAA-MM-DD" }
  *     Lo llama la caja justo después del Cierre de Jornada (js/app.js). Genera
  *     el PDF del día con lo que hay en la base y lo guarda; si ya existía (un
- *     segundo cierre el mismo día) lo reemplaza. Solo hoy o ayer: un pedido
- *     suelto no puede reescribir el registro de días viejos.
+ *     segundo cierre el mismo día) lo reemplaza. Solo hoy o ayer se pueden
+ *     rehacer: de un día más viejo solo se genera si todavía no tiene reporte
+ *     (Historial de reportes), así un pedido suelto no reescribe el registro.
  *
  *   GET /api/cierre-pdf?fecha=AAAA-MM-DD
  *     Redirige a una URL firmada de 5 minutos para ver/bajar el PDF guardado.
@@ -114,8 +115,15 @@ module.exports = async (req, res) => {
             let body = req.body || {};
             if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
             const date = body.fecha || today;
-            if (!DATE_RE.test(date) || (date !== today && date !== yesterday)) {
-                return res.status(400).json({ error: 'Solo se puede generar el reporte de hoy o de ayer.' });
+            if (!DATE_RE.test(date) || date > today) {
+                return res.status(400).json({ error: 'Fecha inválida' });
+            }
+            if (date !== today && date !== yesterday) {
+                const existing = await new SupabaseRest(url, key).rawGet(`day_reports?select=report_date&report_date=eq.${date}`);
+                if (!Array.isArray(existing)) throw new Error('No se pudo leer day_reports');
+                if (existing.length) {
+                    return res.status(409).json({ error: 'Ese día ya tiene su reporte guardado.' });
+                }
             }
             const row = await generate(url, key, date, body.manual ? 'manual' : 'cierre');
             return res.status(200).json({ ok: true, ...row });

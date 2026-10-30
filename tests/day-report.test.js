@@ -3,12 +3,12 @@ const assert = require('assert');
 const { buildReport, renderPdf, dayRangeUtc, caracasDate, parseSaleName } = require('../lib/day-report');
 
 const P = 2.477147, R = 888.1183;
-const sale = (name, price, ts) => ({ product_id: 'x', name, price, timestamp: ts, bcv_rate: R });
+const sale = (name, price, ts, product_id = 'x') => ({ product_id, name, price, timestamp: ts, bcv_rate: R });
 const sales = [
-    sale('Pollo [Ana - V-123] (Pagado - Pago Móvil)', P, '2026-10-28T11:00:00.000+00:00'),
-    sale('Pollo [Ana - V-123] (Pagado - Pago Móvil)', P, '2026-10-28T11:00:00.000+00:00'),
-    sale('Malta Retornable [Ana - V-123] (Pagado - Pago Móvil)', 1.1, '2026-10-28T11:00:00.000+00:00'),
-    sale('Pollo · Consumo personal [Personal] (Pagado - Efectivo)', 1160 / R, '2026-10-28T12:00:00.000+00:00'),
+    sale('Pollo [Ana - V-123] (Pagado - Pago Móvil)', P, '2026-10-28T11:00:00.000+00:00', 'pollo'),
+    sale('Pollo [Ana - V-123] (Pagado - Pago Móvil)', P, '2026-10-28T11:00:00.000+00:00', 'pollo'),
+    sale('Malta Retornable [Ana - V-123] (Pagado - Pago Móvil)', 1.1, '2026-10-28T11:00:00.000+00:00', 'malta'),
+    sale('Pollo · Consumo personal [Personal] (Pagado - Efectivo)', 1160 / R, '2026-10-28T12:00:00.000+00:00', 'pollo'),
     sale('Carne Mechada [Luis]', P, '2026-10-28T13:00:00.000+00:00')
 ];
 
@@ -19,6 +19,7 @@ assert.deepStrictEqual(parseSaleName('Pollo [Ana - V-123] (Pagado - Punto de Ven
 
 const rep = buildReport({
     date: '2026-10-28', sales, bcvRate: R,
+    productCategories: { pollo: 'pastelitos', malta: 'bebidas' },
     invoices: [{ number: 55, sale_timestamp: '2026-10-28T11:00:00Z', status: 'emitida' }],
     expenses: [{ description: 'Hielo', amount: 500, currency: 'VES', timestamp: '2026-10-28T14:00:00Z' }]
 });
@@ -33,6 +34,12 @@ assert.ok(staff.staff && staff.ivaBs === 0, 'el consumo del personal no lleva IV
 assert.ok(!luis.paid && luis.method === 'Sin cobrar');
 assert.strictEqual(rep.totals.expensesBs, 500);
 assert.strictEqual(rep.totals.invoicesIssued, 1);
+const cat = k => rep.categories.find(c => c.key === k);
+assert.strictEqual(cat('pastelitos').qty, 2);
+assert.strictEqual(cat('bebidas').totalBs, 976.93);
+assert.strictEqual(cat('personal').qty, 1, 'el consumo del personal va en su propia sección');
+assert.strictEqual(cat('otros').qty, 1, 'producto sin categoría conocida cae en "otros"');
+assert.strictEqual(Math.round(rep.categories.reduce((t, c) => t + c.totalBs, 0) * 100), Math.round(rep.totals.totalBs * 100));
 
 renderPdf(rep).then(buf => {
     assert.ok(buf.slice(0, 5).toString() === '%PDF-' && buf.length > 5000);

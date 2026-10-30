@@ -17,7 +17,8 @@ const { caracasDate, dayRangeUtc, buildReport, renderPdf } = require('../lib/day
  *
  *   GET /api/cierre-pdf  (cron de Vercel, con CRON_SECRET)
  *     A medianoche de Caracas: si el día que terminó tuvo ventas y nadie
- *     cerró, genera su reporte igual. Nunca pisa uno ya guardado.
+ *     cerró, genera su reporte igual. Si ya había uno pero se vendió después
+ *     de generarlo, lo rehace con el día completo.
  */
 const BUCKET = 'cierres';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,12 +30,13 @@ function storagePath(date) {
 async function fetchDayData(db, date) {
     const { from, to } = dayRangeUtc(date);
     const range = col => `${col}=gte.${encodeURIComponent(from)}&${col}=lt.${encodeURIComponent(to)}`;
-    const [sales, expenses, invoices, logins, rate] = await Promise.all([
+    const [sales, expenses, invoices, logins, rate, products] = await Promise.all([
         db.rawGetAll(`sales?select=uuid,product_id,name,price,timestamp,bcv_rate&${range('timestamp')}&voided_at=is.null&order=timestamp.asc,uuid.asc`),
         db.rawGetAll(`expenses?select=description,amount,currency,bcv_rate,timestamp&${range('timestamp')}&order=timestamp.asc`),
         db.rawGet(`invoices?select=number,sale_timestamp,status&${range('sale_timestamp')}&order=number.asc`),
         db.rawGet(`activity_logs?select=role,actor_name,timestamp&action=eq.${encodeURIComponent('Inicio de Sesión')}&${range('timestamp')}&order=timestamp.asc`),
-        db.rawGet(`bcv_rate_history?select=bcv_rate&rate_date=eq.${date}`)
+        db.rawGet(`bcv_rate_history?select=bcv_rate&rate_date=eq.${date}`),
+        db.rawGetAll('products?select=id,category&order=id.asc')
     ]);
     if (sales === null) throw new Error('No se pudieron leer las ventas');
     const saleRate = (sales.find(s => parseFloat(s.bcv_rate) > 0) || {}).bcv_rate;
@@ -44,6 +46,7 @@ async function fetchDayData(db, date) {
         expenses: expenses || [],
         invoices: invoices || [],
         logins: logins || [],
+        productCategories: Object.fromEntries((products || []).map(p => [p.id, p.category])),
         bcvRate: parseFloat(saleRate) || (Array.isArray(rate) && rate[0] ? parseFloat(rate[0].bcv_rate) : null)
     };
 }
@@ -140,14 +143,20 @@ module.exports = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         const db = new SupabaseRest(url, key);
-        const existing = await db.rawGet(`day_reports?select=report_date&report_date=eq.${yesterday}`);
-        if (Array.isArray(existing) && existing.length) {
-            return res.status(200).json({ ok: true, date: yesterday, already_done: true });
-        }
         const { from, to } = dayRangeUtc(yesterday);
-        const anySale = await db.rawGet(`sales?select=uuid&timestamp=gte.${encodeURIComponent(from)}&timestamp=lt.${encodeURIComponent(to)}&voided_at=is.null&limit=1`);
-        if (!Array.isArray(anySale) || anySale.length === 0) {
+        const [existing, daySales] = await Promise.all([
+            db.rawGet(`day_reports?select=generated_at&report_date=eq.${yesterday}`),
+            db.rawGet(`sales?select=timestamp&timestamp=gte.${encodeURIComponent(from)}&timestamp=lt.${encodeURIComponent(to)}&voided_at=is.null&order=timestamp.desc&limit=1`)
+        ]);
+        if (!Array.isArray(daySales) || daySales.length === 0) {
             return res.status(200).json({ ok: true, date: yesterday, skipped: 'sin ventas' });
+        }
+        // Ya guardado: solo se rehace si entraron ventas después de generarlo
+        // (se cerró temprano y se siguió vendiendo), para que el registro del
+        // día quede completo.
+        if (Array.isArray(existing) && existing.length &&
+            new Date(daySales[0].timestamp) <= new Date(existing[0].generated_at)) {
+            return res.status(200).json({ ok: true, date: yesterday, already_done: true });
         }
         const row = await generate(url, key, yesterday, 'cron');
         return res.status(200).json({ ok: true, ...row });

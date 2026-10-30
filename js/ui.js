@@ -2641,7 +2641,7 @@ function renderCombosBar(products) {
     const sample = products.find(p => p.category === 'pastelitos' && fixedBsOf(p) > 0);
     // Combos are priced in fixed Bs: one needs a fixed-price pastel (or its own
     // `pastelBs`) and something in its category to pick from.
-    const offered = C.COMBOS.filter(c => products.some(p => p.category === C.comboCategory(c)) && (c.pastelBs > 0 || sample));
+    const offered = C.COMBOS.filter(c => C.comboProducts(c, products).length > 0 && (c.pastelBs > 0 || sample));
     if (!offered.length) {
         bar.innerHTML = '';
         bar.classList.add('hidden');
@@ -2671,8 +2671,8 @@ function renderCombosBar(products) {
 function openComboPicker(comboId, products) {
     const combo = window.Combos.COMBOS.find(c => c.id === comboId);
     if (!combo) return;
-    const pasteles = products.filter(p => p.category === window.Combos.comboCategory(combo));
-    // A single choice (one mini product) needs no picker.
+    const pasteles = window.Combos.comboProducts(combo, products);
+    // A single choice (the Combo Mini's fixed product) needs no picker.
     if (pasteles.length === 1) {
         if (window.addComboToCart) window.addComboToCart(combo.id, Array(combo.pasteles).fill(pasteles[0].id));
         return;

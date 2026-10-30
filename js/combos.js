@@ -13,11 +13,13 @@
     // `category`: de dónde salen los pasteles (por defecto 'pastelitos').
     // `pastelBs`: precio fijo de cada pastel dentro del combo; con él el combo
     // cuesta siempre `priceBs`, todos los días y sin la promo.
+    // `productId`: el combo lleva siempre ese producto, sin elegir sabores
+    // (un clic y va a la cuenta).
     const COMBOS = [
         { id: 'clasico', name: 'Combo Clásico', pasteles: 1, drink: 'Malta Retornable', drinkBs: 800, priceBs: 3000 },
         { id: 'mananero', name: 'Combo Mañanero', pasteles: 1, drink: 'Café negro', drinkBs: 500, priceBs: 2700 },
         { id: 'pana', name: 'Combo Pana', pasteles: 2, drink: 'Malta Retornable', drinkBs: 600, priceBs: 5000 },
-        { id: 'mini', name: 'Combo Mini', pasteles: 6, category: 'minis', unit: 'minis', pastelBs: 750, drink: 'Coca-Cola desechable 355ml', drinkBs: 900, priceBs: 5400 }
+        { id: 'mini', name: 'Combo Mini', pasteles: 6, category: 'minis', productId: 'pastelito_mini', unit: 'minis', pastelBs: 750, drink: 'Coca-Cola desechable 355ml', drinkBs: 900, priceBs: 5400 }
     ];
 
     // Consumo del personal: el pastel al costo exacto (products.cost, en Bs),
@@ -57,6 +59,13 @@
     /** Categoría de la que salen los pasteles del combo. */
     function comboCategory(combo) {
         return (combo && combo.category) || 'pastelitos';
+    }
+
+    /** Productos que pueden ir en el combo: el fijo (`productId`) o los de su categoría. */
+    function comboProducts(combo, products) {
+        return (products || []).filter(p => combo && combo.productId
+            ? p.id === combo.productId
+            : p.category === comboCategory(combo));
     }
 
     /** Precio en Bs del pastel dentro de un combo hoy: con la promo si toca, o 0. */
@@ -105,6 +114,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

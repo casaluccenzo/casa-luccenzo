@@ -101,6 +101,7 @@
     <script src="/js/invoice.js?v=__APP_VERSION__"></script>
     <script src="/js/ui.js?v=__APP_VERSION__"></script>
     <script src="/js/wifi.js?v=__APP_VERSION__"></script>
+    <script src="/js/clientes.js?v=__APP_VERSION__"></script>
     <script src="/js/app.js?v=__APP_VERSION__"></script>
     <script src="/js/desktop.js?v=__APP_VERSION__"></script>
     
@@ -661,6 +662,10 @@
                         <i class="fa-solid fa-sack-dollar"></i>
                         <span>Ganancias</span>
                     </button>
+                    <button id="admin-tab-btn-clientes" class="admin-tab-btn">
+                        <i class="fa-solid fa-address-book"></i>
+                        <span>Clientes</span>
+                    </button>
                     <div class="admin-sidebar-section-label">Sistema</div>
                     <button id="admin-tab-btn-devices" class="admin-tab-btn">
                         <i class="fa-solid fa-network-wired"></i>
@@ -1210,6 +1215,50 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     <i class="fa-solid fa-paper-plane"></i>
                                 </button>
                             </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Base de clientes (js/clientes.js): la arma la base con get_customer_base(), solo admin -->
+                <div id="admin-panel-clientes" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 class="panel-title">
+                            Base de Clientes
+                        </h3>
+                        <div class="flex-row" style="gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-action-small" id="btn-clientes-excel" style="background: rgba(16,185,129,0.15); color: #34D399; padding: 4px 10px; font-size: 11px;" title="Descargar en Excel">
+                                <i class="fa-solid fa-file-excel"></i> Descargar Excel
+                            </button>
+                            <button class="btn-action-small" id="btn-clientes-csv" style="background: rgba(255,255,255,0.05); padding: 4px 10px; font-size: 11px;" title="Descargar en CSV">
+                                <i class="fa-solid fa-file-csv"></i> CSV
+                            </button>
+                            <button class="btn-action-small" id="btn-clientes-refresh" style="background: rgba(255,255,255,0.05); padding: 4px 8px; font-size: 10px;" title="Actualizar">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-panel-body" style="padding-top: 0.75rem;">
+                        <div id="clientes-resumen" style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 0.6rem;"></div>
+                        <input type="text" id="clientes-search" class="form-input" placeholder="Buscar por nombre, cédula o teléfono..." style="width: 100%; max-width: 320px; height: 30px; padding: 0.25rem 0.6rem; font-size: 12px; margin-bottom: 0.6rem;">
+                        <div class="admin-dashboard-card" style="padding: 0.75rem; max-height: 460px; display: flex; flex-direction: column;">
+                            <div style="overflow: auto; flex: 1;">
+                                <table class="audit-log-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Apellido</th>
+                                            <th>Cédula / RIF</th>
+                                            <th>Teléfono</th>
+                                            <th style="text-align: right;">Visitas</th>
+                                            <th style="text-align: right;">Última</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientes-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.6rem; line-height: 1.4;">
+                            Salen los clientes con cédula/RIF anotada en la cuenta o en una factura, y los que dejaron teléfono en el wifi o en un pedido web. Los apodos del mostrador ("Familia", "Sr") no tienen datos y no salen. Datos personales: no compartir el archivo.
                         </div>
                     </div>
                 </div>

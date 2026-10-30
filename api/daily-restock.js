@@ -43,7 +43,7 @@ const { SupabaseRest } = require('../lib/bot-shared');
  * `max` is reset to 0 alongside it (same as the manual close's
  * resetPastelitoCapacity) since the trigger can only grow that ceiling.
  */
-const DAILY_VITRINA_STOCK = 15;
+const DAILY_VITRINA_STOCK = 20;
 
 // Unlike SupabaseRest.post/patch (true/false only), these surface the actual
 // HTTP status + body so a failed write shows up in the cron's logs.

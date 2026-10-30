@@ -777,7 +777,7 @@ async function handleCheckoutCart() {
     const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
-    const clientRifInput = prompt("Ingresa Cédula / RIF del cliente (Opcional):", "");
+    const clientRifInput = await window.UIManager.promptClientRif("");
     if (clientRifInput === null) return; // Cancelled
 
     const rawName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;

@@ -324,7 +324,14 @@
             `Vea y descargue su factura aquí:\n${verifyUrl(inv, origin)}`;
     }
 
-    const api = { COMPANY, render, mount, print, verifyUrl, shareText, pad5, fmt, dateParts };
+    // Cliente sin cédula: la factura sale igual (se emite sola al cobrar) y
+    // los datos se completan después sin cambiar el número.
+    const CONSUMIDOR_FINAL = { name: 'CONSUMIDOR FINAL', rif: 'V-00000000' };
+    function isConsumidorFinal(inv) {
+        return !!inv && String(inv.client_rif || '').replace(/\D/g, '') === '00000000';
+    }
+
+    const api = { COMPANY, CONSUMIDOR_FINAL, isConsumidorFinal, render, mount, print, verifyUrl, shareText, pad5, fmt, dateParts };
     if (typeof window !== 'undefined') window.InvoiceRenderer = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

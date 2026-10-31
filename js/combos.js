@@ -27,12 +27,13 @@
     // para que reportes, cierre y desglose de IVA la separen de las ventas.
     const STAFF = { category: 'pastelitos', label: 'Consumo personal' };
 
-    // Categorías que ya no se venden (dulces, desde el 27/10/2026): no salen en
-    // la Vitrina, la cocina, las alertas de stock ni el menú web. Los productos
+    // Categorías que ya no se venden (dulces desde el 27/10/2026, empanadas
+    // desde el 31/10/2026): no salen en la Vitrina, la cocina, las alertas de
+    // stock ni el menú web. Los productos
     // y sus ventas viejas quedan en la base, así que cierres e informes siguen
     // sumando igual. `keepInPos`: productos de esa categoría que la caja sigue
     // cobrando. Para volver a vender la categoría, sacarla de `categories`.
-    const HIDDEN = { categories: ['dulces'], keepInPos: ['caja_chica', 'caja_grande'] };
+    const HIDDEN = { categories: ['dulces', 'empanadas'], keepInPos: ['caja_chica', 'caja_grande'] };
 
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 

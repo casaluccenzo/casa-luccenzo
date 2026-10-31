@@ -867,22 +867,183 @@ async function handleCheckoutCart() {
 }
 
 /**
- * Una cuenta con factura emitida no se puede corregir ni deshacer: la factura
- * guarda los ítems y el total con un número que no se repite, y quedaría
- * diciendo otra cosa que la venta. Lo que el cliente pida de más va en una
- * cuenta nueva con su propia factura (startExtraInvoiceAccount).
+ * Una cuenta cobrada tiene su factura talonario (se emite sola al registrar
+ * el pago), y la factura guarda los ítems y el total con un número que no se
+ * repite. Para corregir o deshacer la cuenta, esa factura se ANULA primero
+ * (queda guardada con su número) y al cobrar de nuevo sale otra con el
+ * siguiente. La caja puede anular las de hoy; las de días anteriores, solo el
+ * admin. Lo que el cliente pida de más va en una cuenta nueva con su propia
+ * factura (startExtraInvoiceAccount).
  * Devuelve true si se puede seguir.
  */
 async function canChangeInvoicedAccount(timestamp, action) {
     if (!window.SupabaseManager || !window.SupabaseManager.isConfigured()) return true;
+    const pending = PendingInvoices.has(timestamp);
     if (!navigator.onLine) {
+        // Sin internet no se puede anular. Si la factura todavía no salió
+        // (cobrada sin conexión), basta con sacarla de la cola.
+        if (pending) {
+            PendingInvoices.remove(timestamp);
+            return true;
+        }
+        const isPaid = salesLog.some(s => s.timestamp === timestamp && /\(Pagado/.test(s.name));
+        if (isPaid) {
+            alert(`Sin internet no se puede anular la factura de esta cuenta cobrada, así que todavía no se puede ${action}. Vuelva a intentarlo cuando haya conexión.`);
+            return false;
+        }
         return confirm(`Sin internet no se puede revisar si esta cuenta ya tiene factura carta. Si ya se le emitió factura, NO la ${action}: abra una cuenta nueva para lo adicional. ¿Continuar igual?`);
     }
     const invoice = await window.SupabaseManager.fetchInvoiceForSale(timestamp);
-    if (!invoice || invoice.status === 'anulada') return true;
+    if (!invoice || invoice.status === 'anulada') {
+        PendingInvoices.remove(timestamp);
+        return true;
+    }
     const num = window.InvoiceRenderer ? window.InvoiceRenderer.pad5(invoice.number) : invoice.number;
-    alert(`Esta cuenta ya tiene la Factura N° ${num} emitida, así que no se puede ${action}.\n\nSi el cliente pide algo más: abra la factura y toque "El cliente pide más", cobre lo nuevo en una cuenta aparte y emítale otra factura.`);
-    return false;
+    if (!confirm(`Esta cuenta tiene la Factura N° ${num}.\n\nPara ${action}la, esa factura queda ANULADA (se guarda con su número, que no se vuelve a usar)${action === 'modificar' ? ' y al cobrar de nuevo sale otra factura con el siguiente número' : ''}.\n\nSi el cliente solo pide algo más, mejor cancele y use "El cliente pide más" en la factura.\n\n¿Anular la Factura N° ${num} y continuar?`)) {
+        return false;
+    }
+    const reason = action === 'deshacer' ? 'Cuenta deshecha en caja' : 'Cuenta corregida en caja';
+    const { error } = await window.SupabaseManager.voidInvoiceForCorrection(timestamp, reason);
+    if (error) {
+        alert(`No se pudo anular la Factura N° ${num}: ${error}\n\nLa cuenta no se cambió.`);
+        return false;
+    }
+    PendingInvoices.remove(timestamp);
+    logActivity("Anulación Factura", `Factura N° ${num} anulada (${reason.toLowerCase()}) - cuenta del horario ${new Date(timestamp).toLocaleTimeString()}`);
+    window.UIManager.showToast(`🚫 Factura N° ${num} anulada.`, "fa-solid fa-ban");
+    return true;
+}
+
+/**
+ * Cuentas cobradas cuya factura no se pudo emitir todavía (sin internet o
+ * error): se reintentan al volver la conexión. Guardadas por horario de la
+ * cuenta, que es lo que identifica la cuenta en la base.
+ */
+const PendingInvoices = (() => {
+    const KEY = 'casa_lucenzo_pending_invoices';
+    const read = () => {
+        try {
+            const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+            return Array.isArray(list) ? list : [];
+        } catch {
+            return [];
+        }
+    };
+    const write = (list) => {
+        try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* sin espacio: se reintenta desde Historial */ }
+    };
+    return {
+        list: read,
+        has: (ts) => read().includes(ts),
+        add: (ts) => { const l = read(); if (!l.includes(ts)) { l.push(ts); write(l); } },
+        remove: (ts) => write(read().filter(t => t !== ts))
+    };
+})();
+window.PendingInvoices = PendingInvoices;
+
+/**
+ * Ítems y datos de la factura de una cuenta, o el motivo por el que no lleva
+ * factura automática: no está cobrada, es consumo del personal, un abono de
+ * fiado o un ajuste de inventario.
+ */
+function invoiceDataForAccount(accountSales, fallbackRate) {
+    if (accountSales.length === 0) return { skip: 'sin ventas' };
+    const first = accountSales[0];
+    if (!accountSales.every(s => /\(Pagado/.test(s.name))) return { skip: 'sin cobrar' };
+    if (accountSales.some(s => s.productId === 'abono')) return { skip: 'abono' };
+    if (accountSales.some(s => Combos && Combos.isStaffSale(s))) return { skip: 'personal' };
+
+    const tagMatch = first.name.match(/\[(.*?)\]/);
+    const tag = tagMatch ? tagMatch[1].trim() : '';
+    if (tag === 'Ajuste Inventario') return { skip: 'ajuste' };
+    const [rawName, rawRif = ''] = tag.split(/\s+-\s+/);
+    const methodMatch = first.name.match(/\(Pagado\s*-\s*(.*?)\)\s*$/);
+
+    const lines = {};
+    accountSales.forEach(s => {
+        const desc = s.name.replace(/\s*\[.*?\]/g, '').replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '').trim();
+        if (!lines[desc]) lines[desc] = { desc, qty: 0, total: 0 };
+        lines[desc].qty += 1;
+        lines[desc].total += s.price || 0;
+    });
+    const items = Object.values(lines).map(l => ({ desc: l.desc, qty: l.qty, price: Math.round((l.total / l.qty) * 100) / 100 }));
+
+    // Sin cédula sale a consumidor final: el nombre de la cuenta suele ser un
+    // apodo o "Mesa 3", no un dato fiscal. Se completa después en la factura.
+    const rifDigits = rawRif.replace(/\D/g, '');
+    const cf = window.InvoiceRenderer.CONSUMIDOR_FINAL;
+    const hasRif = rifDigits.length >= 5;
+    const rate = accountSales.map(s => parseFloat(s.bcvRate)).find(r => r > 0) || fallbackRate;
+    return {
+        clientName: hasRif ? (rawName || '').trim() || cf.name : cf.name,
+        clientRif: hasRif ? rawRif.trim() : cf.rif,
+        paymentMethod: methodMatch ? methodMatch[1] : '',
+        bcvRate: rate,
+        items
+    };
+}
+
+/**
+ * Emite sola la factura talonario de una cuenta recién cobrada. La base no le
+ * da dos números a la misma cuenta (issue_invoice devuelve la que ya tenía),
+ * así que un reintento o dos teléfonos a la vez no duplican. Sin internet
+ * queda en cola y sale al volver la conexión.
+ */
+async function autoIssueInvoice(timestamp, { quiet = false } = {}) {
+    if (!window.SupabaseManager || !window.SupabaseManager.isConfigured() || !window.InvoiceRenderer) return null;
+    const data = invoiceDataForAccount(salesLog.filter(s => s.timestamp === timestamp), bcvRate);
+    if (data.skip) {
+        PendingInvoices.remove(timestamp);
+        if (!quiet && data.skip === 'personal') {
+            window.UIManager.showToast("👥 Consumo del personal: no lleva factura talonario.", "fa-solid fa-users");
+        }
+        return null;
+    }
+    if (!(data.bcvRate > 0)) {
+        PendingInvoices.add(timestamp);
+        return null;
+    }
+    if (!navigator.onLine) {
+        PendingInvoices.add(timestamp);
+        if (!quiet) window.UIManager.showToast("📶 Sin internet: la factura talonario se emite sola al volver la conexión.", "fa-solid fa-wifi");
+        return null;
+    }
+    const { invoice, error } = await window.SupabaseManager.issueInvoice({
+        saleTimestamp: timestamp,
+        clientName: data.clientName,
+        clientRif: data.clientRif,
+        paymentMethod: data.paymentMethod,
+        bcvRate: data.bcvRate,
+        items: data.items
+    });
+    if (!invoice) {
+        PendingInvoices.add(timestamp);
+        if (!quiet) window.UIManager.showToast(`⚠️ La factura talonario no salió (${error}). Se reintenta sola; también puede emitirla desde Historial.`, "fa-solid fa-triangle-exclamation");
+        return null;
+    }
+    PendingInvoices.remove(timestamp);
+    if (!quiet && !invoice.reissued) {
+        const who = window.InvoiceRenderer.isConsumidorFinal(invoice) ? 'consumidor final' : invoice.client_name;
+        window.UIManager.showToast(`🧾 Factura N° ${window.InvoiceRenderer.pad5(invoice.number)} emitida (${who}).`, "fa-solid fa-file-invoice-dollar");
+    }
+    if (!invoice.reissued) {
+        logActivity("Factura Talonario", `Factura N° ${window.InvoiceRenderer.pad5(invoice.number)} emitida al cobrar (${invoice.client_name} ${invoice.client_rif})`);
+    }
+    window.UIManager.refreshHistorialInvoices && window.UIManager.refreshHistorialInvoices({ force: true });
+    return invoice;
+}
+
+/** Reintenta las facturas que quedaron en cola, una por una (en orden de cobro). */
+async function retryPendingInvoices() {
+    if (retryPendingInvoices._running || !navigator.onLine) return;
+    retryPendingInvoices._running = true;
+    try {
+        for (const ts of PendingInvoices.list()) {
+            await autoIssueInvoice(ts, { quiet: true });
+        }
+    } finally {
+        retryPendingInvoices._running = false;
+    }
 }
 
 /**
@@ -924,11 +1085,12 @@ function startExtraInvoiceAccount(clientLabel) {
 async function handleUndoSale(timestamp) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
-    if (!(await canChangeInvoicedAccount(timestamp, 'deshacer'))) return;
-
     triggerHaptic(15);
 
-    if (confirm(`¿Estás seguro de deshacer esta cuenta completa y devolver los productos al stock?`)) {
+    // La factura se revisa (y se anula) después del sí, para no anularla si
+    // al final no se deshace la cuenta.
+    if (confirm(`¿Estás seguro de deshacer esta cuenta completa y devolver los productos al stock?`)
+        && await canChangeInvoicedAccount(timestamp, 'deshacer')) {
         // Immediately record voided UUIDs locally so a stale Supabase-direct
         // refetch (pre-first-sync only -- PowerSync's own local view updates
         // instantly) can't resurrect them into salesLog before the void
@@ -1022,7 +1184,6 @@ window.handleAutocorrectSales = handleAutocorrectSales;
 async function handleEditSale(timestamp) {
     const matchingSales = salesLog.filter(s => s.timestamp === timestamp);
     if (matchingSales.length === 0) return;
-    if (!(await canChangeInvoicedAccount(timestamp, 'modificar'))) return;
 
     // A closed/collected sale is tagged "(Pagado ...)" on every item's name.
     // Reopening one for correction is money-sensitive: the corrected cuenta comes
@@ -1039,6 +1200,9 @@ async function handleEditSale(timestamp) {
             return;
         }
     }
+
+    // Último paso antes de tocar la cuenta: si tiene factura, se anula aquí.
+    if (!(await canChangeInvoicedAccount(timestamp, 'modificar'))) return;
 
     triggerHaptic(15);
 
@@ -1190,6 +1354,9 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
     window.StorageManager.saveSalesLog(salesLog);
     renderAllViews();
     window.UIManager.showToast(`💵 Cuenta de "${finalName}" cobrada con éxito.`, "fa-solid fa-circle-check");
+
+    // La factura talonario sale sola al cobrar (sin cédula: consumidor final).
+    await autoIssueInvoice(timestamp);
 }
 
 /**
@@ -4980,7 +5147,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // A real offline->online transition always resyncs; it is exactly the
     // moment the queued writes need to go out, so it skips the debounce.
-    window.addEventListener('online', () => autoSyncAndReconnect({ force: true }));
+    window.addEventListener('online', () => {
+        autoSyncAndReconnect({ force: true });
+        // Facturas de cuentas cobradas sin conexión.
+        setTimeout(retryPendingInvoices, 3000);
+    });
+    setTimeout(retryPendingInvoices, 8000);
     window.addEventListener('offline', () => {
         if (window.SupabaseManager.isConfigured()) {
             window.UIManager.updateConnectionStatus('offline');
@@ -5033,6 +5205,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.handleEditSale = handleEditSale;
 window.handleUndoSale = handleUndoSale;
 window.startExtraInvoiceAccount = startExtraInvoiceAccount;
+window.autoIssueInvoice = autoIssueInvoice;
 window.getCurrentRole = () => currentRole;
 window.handleCartQtyChange = handleCartQtyChange;
 window.updateProductStockDirect = updateProductStockDirect;
@@ -5830,6 +6003,7 @@ if (typeof module !== 'undefined' && module.exports) {
         validateStockAdjustment: (stock, delta) => (typeof window !== 'undefined' && window.InventoryManager ? window.InventoryManager.validateStockAdjustment(stock, delta) : require('./inventory.js').validateStockAdjustment(stock, delta)),
         checkRolePermission: (role, action) => (typeof window !== 'undefined' && window.AuthManager ? window.AuthManager.checkRolePermission(role, action) : require('./auth.js').checkRolePermission(role, action)),
         applyStockLoad,
+        invoiceDataForAccount,
         applyStockCount,
         resolveVitrinaCapacity,
         bcvRateChangedEnough,

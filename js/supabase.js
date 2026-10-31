@@ -1306,6 +1306,72 @@ async function renumberInvoice(number, newNumber, newControl, reason) {
     }
 }
 
+/**
+ * Completa o corrige los datos del cliente de una factura ya emitida (caja o
+ * admin) sin cambiar su número, productos ni montos. Sin cédula queda como
+ * consumidor final. El cambio queda registrado con el valor anterior; ver
+ * supabase/migrations/047_invoice_auto_issue.sql.
+ */
+async function updateInvoiceClient(number, { clientName, clientRif, clientAddress, clientPhone, clientEmail, reason }) {
+    if (!client) return { invoice: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('update_invoice_client', {
+            p_number: number,
+            p_client_name: clientName || '',
+            p_client_rif: clientRif || '',
+            p_client_address: clientAddress || '',
+            p_client_phone: clientPhone || '',
+            p_client_email: clientEmail || '',
+            p_reason: reason || ''
+        });
+        if (error) throw error;
+        return { invoice: data, error: null };
+    } catch (err) {
+        console.error('updateInvoiceClient:', err);
+        return { invoice: null, error: err.message || 'No se pudieron guardar los datos.' };
+    }
+}
+
+/**
+ * Anula la factura de una cuenta que se va a corregir o deshacer. La caja
+ * solo puede con facturas de hoy; las de otros días, el admin.
+ * @returns {Promise<{invoice: Object|null, error: string|null}>} invoice es
+ *   null (sin error) si la cuenta no tenía factura emitida.
+ */
+async function voidInvoiceForCorrection(saleTimestamp, reason) {
+    if (!client) return { invoice: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('void_invoice_for_correction', {
+            p_sale_timestamp: saleTimestamp, p_reason: reason
+        });
+        if (error) throw error;
+        return { invoice: data || null, error: null };
+    } catch (err) {
+        console.error('voidInvoiceForCorrection:', err);
+        return { invoice: null, error: err.message || 'No se pudo anular la factura.' };
+    }
+}
+
+/**
+ * Facturas (emitidas y anuladas) de las cuentas desde `sinceIso`, para mostrar
+ * el N° en Clientes → Historial. null si no se pudo consultar.
+ */
+async function fetchInvoicesSince(sinceIso) {
+    if (!client) return null;
+    try {
+        const { data, error } = await client
+            .from('invoices')
+            .select('number, sale_timestamp, status, client_name, client_rif')
+            .gte('sale_timestamp', sinceIso)
+            .order('number', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('fetchInvoicesSince:', err);
+        return null;
+    }
+}
+
 async function getUserProfile(userId) {
     if (!client || !userId) return null;
     try {
@@ -2194,6 +2260,9 @@ window.SupabaseManager = {
     fetchInvoiceNextNumber,
     setInvoiceNextNumber,
     renumberInvoice,
+    updateInvoiceClient,
+    voidInvoiceForCorrection,
+    fetchInvoicesSince,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,

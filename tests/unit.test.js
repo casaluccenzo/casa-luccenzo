@@ -832,6 +832,30 @@ const SUITES = [
             'https://www.casalucenzo.com/factura/?n=46&c=AB12CD34', 'Invoice: verification link');
         console.log("✅ TEST PASSED: Factura carta (talonario) renders invoice data");
 
+        // Factura que sale sola al cobrar: qué lleva y qué cuentas no la llevan.
+        const { invoiceDataForAccount } = require('../js/app');
+        const ts = '2026-10-31T12:00:00.000Z';
+        const sale = (name, price, extra = {}) => ({ uuid: crypto.randomUUID(), productId: 'pastel_pollo', name, price, timestamp: ts, ...extra });
+        assert.strictEqual(InvoiceRenderer.isConsumidorFinal({ client_rif: 'V-00000000' }), true, 'Invoice: V-00000000 is consumidor final');
+        const cfData = invoiceDataForAccount([
+            sale('Pastel de Pollo [chico flaco] (Pagado - Pago Móvil)', 2.5),
+            sale('Pastel de Pollo [chico flaco] (Pagado - Pago Móvil)', 2.5),
+            sale('Malta [chico flaco] (Pagado - Pago Móvil)', 0.8, { productId: 'malta', bcvRate: 250 })
+        ], 240);
+        assert.strictEqual(cfData.clientName, 'CONSUMIDOR FINAL', 'AutoInvoice: sin cédula sale a consumidor final, no con el apodo de la cuenta');
+        assert.strictEqual(cfData.clientRif, 'V-00000000', 'AutoInvoice: RIF de consumidor final');
+        assert.strictEqual(cfData.paymentMethod, 'Pago Móvil', 'AutoInvoice: forma de pago de la cuenta');
+        assert.strictEqual(cfData.bcvRate, 250, 'AutoInvoice: tasa con la que se cobró la cuenta');
+        assert.deepStrictEqual(cfData.items, [{ desc: 'Pastel de Pollo', qty: 2, price: 2.5 }, { desc: 'Malta', qty: 1, price: 0.8 }], 'AutoInvoice: ítems agrupados');
+        const rifData = invoiceDataForAccount([sale('Pastel de Queso [Miceven - J-12345678-9] (Pagado - Punto de Venta)', 2.5)], 240);
+        assert.strictEqual(rifData.clientName, 'Miceven', 'AutoInvoice: con RIF usa el nombre de la cuenta');
+        assert.strictEqual(rifData.clientRif, 'J-12345678-9', 'AutoInvoice: con RIF usa el RIF de la cuenta');
+        assert.strictEqual(rifData.bcvRate, 240, 'AutoInvoice: sin tasa en la venta usa la del día');
+        assert.strictEqual(invoiceDataForAccount([sale('Pastel de Pollo [Mesa 3]', 2.5)], 240).skip, 'sin cobrar', 'AutoInvoice: cuenta sin cobrar no lleva factura');
+        assert.strictEqual(invoiceDataForAccount([sale('Pastel de Pollo · Consumo personal [Ana] (Pagado - Efectivo Bs.)', 1.2)], 240).skip, 'personal', 'AutoInvoice: consumo del personal no lleva factura');
+        assert.strictEqual(invoiceDataForAccount([sale('Abono [Pedro] (Pagado - Efectivo $)', 5, { productId: 'abono' })], 240).skip, 'abono', 'AutoInvoice: abono de fiado no lleva factura');
+        console.log("✅ TEST PASSED: Factura talonario automática al cobrar (consumidor final, personal, sin cobrar)");
+
         // Pedido web: entrega + datos del Pago Móvil en el WhatsApp del cliente.
         const PedidoDelivery = require('../js/pedido-delivery');
         const pedidoWeb = {

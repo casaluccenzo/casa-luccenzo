@@ -3741,6 +3741,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
     activosContainer.innerHTML = '';
     pagadosContainer.innerHTML = '';
+    historialGroups.clear();
     activosContainer.style.display = 'grid';
     activosContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(135px, 1fr))';
     activosContainer.style.gap = '0.5rem';
@@ -3832,6 +3833,9 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 <strong>Lleva:</strong> ${itemsSummary}
             </div>
             
+            <!-- Factura talonario (se emite sola al cobrar) -->
+            <div class="hist-inv-badge" data-ts="${escapeHtml(group.timestamp)}" style="font-size: 11px; color: var(--color-text-muted); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;"></div>
+
             <!-- Action Buttons Row -->
             <div style="display: flex; gap: 0.4rem; width: 100%; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
                 <button class="btn-action-small btn-pos-ticket-client" title="Ver / Imprimir Factura POS SENIAT" style="flex: 1.5; height: 36px; justify-content: center; font-size: 0.75rem; background-color: rgba(212,175,55,0.18); color: var(--color-gold); border: 1px solid rgba(212,175,55,0.4); font-weight: 800;">
@@ -3906,9 +3910,11 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
             if (onUndo) onUndo(group.timestamp);
         });
 
+        historialGroups.set(group.timestamp, group);
         pagadosContainer.appendChild(card);
         paidCount++;
     });
+    refreshHistorialInvoices();
 
     if (activeCount === 0) {
         activosContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); padding: 0.5rem; text-align: center;">No hay cuentas activas abiertas consumiendo.</div>';
@@ -3916,6 +3922,89 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     if (paidCount === 0) {
         pagadosContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); padding: 0.5rem; text-align: center;">No hay historial de cuentas pagadas hoy.</div>';
     }
+}
+
+// Cuentas del Historial por horario, para abrir su factura desde la etiqueta.
+const historialGroups = new Map();
+let historialInvoicesCache = { at: 0, list: null, promise: null };
+
+/**
+ * Pone en cada cuenta del Historial el N° de su factura talonario (o si
+ * falta). Una sola consulta por pantalla, guardada unos segundos para no
+ * repetirla en cada repintado.
+ */
+async function refreshHistorialInvoices({ force = false } = {}) {
+    const container = document.getElementById('clientes-pagados-container');
+    if (!container || !container.querySelector('.hist-inv-badge')) return;
+    const pending = new Set(window.PendingInvoices ? window.PendingInvoices.list() : []);
+    const online = navigator.onLine && window.SupabaseManager && window.SupabaseManager.isConfigured();
+
+    let list = null;
+    if (online) {
+        const fresh = Date.now() - historialInvoicesCache.at < 15000;
+        if (force || !fresh || !historialInvoicesCache.list) {
+            if (!historialInvoicesCache.promise || force) {
+                const since = new Date();
+                since.setHours(0, 0, 0, 0);
+                historialInvoicesCache.promise = window.SupabaseManager.fetchInvoicesSince(since.toISOString())
+                    .then(rows => {
+                        if (rows) historialInvoicesCache = { at: Date.now(), list: rows, promise: null };
+                        else historialInvoicesCache.promise = null;
+                        return rows;
+                    });
+            }
+            list = await historialInvoicesCache.promise;
+        } else {
+            list = historialInvoicesCache.list;
+        }
+    }
+
+    const byTs = new Map();
+    (list || []).forEach(inv => {
+        const key = new Date(inv.sale_timestamp).getTime();
+        const prev = byTs.get(key);
+        if (!prev || inv.status === 'emitida') byTs.set(key, inv);
+    });
+
+    const pad5 = (n) => (window.InvoiceRenderer ? window.InvoiceRenderer.pad5(n) : String(n));
+    const btnStyle = 'height: 30px; padding: 0 0.7rem; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.35rem;';
+    document.querySelectorAll('#clientes-pagados-container .hist-inv-badge').forEach(badge => {
+        const ts = badge.dataset.ts;
+        const group = historialGroups.get(ts);
+        if (!group) return;
+        const inv = byTs.get(new Date(ts).getTime());
+        const isStaff = window.Combos && group.items.some(it => window.Combos.isStaffSale(it.name));
+        let html;
+        if (inv && inv.status === 'emitida') {
+            const cf = window.InvoiceRenderer && window.InvoiceRenderer.isConsumidorFinal(inv);
+            html = `<button class="btn-hist-inv" style="${btnStyle} border: 1px solid rgba(212,175,55,0.5); background: rgba(212,175,55,0.12); color: var(--color-gold);">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Factura N° ${pad5(inv.number)}
+                    </button>
+                    ${cf ? '<span>Consumidor final · <span style="color: var(--color-gold);">tóquela para poner la cédula</span></span>' : ''}`;
+        } else if (pending.has(ts)) {
+            html = '<span><i class="fa-solid fa-wifi"></i> Factura talonario pendiente: sale sola al volver internet.</span>';
+        } else if (!online) {
+            html = '';
+        } else {
+            const label = inv ? `Factura N° ${pad5(inv.number)} anulada` : (isStaff ? 'Consumo del personal: sin factura' : 'Sin factura talonario');
+            html = `<span>${label}</span>
+                    <button class="btn-hist-inv" style="${btnStyle} border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: var(--color-white);">
+                        <i class="fa-solid fa-file-circle-plus"></i> Emitir factura
+                    </button>`;
+        }
+        badge.innerHTML = html;
+        const btn = badge.querySelector('.btn-hist-inv');
+        if (btn) {
+            btn.addEventListener('click', () => showInvoiceModal({
+                cart: group.items,
+                clientName: group.clientName,
+                clientRif: group.clientRif,
+                timestamp: group.timestamp,
+                payMethod: group.paymentMethod || 'Efectivo',
+                rate: group.bcvRate
+            }));
+        }
+    });
 }
 
 function cleanProductName(name = '') {
@@ -4515,6 +4604,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
 
     const showInvoice = async (inv) => {
         await loadQrLib();
+        const isCf = window.InvoiceRenderer.isConsumidorFinal(inv);
         const origin = window.location.origin;
         panel.innerHTML = `
             ${header(`Factura N° ${window.InvoiceRenderer.pad5(inv.number)}`)}
@@ -4539,6 +4629,32 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                 <button class="btn-inv-extra" style="height: 36px; padding: 0 0.8rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.78rem;">
                     <i class="fa-solid fa-plus"></i> El cliente pide más
                 </button>
+            </div>` : ''}
+            ${inv.status !== 'anulada' ? `
+            <div class="inv-noprint" style="background: ${isCf ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${isCf ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.1)'}; border-radius: 10px; padding: 0.55rem 0.7rem; margin-bottom: 0.9rem; font-size: 0.75rem; color: var(--color-text-muted);">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <span style="flex: 1; min-width: 200px;">${isCf
+                        ? 'Esta factura salió a <strong style="color: var(--color-white);">CONSUMIDOR FINAL</strong>. Si el cliente da su cédula o RIF, complétela aquí: el número de factura no cambia.'
+                        : 'Si hay un error en el nombre o la cédula/RIF del cliente, se corrige aquí sin cambiar el número de factura.'}</span>
+                    <button class="btn-inv-client" style="height: 36px; padding: 0 0.8rem; border-radius: 8px; border: none; cursor: pointer; background: ${isCf ? '#60A5FA' : 'rgba(255,255,255,0.12)'}; color: ${isCf ? '#0b1a33' : 'var(--color-white)'}; font-weight: 900; font-size: 0.78rem;">
+                        <i class="fa-solid fa-user-pen"></i> ${isCf ? 'Completar datos del cliente' : 'Corregir datos del cliente'}
+                    </button>
+                </div>
+                <form class="inv-client-form" style="display: none; margin-top: 0.6rem; gap: 0.5rem;">
+                    <div><label style="${labelStyle}" for="inv-edit-name">Nombre o razón social</label><input id="inv-edit-name" maxlength="200" style="${inputStyle}" placeholder="CONSUMIDOR FINAL" value="${escapeHtml(isCf ? (inv.client_name === window.InvoiceRenderer.CONSUMIDOR_FINAL.name ? '' : inv.client_name) : inv.client_name)}"></div>
+                    <div><label style="${labelStyle}" for="inv-edit-rif">Cédula o RIF</label>${rifFieldHtml('inv-edit-rif', isCf ? '' : inv.client_rif, inputStyle)}</div>
+                    <div><label style="${labelStyle}" for="inv-edit-address">Domicilio fiscal</label><input id="inv-edit-address" maxlength="300" style="${inputStyle}" value="${escapeHtml(inv.client_address || '')}"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div><label style="${labelStyle}" for="inv-edit-phone">Teléfono (WhatsApp)</label><input id="inv-edit-phone" type="tel" maxlength="30" style="${inputStyle}" value="${escapeHtml(inv.client_phone || '')}"></div>
+                        <div><label style="${labelStyle}" for="inv-edit-email">Correo</label><input id="inv-edit-email" type="email" maxlength="120" style="${inputStyle}" value="${escapeHtml(inv.client_email || '')}"></div>
+                    </div>
+                    <div style="color: var(--color-text-muted);">Se guarda quién lo cambió, cuándo y los datos anteriores. Productos, montos y N° no cambian. Después de guardar, reimprima o reenvíe la factura.</div>
+                    <div class="inv-client-error" style="display: none; color: #FCA5A5; font-weight: 700;"></div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <button type="button" class="btn-inv-client-cancel" style="height: 34px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: transparent; color: var(--color-white); font-weight: 800;">Cancelar</button>
+                        <button type="submit" class="btn-inv-client-save" style="height: 34px; padding: 0 0.9rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900;">Guardar datos</button>
+                    </div>
+                </form>
             </div>` : ''}
             ${isAdmin() ? `
             <div class="inv-noprint" style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin: -0.4rem 0 0.9rem;">
@@ -4565,6 +4681,39 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             </form>` : ''}
             <div class="inv-paper-stage" style="width: 100%;"></div>`;
         bindClose();
+        const clientBtn = panel.querySelector('.btn-inv-client');
+        if (clientBtn) {
+            const cForm = panel.querySelector('.inv-client-form');
+            const cError = panel.querySelector('.inv-client-error');
+            clientBtn.addEventListener('click', () => { cForm.style.display = cForm.style.display === 'none' ? 'grid' : 'none'; });
+            panel.querySelector('.btn-inv-client-cancel').addEventListener('click', () => { cForm.style.display = 'none'; });
+            cForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const val = (id) => panel.querySelector(id).value.trim();
+                const rif = readRifField(panel, 'inv-edit-rif');
+                const digits = rif.replace(/\D/g, '');
+                const showErr = (msg) => { cError.textContent = msg; cError.style.display = 'block'; };
+                if (digits.length > 0 && digits.length < 5) return showErr('La cédula o el RIF no parece válido.');
+                if (digits.length >= 5 && !val('#inv-edit-name')) return showErr('Falta el nombre o la razón social.');
+                const saveBtn = panel.querySelector('.btn-inv-client-save');
+                saveBtn.disabled = true;
+                const { invoice, error } = await window.SupabaseManager.updateInvoiceClient(inv.number, {
+                    clientName: val('#inv-edit-name'),
+                    clientRif: rif,
+                    clientAddress: val('#inv-edit-address'),
+                    clientPhone: val('#inv-edit-phone'),
+                    clientEmail: val('#inv-edit-email'),
+                    reason: isCf ? 'Datos del cliente completados' : 'Datos del cliente corregidos'
+                });
+                if (!invoice) {
+                    saveBtn.disabled = false;
+                    return showErr(error);
+                }
+                showToast(`👤 Datos de la Factura N° ${window.InvoiceRenderer.pad5(inv.number)} guardados.`, 'fa-solid fa-user-pen');
+                if (window.UIManager && window.UIManager.refreshHistorialInvoices) window.UIManager.refreshHistorialInvoices({ force: true });
+                await showInvoice(invoice);
+            });
+        }
         const renumberBtn = panel.querySelector('.btn-inv-renumber');
         if (renumberBtn) {
             const rForm = panel.querySelector('.inv-renumber-form');
@@ -4693,8 +4842,8 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             <i class="fa-solid fa-pen-to-square"></i> MODIFICAR CUENTA ANTES DE FACTURAR
         </button>` : ''}
         <form class="inv-issue-form" style="display: grid; gap: 0.6rem;">
-            <div><label style="${labelStyle}" for="inv-client-name">Nombre o razón social *</label><input id="inv-client-name" required maxlength="200" style="${inputStyle}" value="${escapeHtml(clientName && clientName !== 'Cliente' ? clientName : '')}"></div>
-            <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF *</label>${rifFieldHtml('inv-client-rif', clientRif, inputStyle)}</div>
+            <div><label style="${labelStyle}" for="inv-client-name">Nombre o razón social</label><input id="inv-client-name" maxlength="200" placeholder="CONSUMIDOR FINAL" style="${inputStyle}" value="${escapeHtml(clientName && clientName !== 'Cliente' && clientRif ? clientName : '')}"></div>
+            <div><label style="${labelStyle}" for="inv-client-rif">Cédula o RIF <span style="text-transform: none; font-weight: 600;">(vacío = consumidor final V-00000000, se completa después)</span></label>${rifFieldHtml('inv-client-rif', clientRif, inputStyle)}</div>
             <div><label style="${labelStyle}" for="inv-client-address">Domicilio fiscal</label><input id="inv-client-address" maxlength="300" style="${inputStyle}"></div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
                 <div><label style="${labelStyle}" for="inv-client-phone">Teléfono (WhatsApp)</label><input id="inv-client-phone" type="tel" maxlength="30" placeholder="0414-1234567" style="${inputStyle}"></div>
@@ -4743,11 +4892,15 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const val = (id) => panel.querySelector(id).value.trim();
-        const name = val('#inv-client-name');
-        const rif = readRifField(panel, 'inv-client-rif');
+        const cf = window.InvoiceRenderer.CONSUMIDOR_FINAL;
+        const typedRif = readRifField(panel, 'inv-client-rif');
+        const digits = typedRif.replace(/\D/g, '');
         const showError = (msg) => { errorBox.textContent = msg; errorBox.style.display = 'block'; };
+        if (digits.length > 0 && digits.length < 5) return showError('La cédula o el RIF no parece válido.');
+        // Sin cédula sale a consumidor final; los datos se completan después.
+        const rif = digits.length ? typedRif : cf.rif;
+        const name = val('#inv-client-name') || (digits.length ? '' : cf.name);
         if (!name) return showError('Falta el nombre o la razón social.');
-        if (rif.replace(/\D/g, '').length < 5) return showError('La cédula o el RIF no parece válido.');
         if (!(effectiveRate > 0)) return showError('No hay tasa BCV cargada. Actualice la tasa y vuelva a intentar.');
         errorBox.style.display = 'none';
         submitBtn.disabled = true;
@@ -7242,6 +7395,7 @@ window.UIManager = {
     renderQuickConversionTable,
     renderActiveCart,
     renderClientesView,
+    refreshHistorialInvoices,
     showPaymentMethodModal,
     showPosReceiptModal,
     showInvoiceModal,

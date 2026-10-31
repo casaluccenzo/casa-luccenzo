@@ -867,8 +867,8 @@ async function handleCheckoutCart() {
 }
 
 /**
- * Una cuenta cobrada tiene su factura talonario (se emite sola al registrar
- * el pago), y la factura guarda los ítems y el total con un número que no se
+ * Una cuenta cobrada puede tener su factura talonario (se emite a mano,
+ * solo cuando se le da factura en papel), y la factura guarda los ítems y el total con un número que no se
  * repite. Para corregir o deshacer la cuenta, esa factura se ANULA primero
  * (queda guardada con su número) y al cobrar de nuevo sale otra con el
  * siguiente. La caja puede anular las de hoy; las de días anteriores, solo el
@@ -1355,8 +1355,9 @@ async function markTransactionAsPaid(timestamp, paymentMethod, updatedName = nul
     renderAllViews();
     window.UIManager.showToast(`💵 Cuenta de "${finalName}" cobrada con éxito.`, "fa-solid fa-circle-check");
 
-    // La factura talonario sale sola al cobrar (sin cédula: consumidor final).
-    await autoIssueInvoice(timestamp);
+    // La factura talonario YA NO sale sola al cobrar: el número del sistema
+    // tiene que ir a la par del talonario físico, así que solo se emite
+    // cuando se le da factura en papel al cliente (botón en Historial).
 }
 
 /**
@@ -5149,10 +5150,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // moment the queued writes need to go out, so it skips the debounce.
     window.addEventListener('online', () => {
         autoSyncAndReconnect({ force: true });
-        // Facturas de cuentas cobradas sin conexión.
-        setTimeout(retryPendingInvoices, 3000);
     });
-    setTimeout(retryPendingInvoices, 8000);
+    // Las facturas ya no se emiten solas: se vacía la cola vieja para que
+    // ninguna cuenta cobrada sin conexión gaste un número del talonario.
+    PendingInvoices.list().forEach(ts => PendingInvoices.remove(ts));
     window.addEventListener('offline', () => {
         if (window.SupabaseManager.isConfigured()) {
             window.UIManager.updateConnectionStatus('offline');

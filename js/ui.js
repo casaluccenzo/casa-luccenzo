@@ -2662,6 +2662,86 @@ function renderCombosBar(products) {
     bar.querySelectorAll('.btn-combo').forEach(btn => {
         btn.addEventListener('click', () => openComboPicker(btn.getAttribute('data-combo'), products));
     });
+    renderHabitualesBar(bar, products);
+}
+
+/**
+ * "Pedido habitual" buttons (Combos.HABITUALES) under the combos: one per
+ * regular customer whose drink exists. Tapping opens the flavor picker; the
+ * items then go to the cart at their normal loose price.
+ */
+function renderHabitualesBar(bar, products) {
+    const C = window.Combos;
+    if (!C || !C.HABITUALES) return;
+    const pasteles = products.filter(p => p.category === 'pastelitos' && !C.isHiddenFromSale(p));
+    const offered = C.HABITUALES.filter(h => pasteles.length && products.some(p => p.id === h.drinkId));
+    if (!offered.length) return;
+    const section = document.createElement('div');
+    section.className = 'habituales-bar';
+    section.innerHTML = `
+        <div class="combos-bar-title"><i class="fa-solid fa-star"></i> Pedido habitual <span class="habituales-note">precio normal, no es combo</span></div>
+        <div class="combos-bar-list">
+            ${offered.map(h => {
+                const drink = products.find(p => p.id === h.drinkId);
+                return `
+                <button type="button" class="btn-combo btn-habitual" data-habitual="${escapeHtml(h.id)}">
+                    <span class="btn-combo-name">${escapeHtml(h.name)}</span>
+                    <span class="btn-combo-desc">${h.pasteles} ${h.pasteles === 1 ? 'pastel' : 'pasteles'} + ${escapeHtml(drink.name)}</span>
+                </button>`;
+            }).join('')}
+        </div>`;
+    section.querySelectorAll('.btn-habitual').forEach(btn => {
+        btn.addEventListener('click', () => openHabitualPicker(btn.getAttribute('data-habitual'), products));
+    });
+    bar.classList.remove('hidden');
+    bar.appendChild(section);
+}
+
+/** Flavor picker for a regular customer's order, then window.addHabitualToCart. */
+function openHabitualPicker(habitualId, products) {
+    const C = window.Combos;
+    const h = C && C.HABITUALES.find(x => x.id === habitualId);
+    if (!h) return;
+    const drink = products.find(p => p.id === h.drinkId);
+    const pasteles = products.filter(p => p.category === 'pastelitos' && !C.isHiddenFromSale(p));
+    if (!drink || !pasteles.length) return;
+    const picked = [];
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <strong>${escapeHtml(h.name)}: lo de siempre</strong>
+                <button type="button" class="btn-combo-close" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="combo-picker-hint"></p>
+                <div class="combo-flavor-grid">
+                    ${pasteles.map(p => `<button type="button" class="btn-combo-flavor" data-id="${escapeHtml(p.id)}">${escapeHtml(p.name)}<small>Quedan ${p.stock}</small></button>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    const hint = overlay.querySelector('.combo-picker-hint');
+    const updateHint = () => {
+        const names = picked.map(id => (pasteles.find(p => p.id === id) || {}).name).filter(Boolean);
+        hint.textContent = `Elige ${h.pasteles} ${h.pasteles === 1 ? 'sabor' : 'sabores (puede repetirse)'}: ${picked.length}/${h.pasteles}${names.length ? ' · ' + names.join(', ') : ''}. Va con ${drink.name}.`;
+    };
+    updateHint();
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.btn-combo-close').addEventListener('click', close);
+    overlay.querySelectorAll('.btn-combo-flavor').forEach(btn => {
+        btn.addEventListener('click', () => {
+            picked.push(btn.getAttribute('data-id'));
+            if (picked.length >= h.pasteles) {
+                close();
+                if (window.addHabitualToCart) window.addHabitualToCart(h.id, picked);
+            } else {
+                updateHint();
+            }
+        });
+    });
+    document.body.appendChild(overlay);
 }
 
 /**

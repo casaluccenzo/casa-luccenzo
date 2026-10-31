@@ -35,6 +35,15 @@
     // cobrando. Para volver a vender la categoría, sacarla de `categories`.
     const HIDDEN = { categories: ['dulces', 'empanadas'], keepInPos: ['caja_chica', 'caja_grande'] };
 
+    // Pedido habitual de clientes fijos: un toque en la Vitrina pone sus
+    // pasteles (elige los sabores del día) y su bebida en la cuenta, cada uno
+    // a su precio NORMAL de venta suelta (no es combo, no cambia precios), y
+    // deja el nombre y la cédula/RIF listos para cobrar.
+    // `drinkId`: products.id de la bebida.
+    const HABITUALES = [
+        { id: 'maploca', name: 'Maploca', rif: 'J-000244995', pasteles: 3, drinkId: 'malta' }
+    ];
+
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
     /** Día de la semana en Caracas (0 = domingo), sin importar la zona del dispositivo. */
@@ -115,6 +124,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale, HABITUALES };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

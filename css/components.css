@@ -2969,6 +2969,8 @@ input[type="number"] {
 .btn-combo-name { font-weight: 800; font-size: 12.5px; }
 .btn-combo-desc { font-size: 10.5px; opacity: 0.75; }
 .btn-combo-price { font-weight: 800; font-size: 13px; color: var(--color-gold); }
+.habituales-bar { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px dashed rgba(201, 162, 74, 0.35); }
+.habituales-note { font-weight: 600; font-size: 10.5px; opacity: 0.7; color: #FFF; }
 .btn-combo-close { background: none; border: none; color: #FFF; font-size: 1.1rem; cursor: pointer; }
 .combo-picker-hint { font-size: 12.5px; margin: 0 0 0.75rem; opacity: 0.85; }
 .combo-flavor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }

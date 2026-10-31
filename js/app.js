@@ -445,6 +445,38 @@ function addComboToCart(comboId, flavorIds) {
 }
 window.addComboToCart = addComboToCart;
 
+const HABITUAL_CLIENT_KEY = 'casa_lucenzo_habitual_client';
+
+/**
+ * Regular customer's usual order (Combos.HABITUALES): the picked pasteles and
+ * the drink go to the cart exactly like tapping them one by one in the
+ * vitrina -- loose items at their normal price, stock taken the same way.
+ * The customer's name and RIF are kept so checkout comes pre-filled.
+ * @param {string} habitualId Combos.HABITUALES[].id
+ * @param {string[]} flavorIds One pastelito product id per pastel
+ */
+function addHabitualToCart(habitualId, flavorIds) {
+    const h = Combos && Combos.HABITUALES && Combos.HABITUALES.find(x => x.id === habitualId);
+    if (!h) return;
+    const ids = [...(flavorIds || []), h.drinkId];
+    if (ids.some(id => !products.some(p => p.id === id))) {
+        window.UIManager.showToast(`⚠️ Falta un producto del pedido de ${h.name}. Revisa los productos.`, "fa-solid fa-triangle-exclamation");
+        return;
+    }
+    ids.forEach(id => adjustStock(id, -1));
+    sessionStorage.setItem(HABITUAL_CLIENT_KEY, JSON.stringify({ name: h.name, rif: h.rif || '' }));
+    window.UIManager.showToast(`⭐ Pedido de ${h.name} en la cuenta. Al cobrar ya sale su nombre${h.rif ? ' y RIF' : ''}.`, "fa-solid fa-circle-check");
+}
+window.addHabitualToCart = addHabitualToCart;
+
+/** Name/RIF of the regular customer whose order is in the cart, or null. */
+function readHabitualClient() {
+    try {
+        const v = JSON.parse(sessionStorage.getItem(HABITUAL_CLIENT_KEY) || 'null');
+        return v && v.name ? v : null;
+    } catch (e) { return null; }
+}
+
 /**
  * Adds one pastel for the staff to the active cart, at cost with no IVA (see
  * Combos.staffBsPrice). It keeps its own cart line ("Pollo · Consumo
@@ -739,6 +771,7 @@ async function handleClearCart() {
             sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
         }
         sessionStorage.removeItem('casa_lucenzo_editing_client_name');
+        sessionStorage.removeItem(HABITUAL_CLIENT_KEY);
 
         currentCart = [];
         localStorage.removeItem('casa_lucenzo_current_cart');
@@ -772,12 +805,15 @@ async function handleCheckoutCart() {
     try {
 
     triggerHaptic(15);
-    const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
-    const cameFromClientes = !!defaultName;
+    const editingName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
+    const cameFromClientes = !!editingName;
+    // A regular customer's usual order pre-fills their name and RIF.
+    const habitual = editingName ? null : readHabitualClient();
+    const defaultName = editingName || (habitual ? habitual.name : "");
     const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
     if (clientNameInput === null) return; // Cancelled
 
-    const clientRifInput = await window.UIManager.promptClientRif("");
+    const clientRifInput = await window.UIManager.promptClientRif(habitual && clientNameInput.trim() === habitual.name ? habitual.rif : "");
     if (clientRifInput === null) return; // Cancelled
 
     const rawName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
@@ -810,6 +846,7 @@ async function handleCheckoutCart() {
         sessionStorage.removeItem('casa_lucenzo_editing_timestamp');
     }
     sessionStorage.removeItem('casa_lucenzo_editing_client_name');
+    sessionStorage.removeItem(HABITUAL_CLIENT_KEY);
 
     // Create sales log items for each cart product (as open active account)
     const newSales = [];

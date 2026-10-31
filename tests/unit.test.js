@@ -289,6 +289,9 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.isHiddenCategory('dulces'), true, "REAL Ocultos: el menú web oculta toda la categoría");
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'empanada_pollo', category: 'empanadas' }), true, "REAL Ocultos: las empanadas ya no se venden");
     assert.strictEqual(Combos.isHiddenCategory('empanadas'), true, "REAL Ocultos: el menú web oculta las empanadas");
+    const maploca = Combos.HABITUALES.find(h => h.id === 'maploca');
+    assert.ok(maploca && maploca.pasteles === 3 && maploca.drinkId === 'malta', "REAL Habitual: Maploca = 3 pasteles + Malta");
+    assert.strictEqual(maploca.rif, 'J-000244995', "REAL Habitual: RIF de Maploca listo para cobrar");
     assert.ok(Combos.isStaffSale({ name: 'Pollo · Consumo personal [María] (Pagado - Pago Móvil)' }), "REAL Personal: reconoce la venta del personal");
     assert.ok(!Combos.isStaffSale({ name: 'Pollo · Combo Clásico [Cliente]' }), "REAL Personal: un combo no es consumo del personal");
     assert.strictEqual(cartKeyOf({ productId: 'pollo', combo: 'personal' }), 'pollo|personal', "REAL cartKeyOf: línea del personal aparte");

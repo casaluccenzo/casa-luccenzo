@@ -36,7 +36,7 @@
             return `
                 <div style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.85rem;">
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:700;color:#E2E8F0;">${escapeHtml(r.nombre)}</div>
+                        <div style="font-weight:700;color: var(--color-white);">${escapeHtml(r.nombre)}</div>
                         <div style="color:var(--color-text-muted);font-size:0.78rem;">${escapeHtml(r.telefono || 'Sin WhatsApp')} · ${RED_LABEL[r.red_social] || ''}</div>
                     </div>
                     <div style="color:var(--color-text-muted);font-size:0.75rem;white-space:nowrap;">${escapeHtml(when)}</div>

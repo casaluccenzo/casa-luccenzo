@@ -11,19 +11,23 @@
     --color-gold-light: #E8D7B2;
 
     --color-white: #F6F1E4;
-    --color-text-muted: #94A3B8;
+    --color-text-muted: #A9B4C6;
+    --color-border-soft: rgba(201, 162, 74, 0.16);
+    --color-border-soft-strong: rgba(201, 162, 74, 0.28);
     
-    --color-danger: #EF4444;
-    --color-danger-bg: rgba(239, 68, 68, 0.1);
-    --color-danger-border: rgba(239, 68, 68, 0.4);
+    --color-danger: #E26D5C;
+    --color-danger-solid: #B4443A;
+    --color-danger-bg: rgba(226, 109, 92, 0.1);
+    --color-danger-border: rgba(226, 109, 92, 0.4);
     
-    --color-success: #10B981;
-    --color-success-bg: rgba(16, 185, 129, 0.1);
-    --color-success-border: rgba(16, 185, 129, 0.4);
+    --color-success: #5FBF96;
+    --color-success-solid: #2F7D5C;
+    --color-success-bg: rgba(95, 191, 150, 0.1);
+    --color-success-border: rgba(95, 191, 150, 0.4);
     
-    --color-warning: #F59E0B;
-    --color-warning-bg: rgba(245, 158, 11, 0.1);
-    --color-warning-border: rgba(245, 158, 11, 0.3);
+    --color-warning: #E0A84A;
+    --color-warning-bg: rgba(224, 168, 74, 0.1);
+    --color-warning-border: rgba(224, 168, 74, 0.3);
 
     /* Fonts */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

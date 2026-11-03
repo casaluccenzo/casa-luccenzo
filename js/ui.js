@@ -576,10 +576,10 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between;">
                     ${top3Pastelitos.map((p, idx) => `
-                        <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(0,0,0,0.3); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); min-width: 120px;">
+                        <div style="display: flex; align-items: center; gap: 0.35rem; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); min-width: 120px;">
                             <span>${medals[idx]}</span>
                             <span style="font-weight: 800; color: var(--color-white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;">${p.name}</span>
-                            <span style="font-weight: 900; color: #34D399; margin-left: auto;">${p.soldCount} <span style="font-size: 0.65rem; font-weight: 700; color: var(--color-text-muted);">piezas</span></span>
+                            <span style="font-weight: 900; color: var(--color-success); margin-left: auto;">${p.soldCount} <span style="font-size: 0.65rem; font-weight: 700; color: var(--color-text-muted);">piezas</span></span>
                         </div>
                     `).join('')}
                 </div>
@@ -592,7 +592,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
         dispatchesHtml = `
             <div class="recipe-container" style="border-color: var(--color-success-border); margin-bottom: 1rem;">
                 <h4 class="recipe-title" style="color: var(--color-success);"><i class="fa-solid fa-truck-fast"></i> En Camino al Local:</h4>
-                <div style="font-size: 0.75rem; color: #E2E8F0; line-height: 1.6;">
+                <div style="font-size: 0.75rem; color: var(--color-white); line-height: 1.6;">
                     ${pendingDispatches.map(d => `• <strong>${d.amount}</strong> ${d.unit} de <strong>${d.name}</strong> (Esperando confirmación de caja)`).join('<br>')}
                 </div>
             </div>
@@ -634,7 +634,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                         ${otherProducts.map(item => {
                             const sold = salesCountByProduct[item.id] || 0;
                             return `
-                                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem;">
                                     <div>
                                         <div style="font-weight: 800; color: var(--color-white);">${item.name}</div>
                                         <div style="font-size: 0.68rem; color: var(--color-text-muted);">Vendidos hoy: ${sold}</div>
@@ -682,14 +682,14 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                     </div>
 
                     <!-- 3 Indicators Bar (En Vitrina, Vendidos Hoy, Falta Cocinar) -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; background: rgba(0, 0, 0, 0.3); padding: 0.4rem; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.4rem; text-align: center; font-size: 0.7rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.4rem; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.4rem; text-align: center; font-size: 0.7rem;">
                         <div>
                             <div style="color: var(--color-text-muted); font-size: 0.65rem; font-weight: 700;">VITRINA</div>
                             <div style="font-weight: 900; color: var(--color-white); font-size: 0.95rem;">${item.stock}</div>
                         </div>
                         <div style="border-left: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08);">
                             <div style="color: var(--color-text-muted); font-size: 0.65rem; font-weight: 700;">VENDIDOS</div>
-                            <div style="font-weight: 900; color: #34D399; font-size: 0.95rem;">${soldCount}</div>
+                            <div style="font-weight: 900; color: var(--color-success); font-size: 0.95rem;">${soldCount}</div>
                         </div>
                         <div>
                             <div style="color: var(--color-gold); font-size: 0.65rem; font-weight: 700;">FALTA</div>
@@ -699,7 +699,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
 
                     <!-- Quantity Stepper Controls for Custom Dispatch -->
                     ${!isDispatched ? `
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: rgba(0,0,0,0.25); padding: 0.35rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: var(--v-0-0-0-25, rgba(0, 0, 0, 0.25)); padding: 0.35rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                             <span style="font-size: 0.68rem; color: var(--color-text-muted); font-weight: 700;">CANTIDAD A ENVIAR:</span>
                             <div style="display: flex; align-items: center; gap: 0.3rem;">
                                 <button type="button" class="btn-qty-minus" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #FFF; font-weight: 900; cursor: pointer; font-size: 0.85rem;">-</button>
@@ -786,7 +786,7 @@ function renderCocina(products, deliverProduct, replenishments = [], salesLog = 
                 <h4 class="recipe-title" style="font-size: 0.8rem; font-weight: 800; color: var(--color-gold); margin-bottom: 0.5rem;"><i class="fa-solid fa-scale-balanced"></i> Ingredientes a preparar para esta Tanda:</h4>
                 <div class="recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.4rem; font-size: 0.72rem;">
                     ${ingredients.map(ing => `
-                        <div class="recipe-item" style="background: rgba(0,0,0,0.3); padding: 0.35rem 0.5rem; border-radius: 6px; display: flex; justify-content: space-between;">
+                        <div class="recipe-item" style="background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.35rem 0.5rem; border-radius: 6px; display: flex; justify-content: space-between;">
                             <span class="recipe-item-name">${ing.name}:</span>
                             <span class="recipe-item-val" style="font-weight: 800; color: var(--color-gold);">${ing.amount} ${ing.unit}</span>
                         </div>
@@ -1256,7 +1256,7 @@ function renderDebts(debts, onRecordPayment) {
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
-                <div style="font-size: 0.78rem; color: #E2E8F0; flex: 1; min-width: 0;">
+                <div style="font-size: 0.78rem; color: var(--color-white); flex: 1; min-width: 0;">
                     <i class="fa-solid fa-cookie-bite" style="color: var(--color-gold); margin-right: 0.3rem;"></i>
                     <strong style="color: var(--color-gold);">Productos:</strong> ${escapeHtml(itemsDetail)}
                 </div>
@@ -1343,7 +1343,7 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
 
         const items = Array.isArray(pedido.items) ? pedido.items : [];
         const itemsHtml = items.map(it => `
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #E2E8F0; padding: 0.2rem 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--color-white); padding: 0.2rem 0;">
                 <span>${it.qty}&times; ${escapeHtml(it.name)}</span>
                 <span style="font-family: monospace; color: var(--color-text-muted);">$${(it.qty * it.price).toFixed(2)}</span>
             </div>
@@ -1353,17 +1353,17 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
         // dirección en notes, así que también se muestra.
         let entregaHtml = '';
         if (pedido.delivery_method === 'retiro') {
-            entregaHtml = `<div style="font-size: 0.8rem; color: #E2E8F0;"><i class="fa-solid fa-store" style="color: var(--color-gold); margin-right: 0.35rem;"></i>Retiro en el local</div>`;
+            entregaHtml = `<div style="font-size: 0.8rem; color: var(--color-white);"><i class="fa-solid fa-store" style="color: var(--color-gold); margin-right: 0.35rem;"></i>Retiro en el local</div>`;
         } else if (pedido.delivery_method === 'delivery') {
             entregaHtml = `
-                <div style="font-size: 0.8rem; color: #E2E8F0; line-height: 1.5;">
+                <div style="font-size: 0.8rem; color: var(--color-white); line-height: 1.5;">
                     <div><i class="fa-solid fa-motorcycle" style="color: var(--color-gold); margin-right: 0.35rem;"></i><strong>Delivery:</strong> ${escapeHtml(pedido.delivery_address || '')}</div>
                     ${pedido.delivery_reference ? `<div><i class="fa-solid fa-location-dot" style="color: var(--color-gold); margin-right: 0.35rem;"></i><strong>Referencia:</strong> ${escapeHtml(pedido.delivery_reference)}</div>` : ''}
                     <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.15rem;">El delivery se cobra aparte.</div>
                 </div>`;
         }
         if (pedido.notes) {
-            entregaHtml += `<div style="font-size: 0.8rem; color: #E2E8F0;"><i class="fa-regular fa-note-sticky" style="color: var(--color-gold); margin-right: 0.35rem;"></i>${escapeHtml(pedido.notes)}</div>`;
+            entregaHtml += `<div style="font-size: 0.8rem; color: var(--color-white);"><i class="fa-regular fa-note-sticky" style="color: var(--color-gold); margin-right: 0.35rem;"></i>${escapeHtml(pedido.notes)}</div>`;
         }
         if (entregaHtml) {
             entregaHtml = `<div style="display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0.6rem; border-radius: var(--radius-md); background: rgba(201, 162, 74, 0.06); border: 1px solid rgba(201, 162, 74, 0.2);">${entregaHtml}</div>`;
@@ -1404,7 +1404,7 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
                     <i class="fa-brands fa-whatsapp"></i> Contactar
                 </a>
                 ${isPending ? `
-                    <button class="btn-rechazar-pedido" style="flex: 1; min-width: 120px; height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.1); color: #F87171; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+                    <button class="btn-rechazar-pedido" style="flex: 1; min-width: 120px; height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.1); color: var(--color-danger); font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
                         <i class="fa-solid fa-xmark"></i> Rechazar
                     </button>
                     <button class="btn-confirmar-pedido" style="flex: 1; min-width: 120px; height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: none; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff; font-weight: 800; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);">
@@ -1555,7 +1555,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             <div class="summary-row" style="font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
                 <span style="color: var(--color-white);">${exp.description}</span>
                 <div style="text-align: right;">
-                    <span style="font-weight: 700; color: #FCA5A5; font-family: monospace;">-$${exp.amount.toFixed(2)}</span>
+                    <span style="font-weight: 700; color: var(--color-danger); font-family: monospace;">-$${exp.amount.toFixed(2)}</span>
                     <div style="font-size: 9px; color: var(--color-text-muted); font-family: monospace;">Bs. ${(exp.amount * rate).toFixed(2)}</div>
                 </div>
             </div>
@@ -1608,7 +1608,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             </div>
             <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
                 <span style="color: var(--color-text-muted); font-weight: 700;">💱 Tasa BCV:</span>
-                <input type="number" id="modal-report-bcv-input" step="0.01" value="${rate.toFixed(2)}" class="form-input" style="width: 85px; height: 26px; font-size: 0.75rem; padding: 0 0.4rem; text-align: center; font-weight: 800; color: var(--color-gold); background: rgba(0,0,0,0.4); border: 1px solid var(--color-gold);">
+                <input type="number" id="modal-report-bcv-input" step="0.01" value="${rate.toFixed(2)}" class="form-input" style="width: 85px; height: 26px; font-size: 0.75rem; padding: 0 0.4rem; text-align: center; font-weight: 800; color: var(--color-gold); background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid var(--color-gold);">
                 <span style="color: var(--color-text-muted); font-size: 0.7rem;">Bs.</span>
             </div>
         </div>
@@ -1632,7 +1632,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
         <div style="margin-bottom: 1.25rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Gastos del Local</h4>
-                <span style="font-size: 10px; color: #FCA5A5; font-weight: 700;">${expenses.length} gastos</span>
+                <span style="font-size: 10px; color: var(--color-danger); font-weight: 700;">${expenses.length} gastos</span>
             </div>
             ${expensesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">Sin gastos registrados.</div>'}
         </div>
@@ -2960,7 +2960,7 @@ function showTableOptionsModal(tableName, salesLog, onUndo, onEdit, onPay, produ
                     <i class="fa-solid fa-circle-check"></i> Cerrar Venta (Pagar)
                 </button>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%;">
-                    <button class="btn-share-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(16,185,129,0.3); cursor: pointer; transition: all 0.2s; background-color: rgba(16,185,129,0.05); color: #A7F3D0;">
+                    <button class="btn-share-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(16,185,129,0.3); cursor: pointer; transition: all 0.2s; background-color: rgba(16,185,129,0.05); color: var(--color-success);">
                         <i class="fa-brands fa-whatsapp"></i> Compartir
                     </button>
                     <button class="btn-detail-modal" style="height: 38px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; background-color: rgba(255,255,255,0.02); color: var(--color-white);">
@@ -3378,8 +3378,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const liveTotalRealEl = document.getElementById('live-stat-total-real');
     if (liveTotalRealEl) {
         liveTotalRealEl.innerHTML = `
-            <div style="font-size: 1.125rem; font-weight: 900; color: #34D399;">$${totalRealMoney.toFixed(2)}</div>
-            <div style="font-size: 9px; font-weight: 700; color: #A7F3D0; margin-top: 1px;">Bs. ${totalRealVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style="font-size: 1.125rem; font-weight: 900; color: var(--color-success);">$${totalRealMoney.toFixed(2)}</div>
+            <div style="font-size: 9px; font-weight: 700; color: var(--color-success); margin-top: 1px;">Bs. ${totalRealVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         `;
     }
 
@@ -3529,7 +3529,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                     <div class="category-stat-dropdown" id="${cat.id}-stat-dropdown">
                         ${flavorsList.length > 0
                             ? flavorsList.map(f => `
-                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #E2E8F0; padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-white); padding: 0.35rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03);">
                                     <span style="font-weight: 700; color: var(--color-white);">${f.name}</span>
                                     <div style="display: flex; gap: 0.5rem; align-items: center; font-family: monospace;">
                                         <span style="color: var(--color-gold); font-weight: 800;">${f.qty} ${cat.unitLabel}</span>
@@ -3608,7 +3608,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                     <h4 style="font-size: 11px; font-weight: 900; color: var(--color-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
                         <span><i class="fa-solid fa-scale-balanced"></i> Conciliación de Vitrina y Caja</span>
                         ${totalMissingQty > 0 ? `
-                        <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(248, 113, 113, 0.15); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.2); font-weight: 800;">
+                        <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(248, 113, 113, 0.15); color: var(--color-danger); border: 1px solid rgba(248, 113, 113, 0.2); font-weight: 800;">
                             ${totalMissingQty} unids. sin registrar
                         </span>` : ''}
                     </h4>
@@ -4077,7 +4077,7 @@ function promptClientRif(initial = '') {
             backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex',
             alignItems: 'center', justifyContent: 'center', zIndex: '3200', padding: '1rem', boxSizing: 'border-box'
         });
-        const inputStyle = 'box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; color: var(--color-white); font-weight: 700; font-size: 1rem;';
+        const inputStyle = 'box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; color: var(--color-white); font-weight: 700; font-size: 1rem;';
         overlay.innerHTML = `
             <form style="width: 100%; max-width: 380px; background: #111827; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 1.1rem; color: #FFFFFF; box-sizing: border-box;">
                 <div style="font-weight: 900; color: var(--color-gold); margin-bottom: 0.2rem;">Cédula / RIF del cliente</div>
@@ -4165,7 +4165,7 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
             <div style="font-size: 1.4rem; font-weight: 900; color: var(--color-gold); margin-top: 0.2rem;">
                 $${totalUSD.toFixed(2)} USD
             </div>
-            <div style="font-size: 0.85rem; color: #34D399; font-weight: 800; margin-top: 0.1rem;">
+            <div style="font-size: 0.85rem; color: var(--color-success); font-weight: 800; margin-top: 0.1rem;">
                 ${formatVES(totalVES)} <span style="font-size: 0.7rem; color: var(--color-text-muted); font-weight: normal;">(Tasa: ${rate.toFixed(2)} Bs.)</span>
             </div>
         </div>
@@ -4195,11 +4195,11 @@ function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = n
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.75rem;">
             <div style="margin-bottom: 0.5rem;">
                 <label style="display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Nombre / Razón Social:</label>
-                <input type="text" id="pay-client-name-input" value="${safeClientName}" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
+                <input type="text" id="pay-client-name-input" value="${safeClientName}" style="width: 100%; box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;">
             </div>
             <div>
                 <label style="display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">Cédula / RIF (Opcional):</label>
-                ${rifFieldHtml('pay-client-rif-input', safeClientRif, 'box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;')}
+                ${rifFieldHtml('pay-client-rif-input', safeClientRif, 'box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 8px; color: var(--color-white); font-weight: 700; font-size: 0.8rem;')}
             </div>
         </div>
 
@@ -4598,7 +4598,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
     // Para ir a la Vitrina hay que cerrar también el recibo/cobro que abrió esta factura.
     const closeAllPosModals = () => document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
 
-    const inputStyle = 'width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; color: var(--color-white); font-weight: 700; font-size: 0.85rem;';
+    const inputStyle = 'width: 100%; box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; color: var(--color-white); font-weight: 700; font-size: 0.85rem;';
     const labelStyle = 'display: block; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.25rem; font-size: 0.72rem; text-transform: uppercase;';
     const isAdmin = () => !!(window.getCurrentRole && window.getCurrentRole() === 'admin');
 
@@ -4649,7 +4649,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                         <div><label style="${labelStyle}" for="inv-edit-email">Correo</label><input id="inv-edit-email" type="email" maxlength="120" style="${inputStyle}" value="${escapeHtml(inv.client_email || '')}"></div>
                     </div>
                     <div style="color: var(--color-text-muted);">Se guarda quién lo cambió, cuándo y los datos anteriores. Productos, montos y N° no cambian. Después de guardar, reimprima o reenvíe la factura.</div>
-                    <div class="inv-client-error" style="display: none; color: #FCA5A5; font-weight: 700;"></div>
+                    <div class="inv-client-error" style="display: none; color: var(--color-danger); font-weight: 700;"></div>
                     <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                         <button type="button" class="btn-inv-client-cancel" style="height: 34px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: transparent; color: var(--color-white); font-weight: 800;">Cancelar</button>
                         <button type="submit" class="btn-inv-client-save" style="height: 34px; padding: 0 0.9rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900;">Guardar datos</button>
@@ -4662,7 +4662,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                     <i class="fa-solid fa-pen"></i> Corregir número (admin)
                 </button>
                 ${inv.status !== 'anulada' ? `
-                <button class="btn-inv-void" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(252,165,165,0.5); cursor: pointer; background: rgba(239,68,68,0.1); color: #FCA5A5; font-weight: 800; font-size: 0.75rem;">
+                <button class="btn-inv-void" style="height: 32px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(252,165,165,0.5); cursor: pointer; background: rgba(239,68,68,0.1); color: var(--color-danger); font-weight: 800; font-size: 0.75rem;">
                     <i class="fa-solid fa-ban"></i> Anular factura (admin)
                 </button>` : ''}
             </div>
@@ -4673,7 +4673,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                 </div>
                 <div style="margin-top: 0.5rem;"><label style="${labelStyle}" for="inv-renumber-reason">Motivo (queda guardado)</label><input id="inv-renumber-reason" maxlength="300" required placeholder="Ej.: no coincidía con la libreta" style="${inputStyle}"></div>
                 <div style="color: var(--color-text-muted); margin-top: 0.45rem;">No se puede usar un número que ya tenga otra factura. Si cambia el N°, el QR y el enlace viejos dejan de servir: reimprima o reenvíe la factura.</div>
-                <div class="inv-renumber-error" style="display: none; color: #FCA5A5; font-weight: 700; margin-top: 0.4rem;"></div>
+                <div class="inv-renumber-error" style="display: none; color: var(--color-danger); font-weight: 700; margin-top: 0.4rem;"></div>
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.55rem;">
                     <button type="button" class="btn-inv-renumber-cancel" style="height: 34px; padding: 0 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; background: transparent; color: var(--color-white); font-weight: 800;">Cancelar</button>
                     <button type="submit" class="btn-inv-renumber-save" style="height: 34px; padding: 0 0.9rem; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900;">Guardar corrección</button>
@@ -4849,7 +4849,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
                 <div><label style="${labelStyle}" for="inv-client-phone">Teléfono (WhatsApp)</label><input id="inv-client-phone" type="tel" maxlength="30" placeholder="0414-1234567" style="${inputStyle}"></div>
                 <div><label style="${labelStyle}" for="inv-client-email">Correo</label><input id="inv-client-email" type="email" maxlength="120" style="${inputStyle}"></div>
             </div>
-            <div class="inv-issue-error" style="display: none; color: #FCA5A5; font-size: 0.78rem; font-weight: 700;"></div>
+            <div class="inv-issue-error" style="display: none; color: var(--color-danger); font-size: 0.78rem; font-weight: 700;"></div>
             <button type="submit" class="btn-inv-issue" style="height: 46px; border-radius: 8px; border: none; cursor: pointer; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 0.9rem;">
                 <i class="fa-solid fa-file-circle-check"></i> EMITIR FACTURA
             </button>
@@ -4961,7 +4961,7 @@ function showUpdateOverlay() {
             </div>
             <div>
                 <h3 id="pwa-update-title" style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 900; color: var(--color-gold); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; margin-top: 0;">Cargando Actualización</h3>
-                <p id="pwa-update-desc" style="font-size: 0.8rem; color: #E2E8F0; line-height: 1.5; margin: 0;">
+                <p id="pwa-update-desc" style="font-size: 0.8rem; color: var(--color-white); line-height: 1.5; margin: 0;">
                     Estamos instalando la versión más reciente del sistema en producción. Espera un momento por favor...
                 </p>
             </div>
@@ -5036,7 +5036,7 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
         const isMe = sess.device_id === currentDeviceId;
         const isTrusted = sess.is_trusted === true;
         const meBadge = isMe ? '<span style="font-size: 8px; background: rgba(201, 162, 74, 0.15); border: 1px solid var(--color-gold); color: var(--color-gold); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">ESTE DISPOSITIVO</span>' : '';
-        const trustBadge = isTrusted ? '<span style="font-size: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--color-success); color: #34D399; padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">CONFIABLE</span>' : '';
+        const trustBadge = isTrusted ? '<span style="font-size: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--color-success); color: var(--color-success); padding: 1px 4px; border-radius: 4px; font-weight: 800; margin-left: 0.25rem;">CONFIABLE</span>' : '';
         const roleName = sess.role === 'admin' ? 'Administrador' : sess.role === 'cocina' ? 'Cocina' : 'Ventas (Local)';
         const dateObj = new Date(sess.last_active_at);
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -5069,7 +5069,7 @@ function renderActiveDevices(sessions, currentDeviceId, onDisconnect, onTrust) {
 
                     <!-- Botón de Expulsión (Rojo) -->
                     ${!isMe ? `
-                        <button class="btn-eject-device" data-id="${sess.device_id}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
+                        <button class="btn-eject-device" data-id="${sess.device_id}" style="width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: var(--color-danger); cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: opacity 0.2s;">
                             <i class="fa-solid fa-right-from-bracket" style="font-size: 0.75rem;"></i>
                         </button>
                     ` : ''}
@@ -5889,7 +5889,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const pastelesItems = Object.entries(categorySales['pasteles'].items);
     if (pastelesItems.length > 0) {
         productRowsHtml += `
-            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+            <tr style="background-color: var(--v-11-19-41-04, rgba(11, 19, 41, 0.04)); font-weight: 800;">
                 <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">🥐 PASTELES Y COMIDA</td>
             </tr>
         `;
@@ -5909,7 +5909,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const bebidasItems = Object.entries(categorySales['bebidas'].items);
     if (bebidasItems.length > 0) {
         productRowsHtml += `
-            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+            <tr style="background-color: var(--v-11-19-41-04, rgba(11, 19, 41, 0.04)); font-weight: 800;">
                 <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">🥤 BEBIDAS</td>
             </tr>
         `;
@@ -5929,7 +5929,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const dulcesItems = Object.entries(categorySales['dulces'].items);
     if (dulcesItems.length > 0) {
         productRowsHtml += `
-            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+            <tr style="background-color: var(--v-11-19-41-04, rgba(11, 19, 41, 0.04)); font-weight: 800;">
                 <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">🍬 DULCES</td>
             </tr>
         `;
@@ -5949,7 +5949,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
     const personalItems = Object.entries(categorySales['personal'].items);
     if (personalItems.length > 0) {
         productRowsHtml += `
-            <tr style="background-color: rgba(11, 19, 41, 0.04); font-weight: 800;">
+            <tr style="background-color: var(--v-11-19-41-04, rgba(11, 19, 41, 0.04)); font-weight: 800;">
                 <td colspan="4" style="color: #0b1329; border-bottom: 2px solid #0b1329; padding-top: 1.5rem; text-align: left;">👥 CONSUMO DEL PERSONAL (AL COSTO)</td>
             </tr>
         `;
@@ -7060,7 +7060,7 @@ function renderCostCalculator(products, costInsumos, onDeleteInsumo) {
         } else {
             costInsumos.forEach(item => {
                 const card = document.createElement('div');
-                card.style.cssText = "background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;";
+                card.style.cssText = "background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;";
                 
                 const unitPrice = item.price / (item.qty || 1);
                 let detailText;
@@ -7089,7 +7089,7 @@ function renderCostCalculator(products, costInsumos, onDeleteInsumo) {
                             Compra: $${item.price.toFixed(2)} por ${item.qty} ${item.unit} | ${detailText}
                         </div>
                     </div>
-                    <button class="btn-delete-insumo" style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #FCA5A5; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px;" title="Eliminar insumo">
+                    <button class="btn-delete-insumo" style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: var(--color-danger); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px;" title="Eliminar insumo">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 `;
@@ -7170,11 +7170,11 @@ function renderCostFinancialResults(products, costInsumos) {
         // pastelito that really costs Bs.800 to have made.
         unitProductionCost = product.cost / bcv;
         ingredientBreakdownHtml = `
-            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-md);">
+            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.5rem; background: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2)); padding: 0.5rem; border-radius: var(--radius-md);">
                 • Costo real pagado al productor: Bs. ${product.cost.toFixed(2)} / unidad
             </div>
         `;
-        costSourceHtml = `<span style="font-size: 9px; font-weight: 800; color: #34D399; text-transform: uppercase;"><i class="fa-solid fa-check-circle"></i> Costo real (Configurar Productos)</span>`;
+        costSourceHtml = `<span style="font-size: 9px; font-weight: 800; color: var(--color-success); text-transform: uppercase;"><i class="fa-solid fa-check-circle"></i> Costo real (Configurar Productos)</span>`;
     } else {
 
     // Standard dough cost for 1 pastelito (50g Harina + 5g Margarina + 15ml Fritura)
@@ -7209,7 +7209,7 @@ function renderCostFinancialResults(products, costInsumos) {
         unitProductionCost = costHarina + costMargarina + costAceite + fillingCost;
 
         ingredientBreakdownHtml = `
-            <div style="font-size: 10px; color: var(--color-text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-md);">
+            <div style="font-size: 10px; color: var(--color-text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin-top: 0.5rem; background: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2)); padding: 0.5rem; border-radius: var(--radius-md);">
                 <div>• Harina (50g): $${costHarina.toFixed(3)}</div>
                 <div>• Margarina (5g): $${costMargarina.toFixed(3)}</div>
                 <div>• ${fillingName} (${fillingGrams}g): $${fillingCost.toFixed(3)}</div>
@@ -7220,7 +7220,7 @@ function renderCostFinancialResults(products, costInsumos) {
         // Fallback for non-pastelito items (drinks/cakes)
         unitProductionCost = sellPrice * 0.40; // 40% estimated cost basis
         ingredientBreakdownHtml = `
-            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-md);">
+            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.5rem; background: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2)); padding: 0.5rem; border-radius: var(--radius-md);">
                 • Costo estimado de adquisición/elaboración: $${unitProductionCost.toFixed(2)}
             </div>
         `;
@@ -7247,15 +7247,15 @@ function renderCostFinancialResults(products, costInsumos) {
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;">
                 <!-- Cost Card -->
                 <div style="background: rgba(239, 68, 68, 0.1); border: 1.5px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-lg); padding: 0.6rem; text-align: center;">
-                    <div style="font-size: 9px; font-weight: 800; color: #FCA5A5; text-transform: uppercase;">Costo Producción</div>
-                    <div style="font-size: 1.15rem; font-weight: 900; color: #F87171; margin-top: 2px; font-family: var(--font-mono);">$${unitProductionCost.toFixed(2)}</div>
+                    <div style="font-size: 9px; font-weight: 800; color: var(--color-danger); text-transform: uppercase;">Costo Producción</div>
+                    <div style="font-size: 1.15rem; font-weight: 900; color: var(--color-danger); margin-top: 2px; font-family: var(--font-mono);">$${unitProductionCost.toFixed(2)}</div>
                     <div style="font-size: 9px; color: var(--color-text-muted);">Bs. ${(unitProductionCost * bcv).toFixed(2)}</div>
                 </div>
 
                 <!-- Net Profit Card -->
                 <div style="background: rgba(16, 185, 129, 0.1); border: 1.5px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-lg); padding: 0.6rem; text-align: center;">
                     <div style="font-size: 9px; font-weight: 800; color: #10B981; text-transform: uppercase;">Ganancia Neta / Unid</div>
-                    <div style="font-size: 1.15rem; font-weight: 900; color: #34D399; margin-top: 2px; font-family: var(--font-mono);">$${netProfitPerUnit.toFixed(2)}</div>
+                    <div style="font-size: 1.15rem; font-weight: 900; color: var(--color-success); margin-top: 2px; font-family: var(--font-mono);">$${netProfitPerUnit.toFixed(2)}</div>
                     <div style="font-size: 9px; color: #10B981; font-weight: 800;">Bs. ${netProfitBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
 
@@ -7282,11 +7282,11 @@ function renderCostFinancialResults(products, costInsumos) {
                     </div>
                     <div>
                         <span style="color: var(--color-text-muted); display: block;">Inversión Costo</span>
-                        <b style="font-size: 11px; color: #F87171;">$${trayCostUsd.toFixed(2)}</b>
+                        <b style="font-size: 11px; color: var(--color-danger);">$${trayCostUsd.toFixed(2)}</b>
                     </div>
                     <div>
                         <span style="color: var(--color-text-muted); display: block;">Ganancia Limpia</span>
-                        <b style="font-size: 11px; color: #34D399;">Bs. ${trayProfitBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+                        <b style="font-size: 11px; color: var(--color-success);">Bs. ${trayProfitBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
                     </div>
                 </div>
             </div>
@@ -7331,10 +7331,10 @@ function renderUsersManagement(users, onEdit, onDelete) {
                     <div style="font-size: 0.78rem; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 0.3rem;">
                         <span>${escapeHtml(u.name || u.username)}</span>
                         <span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(255,255,255,0.1); color: ${roleColor};">${roleLabel}</span>
-                        ${!isActive ? `<span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(239,68,68,0.2); color: #FCA5A5;">DESACTIVADO</span>` : ''}
+                        ${!isActive ? `<span style="font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 10px; background: rgba(239,68,68,0.2); color: var(--color-danger);">DESACTIVADO</span>` : ''}
                     </div>
                     <div style="font-size: 10px; color: var(--color-text-muted); font-family: monospace;">
-                        Usuario: <strong style="color: var(--color-gold);">${escapeHtml(u.username)}</strong> | Autenticación: <span style="color: #34D399;">Supabase Auth (Protegido)</span>
+                        Usuario: <strong style="color: var(--color-gold);">${escapeHtml(u.username)}</strong> | Autenticación: <span style="color: var(--color-success);">Supabase Auth (Protegido)</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.3rem;">
@@ -7342,7 +7342,7 @@ function renderUsersManagement(users, onEdit, onDelete) {
                         <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     ${u.username !== 'admin' && isActive ? `
-                    <button class="btn-delete-user" data-id="${u.id}" title="Desactivar usuario" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(239,68,68,0.2); color: #FCA5A5; cursor: pointer; font-size: 0.7rem;">
+                    <button class="btn-delete-user" data-id="${u.id}" title="Desactivar usuario" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: none; background: rgba(239,68,68,0.2); color: var(--color-danger); cursor: pointer; font-size: 0.7rem;">
                         <i class="fa-solid fa-user-slash"></i>
                     </button>` : ''}
                 </div>

@@ -1,0 +1,58 @@
+/* Tema claro (crema + azul marino + dorado), como la sección "Nuestra historia" de la web.
+   Para volver al tema oscuro: quitar la línea @import de 'tema-claro.css' en main.css. */
+:root {
+    --color-bg-navy: #F6F1E4;          /* fondo crema */
+    --color-card-navy: #FCFAF4;        /* tarjetas */
+    --color-card-navy-hover: #EFE7D2;
+    --color-white: #13273F;            /* texto principal = azul marino */
+    --color-text-muted: #5B6676;
+    --color-gold: #9A7B2F;             /* dorado oscuro legible sobre crema */
+    --color-gold-dark: #8F7130;
+    --color-gold-light: #6F5824;
+    --color-border-soft: rgba(143, 113, 48, 0.28);
+    --color-border-soft-strong: rgba(143, 113, 48, 0.45);
+    --color-danger: #B4443A;
+    --color-success: #2F7D5C;
+    --color-warning: #9A6A12;
+    --color-danger-bg: rgba(180, 68, 58, 0.09);
+    --color-success-bg: rgba(47, 125, 92, 0.09);
+    --color-warning-bg: rgba(154, 106, 18, 0.1);
+    --shadow-md: 0 2px 8px rgba(19, 39, 63, 0.10);
+    --shadow-lg: 0 6px 18px rgba(19, 39, 63, 0.14);
+    --shadow-xl: 0 12px 28px rgba(19, 39, 63, 0.18);
+}
+
+/* Zonas que se quedan en azul marino (como el encabezado de la web) */
+header, #pin-login-section, .login-screen, [id*="lockscreen"], #toast, .toast {
+    --color-white: #F6F1E4;
+    --color-text-muted: #A9B4C6;
+    --color-gold: #C9A24A;
+    --color-gold-dark: #B08E41;
+    --color-border-soft: rgba(201, 162, 74, 0.3);
+}
+body { background-color: var(--color-bg-navy); color: var(--color-white); }
+
+/* Fondos que eran velo oscuro/blanco translúcido sobre azul → tinte suave sobre crema */
+details.settings-group, .chart-container { background-color: rgba(19, 39, 63, 0.04); }
+input, select, textarea { color: #13273F; }
+
+/* Pantalla de acceso / bloqueo: se queda azul marino */
+.pin-overlay {
+    background-color: #0F2137;
+    --color-white: #F6F1E4;
+    --color-text-muted: #A9B4C6;
+    --color-gold: #C9A24A;
+    --color-card-navy: #142A44;
+    --color-bg-navy: #0F2137;
+    --color-border-soft: rgba(201, 162, 74, 0.3);
+}
+.pin-overlay input { color: #F6F1E4; background-color: rgba(0, 0, 0, 0.35); }
+
+/* Botones de relleno sólido: texto crema para que se lea */
+.btn-success, .btn-danger, .btn-whatsapp, .badge-alert, .badge-kitchen-nav, .btn-pay,
+.btn-confirm-receipt, .btn-cart-submit, .btn-cart-adjust-circle,
+.btn-touch.btn-success, [class*="btn-add"], [class*="btn-plus"] { color: #F6F1E4; }
+
+/* Cajitas de cantidad y campos con velo oscuro → tinte suave sobre crema */
+.cart-qty-input, .qty-display, [class*="qty"] { background-color: rgba(19, 39, 63, 0.05); }
+.cart-qty-input { color: #13273F; }

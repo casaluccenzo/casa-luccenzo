@@ -28,12 +28,12 @@
     const STAFF = { category: 'pastelitos', label: 'Consumo personal' };
 
     // Categorías que ya no se venden (dulces desde el 27/10/2026, empanadas
-    // desde el 31/10/2026): no salen en la Vitrina, la cocina, las alertas de
+    // desde el 31/10/2026, minis y tostones desde el 03/11/2026): no salen en la Vitrina, la cocina, las alertas de
     // stock ni el menú web. Los productos
     // y sus ventas viejas quedan en la base, así que cierres e informes siguen
     // sumando igual. `keepInPos`: productos de esa categoría que la caja sigue
     // cobrando. Para volver a vender la categoría, sacarla de `categories`.
-    const HIDDEN = { categories: ['dulces', 'empanadas'], keepInPos: ['caja_chica', 'caja_grande'],
+    const HIDDEN = { categories: ['dulces', 'empanadas', 'minis'], keepInPos: ['caja_chica', 'caja_grande'],
         // Combos ocultos desde el 03/11/2026 (se estudian otras opciones): no salen en
         // la barra de la caja ni en el menú web. COMBOS y las ventas viejas quedan
         // intactos. Para volver a ofrecerlos, poner `combos: false`.

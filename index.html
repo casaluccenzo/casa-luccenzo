@@ -973,11 +973,11 @@
             const card = document.getElementById('menu-card-combos');
             const C = window.Combos;
             const pastel = items.find(p => p.category === 'pastelitos' && p.price_bs > 0);
-            if (!card || !C || !pastel) return;
+            if (!card || !C || !pastel || !C.visibleCombos().length) return;
             const bs = n => 'Bs ' + Math.round(n).toLocaleString('es-VE');
             const listEl = document.getElementById('menu-list-combos');
             // Solo combos con algo de su categoría en el menú (el Combo Mini sale de los minis).
-            C.COMBOS.filter(c => items.some(p => p.category === C.comboCategory(c))).forEach(c => {
+            C.visibleCombos().filter(c => items.some(p => p.category === C.comboCategory(c))).forEach(c => {
                 const li = document.createElement('li');
                 li.innerHTML = '<span><span class="c-name"></span><small></small></span><span class="li-price"></span>';
                 li.querySelector('.c-name').textContent = c.name;

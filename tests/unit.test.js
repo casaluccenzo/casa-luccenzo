@@ -289,6 +289,8 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.isHiddenCategory('dulces'), true, "REAL Ocultos: el menú web oculta toda la categoría");
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'empanada_pollo', category: 'empanadas' }), true, "REAL Ocultos: las empanadas ya no se venden");
     assert.strictEqual(Combos.isHiddenCategory('empanadas'), true, "REAL Ocultos: el menú web oculta las empanadas");
+    assert.deepStrictEqual(Combos.visibleCombos(), [], "REAL Ocultos: ningún combo se ofrece (caja ni menú web)");
+    assert.ok(Combos.COMBOS.length >= 4, "REAL Ocultos: los combos siguen definidos, solo ocultos");
     assert.ok(Combos.isStaffSale({ name: 'Pollo · Consumo personal [María] (Pagado - Pago Móvil)' }), "REAL Personal: reconoce la venta del personal");
     assert.ok(!Combos.isStaffSale({ name: 'Pollo · Combo Clásico [Cliente]' }), "REAL Personal: un combo no es consumo del personal");
     assert.strictEqual(cartKeyOf({ productId: 'pollo', combo: 'personal' }), 'pollo|personal', "REAL cartKeyOf: línea del personal aparte");

@@ -451,12 +451,12 @@
                 });
                 const { data: rows, error } = await client
                     .from('products')
-                    .select('name, price, price_bs, category, stock')
+                    .select('id, name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
-                // Sin las categorías que ya no se venden (Combos.HIDDEN).
-                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenCategory(p.category)));
+                // Sin las categorías ni los sabores que ya no se venden (Combos.HIDDEN).
+                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenOnWeb(p)));
                 if (error) throw error;
                 if (!data || data.length === 0) throw new Error('empty');
 

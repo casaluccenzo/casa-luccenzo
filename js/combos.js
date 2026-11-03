@@ -37,7 +37,13 @@
         // Combos ocultos desde el 03/11/2026 (se estudian otras opciones): no salen en
         // la barra de la caja ni en el menú web. COMBOS y las ventas viejas quedan
         // intactos. Para volver a ofrecerlos, poner `combos: false`.
-        combos: true };
+        combos: true,
+        // Sabores de pastel que ya no se venden (desde el 03/11/2026 solo quedan
+        // Carne Molida, Carne Mechada, Pollo y Tocineta con Queso). No salen en la
+        // caja, la Vitrina, la cocina, la pestaña Personal, el menú web ni la
+        // recarga automática de las 2 am. Productos, precios y ventas viejas
+        // quedan en la base. Para volver a vender un sabor, sacar su id de aquí.
+        products: ['queso', 'ricota', 'primavera', 'estaciones'] };
 
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -68,9 +74,9 @@
 
     /** Productos que pueden ir en el combo: el fijo (`productId`) o los de su categoría. */
     function comboProducts(combo, products) {
-        return (products || []).filter(p => combo && combo.productId
+        return (products || []).filter(p => !isHiddenProduct(p) && (combo && combo.productId
             ? p.id === combo.productId
-            : p.category === comboCategory(combo));
+            : p.category === comboCategory(combo)));
     }
 
     /** Precio en Bs del pastel dentro de un combo hoy: con la promo si toca, o 0. */
@@ -99,7 +105,7 @@
     /** Precio en Bs para el personal: el costo, o 0 si el producto no aplica o no tiene costo. */
     function staffBsPrice(product) {
         const cost = parseFloat(product && product.cost);
-        if (!(cost > 0) || product.category !== STAFF.category) return 0;
+        if (!(cost > 0) || product.category !== STAFF.category || isHiddenProduct(product)) return 0;
         return Math.round(cost * 100) / 100;
     }
 
@@ -113,9 +119,20 @@
         return HIDDEN.categories.includes(category);
     }
 
+    /** ¿Es uno de los productos sueltos que ya no se venden (HIDDEN.products)? */
+    function isHiddenProduct(product) {
+        return !!product && HIDDEN.products.includes(product.id);
+    }
+
     /** ¿El producto ya no se vende en la caja? */
     function isHiddenFromSale(product) {
+        if (isHiddenProduct(product)) return true;
         return !!product && isHiddenCategory(product.category) && !HIDDEN.keepInPos.includes(product.id);
+    }
+
+    /** ¿El menú web lo oculta? (categoría oculta entera o producto oculto) */
+    function isHiddenOnWeb(product) {
+        return !!product && (isHiddenCategory(product.category) || isHiddenProduct(product));
     }
 
     /** ¿Esta venta (por su nombre) es consumo del personal? */
@@ -124,6 +141,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenProduct, isHiddenFromSale, isHiddenOnWeb };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

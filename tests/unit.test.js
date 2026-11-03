@@ -289,6 +289,16 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.isHiddenCategory('dulces'), true, "REAL Ocultos: el menú web oculta toda la categoría");
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'empanada_pollo', category: 'empanadas' }), true, "REAL Ocultos: las empanadas ya no se venden");
     assert.strictEqual(Combos.isHiddenCategory('empanadas'), true, "REAL Ocultos: el menú web oculta las empanadas");
+    for (const id of ['molida', 'mechada', 'pollo', 'tocineta']) {
+        assert.strictEqual(Combos.isHiddenFromSale({ id, category: 'pastelitos' }), false, `REAL Sabores: ${id} se sigue vendiendo`);
+        assert.strictEqual(Combos.isHiddenOnWeb({ id, category: 'pastelitos' }), false, `REAL Sabores: ${id} sale en el menú web`);
+    }
+    for (const id of ['queso', 'ricota', 'primavera', 'estaciones']) {
+        assert.strictEqual(Combos.isHiddenFromSale({ id, category: 'pastelitos' }), true, `REAL Sabores: ${id} ya no se vende en la caja`);
+        assert.strictEqual(Combos.isHiddenOnWeb({ id, category: 'pastelitos' }), true, `REAL Sabores: ${id} no sale en el menú web`);
+        assert.strictEqual(Combos.staffBsPrice({ id, category: 'pastelitos', cost: 1000 }), 0, `REAL Sabores: ${id} no sale en Personal`);
+    }
+    assert.strictEqual(Combos.isHiddenCategory('pastelitos'), false, "REAL Sabores: la categoría pastelitos sigue visible");
     assert.deepStrictEqual(Combos.visibleCombos(), [], "REAL Ocultos: ningún combo se ofrece (caja ni menú web)");
     assert.ok(Combos.COMBOS.length >= 4, "REAL Ocultos: los combos siguen definidos, solo ocultos");
     assert.ok(Combos.isStaffSale({ name: 'Pollo · Consumo personal [María] (Pagado - Pago Móvil)' }), "REAL Personal: reconoce la venta del personal");

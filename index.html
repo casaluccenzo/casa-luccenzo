@@ -422,12 +422,9 @@
                     <div class="icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg></div>
                     <h3>Pastelitos</h3>
                     <ul id="menu-list-pastelitos">
-                        <li data-name="Queso"><span>De Queso</span></li>
-                        <li data-name="Pollo"><span>De Pollo</span></li>
-                        <li data-name="Carne Mechada"><span>De Carne Mechada</span></li>
                         <li data-name="Carne Molida"><span>De Carne Molida</span></li>
-                        <li data-name="4 Estaciones (Especial)"><span>4 Estaciones (Especial)</span></li>
-                        <li data-name="Ricota con Tocineta"><span>Ricota con Tocineta</span></li>
+                        <li data-name="Carne Mechada"><span>De Carne Mechada</span></li>
+                        <li data-name="Pollo"><span>De Pollo</span></li>
                         <li data-name="Tocineta con Queso"><span>Tocineta con Queso</span></li>
                     </ul>
                 </div>
@@ -771,12 +768,12 @@
                 });
                 const { data: rows, error } = await client
                     .from('products')
-                    .select('name, price, price_bs, category, stock')
+                    .select('id, name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
-                // Sin las categorías que ya no se venden (Combos.HIDDEN).
-                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenCategory(p.category)));
+                // Sin las categorías ni los sabores que ya no se venden (Combos.HIDDEN).
+                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenOnWeb(p)));
                 if (error) throw error;
                 if (!data || data.length === 0) throw new Error('empty');
 
@@ -1003,12 +1000,12 @@
                 });
                 const { data: rows, error } = await client
                     .from('products')
-                    .select('name, price, price_bs, category, stock')
+                    .select('id, name, price, price_bs, category, stock')
                     .gt('stock', 0)
                     .order('category')
                     .order('name');
-                // Sin las categorías que ya no se venden (Combos.HIDDEN).
-                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenCategory(p.category)));
+                // Sin las categorías ni los sabores que ya no se venden (Combos.HIDDEN).
+                const data = (rows || []).filter(p => !(window.Combos && window.Combos.isHiddenOnWeb(p)));
                 if (error || !data || data.length === 0) return;
 
                 // Productos con precio fijo en Bs (products.price_bs): el

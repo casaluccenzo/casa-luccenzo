@@ -3311,8 +3311,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     const liveVendidosEl = document.getElementById('live-stat-vendidos');
     const liveVentasEl = document.getElementById('live-stat-ventas');
 
-    // Total in vitrina: sum of all product stock (only savory pastelitos)
-    const pastelitoProducts = products.filter(p => p.category === 'pastelitos');
+    // Total in vitrina: sum of all product stock (only savory pastelitos que se venden)
+    const pastelitoProducts = forSale(products).filter(p => p.category === 'pastelitos');
     const totalInVitrina = pastelitoProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
     const totalMaxVitrina = pastelitoProducts.reduce((sum, p) => sum + (p.max || 0), 0);
     if (liveVitrinaEl) {

@@ -1,6 +1,7 @@
 process.env.TZ = 'America/Caracas';
 
 const { SupabaseRest } = require('../lib/bot-shared');
+const Combos = require('../js/combos.js');
 
 /**
  * Pastelitos sell out or get zeroed by "Cierre de Jornada" (js/app.js,
@@ -96,7 +97,11 @@ module.exports = async (req, res) => {
         if (!Array.isArray(pastelitos)) {
             return res.status(502).json({ ok: false, error: 'No se pudieron leer los pastelitos' });
         }
-        if (pastelitos.length === 0) {
+        // Sabores que ya no se venden (Combos.HIDDEN.products) no se recargan.
+        // Siguen contando para el cierre automático de abajo, así que si les
+        // quedó stock de antes, ese cierre los deja en 0.
+        const toRestock = pastelitos.filter(p => !Combos.isHiddenFromSale(p));
+        if (toRestock.length === 0) {
             return res.status(200).json({ ok: true, restocked: 0, ran_at: new Date().toISOString() });
         }
 
@@ -108,7 +113,7 @@ module.exports = async (req, res) => {
 
         // Already reloaded today: stop before the auto-close below, which
         // would otherwise zero a vitrina that's mid-sale.
-        const doneToday = await db.rawGet(`stock_movements?select=id&id=eq.${encodeURIComponent(`daily-restock-${pastelitos[0].id}-${dayStr}`)}`);
+        const doneToday = await db.rawGet(`stock_movements?select=id&id=eq.${encodeURIComponent(`daily-restock-${toRestock[0].id}-${dayStr}`)}`);
         if (!Array.isArray(doneToday)) {
             return res.status(502).json({ ok: false, error: 'No se pudo verificar la recarga de hoy' });
         }
@@ -127,7 +132,7 @@ module.exports = async (req, res) => {
             autoClosed = true;
         }
 
-        const movements = pastelitos.map(p => ({
+        const movements = toRestock.map(p => ({
             id: `daily-restock-${p.id}-${dayStr}`,
             product_id: p.id,
             delta: DAILY_VITRINA_STOCK,
@@ -138,7 +143,7 @@ module.exports = async (req, res) => {
 
         await postOrThrow(supabaseUrl, serviceKey, 'stock_movements', movements);
 
-        return res.status(200).json({ ok: true, restocked: pastelitos.length, restocked_to: DAILY_VITRINA_STOCK, auto_closed: autoClosed, ran_at: new Date().toISOString() });
+        return res.status(200).json({ ok: true, restocked: toRestock.length, restocked_to: DAILY_VITRINA_STOCK, auto_closed: autoClosed, ran_at: new Date().toISOString() });
     } catch (e) {
         if (e.status) {
             return res.status(502).json({ ok: false, error: e.message, detail: e.detail });

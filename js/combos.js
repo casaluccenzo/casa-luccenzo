@@ -33,7 +33,11 @@
     // y sus ventas viejas quedan en la base, así que cierres e informes siguen
     // sumando igual. `keepInPos`: productos de esa categoría que la caja sigue
     // cobrando. Para volver a vender la categoría, sacarla de `categories`.
-    const HIDDEN = { categories: ['dulces', 'empanadas'], keepInPos: ['caja_chica', 'caja_grande'] };
+    const HIDDEN = { categories: ['dulces', 'empanadas'], keepInPos: ['caja_chica', 'caja_grande'],
+        // Combos ocultos desde el 03/11/2026 (se estudian otras opciones): no salen en
+        // la barra de la caja ni en el menú web. COMBOS y las ventas viejas quedan
+        // intactos. Para volver a ofrecerlos, poner `combos: false`.
+        combos: true };
 
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -99,6 +103,11 @@
         return Math.round(cost * 100) / 100;
     }
 
+    /** Combos que se ofrecen hoy (ninguno mientras HIDDEN.combos sea true). */
+    function visibleCombos() {
+        return HIDDEN.combos ? [] : COMBOS;
+    }
+
     /** ¿La categoría está oculta? (el menú web la oculta entera) */
     function isHiddenCategory(category) {
         return HIDDEN.categories.includes(category);
@@ -115,6 +124,6 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, isHiddenCategory, isHiddenFromSale };
+    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

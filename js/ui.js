@@ -2641,7 +2641,7 @@ function renderCombosBar(products) {
     const sample = products.find(p => p.category === 'pastelitos' && fixedBsOf(p) > 0);
     // Combos are priced in fixed Bs: one needs a fixed-price pastel (or its own
     // `pastelBs`) and something in its category to pick from.
-    const offered = C.COMBOS.filter(c => C.comboProducts(c, products).length > 0 && (c.pastelBs > 0 || sample));
+    const offered = C.visibleCombos().filter(c => C.comboProducts(c, products).length > 0 && (c.pastelBs > 0 || sample));
     if (!offered.length) {
         bar.innerHTML = '';
         bar.classList.add('hidden');

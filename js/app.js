@@ -2469,7 +2469,7 @@ async function showDayReportShareCard(fecha) {
     card.id = 'day-report-share-card';
     card.style.cssText = 'position:fixed;left:50%;bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10050;display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.7rem 0.6rem 0.9rem;border-radius:14px;background:#0f2a52;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.35);font-size:0.8125rem;max-width:calc(100vw - 32px);';
     card.innerHTML = `
-        <i class="fa-solid fa-file-pdf" style="color:#f87171;"></i>
+        <i class="fa-solid fa-file-pdf" style="color: var(--color-danger);"></i>
         <span style="font-weight:700;white-space:nowrap;">PDF del día listo</span>
         <button type="button" data-act="share" style="height:34px;padding:0 0.8rem;border:none;border-radius:10px;background:#25d366;color:#fff;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.3rem;">
             <i class="fa-brands fa-whatsapp"></i> ${file ? 'Compartir' : 'Abrir'}
@@ -4151,7 +4151,7 @@ async function updateAdminDashboard() {
     if (!container) return;
 
     if (window.AuthManager && !window.AuthManager.checkRolePermission(currentRole, 'view_stats') && currentRole !== 'admin') {
-        container.innerHTML = `<div style="color: #F87171; padding: 1rem; text-align: center;">Acceso denegado. Vista solo para administradores.</div>`;
+        container.innerHTML = `<div style="color: var(--color-danger); padding: 1rem; text-align: center;">Acceso denegado. Vista solo para administradores.</div>`;
         return;
     }
 

@@ -149,7 +149,7 @@
                             <i class="fa-solid fa-wifi-slash" style="font-size: 10px;"></i>
                             <span id="header-offline-count">0 pend.</span>
                         </div>
-                        <div id="header-lowstock-badge" style="display: none; align-items: center; gap: 0.35rem; background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; padding: 2px 8px; color: #F87171; font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Ítems con stock bajo">
+                        <div id="header-lowstock-badge" style="display: none; align-items: center; gap: 0.35rem; background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; padding: 2px 8px; color: var(--color-danger); font-weight: 800; font-size: 11px; font-family: monospace; height: 24px; box-sizing: border-box;" title="Ítems con stock bajo">
                             <i class="fa-solid fa-triangle-exclamation" style="font-size: 10px;"></i>
                             <span id="header-lowstock-count">0 bajo</span>
                         </div>
@@ -346,7 +346,7 @@
                             <div id="live-stat-ventas" style="margin-top: 0.25rem;">$0.00</div>
                         </div>
                         <div id="live-stat-total-real-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 0.5rem; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 8px; color: #A7F3D0; text-transform: uppercase; font-weight: 700;">Total Real (Hoy)</div>
+                            <div style="font-size: 8px; color: var(--color-success); text-transform: uppercase; font-weight: 700;">Total Real (Hoy)</div>
                             <div id="live-stat-total-real" style="margin-top: 0.25rem;">$0.00</div>
                         </div>
                     </div>
@@ -365,7 +365,7 @@
             <!-- ================= VIEW 5: CLIENTS AND TABLES ================= -->
             <section id="view-clientes" class="view-section hidden">
                 <!-- Sub-view switcher for Mesas vs Cuentas Activas vs Historial -->
-                <div class="sub-switch-nav" id="clientes-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: rgba(0, 0, 0, 0.3); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
+                <div class="sub-switch-nav" id="clientes-sub-nav" role="tablist" style="display: flex; gap: 0.25rem; background-color: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.25rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
                     <button id="btn-sub-mesas" class="active subnav-btn" role="tab" aria-selected="true" aria-controls="sub-view-mesas">
                         <i class="fa-solid fa-table-cells-large"></i> <span>1. MESAS</span>
                     </button>
@@ -525,13 +525,13 @@
                         <div class="expenses-container" id="daily-expenses-section" style="margin-bottom: 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                                 <h3 class="history-title">Gastos del Local</h3>
-                                <span style="font-size: 0.75rem; font-weight: 700; color: #FCA5A5;" id="expense-total">$0.00</span>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-danger);" id="expense-total">$0.00</span>
                             </div>
                             
                             <form id="add-expense-form" style="display: flex; gap: 0.375rem; margin-bottom: 0.75rem;">
                                 <input type="text" id="expense-desc-input" required placeholder="Descripción (ej: Bolsas)" class="form-input" style="flex: 2; height: 38px; font-size: 0.75rem;">
                                 <input type="number" id="expense-amount-input" step="0.01" required placeholder="Monto ($)" class="form-input" style="flex: 1; height: 38px; font-size: 0.75rem;">
-                                <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: #FCA5A5; display: flex; align-items: center; justify-content: center;">
+                                <button type="submit" class="btn-action-small" style="height: 38px; background-color: var(--color-danger-bg); border-color: var(--color-danger-border); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
                                     <i class="fa-solid fa-plus"></i>
                                 </button>
                             </form>
@@ -545,7 +545,7 @@
                         <div class="history-container hidden" id="sales-history-section" style="margin-bottom: 0;">
                             <div class="history-header">
                                 <h3 class="history-title">Registro de Ventas</h3>
-                                <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: #FCA5A5; background-color: var(--color-danger-bg);">
+                                <button id="btn-clear-sales" class="btn-action-small" style="border-color: var(--color-danger-border); color: var(--color-danger); background-color: var(--color-danger-bg);">
                                     <i class="fa-solid fa-trash-can"></i> Limpiar Caja
                                 </button>
                             </div>
@@ -1051,11 +1051,11 @@
                                 </h4>
                                 
                                 <!-- Add Insumo Form -->
-                                <form id="form-add-cost-insumo" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                <form id="form-add-cost-insumo" style="background: var(--v-0-0-0-25, rgba(0, 0, 0, 0.25)); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
                                     <div style="font-size: 10px; font-weight: 800; color: var(--color-gold); text-transform: uppercase;">+ Registrar Compra de Insumo</div>
                                     <div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.5rem;">
                                         <input type="text" id="cost-insumo-name" placeholder="Ej: Aceite, Harina, Queso" required class="form-input" style="height: 32px; font-size: 0.75rem;">
-                                        <select id="cost-insumo-type" class="form-input" style="height: 32px; font-size: 0.75rem; background: var(--color-bg-dark); color: white;">
+                                        <select id="cost-insumo-type" class="form-input" style="height: 32px; font-size: 0.75rem; background: var(--color-bg-dark); color: var(--color-white);">
                                             <option value="solid">Sólido (kg)</option>
                                             <option value="liquid">Líquido (L)</option>
                                             <option value="unit">Unidad (unid.)</option>
@@ -1091,10 +1091,10 @@
                                 </h4>
 
                                 <!-- Product Selector & Selling Price Input -->
-                                <div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
+                                <div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.75rem; background: var(--v-0-0-0-25, rgba(0, 0, 0, 0.25)); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem;">
                                     <div>
                                         <label class="form-label" style="font-size: 9px; font-weight: 800; color: var(--color-gold);">SELECCIONAR PRODUCTO</label>
-                                        <select id="cost-calc-product-select" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 700; background: var(--color-bg-dark); color: white;">
+                                        <select id="cost-calc-product-select" class="form-input" style="height: 36px; font-size: 0.8rem; font-weight: 700; background: var(--color-bg-dark); color: var(--color-white);">
                                             <!-- Injected dynamically -->
                                         </select>
                                     </div>
@@ -1257,7 +1257,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                 </div>
 
                                 <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
-                                    <button id="btn-factory-reset" style="width: 100%; min-height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: #FCA5A5; font-weight: 700; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;">
+                                    <button id="btn-factory-reset" style="width: 100%; min-height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-danger); background-color: var(--color-danger-bg); color: var(--color-danger); font-weight: 700; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;">
                                         Reiniciar de Fábrica
                                     </button>
                                 </div>
@@ -1290,7 +1290,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                                     </p>
                                     <form id="admin-pin-config-form" class="stack-sm">
                                         <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                            <select id="select-admin-target-user" class="form-input" style="height: 34px; font-size: 0.78rem; font-weight: 700; background: rgba(0,0,0,0.4); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); flex: 1;">
+                                            <select id="select-admin-target-user" class="form-input" style="height: 34px; font-size: 0.78rem; font-weight: 700; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); color: var(--color-white); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); flex: 1;">
                                                 <option value="">Cargando usuarios...</option>
                                             </select>
                                             <input type="password" id="input-admin-quick-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="4 dígitos (ej: 4321)" class="form-input" style="height: 34px; font-size: 0.85rem; font-family: var(--font-mono); text-align: center; width: 140px;" required>
@@ -1357,7 +1357,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                         <label class="form-label with-icon">
                             <i class="fa-solid fa-tag" style="color: var(--color-gold);"></i> NOMBRE DEL PRODUCTO
                         </label>
-                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 40px; font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); color: var(--color-white); padding: 0 0.75rem;">
+                        <input type="text" id="edit-prod-name" required class="form-input" style="height: 40px; font-size: 0.9rem; font-weight: 700; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); color: var(--color-white); padding: 0 0.75rem;">
                     </div>
 
                     <!-- Price ($) & Realtime (Bs.) Conversion + Category -->
@@ -1366,7 +1366,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             <label class="form-label with-icon">
                                 <i class="fa-solid fa-dollar-sign" style="color: #10B981;"></i> PRECIO ($)
                             </label>
-                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                            <input type="number" id="edit-prod-price" required step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-gold); background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
                             <div id="edit-prod-price-bs" style="font-size: 11px; font-weight: 700; color: #10B981; margin-top: 0.35rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.25rem;">
                                 <i class="fa-solid fa-calculator" style="font-size: 9px;"></i> ≈ Bs. 0.00
                             </div>
@@ -1376,7 +1376,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                             <label class="form-label with-icon">
                                 <i class="fa-solid fa-layer-group" style="color: var(--color-gold);"></i> CATEGORÍA
                             </label>
-                            <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
+                            <select id="edit-prod-category" class="form-input" style="height: 40px; font-size: 0.85rem; font-weight: 700; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); color: var(--color-white); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.5rem;">
                                 <option value="pastelitos">Pastelitos</option>
                                 <option value="empanadas">Empanadas</option>
                                 <option value="minis">Minis</option>
@@ -1389,9 +1389,9 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     <!-- Production Cost (Bs) paid to a third-party producer -->
                     <div class="form-field">
                         <label class="form-label with-icon">
-                            <i class="fa-solid fa-hand-holding-dollar" style="color: #F87171;"></i> COSTO PRODUCCIÓN (Bs)
+                            <i class="fa-solid fa-hand-holding-dollar" style="color: var(--color-danger);"></i> COSTO PRODUCCIÓN (Bs)
                         </label>
-                        <input type="number" id="edit-prod-cost" step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #F87171; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                        <input type="number" id="edit-prod-cost" step="0.01" min="0" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: var(--color-danger); background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
                     </div>
 
                     <!-- Optional fixed bolívar price: when set, the caja charges this in Bs and leaves PRECIO ($) untouched -->
@@ -1399,7 +1399,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                         <label class="form-label with-icon">
                             <i class="fa-solid fa-lock" style="color: #10B981;"></i> PRECIO FIJO EN BS (opcional)
                         </label>
-                        <input type="number" id="edit-prod-price-bs-fixed" step="0.01" min="0" placeholder="Vacío = se cobra el precio en $" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #10B981; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
+                        <input type="number" id="edit-prod-price-bs-fixed" step="0.01" min="0" placeholder="Vacío = se cobra el precio en $" class="form-input" style="height: 40px; font-size: 0.95rem; font-weight: 900; color: #10B981; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-md); padding: 0 0.75rem;">
                         <div id="edit-prod-price-bs-fixed-hint" style="font-size: 11px; font-weight: 700; color: var(--color-text-muted); margin-top: 0.35rem; font-family: var(--font-mono);">
                             Vacío: se cobra el precio en dólares.
                         </div>
@@ -1561,7 +1561,7 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
                     </button>
                 </form>
                 
-                <div id="pin-lockout-banner" class="hidden" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #FCA5A5; font-size: 11px; font-weight: 800; text-align: center;">
+                <div id="pin-lockout-banner" class="hidden" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: var(--color-danger); font-size: 11px; font-weight: 800; text-align: center;">
                 </div>
             </div>
 
@@ -1598,9 +1598,9 @@ Puedo ayudarte a revisar ventas, verificar stock, agregar gastos o modificar pre
             </div>
 
             <!-- Stepper / Manual Input -->
-            <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3)); padding: 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
                 <button id="qty-modal-minus" style="width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: var(--color-white); font-size: 1.1rem; font-weight: 800; cursor: pointer;">-</button>
-                <input type="tel" id="qty-modal-input" value="1" min="0" max="99" inputmode="numeric" pattern="[0-9]*" style="width: 60px; height: 38px; text-align: center; font-size: 1.25rem; font-weight: 900; color: var(--color-gold); background: rgba(0,0,0,0.4); border: 1.5px solid var(--color-gold); border-radius: 6px; outline: none; font-family: monospace;">
+                <input type="tel" id="qty-modal-input" value="1" min="0" max="99" inputmode="numeric" pattern="[0-9]*" style="width: 60px; height: 38px; text-align: center; font-size: 1.25rem; font-weight: 900; color: var(--color-gold); background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1.5px solid var(--color-gold); border-radius: 6px; outline: none; font-family: monospace;">
                 <button id="qty-modal-plus" style="width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: var(--color-white); font-size: 1.1rem; font-weight: 800; cursor: pointer;">+</button>
             </div>
 

@@ -123,7 +123,7 @@
    the one definition all of them now point at. */
 .segmented {
     display: inline-flex;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--v-0-0-0-35, rgba(0, 0, 0, 0.35));
     padding: 2px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--color-border-soft);
@@ -345,7 +345,7 @@
 
 .kitchen-amount-unit {
     font-size: 0.75rem;
-    color: #E2E8F0;
+    color: var(--color-white);
     font-weight: 400;
 }
 
@@ -398,7 +398,7 @@
 
 /* Forms & Modals elements */
 details.settings-group {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.75rem;
@@ -581,7 +581,7 @@ details.settings-group summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2));
     padding: 0.625rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border-soft);
@@ -684,7 +684,7 @@ details.settings-group summary {
     width: 2rem;
     height: 2rem;
     border-radius: var(--radius-full);
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--v-0-0-0-1, rgba(0, 0, 0, 0.1));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -814,7 +814,7 @@ details.settings-group summary {
     border-radius: var(--radius-sm);
     border: 1px solid rgba(239, 68, 68, 0.4);
     background-color: var(--color-danger-bg);
-    color: #FCA5A5;
+    color: var(--color-danger);
     cursor: pointer;
     transition: background-color var(--transition-fast);
     flex-shrink: 0;
@@ -857,7 +857,7 @@ details.settings-group summary {
 }
 
 .expense-amount {
-    color: #FCA5A5;
+    color: var(--color-danger);
     font-weight: 700;
 }
 
@@ -1013,7 +1013,7 @@ details.settings-group summary {
 .dispatch-card-title {
     font-size: 0.875rem;
     font-weight: 800;
-    color: #A7F3D0;
+    color: var(--color-success);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -1265,7 +1265,7 @@ input:checked + .slider:before {
 #pin-input {
     width: 150px;
     height: 52px;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4));
     border: 2px solid var(--color-gold);
     border-radius: var(--radius-lg);
     color: var(--color-gold);
@@ -1286,7 +1286,7 @@ input:checked + .slider:before {
 /* Charts / Analytics Dashboard components */
 .chart-container {
     margin-top: 0.75rem;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.875rem;
@@ -1340,7 +1340,7 @@ input:checked + .slider:before {
 
 /* Ingredient list elements */
 .ingredient-list-card {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2));
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.875rem;
@@ -1645,7 +1645,7 @@ input:checked + .slider:before {
 }
 
 .btn-cart-secondary.danger-outline {
-    color: #FCA5A5;
+    color: var(--color-danger);
     border-color: rgba(239, 68, 68, 0.3);
     background-color: rgba(239, 68, 68, 0.05);
 }
@@ -1656,7 +1656,7 @@ input:checked + .slider:before {
 }
 
 .btn-cart-secondary.whatsapp-outline {
-    color: #A7F3D0;
+    color: var(--color-success);
     border-color: rgba(16, 185, 129, 0.3);
     background-color: rgba(16, 185, 129, 0.05);
 }
@@ -1705,7 +1705,7 @@ input:checked + .slider:before {
     border: 1px solid var(--color-danger);
     border-radius: var(--radius-md);
     padding: 0.75rem 1rem;
-    color: #FCA5A5;
+    color: var(--color-danger);
     font-size: 0.75rem;
     font-weight: 800;
     display: flex;
@@ -1805,7 +1805,7 @@ input:checked + .slider:before {
 .cart-qty-input {
     width: 50px;
     height: 56px; /* Matches btn-touch min-height */
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border: 2px solid rgba(212, 163, 89, 0.2); /* Light gold border matching the system theme */
     border-radius: var(--radius-md);
     color: var(--color-gold);
@@ -1891,7 +1891,7 @@ input[type="number"] {
 }
 .category-qty-badge.bebidas {
     background-color: rgba(139, 232, 203, 0.08);
-    color: #8BE8CB;
+    color: var(--color-success);
     border: 1px solid rgba(139, 232, 203, 0.18);
 }
 .category-qty-badge.otros {
@@ -1923,7 +1923,7 @@ input[type="number"] {
     transition: max-height 0.25s ease-out, opacity 0.2s ease-out, padding 0.25s ease-out;
     max-height: 0;
     opacity: 0;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--v-0-0-0-25, rgba(0, 0, 0, 0.25));
     border-radius: 0 0 6px 6px;
     margin-top: -2px;
     border: 1px solid rgba(255, 255, 255, 0.03);
@@ -2043,7 +2043,7 @@ input[type="number"] {
     margin-top: auto;
     background-color: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.2);
-    color: #FCA5A5;
+    color: var(--color-danger);
     font-weight: 800;
 }
 
@@ -2058,7 +2058,7 @@ input[type="number"] {
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background-color: rgba(0, 15, 32, 0.1);
+    background-color: var(--v-0-15-32-1, rgba(0, 15, 32, 0.1));
 }
 
 /* Mobile drawer trigger + backdrop for the admin sidebar. Hidden by default
@@ -2070,7 +2070,7 @@ input[type="number"] {
     gap: 0.375rem;
     width: fit-content;
     margin: 0.625rem 0.625rem 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border: 1px solid rgba(201, 162, 74, 0.4);
     color: var(--color-gold);
     border-radius: var(--radius-md);
@@ -2100,7 +2100,7 @@ input[type="number"] {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: rgba(0, 10, 20, 0.25);
+    background-color: var(--v-0-10-20-25, rgba(0, 10, 20, 0.25));
 }
 
 .admin-panel-body {
@@ -2281,7 +2281,7 @@ input[type="number"] {
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
-    color: #F87171;
+    color: var(--color-danger);
     font-size: 11px;
 }
 
@@ -2306,13 +2306,13 @@ input[type="number"] {
 }
 
 .admin-critical-stock-chip b {
-    color: #F87171;
+    color: var(--color-danger);
 }
 
 .admin-critical-stock-replenish {
     background: transparent;
     border: none;
-    color: #F87171;
+    color: var(--color-danger);
     cursor: pointer;
     padding: 0;
     font-size: 10px;
@@ -2335,7 +2335,7 @@ input[type="number"] {
 }
 
 .admin-dashboard-card {
-    background-color: rgba(0, 0, 0, 0.18);
+    background-color: var(--v-0-0-0-18, rgba(0, 0, 0, 0.18));
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-md);
     padding: 1.25rem;
@@ -2771,7 +2771,7 @@ input[type="number"] {
 .critical-stock-title {
     font-size: 11px;
     font-weight: 900;
-    color: #F87171;
+    color: var(--color-danger);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     display: flex;
@@ -2789,7 +2789,7 @@ input[type="number"] {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2));
     padding: 0.4rem 0.625rem;
     border-radius: var(--radius-md);
     font-size: 0.75rem;
@@ -2881,7 +2881,7 @@ input[type="number"] {
     gap: 0.4rem;
     padding: 0.5rem 0.75rem;
     overflow-x: auto;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--v-0-0-0-2, rgba(0, 0, 0, 0.2));
     border-top: 1px solid var(--color-border-soft);
     scrollbar-width: none;
 }
@@ -2920,7 +2920,7 @@ input[type="number"] {
 .agent-input {
     flex: 1;
     height: 38px;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-md);
     color: var(--color-white);

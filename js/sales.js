@@ -131,14 +131,14 @@ function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = nul
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
             <!-- Net Cash Card -->
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 78, 59, 0.25) 100%); border: 1.5px solid #10B981; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 12px rgba(16,185,129,0.15);">
-                <div style="font-size: 10px; font-weight: 900; color: #34D399; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-success); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
                     <span>NETO EN CAJA (HOY)</span>
                     <i class="fa-solid fa-wallet"></i>
                 </div>
                 <div style="font-size: 1.8rem; font-weight: 900; color: #FFFFFF; font-family: monospace; margin-top: 0.25rem;">
                     $${totals.netCash.toFixed(2)}
                 </div>
-                <div style="font-size: 0.85rem; font-weight: 700; color: #A7F3D0; margin-top: 0.15rem;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-success); margin-top: 0.15rem;">
                     Bs. ${netCashVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
             </div>
@@ -159,11 +159,11 @@ function renderAdminDashboard(sales = [], expenses = [], previousWeekTotal = nul
 
             <!-- Total Expenses Card -->
             <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 1rem;">
-                <div style="font-size: 10px; font-weight: 900; color: #F87171; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--color-danger); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
                     <span>GASTOS REGISTRADOS</span>
                     <i class="fa-solid fa-receipt"></i>
                 </div>
-                <div style="font-size: 1.6rem; font-weight: 900; color: #F87171; font-family: monospace; margin-top: 0.25rem;">
+                <div style="font-size: 1.6rem; font-weight: 900; color: var(--color-danger); font-family: monospace; margin-top: 0.25rem;">
                     -$${totals.totalExpenses.toFixed(2)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.15rem;">

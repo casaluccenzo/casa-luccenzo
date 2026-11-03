@@ -1,12 +1,22 @@
 /* Tema claro (crema + azul marino + dorado), como la sección "Nuestra historia" de la web.
    Para volver al tema oscuro: quitar la línea @import de 'tema-claro.css' en main.css. */
 :root {
+    --v-0-0-0-1: rgba(19, 39, 63, 0.022);
+    --v-0-0-0-18: rgba(19, 39, 63, 0.04);
+    --v-0-0-0-2: rgba(19, 39, 63, 0.044);
+    --v-0-0-0-25: rgba(19, 39, 63, 0.055);
+    --v-0-0-0-3: rgba(19, 39, 63, 0.066);
+    --v-0-0-0-35: rgba(19, 39, 63, 0.077);
+    --v-0-0-0-4: rgba(19, 39, 63, 0.088);
+    --v-0-10-20-25: rgba(19, 39, 63, 0.055);
+    --v-0-15-32-1: rgba(19, 39, 63, 0.022);
+    --v-11-19-41-04: rgba(19, 39, 63, 0.009);
     --color-bg-navy: #F6F1E4;          /* fondo crema */
     --color-card-navy: #FCFAF4;        /* tarjetas */
     --color-card-navy-hover: #EFE7D2;
     --color-white: #13273F;            /* texto principal = azul marino */
     --color-text-muted: #5B6676;
-    --color-gold: #9A7B2F;             /* dorado oscuro legible sobre crema */
+    --color-gold: #86692A;             /* dorado oscuro legible sobre crema */
     --color-gold-dark: #8F7130;
     --color-gold-light: #6F5824;
     --color-border-soft: rgba(143, 113, 48, 0.28);
@@ -24,10 +34,22 @@
 
 /* Zonas que se quedan en azul marino (como el encabezado de la web) */
 header, #pin-login-section, .login-screen, [id*="lockscreen"], #toast, .toast {
+    --v-0-0-0-1: rgba(0, 0, 0, 0.1);
+    --v-0-0-0-18: rgba(0, 0, 0, 0.18);
+    --v-0-0-0-2: rgba(0, 0, 0, 0.2);
+    --v-0-0-0-25: rgba(0, 0, 0, 0.25);
+    --v-0-0-0-3: rgba(0, 0, 0, 0.3);
+    --v-0-0-0-35: rgba(0, 0, 0, 0.35);
+    --v-0-0-0-4: rgba(0, 0, 0, 0.4);
+    --v-0-10-20-25: rgba(0, 10, 20, 0.25);
+    --v-0-15-32-1: rgba(0, 15, 32, 0.1);
+    --v-11-19-41-04: rgba(11, 19, 41, 0.04);
     --color-white: #F6F1E4;
     --color-text-muted: #A9B4C6;
     --color-gold: #C9A24A;
     --color-gold-dark: #B08E41;
+    --color-danger: #F2877A;
+    --color-success: #5FBF96;
     --color-border-soft: rgba(201, 162, 74, 0.3);
 }
 body { background-color: var(--color-bg-navy); color: var(--color-white); }
@@ -39,6 +61,16 @@ input, select, textarea { color: #13273F; }
 /* Pantalla de acceso / bloqueo: se queda azul marino */
 .pin-overlay {
     background-color: #0F2137;
+    --v-0-0-0-1: rgba(0, 0, 0, 0.1);
+    --v-0-0-0-18: rgba(0, 0, 0, 0.18);
+    --v-0-0-0-2: rgba(0, 0, 0, 0.2);
+    --v-0-0-0-25: rgba(0, 0, 0, 0.25);
+    --v-0-0-0-3: rgba(0, 0, 0, 0.3);
+    --v-0-0-0-35: rgba(0, 0, 0, 0.35);
+    --v-0-0-0-4: rgba(0, 0, 0, 0.4);
+    --v-0-10-20-25: rgba(0, 10, 20, 0.25);
+    --v-0-15-32-1: rgba(0, 15, 32, 0.1);
+    --v-11-19-41-04: rgba(11, 19, 41, 0.04);
     --color-white: #F6F1E4;
     --color-text-muted: #A9B4C6;
     --color-gold: #C9A24A;
@@ -56,3 +88,38 @@ input, select, textarea { color: #13273F; }
 /* Cajitas de cantidad y campos con velo oscuro → tinte suave sobre crema */
 .cart-qty-input, .qty-display, [class*="qty"] { background-color: rgba(19, 39, 63, 0.05); }
 .cart-qty-input { color: #13273F; }
+
+/* Ventanas emergentes y el chat del agente se quedan en azul marino, exactamente como antes
+   (así no se pierde nada de lo que ya funciona en esas pantallas). */
+.modal-overlay, .modal-backdrop, #about-dialog, .agent-chat-container, .admin-sidebar, .kitchen-card, .admin-kpi-card {
+    --v-0-0-0-1: rgba(0, 0, 0, 0.1);
+    --v-0-0-0-18: rgba(0, 0, 0, 0.18);
+    --v-0-0-0-2: rgba(0, 0, 0, 0.2);
+    --v-0-0-0-25: rgba(0, 0, 0, 0.25);
+    --v-0-0-0-3: rgba(0, 0, 0, 0.3);
+    --v-0-0-0-35: rgba(0, 0, 0, 0.35);
+    --v-0-0-0-4: rgba(0, 0, 0, 0.4);
+    --v-0-10-20-25: rgba(0, 10, 20, 0.25);
+    --v-0-15-32-1: rgba(0, 15, 32, 0.1);
+    --v-11-19-41-04: rgba(11, 19, 41, 0.04);
+    --color-bg-navy: #0F2137;
+    --color-card-navy: #142A44;
+    --color-card-navy-hover: #273C53;
+    --color-white: #F6F1E4;
+    --color-text-muted: #94A3B8;
+    --color-gold: #C9A24A;
+    --color-gold-dark: #B08E41;
+    --color-gold-light: #E8D7B2;
+    --color-border-soft: rgba(201, 162, 74, 0.16);
+    --color-danger: #E26D5C;
+    --color-success: #5FBF96;
+    --color-warning: #E0A84A;
+    color: var(--color-white);
+}
+
+/* Botones de acción verdes dentro de ventanas oscuras: relleno sólido con texto crema */
+.btn-kitchen-deliver, .modal-overlay .btn-touch[style*="--color-success"] { background-color: var(--color-success-solid) !important; background-image: none; color: #F6F1E4; }
+
+/* Tarjetas que siempre fueron oscuras: se mantienen en azul marino sólido */
+.kitchen-card { background-color: #12263D !important; }
+.admin-kpi-card { background: linear-gradient(135deg, #0F2A4A 0%, #0A1B30 100%) !important; }

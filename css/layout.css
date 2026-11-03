@@ -70,7 +70,7 @@ header .container-md {
 .switch-nav {
     display: flex;
     gap: 0.5rem;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4));
     padding: 0.5rem;
     border-radius: var(--radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -326,7 +326,7 @@ main {
 
 /* Recent sales log list */
 .sales-log-container {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--v-0-0-0-3, rgba(0, 0, 0, 0.3));
     border-radius: var(--radius-md);
     border: 1px solid rgba(255, 255, 255, 0.05);
     max-height: 250px;

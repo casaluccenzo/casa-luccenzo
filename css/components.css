@@ -82,19 +82,19 @@
 }
 
 .btn-danger {
-    background-color: var(--color-danger);
+    background-color: var(--color-danger-solid);
 }
 
 .btn-danger:hover {
-    background-color: #DC2626;
+    background-color: var(--color-danger-solid);
 }
 
 .btn-success {
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
 }
 
 .btn-success:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 /* Small Actions Buttons */
@@ -126,7 +126,7 @@
     background: rgba(0, 0, 0, 0.35);
     padding: 2px;
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border-soft);
     gap: 2px;
 }
 .segmented-btn {
@@ -146,13 +146,13 @@
 }
 
 .btn-whatsapp {
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
     color: var(--color-white);
     border: none;
 }
 
 .btn-whatsapp:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 /* Category Filter Tabs */
@@ -199,7 +199,7 @@
 }
 
 .product-card {
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--color-border-soft);
     background-color: var(--color-card-navy);
     padding: 1rem;
     border-radius: var(--radius-lg);
@@ -274,7 +274,7 @@
 
 /* Badges */
 .badge-alert {
-    background-color: var(--color-danger);
+    background-color: var(--color-danger-solid);
     color: var(--color-white);
     font-size: 10px;
     font-weight: 900;
@@ -284,7 +284,7 @@
 }
 
 .badge-kitchen-nav {
-    background-color: var(--color-danger);
+    background-color: var(--color-danger-solid);
     color: var(--color-white);
     font-size: 0.75rem;
     font-weight: 900;
@@ -355,7 +355,7 @@
     border-radius: var(--radius-md);
     font-weight: 900;
     font-size: 0.875rem;
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -399,7 +399,7 @@
 /* Forms & Modals elements */
 details.settings-group {
     background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.75rem;
 }
@@ -463,7 +463,7 @@ details.settings-group summary {
     color: var(--color-gold);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    border-bottom: 1px dashed var(--color-border-soft);
     padding-bottom: 0.5rem;
     margin-bottom: 0.5rem;
 }
@@ -502,7 +502,7 @@ details.settings-group summary {
 }
 .mini-stat {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-soft);
     padding: 0.5rem;
     border-radius: 6px;
     text-align: center;
@@ -584,7 +584,7 @@ details.settings-group summary {
     background-color: rgba(0, 0, 0, 0.2);
     padding: 0.625rem;
     border-radius: var(--radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-border-soft);
     gap: 0.5rem;
     margin-top: 0.5rem;
 }
@@ -762,7 +762,7 @@ details.settings-group summary {
     align-items: center;
     justify-content: space-between;
     background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border-soft);
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-md);
     font-size: 0.75rem;
@@ -864,7 +864,7 @@ details.settings-group summary {
 /* Ingredients calculation wrapper */
 .recipe-container {
     background-color: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 1rem;
     margin-top: 1rem;
@@ -891,7 +891,7 @@ details.settings-group summary {
 
 .recipe-item {
     background-color: var(--color-card-navy);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-soft);
     padding: 0.5rem;
     border-radius: var(--radius-md);
     display: flex;
@@ -920,7 +920,7 @@ details.settings-group summary {
 
 .client-card {
     background-color: var(--color-card-navy);
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 1rem;
     box-shadow: var(--shadow-md);
@@ -978,7 +978,7 @@ details.settings-group summary {
     padding: 0.375rem 0.75rem;
     border-radius: var(--radius-sm);
     border: none;
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
     color: var(--color-white);
     cursor: pointer;
     box-shadow: var(--shadow-sm);
@@ -986,7 +986,7 @@ details.settings-group summary {
 }
 
 .btn-pay:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 /* Dispatch notifications card */
@@ -1031,7 +1031,7 @@ details.settings-group summary {
     padding: 0.625rem 0;
     font-size: 0.75rem;
     font-weight: 900;
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
     color: var(--color-white);
     border: none;
     border-radius: var(--radius-md);
@@ -1045,7 +1045,7 @@ details.settings-group summary {
 }
 
 .btn-confirm-receipt:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 /* Summary lists (Day Close details) */
@@ -1053,7 +1053,7 @@ details.settings-group summary {
     display: flex;
     justify-content: space-between;
     padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--color-border-soft);
     font-size: 0.875rem;
 }
 
@@ -1110,7 +1110,7 @@ details.settings-group summary {
 .search-input {
     width: 100%;
     background-color: var(--color-card-navy);
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--color-border-soft);
     border-radius: var(--radius-md);
     padding: 0.625rem 1rem 0.625rem 2.25rem;
     font-size: 0.8125rem;
@@ -1140,7 +1140,7 @@ details.settings-group summary {
     justify-content: space-between;
     align-items: center;
     padding: 0.625rem 0.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--color-border-soft);
 }
 
 .switch-setting-row:last-child {
@@ -1183,7 +1183,7 @@ details.settings-group summary {
 }
 
 input:checked + .slider {
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
 }
 
 input:checked + .slider:before {
@@ -1287,7 +1287,7 @@ input:checked + .slider:before {
 .chart-container {
     margin-top: 0.75rem;
     background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.875rem;
 }
@@ -1341,7 +1341,7 @@ input:checked + .slider:before {
 /* Ingredient list elements */
 .ingredient-list-card {
     background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
     padding: 0.875rem;
     margin-top: 1rem;
@@ -1352,7 +1352,7 @@ input:checked + .slider:before {
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--color-border-soft);
 }
 
 .ingredient-row:last-child {
@@ -1460,7 +1460,7 @@ input:checked + .slider:before {
     justify-content: space-between;
     align-items: center;
     background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border-soft);
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-md);
     font-size: 0.75rem;
@@ -1515,17 +1515,17 @@ input:checked + .slider:before {
 }
 
 .btn-cart-adjust-circle.minus {
-    background-color: var(--color-danger);
+    background-color: var(--color-danger-solid);
 }
 .btn-cart-adjust-circle.minus:hover {
     background-color: #dc2626;
 }
 
 .btn-cart-adjust-circle.plus {
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
 }
 .btn-cart-adjust-circle.plus:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 .cart-qty-badge {
@@ -1581,7 +1581,7 @@ input:checked + .slider:before {
 }
 
 .cart-total-row + .cart-iva-row {
-    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    border-top: 1px dashed var(--color-border-soft);
     padding-top: 0.3rem;
     margin-top: 0.2rem;
 }
@@ -1595,7 +1595,7 @@ input:checked + .slider:before {
 
 .btn-cart-submit {
     grid-column: span 2;
-    background-color: var(--color-success);
+    background-color: var(--color-success-solid);
     color: var(--color-white);
     border: none;
     border-radius: var(--radius-md);
@@ -1612,7 +1612,7 @@ input:checked + .slider:before {
 }
 
 .btn-cart-submit:hover {
-    background-color: #059669;
+    background-color: var(--color-success-solid);
 }
 
 .btn-cart-submit:active {
@@ -1966,7 +1966,7 @@ input[type="number"] {
 .admin-sidebar {
     width: 210px;
     background-color: var(--color-bg-header);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid var(--color-border-soft);
     display: flex;
     flex-direction: column;
     padding: 1.25rem 0.75rem;
@@ -2383,7 +2383,7 @@ input[type="number"] {
 }
 
 .admin-favorite-bar-fill.weekly {
-    background-color: #3B82F6;
+    background-color: #5B87B0;
 }
 
 /* RECENT ACTIVITY FEED (Resumen tab) -- compact preview of the same
@@ -2392,7 +2392,7 @@ input[type="number"] {
     display: flex;
     gap: 0.6rem;
     padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--color-border-soft);
 }
 
 .admin-activity-item:last-child {
@@ -2418,7 +2418,7 @@ input[type="number"] {
 .admin-activity-icon.success { background-color: rgba(16, 185, 129, 0.12); color: var(--color-success); }
 .admin-activity-icon.danger { background-color: rgba(239, 68, 68, 0.12); color: var(--color-danger); }
 .admin-activity-icon.warning { background-color: rgba(245, 158, 11, 0.12); color: var(--color-warning); }
-.admin-activity-icon.info { background-color: rgba(59, 130, 246, 0.12); color: #3B82F6; }
+.admin-activity-icon.info { background-color: rgba(59, 130, 246, 0.12); color: #5B87B0; }
 
 .admin-activity-text {
     display: flex;
@@ -2463,7 +2463,7 @@ input[type="number"] {
     padding: 0.6rem 0.5rem;
     color: var(--color-text-muted);
     font-weight: 800;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 2px solid var(--color-border-soft);
     text-transform: uppercase;
     font-size: 9px;
     letter-spacing: 0.05em;
@@ -2540,7 +2540,7 @@ input[type="number"] {
         height: 100vh !important;
         z-index: var(--z-drawer);
         overflow-y: auto;
-        border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-right: 1px solid var(--color-border-soft) !important;
         border-bottom: none !important;
         padding: 1rem 0.75rem !important;
         transform: translateX(-100%);
@@ -2658,7 +2658,7 @@ input[type="number"] {
 .hourly-bar-fill {
     width: 100%;
     height: 0%;
-    background: linear-gradient(180deg, #34D399, #059669);
+    background: linear-gradient(180deg, var(--color-success), var(--color-success-solid));
     border-radius: 10px;
     transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2723,19 +2723,19 @@ input[type="number"] {
 
 /* Specific Gradient Colors for Fills */
 .fill-usd {
-    background: linear-gradient(90deg, #10B981, #059669); /* Emerald Green */
+    background: linear-gradient(90deg, #5FBF96, var(--color-success-solid));
 }
 .fill-pm {
-    background: linear-gradient(90deg, #60A5FA, #3B82F6); /* Blue */
+    background: linear-gradient(90deg, #8FB0D1, #4F7BA6);
 }
 .fill-card {
-    background: linear-gradient(90deg, #A78BFA, #7C3AED); /* Purple */
+    background: linear-gradient(90deg, #B79FCB, #7D5F9A);
 }
 .fill-ves {
     background: linear-gradient(90deg, #F59E0B, #D97706); /* Amber */
 }
 .fill-category-1 {
-    background: linear-gradient(90deg, #F472B6, #EC4899); /* Pink */
+    background: linear-gradient(90deg, #D99AA8, #B0566B);
 }
 .fill-category-2 {
     background: linear-gradient(90deg, #38BDF8, #0EA5E9); /* Light Blue for Drinks */
@@ -2744,10 +2744,10 @@ input[type="number"] {
     background: linear-gradient(90deg, #2DD4BF, #0D9488); /* Teal */
 }
 .fill-category-4 {
-    background: linear-gradient(90deg, #FB923C, #EA580C); /* Orange */
+    background: linear-gradient(90deg, #E0A070, #B8683A);
 }
 .fill-category-5 {
-    background: linear-gradient(90deg, #C084FC, #9333EA); /* Violet for Dulces */
+    background: linear-gradient(90deg, #C9A8D6, #8A5F9E);
 }
 
 /* Critical Stock Alert widget */
@@ -2882,7 +2882,7 @@ input[type="number"] {
     padding: 0.5rem 0.75rem;
     overflow-x: auto;
     background: rgba(0, 0, 0, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--color-border-soft);
     scrollbar-width: none;
 }
 
@@ -2914,7 +2914,7 @@ input[type="number"] {
     gap: 0.5rem;
     padding: 0.65rem 0.75rem;
     background: rgba(18, 26, 44, 0.95);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--color-border-soft);
 }
 
 .agent-input {

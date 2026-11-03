@@ -51,13 +51,13 @@ body {
 /* Header styling */
 header {
     background-color: var(--color-bg-header);
-    border-bottom: 4px solid var(--color-gold);
+    border-bottom: 2px solid var(--color-gold);
+    box-shadow: 0 6px 18px -8px rgba(201, 162, 74, 0.35), var(--shadow-xl);
     padding-top: 1rem;
     padding-bottom: 1rem;
     position: sticky;
     top: 0;
     z-index: var(--z-header);
-    box-shadow: var(--shadow-xl);
 }
 
 header .container-md {

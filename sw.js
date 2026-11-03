@@ -67,6 +67,7 @@ const ASSETS_TO_CACHE = [
   '/css/variables.css',
   '/css/layout.css',
   '/css/components.css',
+  '/css/tema-claro.css',
   ...SCRIPTS,
   `/js/powersync/connector.js?v=${APP_VERSION}`,
   `/js/powersync/client.js?v=${APP_VERSION}`,

@@ -832,12 +832,6 @@ async function handleCheckoutCart() {
     window.StorageManager.saveSalesLog(salesLog);
     logActivity("Registro Venta", `Venta de ${newSales.length} ítems por $${newSales.reduce((s,x)=>s+x.price, 0).toFixed(2)}. Cliente: ${clientName || 'Sin Nombre'}`);
 
-    // insertSales writes local-first (PowerSync) when synced, Supabase-direct
-    // otherwise -- it handles its own fallback/errors internally now.
-    if (window.SupabaseManager.isConfigured()) {
-        await window.SupabaseManager.insertSales(newSales);
-    }
-
     currentCart = [];
     localStorage.removeItem('casa_lucenzo_current_cart');
 
@@ -848,10 +842,6 @@ async function handleCheckoutCart() {
     window.UIManager.renderSalesHistory(salesLog, handleUndoSale, handleEditSale);
     window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
 
-    if (currentRole === 'admin') {
-        loadAndRenderAdminStats();
-    }
-
     window.UIManager.showToast(`📝 Cuenta de "${clientName}" creada en Cuentas Activas (Consumiendo).`, "fa-solid fa-user-clock");
 
     // Return straight to Cuentas Activas when this checkout came from Clientes
@@ -859,6 +849,22 @@ async function handleCheckoutCart() {
     // having to manually re-click the tab while juggling several accounts.
     if (cameFromClientes) {
         window.UIManager.switchView('clientes');
+    }
+
+    // Save AFTER painting: the account is already in salesLog (and in
+    // localStorage), so Cuentas Activas shows it right away instead of
+    // waiting on the local-DB (or network) write first -- that wait is what
+    // made new accounts "arrive late" on the till. Still awaited inside the
+    // try so the double-tap guard stays up until the write lands.
+    // insertSales writes local-first (PowerSync) when synced, Supabase-direct
+    // otherwise -- it handles its own fallback/errors internally.
+    if (window.SupabaseManager.isConfigured()) {
+        await window.SupabaseManager.insertSales(newSales);
+    }
+
+    // Admin stats re-read the stored sales, so they go after the write.
+    if (currentRole === 'admin') {
+        loadAndRenderAdminStats();
     }
 
     } finally {
@@ -3333,6 +3339,34 @@ function renderAllViews() {
  * Handle real-time PostgreSQL updates, syncing memory state and re-rendering grids
  * @param {string} tableName Updated table key
  */
+// Realtime sends ONE event per sale row, and an account is one row per item,
+// so a 10-item account arrived as 10 events -- each one used to repaint
+// Caja, Historial, Cuentas Activas (and the admin charts) from scratch,
+// keeping the till busy and making the new account show up late. The data
+// is still patched per event; only the repaint is coalesced into one, a
+// moment after the burst settles.
+let realtimeSalesRenderTimer = null;
+function scheduleRealtimeSalesRender() {
+    if (realtimeSalesRenderTimer) clearTimeout(realtimeSalesRenderTimer);
+    realtimeSalesRenderTimer = setTimeout(() => {
+        realtimeSalesRenderTimer = null;
+        window.UIManager.renderCashRegister(salesLog, expenses);
+        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
+        window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+        if (currentRole === 'admin') {
+            // `expenses` (turno actual) se mantiene como tercer argumento para
+            // no alterar los totales que ya pintaba; el delta usa el cache de
+            // la semana vía `deltaExpenses`.
+            window.UIManager.renderStats(adminStatsSales, expenses, products, {
+                fullHistory: adminStatsFullHistory,
+                deltaExpenses: adminStatsExpenses
+            });
+            window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
+            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
+        }
+    }, 120);
+}
+
 async function handleRealtimeDbUpdate(tableName, payload) {
     console.log(`Realtime postgres update detected for table: ${tableName}`, payload);
     markSyncFresh();
@@ -3411,9 +3445,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
         }
         window.StorageManager.saveSalesLog(salesLog);
         pnlCache = {}; // an incoming sale changes P&L numbers — force a refetch on next tab open / refresh
-        window.UIManager.renderCashRegister(salesLog, expenses);
-        window.UIManager.renderSalesHistory(salesLog, handleUndoSale);
-        window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+        scheduleRealtimeSalesRender();
         if (currentRole === 'admin') {
             if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const statFormatted = {
@@ -3432,15 +3464,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
             } else if (eventType === 'DELETE') {
                 adminStatsSales = adminStatsSales.filter(s => s.uuid !== oldRow.uuid && s.timestamp !== oldRow.timestamp);
             }
-            // `expenses` (turno actual) se mantiene como tercer argumento para
-            // no alterar los totales que ya pintaba; el delta usa el cache de
-            // la semana vía `deltaExpenses`.
-            window.UIManager.renderStats(adminStatsSales, expenses, products, {
-                fullHistory: adminStatsFullHistory,
-                deltaExpenses: adminStatsExpenses
-            });
-            window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
-            window.UIManager.renderPaymentAndCategoryStats(adminStatsSales, products, paymentStatsFilter, categoryStatsFilter);
+            // (admin charts repaint inside scheduleRealtimeSalesRender)
         }
     } else if (tableName === 'expenses') {
         const startOfDay = new Date();
@@ -4911,6 +4935,37 @@ document.addEventListener('DOMContentLoaded', () => {
             subViewHistorial.classList.add('hidden');
             triggerHaptic(10);
         });
+
+        // Small "Actualizar" button in Cuentas Activas: repaints right away
+        // with what this device already has, then reconnects the realtime
+        // channel and re-reads everything (same as reopening the tab), for
+        // when an account taken on another device seems slow to show up.
+        const btnRefreshCuentas = document.getElementById('btn-refresh-cuentas');
+        if (btnRefreshCuentas) {
+            btnRefreshCuentas.addEventListener('click', async () => {
+                if (btnRefreshCuentas.disabled) return;
+                btnRefreshCuentas.disabled = true;
+                const icon = btnRefreshCuentas.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                triggerHaptic(10);
+                try {
+                    window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
+                    if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+                        window.SupabaseManager.subscribeToChanges(handleRealtimeDbUpdate);
+                        await loadAllDataFromSupabase();
+                        window.UIManager.showToast("🔄 Cuentas actualizadas.", "fa-solid fa-rotate");
+                    } else {
+                        window.UIManager.showToast("📴 Sin conexión: se muestran las cuentas guardadas en este equipo.", "fa-solid fa-wifi");
+                    }
+                } catch (e) {
+                    console.error("Manual Cuentas refresh failed:", e);
+                    window.UIManager.showToast("⚠️ No se pudo actualizar. Probá de nuevo en unos segundos.", "fa-solid fa-triangle-exclamation");
+                } finally {
+                    if (icon) icon.classList.remove('fa-spin');
+                    btnRefreshCuentas.disabled = false;
+                }
+            });
+        }
 
         btnSubHistorial.addEventListener('click', () => {
             btnSubHistorial.classList.add('active');

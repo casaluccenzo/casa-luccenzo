@@ -1,7 +1,7 @@
 process.env.TZ = 'America/Caracas';
 
 const { SupabaseRest } = require('../lib/bot-shared');
-const { caracasDate, dayRangeUtc, buildReport, renderPdf } = require('../lib/day-report');
+const { SHIFTS, caracasDate, dayRangeUtc, shiftRangeUtc, buildReport, renderPdf } = require('../lib/day-report');
 
 /**
  * Reporte PDF de ventas del día (lib/day-report.js), guardado en Storage.
@@ -16,6 +16,11 @@ const { caracasDate, dayRangeUtc, buildReport, renderPdf } = require('../lib/day
  *   GET /api/cierre-pdf?fecha=AAAA-MM-DD
  *     Redirige a una URL firmada de 5 minutos para ver/bajar el PDF guardado.
  *
+ *   GET /api/cierre-pdf?fecha=AAAA-MM-DD&turno=manana|tarde
+ *     Corte de turno: arma en el momento el PDF de solo ese turno (mañana hasta
+ *     las 3:30 p.m., tarde desde ahí) y lo devuelve directo. No se guarda ni
+ *     toca day_reports: no cierra nada, y siempre sale con lo último de la base.
+ *
  *   GET /api/cierre-pdf  (cron de Vercel, con CRON_SECRET)
  *     A medianoche de Caracas: si el día que terminó tuvo ventas y nadie
  *     cerró, genera su reporte igual. Si ya había uno pero se vendió después
@@ -28,8 +33,8 @@ function storagePath(date) {
     return `${date.slice(0, 4)}/${date.slice(5, 7)}/${date}.pdf`;
 }
 
-async function fetchDayData(db, date) {
-    const { from, to } = dayRangeUtc(date);
+async function fetchDayData(db, date, shift = null) {
+    const { from, to } = shift ? shiftRangeUtc(date, shift) : dayRangeUtc(date);
     const range = col => `${col}=gte.${encodeURIComponent(from)}&${col}=lt.${encodeURIComponent(to)}`;
     const [sales, expenses, invoices, logins, rate, products] = await Promise.all([
         db.rawGetAll(`sales?select=uuid,product_id,name,price,timestamp,bcv_rate&${range('timestamp')}&voided_at=is.null&order=timestamp.asc,uuid.asc`),
@@ -132,6 +137,16 @@ module.exports = async (req, res) => {
         if (req.method !== 'GET') return res.status(405).json({ error: 'Método no permitido' });
 
         const fecha = req.query && req.query.fecha;
+        const turno = req.query && req.query.turno;
+        if (fecha && turno) {
+            if (!DATE_RE.test(fecha) || fecha > today || !SHIFTS[turno]) return res.status(400).json({ error: 'Fecha o turno inválido' });
+            const data = await fetchDayData(new SupabaseRest(url, key), fecha, turno);
+            const pdf = await renderPdf(buildReport({ ...data, shift: turno, trigger: 'manual' }));
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="corte-${turno}-${fecha}-casa-lucenzo.pdf"`);
+            res.setHeader('Cache-Control', 'no-store');
+            return res.status(200).send(pdf);
+        }
         if (fecha) {
             if (!DATE_RE.test(fecha)) return res.status(400).json({ error: 'Fecha inválida' });
             const sign = await storageFetch(url, key, `object/sign/${BUCKET}/${storagePath(fecha)}`, {

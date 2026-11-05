@@ -2092,7 +2092,69 @@ function openDayCloseModal() {
     const todayLabel = new Date().toLocaleDateString();
     const currentRate = window.bcvRate || bcvRate;
     currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, rate: currentRate, isHistory: false };
+    setDayCloseModalShift(null);
     window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel, currentRate);
+    document.getElementById('day-close-modal').classList.remove('hidden');
+}
+
+// ================= CORTE DE TURNO =================
+//
+// El local trabaja dos turnos: mañana (5:30 a.m. – 1:00 p.m.) y tarde
+// (6:00 p.m. – 9:00 p.m.). El corte de turno es un resumen de lo vendido en
+// el turno, con su PDF, SIN cerrar la jornada: la caja, la vitrina y el stock
+// siguen igual. El Cierre de Jornada de la noche trae los dos turnos y el
+// total del día. La raya entre turnos es a las 3:30 p.m. (hora de Caracas),
+// la misma que usa lib/day-report.js para el PDF.
+const SHIFT_SPLIT_MIN = 15 * 60 + 30;
+const SHIFT_INFO = {
+    manana: { label: 'Turno mañana', short: 'mañana', emoji: '☀️', hours: '5:30 a.m. a 1:00 p.m.' },
+    tarde: { label: 'Turno tarde', short: 'tarde', emoji: '🌙', hours: '6:00 p.m. a 9:00 p.m.' }
+};
+
+/** 'manana' o 'tarde' según la hora de Caracas de un timestamp (o de ahora). */
+function shiftOfTimestamp(ts) {
+    const d = ts ? (window.parseUTCTimestamp ? window.parseUTCTimestamp(ts) : new Date(ts)) : new Date();
+    const caracas = new Date(d.getTime() - 4 * 3600 * 1000);
+    return caracas.getUTCHours() * 60 + caracas.getUTCMinutes() < SHIFT_SPLIT_MIN ? 'manana' : 'tarde';
+}
+
+window.shiftOfTimestamp = shiftOfTimestamp;
+
+/** Cambia título y botón del modal: corte de turno (no cierra) o cierre normal. */
+function setDayCloseModalShift(shift) {
+    const title = document.querySelector('#day-close-modal .modal-header h3');
+    const confirmBtn = document.getElementById('btn-cierre-dia-confirm');
+    const info = shift ? SHIFT_INFO[shift] : null;
+    if (title) {
+        title.innerHTML = info
+            ? `<i class="fa-solid fa-scissors"></i> Corte de turno · ${info.short}`
+            : '<i class="fa-solid fa-door-closed"></i> Cierre de Jornada';
+    }
+    if (confirmBtn) {
+        confirmBtn.innerHTML = info
+            ? '<i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR CORTE POR WHATSAPP'
+            : '<i class="fa-brands fa-whatsapp text-lg"></i> ENVIAR INFORME POR WHATSAPP';
+    }
+}
+
+/**
+ * Abre el resumen del turno en curso (solo lo vendido en este turno de hoy).
+ * El botón de WhatsApp de este modo NO cierra la jornada.
+ */
+function openShiftCutModal() {
+    triggerHaptic(15);
+    const shift = shiftOfTimestamp();
+    const today = caracasDateStr();
+    const inShift = row => row && row.timestamp &&
+        caracasDateStr(window.parseUTCTimestamp ? window.parseUTCTimestamp(row.timestamp) : new Date(row.timestamp)) === today &&
+        shiftOfTimestamp(row.timestamp) === shift;
+    const shiftSales = salesLog.filter(inShift);
+    const shiftExpenses = expenses.filter(inShift);
+    const label = `${new Date().toLocaleDateString()} · ${SHIFT_INFO[shift].label}`;
+    const currentRate = window.bcvRate || bcvRate;
+    currentReportData = { sales: shiftSales, expenses: shiftExpenses, dateLabel: label, rate: currentRate, isHistory: false, shift };
+    setDayCloseModalShift(shift);
+    window.UIManager.renderDayCloseModal(shiftSales, shiftExpenses, products, label, currentRate, { shift });
     document.getElementById('day-close-modal').classList.remove('hidden');
 }
 
@@ -2104,7 +2166,7 @@ function closeDayCloseModal() {
     document.getElementById('day-close-modal').classList.add('hidden');
 }
 
-function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, productsList = []) {
+function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, productsList = [], shift = null) {
     const totalSales = reportSales.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalExpenses = reportExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netCash = totalSales - totalExpenses;
@@ -2171,11 +2233,15 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
 
     const totalItemsSold = reportSales.filter(s => s.productId !== 'abono').length;
 
-    let message = `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
+    const shiftInfo = shift ? SHIFT_INFO[shift] : null;
+    let message = shiftInfo
+        ? `✂️ *CORTE DE TURNO ${shiftInfo.short.toUpperCase()} - CASA LUCENZO*\n`
+        : `📋 *CIERRE DE JORNADA - CASA LUCENZO*\n`;
     message += `📅 Fecha: ${dateLabel}\n`;
+    if (shiftInfo) message += `${shiftInfo.emoji} Turno: ${shiftInfo.hours}\n`;
     message += `💱 Tasa BCV: ${rate.toFixed(2)} Bs.\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `🛒 *VENTAS DEL DÍA* (${totalItemsSold} unidades)\n\n`;
+    message += `🛒 *VENTAS ${shiftInfo ? 'DEL TURNO' : 'DEL DÍA'}* (${totalItemsSold} unidades)\n\n`;
 
     const sortedCategories = Object.values(categoryMap).sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -2210,8 +2276,21 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
     message += `  ─────────────────\n`;
     message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;
     message += `     _(Bs. ${(netCash * rate).toFixed(2)})_\n`;
+
+    // Cierre del día: cuánto se vendió en cada turno y el total de los dos.
+    if (!shiftInfo && reportSales.some(s => s.timestamp)) {
+        message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `🕐 *POR TURNO*\n\n`;
+        for (const key of Object.keys(SHIFT_INFO)) {
+            const info = SHIFT_INFO[key];
+            const t = reportSales.filter(s => shiftOfTimestamp(s.timestamp) === key).reduce((sum, s) => sum + (s.price || 0), 0);
+            message += `  ${info.emoji} ${info.label}: $${t.toFixed(2)} (Bs. ${(t * rate).toFixed(2)})\n`;
+        }
+        message += `  ─────────────────\n`;
+        message += `  🧮 *Total del día: $${totalSales.toFixed(2)}* (Bs. ${(totalSales * rate).toFixed(2)})\n`;
+    }
     message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `📢 _Cierre generado automáticamente._\n`;
+    message += shiftInfo ? `📢 _Corte de turno: la jornada sigue abierta._\n` : `📢 _Cierre generado automáticamente._\n`;
     message += `_¡Casa Lucenzo!_ 🌟`;
 
     return message;
@@ -2306,6 +2385,9 @@ async function openReportHistoryModal() {
                     <button class="btn-report-pdf-regen" data-date="${dateStr}" title="${pdfByDate.has(dateStr) ? 'Volver a generar el PDF con las ventas actuales' : 'Generar el PDF de este día'}" style="height: 34px; padding: 0 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-text-muted); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
                         <i class="fa-solid fa-rotate" style="font-size: 10px;"></i> ${pdfByDate.has(dateStr) ? '' : 'PDF'}
                     </button>` : ''}
+                    <button class="btn-report-pdf-shift" data-date="${dateStr}" title="PDF del turno de la mañana (corte de turno)" style="height: 34px; padding: 0 0.6rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-white); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                        ☀️ Mañana
+                    </button>
                     <button class="btn-report-view" data-date="${dateStr}" style="height: 34px; padding: 0 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-gold); background: transparent; color: var(--color-gold); font-weight: 700; font-size: 0.6875rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
                         <i class="fa-solid fa-eye" style="font-size: 10px;"></i> Ver
                     </button>
@@ -2336,6 +2418,14 @@ async function openReportHistoryModal() {
         });
     });
 
+    body.querySelectorAll('.btn-report-pdf-shift').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            triggerHaptic(15);
+            if (!requireOnline('Ver el corte de turno')) return;
+            openDayReportPdf(e.currentTarget.dataset.date, 'manana');
+        });
+    });
+
     body.querySelectorAll('.btn-report-pdf-regen').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const dateStr = e.currentTarget.dataset.date;
@@ -2361,6 +2451,7 @@ async function openReportHistoryModal() {
             if (report) {
                 const reportRate = report.bcvRate || report.sales?.find(s => s.bcvRate)?.bcvRate || window.bcvRate || bcvRate;
                 currentReportData = { sales: report.sales, expenses: report.expenses, dateLabel: formattedDate, rate: reportRate, isHistory: true };
+                setDayCloseModalShift(null);
                 modal.classList.add('hidden');
                 window.UIManager.renderDayCloseModal(report.sales, report.expenses, products, formattedDate, reportRate);
                 document.getElementById('day-close-modal').classList.remove('hidden');
@@ -2443,12 +2534,28 @@ async function requestDayReportPdf({ fecha, manual = false } = {}) {
 }
 
 /** Enlace fijo al PDF guardado de un día; la API lo cambia por una URL firmada al abrirlo. */
-function dayReportPdfUrl(fecha) {
-    return `https://www.casalucenzo.com/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`;
+function dayReportPdfUrl(fecha, turno = null) {
+    return `https://www.casalucenzo.com/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}${turno ? `&turno=${turno}` : ''}`;
 }
 
-function openDayReportPdf(fecha) {
-    window.open(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`, '_blank');
+function openDayReportPdf(fecha, turno = null) {
+    window.open(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}${turno ? `&turno=${turno}` : ''}`, '_blank');
+}
+
+/**
+ * Corte de turno: el PDF del turno se arma en el momento desde la base, así
+ * que primero espera a que este equipo suba sus ventas pendientes y luego
+ * muestra la tarjeta para compartirlo.
+ */
+async function shareShiftReportPdf(fecha, turno) {
+    try {
+        for (let i = 0; i < 30 && window.PowerSyncManager; i++) {
+            const stats = await window.PowerSyncManager.getUploadQueueStats().catch(() => null);
+            if (!stats || !stats.count) break;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    } catch (e) { /* la tarjeta igual abre el PDF */ }
+    showDayReportShareCard(fecha, turno);
 }
 
 /**
@@ -2457,13 +2564,14 @@ function openDayReportPdf(fecha) {
  * directo desde el toque, sin esperas de red en medio. Donde no se pueden
  * compartir archivos (escritorio) el botón abre el PDF.
  */
-async function showDayReportShareCard(fecha) {
+async function showDayReportShareCard(fecha, turno = null) {
     let file = null;
     try {
-        const resp = await fetch(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}`);
+        const resp = await fetch(`${API_BASE}/api/cierre-pdf?fecha=${encodeURIComponent(fecha)}${turno ? `&turno=${turno}` : ''}`);
         if (resp.ok) {
             const blob = await resp.blob();
-            const f = new window.File([blob], `ventas-${fecha}-casa-lucenzo.pdf`, { type: 'application/pdf' });
+            const fname = turno ? `corte-${turno}-${fecha}-casa-lucenzo.pdf` : `ventas-${fecha}-casa-lucenzo.pdf`;
+            const f = new window.File([blob], fname, { type: 'application/pdf' });
             if (navigator.canShare && navigator.canShare({ files: [f] })) file = f;
         }
     } catch (e) {
@@ -2476,7 +2584,7 @@ async function showDayReportShareCard(fecha) {
     card.style.cssText = 'position:fixed;left:50%;bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10050;display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.7rem 0.6rem 0.9rem;border-radius:14px;background:#0f2a52;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.35);font-size:0.8125rem;max-width:calc(100vw - 32px);';
     card.innerHTML = `
         <i class="fa-solid fa-file-pdf" style="color: var(--color-danger);"></i>
-        <span style="font-weight:700;white-space:nowrap;">PDF del día listo</span>
+        <span style="font-weight:700;white-space:nowrap;">${turno ? `PDF del turno ${SHIFT_INFO[turno].short} listo` : 'PDF del día listo'}</span>
         <button type="button" data-act="share" style="height:34px;padding:0 0.8rem;border:none;border-radius:10px;background:#25d366;color:#fff;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.3rem;">
             <i class="fa-brands fa-whatsapp"></i> ${file ? 'Compartir' : 'Abrir'}
         </button>
@@ -2488,14 +2596,14 @@ async function showDayReportShareCard(fecha) {
     card.querySelector('[data-act="close"]').addEventListener('click', () => { clearTimeout(timer); remove(); });
     card.querySelector('[data-act="share"]').addEventListener('click', async () => {
         triggerHaptic(15);
-        if (!file) { openDayReportPdf(fecha); return; }
+        if (!file) { openDayReportPdf(fecha, turno); return; }
         try {
-            await navigator.share({ files: [file], title: `Ventas ${fecha} - Casa Lucenzo` });
+            await navigator.share({ files: [file], title: turno ? `Corte turno ${SHIFT_INFO[turno].short} ${fecha} - Casa Lucenzo` : `Ventas ${fecha} - Casa Lucenzo` });
             clearTimeout(timer);
             remove();
         } catch (e) {
             // Cancelado por el usuario: la tarjeta queda para intentar otra vez.
-            if (e && e.name !== 'AbortError') openDayReportPdf(fecha);
+            if (e && e.name !== 'AbortError') openDayReportPdf(fecha, turno);
         }
     });
 }
@@ -5079,6 +5187,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 15. Bind Day Close triggers
     document.getElementById('btn-cierre-dia-open').addEventListener('click', openDayCloseModal);
+    document.getElementById('btn-corte-turno-open').addEventListener('click', openShiftCutModal);
     document.getElementById('btn-cierre-dia-close').addEventListener('click', closeDayCloseModal);
     document.getElementById('btn-clean-offline-cache').addEventListener('click', handleCleanOfflineCache);
     document.getElementById('btn-cierre-dia-confirm').addEventListener('click', async (ev) => {
@@ -5099,14 +5208,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // Build the report from whatever data the modal is currently showing.
             const dateLabel = currentReportData.dateLabel || new Date().toLocaleDateString();
             const reportRate = currentReportData.rate || window.bcvRate || bcvRate;
-            let message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products);
+            const shift = currentReportData.shift || null;
+            let message = generateWhatsAppReport(currentReportData.sales, currentReportData.expenses, dateLabel, reportRate, products, shift);
             // El PDF se arma unos segundos después del cierre; el enlace sirve en cuanto esté.
-            if (!currentReportData.isHistory) message += `\n\n📄 PDF del día: ${dayReportPdfUrl(caracasDateStr())}`;
+            if (shift) message += `\n\n📄 PDF del turno: ${dayReportPdfUrl(caracasDateStr(), shift)}`;
+            else if (!currentReportData.isHistory) message += `\n\n📄 PDF del día: ${dayReportPdfUrl(caracasDateStr())}`;
 
             // Close first, share second. Opening WhatsApp up front announced a
             // closed day before the database had agreed to it -- if the close
             // then failed, the report was already sent and the day was still open.
-            if (!currentReportData.isHistory) {
+            if (shift) {
+                // Corte de turno: NO cierra la jornada; solo comparte el resumen y su PDF.
+                shareShiftReportPdf(caracasDateStr(), shift);
+            } else if (!currentReportData.isHistory) {
                 const closed = await closeDayAndResetLogs();
                 // Sin await: el PDF se arma en el servidor y no debe demorar WhatsApp.
                 if (closed) requestDayReportPdf();
@@ -5145,6 +5259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const todayLabel = new Date().toLocaleDateString();
         const currentRate = window.bcvRate || bcvRate;
         currentReportData = { sales: salesLog, expenses: expenses, dateLabel: todayLabel, rate: currentRate, isHistory: false };
+        setDayCloseModalShift(null);
         window.UIManager.renderDayCloseModal(salesLog, expenses, products, todayLabel, currentRate);
         document.getElementById('day-close-modal').classList.remove('hidden');
     });

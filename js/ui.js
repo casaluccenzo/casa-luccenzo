@@ -1444,7 +1444,7 @@ function updatePedidosBadge(pedidos) {
  * @param {Array} salesLog History of sales
  * @param {Array} expenses Daily expenses
  */
-function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel = '', customRate = null) {
+function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel = '', customRate = null, opts = {}) {
     const modalBody = document.getElementById('day-close-modal-body');
     if (!modalBody) return;
 
@@ -1565,6 +1565,29 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     // Total items sold count
     const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
 
+    // Cierre del día: lo vendido en cada turno (mañana / tarde) y el total.
+    // En el corte de turno (opts.shift) ya se muestra un solo turno.
+    let shiftsHtml = '';
+    if (!opts.shift && typeof window.shiftOfTimestamp === 'function' && salesLog.some(s => s.timestamp)) {
+        const rows = [['manana', '☀️ Turno mañana'], ['tarde', '🌙 Turno tarde']].map(([key, label]) => {
+            const t = salesLog.filter(s => window.shiftOfTimestamp(s.timestamp) === key).reduce((sum, s) => sum + (s.price || 0), 0);
+            return `
+            <div class="summary-row">
+                <span>${label}:</span>
+                <span style="font-weight: 700;">$${t.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(t * rate).toFixed(2)})</span></span>
+            </div>`;
+        }).join('');
+        shiftsHtml = `
+        <div style="margin-bottom: 1.25rem;">
+            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Ventas por Turno</h4>
+            ${rows}
+            <div class="summary-row" style="font-weight: 800;">
+                <span>Total del día (los dos turnos):</span>
+                <span style="color: var(--color-gold);">$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * rate).toFixed(2)})</span></span>
+            </div>
+        </div>`;
+    }
+
     // Closed client accounts for this day, so an admin can pull up any
     // client's line items and reprint/share their invoice days after
     // checkout -- not just for today (see groupSalesByClientAccounts).
@@ -1603,7 +1626,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     modalBody.innerHTML = `
         <div style="background: rgba(201, 162, 74, 0.08); border: 1px solid rgba(201, 162, 74, 0.25); border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
-                <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> Fecha del Cierre:</span>
+                <span style="color: var(--color-white); font-weight: 700;"><i class="fa-solid fa-calendar-day" style="color: var(--color-gold); margin-right: 0.35rem;"></i> ${opts.shift ? 'Corte de turno:' : 'Fecha del Cierre:'}</span>
                 <span style="color: var(--color-gold); font-weight: 900; font-family: monospace; margin-left: 0.25rem;">${reportDateText}</span>
             </div>
             <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
@@ -1618,7 +1641,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 0;">Ventas por Producto</h4>
                 <span style="font-size: 10px; color: var(--color-gold); font-weight: 700;">${totalItemsSold} unid. vendidas</span>
             </div>
-            ${salesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">No hubo ventas hoy.</div>'}
+            ${salesHtml || `<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">${opts.shift ? 'No hubo ventas en este turno.' : 'No hubo ventas hoy.'}</div>`}
         </div>
 
         <div style="margin-bottom: 1.25rem;">
@@ -1637,8 +1660,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             ${expensesHtml || '<div style="font-size: 0.75rem; color: var(--color-text-muted); text-align: center; padding: 0.5rem 0;">Sin gastos registrados.</div>'}
         </div>
 
+        ${shiftsHtml}
+
         <div style="border-top: 2px solid rgba(255,255,255,0.1); padding-top: 0.75rem;">
-            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">Resultados Financieros</h4>
+            <h4 style="font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 900; letter-spacing: 0.05em;">${opts.shift ? 'Resultados del Turno' : 'Resultados Financieros'}</h4>
             <div class="summary-row">
                 <span>Ingreso por Ventas:</span>
                 <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * rate).toFixed(2)})</span></span>
@@ -1663,7 +1688,7 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 if (window.currentReportData) {
                     window.currentReportData.rate = newRate;
                 }
-                renderDayCloseModal(salesLog, expenses, products, customDateLabel, newRate);
+                renderDayCloseModal(salesLog, expenses, products, customDateLabel, newRate, opts);
             }
         });
     }

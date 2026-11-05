@@ -391,9 +391,16 @@
                 <div id="sub-view-cuentas" class="hidden">
                     <!-- Active/Unpaid accounts card -->
                     <div class="card-pantry" style="padding: 1.25rem; margin-bottom: 1rem;">
-                        <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i class="fa-solid fa-utensils"></i> Cuentas Activas (Consumiendo)
-                        </h3>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-gold); font-size: 1.125rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fa-solid fa-utensils"></i> Cuentas Activas (Consumiendo)
+                            </h3>
+                            <!-- Refresco manual: vuelve a leer las cuentas y reconecta el tiempo real -->
+                            <button type="button" id="btn-refresh-cuentas" title="Actualizar cuentas" aria-label="Actualizar cuentas"
+                                style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; border-radius: 999px; border: 1px solid var(--color-gold); background: transparent; color: var(--color-gold); font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+                                <i class="fa-solid fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
                         <p class="card-desc">
                             Clientes y mesas que siguen consumiendo y aún no han pagado.
                         </p>

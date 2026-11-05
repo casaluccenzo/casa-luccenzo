@@ -690,12 +690,26 @@ async function insertSale(sale) {
     }
 }
 
+// One write transaction for the whole account instead of one per item: a
+// 10-item account used to be ~20 separate round trips to the SQLite worker
+// (plus a commit each) before the till could move on. Falls back to the old
+// row-by-row loop if this PowerSync build has no writeTransaction.
+async function upsertSalesLocalBatch(localDb, sales) {
+    if (typeof localDb.writeTransaction === 'function') {
+        await localDb.writeTransaction(async (tx) => {
+            for (const sale of sales) await upsertSaleLocal(tx, sale);
+        });
+        return;
+    }
+    for (const sale of sales) await upsertSaleLocal(localDb, sale);
+}
+
 async function insertSales(sales) {
     if (!Array.isArray(sales) || sales.length === 0) return;
     const localDb = getLocalDb();
     if (localDb) {
         try {
-            for (const sale of sales) await upsertSaleLocal(localDb, sale);
+            await upsertSalesLocalBatch(localDb, sales);
         } catch (e) {
             console.error("PowerSync local insertSales batch failed:", e);
         }
@@ -724,7 +738,7 @@ async function upsertSales(sales) {
     const localDb = getLocalDb();
     if (localDb) {
         try {
-            for (const sale of sales) await upsertSaleLocal(localDb, sale);
+            await upsertSalesLocalBatch(localDb, sales);
         } catch (e) {
             console.error("PowerSync local upsertSales batch failed:", e);
         }

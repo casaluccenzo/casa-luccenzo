@@ -27,6 +27,13 @@
     // para que reportes, cierre y desglose de IVA la separen de las ventas.
     const STAFF = { category: 'pastelitos', label: 'Consumo personal' };
 
+    // Delivery: lo que cobra el motorizado, monto libre en $ que pone la caja
+    // (2, 2.5, 3, 3.5...). Va FUERA de IVA y de la factura talonario: no
+    // entra en la base imponible ni se desglosa IVA sobre él. En la base es
+    // una fila de `sales` con product_id 'delivery' (no es un producto, no
+    // toca vitrina ni products.price). `maxUsd`: tope contra un dedo de más.
+    const DELIVERY = { productId: 'delivery', name: 'Delivery', label: 'Delivery (fuera de IVA)', quickUsd: [2, 2.5, 3, 3.5], maxUsd: 50 };
+
     // Categorías que ya no se venden (dulces desde el 27/10/2026, empanadas
     // desde el 31/10/2026, minis y tostones desde el 03/11/2026): no salen en la Vitrina, la cocina, las alertas de
     // stock ni el menú web. Los productos
@@ -124,6 +131,31 @@
         return String(name || '').includes(` · ${STAFF.label}`);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
+    /** ¿Esta venta (o línea de cuenta, o su nombre) es el cargo de delivery? */
+    function isDeliverySale(sale) {
+        if (sale && typeof sale === 'object') {
+            const id = sale.productId || sale.product_id;
+            if (id) return id === DELIVERY.productId;
+        }
+        const name = typeof sale === 'string' ? sale : (sale && sale.name);
+        return new RegExp(`^${DELIVERY.name}(\\s*\\[|\\s*$)`).test(String(name || '').trim());
+    }
+
+    /** Monto de delivery escrito por la caja ("2,5", "$3", "3.50") en $, o null si no sirve. 0 = quitarlo. */
+    function parseDeliveryUsd(text) {
+        const clean = String(text == null ? '' : text).replace(/[$\s]/g, '').replace(',', '.');
+        if (clean === '') return 0;
+        if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
+        const n = Math.round(parseFloat(clean) * 100) / 100;
+        if (!(n >= 0) || n > DELIVERY.maxUsd) return null;
+        return n;
+    }
+
+    /** Parte de una cuenta (líneas con price y quantity) que es delivery, en $. */
+    function deliveryUsdOf(items) {
+        return (items || []).reduce((sum, it) => sum + (isDeliverySale(it) ? (parseFloat(it.price) || 0) * (it.quantity || 1) : 0), 0);
+    }
+
+    root.Combos = { PROMO, COMBOS, STAFF, DELIVERY, isDeliverySale, parseDeliveryUsd, deliveryUsdOf, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

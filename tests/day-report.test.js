@@ -61,7 +61,24 @@ assert.strictEqual(day.shift, null);
 const amOnly = buildReport({ date: '2026-10-28', sales, bcvRate: R, shift: 'manana' });
 assert.strictEqual(amOnly.shift, 'manana');
 
-Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly)]).then(bufs => {
+// Delivery: suma al total cobrado pero fuera de IVA, de la base y de las unidades.
+const delTs = '2026-10-28T15:00:00.000+00:00';
+const withDel = buildReport({
+    date: '2026-10-28', bcvRate: R, productCategories: { pollo: 'pastelitos' },
+    sales: [
+        sale('Pollo [Rosa] (Pagado - Pago Móvil)', P, delTs, 'pollo'),
+        sale('Delivery [Rosa] (Pagado - Pago Móvil)', 3, delTs, 'delivery')
+    ]
+});
+const [rosa] = withDel.accounts;
+assert.strictEqual(rosa.deliveryBs, Math.round(3 * R * 100) / 100);
+assert.strictEqual(rosa.baseBs, Math.round((P * R / 1.16) * 100) / 100, 'la base imponible no incluye el delivery');
+assert.strictEqual(Math.round((rosa.baseBs + rosa.ivaBs + rosa.deliveryBs) * 100), Math.round(rosa.totalBs * 100), 'base + IVA + delivery = total');
+assert.strictEqual(withDel.totals.units, 1, 'el delivery no cuenta como producto vendido');
+assert.strictEqual(withDel.totals.deliveryCount, 1);
+assert.strictEqual(withDel.categories.find(c => c.key === 'delivery').totalBs, rosa.deliveryBs);
+
+Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDel)]).then(bufs => {
     for (const buf of bufs) assert.ok(buf.slice(0, 5).toString() === '%PDF-' && buf.length > 5000);
     console.log('day-report.test.js: OK');
 }).catch(e => { console.error(e); process.exit(1); });

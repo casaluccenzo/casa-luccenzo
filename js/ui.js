@@ -944,6 +944,7 @@ function renderSalesHistory(salesLog, onUndo, onEdit) {
             existingItem.totalPrice += sale.price;
         } else {
             groups[key].items.push({
+                productId: sale.productId,
                 name: productName,
                 price: sale.price,
                 quantity: 1,
@@ -1181,11 +1182,15 @@ function renderPnl(pnl, opts = {}) {
         ? `<div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(255,255,255,0.1);">
              Abonos cobrados en el período: ${pnl.abonos.count} operación(es) · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)
            </div>` : '';
+    const delivery = pnl.delivery && pnl.delivery.count > 0
+        ? `<div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.5rem;">
+             🛵 Delivery cobrado en el período: ${pnl.delivery.count} envío(s) · ${usd(pnl.delivery.montoUsd)} (es del motorizado: fuera de ventas y ganancia)
+           </div>` : '';
 
     c.innerHTML = estBanner + cascade
         + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Ventas por día</div>` + chart
         + `<div style="margin:1rem 0 0.5rem; font-weight:700; font-size:0.8rem;">Por categoría</div>` + cats
-        + abonos;
+        + abonos + delivery;
 
     const gastosRow = document.getElementById('pnl-gastos-row');
     if (gastosRow) gastosRow.addEventListener('click', () => {
@@ -1474,7 +1479,11 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
             const product = products.find(p => p.id === sale.productId);
             const rawCat = product ? product.category : 'otros';
 
-            if (window.Combos && window.Combos.isStaffSale(sale)) {
+            if (window.Combos && window.Combos.isDeliverySale(sale)) {
+                catKey = 'delivery';
+                catLabel = '🛵 Delivery (fuera de IVA)';
+                sortOrder = 85;
+            } else if (window.Combos && window.Combos.isStaffSale(sale)) {
                 catKey = 'personal';
                 catLabel = '👥 Consumo del personal (al costo)';
                 sortOrder = 80;
@@ -1563,7 +1572,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
     });
 
     // Total items sold count
-    const totalItemsSold = salesLog.filter(s => s.productId !== 'abono').length;
+    const isDeliverySale = (s) => !!(window.Combos && window.Combos.isDeliverySale(s));
+    const totalItemsSold = salesLog.filter(s => s.productId !== 'abono' && !isDeliverySale(s)).length;
+    const deliveryCount = salesLog.filter(isDeliverySale).length;
+    const totalDelivery = salesLog.filter(isDeliverySale).reduce((sum, s) => sum + (s.price || 0), 0);
 
     // Cierre del día: lo vendido en cada turno (mañana / tarde) y el total.
     // En el corte de turno (opts.shift) ya se muestra un solo turno.
@@ -1668,6 +1680,11 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 <span>Ingreso por Ventas:</span>
                 <span style="color: var(--color-success); font-weight: 700;">+$${totalSales.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalSales * rate).toFixed(2)})</span></span>
             </div>
+            ${totalDelivery > 0 ? `
+            <div class="summary-row" style="font-size: 0.75rem; color: var(--color-text-muted);">
+                <span>&nbsp;&nbsp;de eso, 🛵 delivery (${deliveryCount}, fuera de IVA):</span>
+                <span>$${totalDelivery.toFixed(2)} (Bs. ${(totalDelivery * rate).toFixed(2)})</span>
+            </div>` : ''}
             <div class="summary-row">
                 <span>Total Gastos:</span>
                 <span style="color: var(--color-danger); font-weight: 700;">-$${totalExpenses.toFixed(2)} <span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-left: 0.25rem;">(Bs. ${(totalExpenses * rate).toFixed(2)})</span></span>
@@ -2744,6 +2761,63 @@ function openComboPicker(comboId, products) {
     document.body.appendChild(overlay);
 }
 
+/**
+ * Monto del delivery de la cuenta activa: botones rápidos ($2, $2.50...) o el
+ * monto que se escriba. Va fuera de IVA; se guarda con window.setCartDelivery.
+ * @param {number} currentUsd Delivery que ya tiene la cuenta (0 si no tiene)
+ */
+function openDeliveryPicker(currentUsd = 0) {
+    const D = window.Combos && window.Combos.DELIVERY;
+    if (!D || !window.setCartDelivery) return;
+    const rate = window.bcvRate || 0;
+    const money = (usd) => `$${usd.toFixed(2)}${rate > 0 ? ` · Bs ${(usd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}`;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <strong>🛵 Delivery</strong>
+                <button type="button" class="btn-combo-close" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="combo-picker-hint">Lo que cobra el motorizado. Va aparte, <b>fuera de IVA</b> y fuera de la factura; se suma al total a cobrar.</p>
+                <div class="combo-flavor-grid">
+                    ${D.quickUsd.map(v => `<button type="button" class="btn-combo-flavor" data-usd="${v}">$${v.toFixed(2)}<small>${rate > 0 ? 'Bs ' + (v * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</small></button>`).join('')}
+                </div>
+                <form class="delivery-form" style="display: flex; gap: 0.5rem; margin-top: 0.9rem; align-items: stretch;">
+                    <input class="delivery-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Otro monto en $ (ej. 4,50)" value="${currentUsd > 0 ? String(currentUsd).replace('.', ',') : ''}"
+                        style="flex: 1; min-width: 0; height: 44px; padding: 0 0.75rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); background: rgba(255,255,255,0.06); color: var(--color-white); font-size: 1rem; font-weight: 700;">
+                    <button type="submit" style="height: 44px; padding: 0 1rem; border-radius: 8px; border: none; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; cursor: pointer;">Listo</button>
+                </form>
+                <div class="delivery-preview" style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.4rem; min-height: 1.1em;"></div>
+                ${currentUsd > 0 ? `<button type="button" class="delivery-remove" style="width: 100%; height: 40px; margin-top: 0.6rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.5); background: rgba(239,68,68,0.1); color: #fca5a5; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-trash-can"></i> Quitar delivery (${money(currentUsd)})</button>` : ''}
+            </div>
+        </div>`;
+    const close = () => overlay.remove();
+    const save = (usd) => { close(); window.setCartDelivery(usd); };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.btn-combo-close').addEventListener('click', close);
+    overlay.querySelectorAll('[data-usd]').forEach(btn => btn.addEventListener('click', () => save(parseFloat(btn.getAttribute('data-usd')))));
+    const input = overlay.querySelector('.delivery-input');
+    const preview = overlay.querySelector('.delivery-preview');
+    const updatePreview = () => {
+        const v = window.Combos.parseDeliveryUsd(input.value);
+        preview.textContent = v === null ? `Escriba solo el monto en dólares (hasta $${D.maxUsd}).` : v > 0 ? `Delivery: ${money(v)}` : '';
+        preview.style.color = v === null ? 'var(--color-danger)' : 'var(--color-text-muted)';
+    };
+    input.addEventListener('input', updatePreview);
+    overlay.querySelector('.delivery-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const v = window.Combos.parseDeliveryUsd(input.value);
+        if (v === null) { updatePreview(); input.focus(); return; }
+        save(v);
+    });
+    const remove = overlay.querySelector('.delivery-remove');
+    if (remove) remove.addEventListener('click', () => save(0));
+    document.body.appendChild(overlay);
+    updatePreview();
+}
+
 function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     const container = document.getElementById('active-cart-container');
     if (!container) return;
@@ -2762,7 +2836,12 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     // The staff's pastelitos go at cost with no IVA, so they stay out of it.
     const exemptUSD = staffExemptUSD(cart);
     const exemptVES = exemptUSD * (window.bcvRate || 1);
-    const iva = splitIvaIncluded(totalUSD - exemptUSD, totalVES - exemptVES);
+    // The delivery (what the motorizado charges) is outside IVA altogether.
+    const deliveryUSD = window.Combos ? window.Combos.deliveryUsdOf(cart) : 0;
+    const deliveryVES = deliveryUSD * (window.bcvRate || 1);
+    const iva = splitIvaIncluded(totalUSD - exemptUSD - deliveryUSD, totalVES - exemptVES - deliveryVES);
+    const isDelivery = (item) => !!(window.Combos && window.Combos.isDeliverySale(item));
+    const productLines = cart.filter(item => !isDelivery(item));
 
     container.innerHTML = `
         <div class="active-cart-card">
@@ -2771,12 +2850,25 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                     <i class="fa-solid fa-cart-shopping animate-pulse"></i> Cuenta del Cliente Activa
                 </span>
                 <span style="font-size: 10px; color: var(--color-gold); font-weight: bold;">
-                    ${cart.reduce((sum, item) => sum + item.quantity, 0)} artículos
+                    ${productLines.reduce((sum, item) => sum + item.quantity, 0)} artículos${deliveryUSD > 0 ? ' + delivery' : ''}
                 </span>
             </div>
-            
+
             <div class="cart-items-list">
-                ${cart.map(item => `
+                ${cart.map(item => isDelivery(item) ? `
+                    <div class="cart-item-row cart-delivery-row">
+                        <div class="cart-item-details">
+                            <span class="cart-item-title">🛵 ${escapeHtml(window.Combos.DELIVERY.label)}</span>
+                            <span class="cart-item-sub">
+                                $${(item.price || 0).toFixed(2)} &bull; Bs. ${((item.price || 0) * (window.bcvRate || 1)).toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="cart-item-controls">
+                            <button class="btn-cart-adjust-circle" data-action="delivery-edit" aria-label="Cambiar monto del delivery" style="background: var(--color-gold); color: var(--color-bg-navy); border: none;">✎</button>
+                            <button class="btn-cart-adjust-circle minus" data-id="${escapeHtml(`${item.productId}|${item.combo || 'delivery'}`)}" data-action="minus" aria-label="Quitar delivery">✕</button>
+                        </div>
+                    </div>
+                ` : `
                     <div class="cart-item-row">
                         <div class="cart-item-details">
                             <span class="cart-item-title">${escapeHtml(item.name)}</span>
@@ -2794,6 +2886,15 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
             </div>
 
             <div class="cart-totals-section">
+                ${deliveryUSD > 0 ? `
+                <div class="cart-iva-row">
+                    <span>Productos:</span>
+                    <span>$${(totalUSD - deliveryUSD).toFixed(2)} &bull; Bs. ${(totalVES - deliveryVES).toFixed(2)}</span>
+                </div>
+                <div class="cart-iva-row" style="color: var(--color-gold);">
+                    <span>🛵 Delivery (fuera de IVA):</span>
+                    <span>$${deliveryUSD.toFixed(2)} &bull; Bs. ${deliveryVES.toFixed(2)}</span>
+                </div>` : ''}
                 <div class="cart-total-row">
                     <span class="cart-total-lbl">Total a Cobrar:</span>
                     <span class="cart-total-val-usd">$${totalUSD.toFixed(2)}</span>
@@ -2826,9 +2927,17 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                 <button class="btn-cart-secondary whatsapp-outline" id="btn-cart-share">
                     <i class="fa-brands fa-whatsapp"></i> Ticket Cliente
                 </button>
+                ${window.Combos ? `
+                <button class="btn-cart-secondary btn-cart-delivery" id="btn-cart-delivery">
+                    <i class="fa-solid fa-motorcycle"></i> ${deliveryUSD > 0 ? `Delivery $${deliveryUSD.toFixed(2)}` : 'Agregar delivery'}
+                </button>` : ''}
             </div>
         </div>
     `;
+
+    container.querySelectorAll('#btn-cart-delivery, [data-action="delivery-edit"]').forEach(btn => {
+        btn.addEventListener('click', () => openDeliveryPicker(deliveryUSD));
+    });
 
     // Bind event listeners
     container.querySelectorAll('[data-action="minus"]').forEach(btn => {
@@ -2850,14 +2959,19 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
         let msg = `🛒 *TICKET DE COMPRA - CASA LUCENZO*\n`;
         msg += `--------------------------------------\n`;
         cart.forEach(item => {
+            if (isDelivery(item)) return;
             msg += `• ${item.quantity}x ${item.name} - $${(item.price * item.quantity).toFixed(2)}\n`;
         });
+        if (deliveryUSD > 0) {
+            msg += `• 🛵 Delivery (fuera de IVA) - $${deliveryUSD.toFixed(2)}\n`;
+        }
         msg += `--------------------------------------\n`;
         msg += `💰 *TOTAL A PAGAR:* *$${total.toFixed(2)} USD*\n`;
         msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
         msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
         const shareExempt = staffExemptUSD(cart);
-        const shareIva = splitIvaIncluded(total - shareExempt, (total - shareExempt) * (window.bcvRate || 1));
+        const shareTaxed = total - shareExempt - deliveryUSD;
+        const shareIva = splitIvaIncluded(shareTaxed, shareTaxed * (window.bcvRate || 1));
         msg += `🧾 Base imponible: $${shareIva.baseUSD.toFixed(2)} / Bs. ${shareIva.baseVES.toFixed(2)}\n`;
         msg += `🧾 IVA (16% incluido): $${shareIva.ivaUSD.toFixed(2)} / Bs. ${shareIva.ivaVES.toFixed(2)}\n`;
         if (shareExempt > 0) {
@@ -3310,6 +3424,7 @@ function groupSalesByClientAccounts(salesLog) {
             existingItem.totalPrice += sale.price;
         } else {
             groups[key].items.push({
+                productId: sale.productId,
                 name: productName,
                 price: sale.price,
                 quantity: 1,
@@ -3359,7 +3474,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     });
 
     // Total sold today: count of all checked out sales today (except debt payments 'abono')
-    const totalPiecesSold = todaySalesLog.filter(s => s.productId !== 'abono').length;
+    const totalPiecesSold = todaySalesLog.filter(s => s.productId !== 'abono' && !(window.Combos && window.Combos.isDeliverySale(s))).length;
     if (liveVendidosEl) {
         liveVendidosEl.textContent = totalPiecesSold;
     }
@@ -3386,7 +3501,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     }, 0);
 
     // Add any manual abonos/other non-inventory transactions recorded today
-    const abonosValue = todaySalesLog.filter(s => s.productId === 'abono').reduce((sum, s) => sum + (s.price || 0), 0);
+    // (and the delivery charges, which don't come out of the vitrina either)
+    const abonosValue = todaySalesLog.filter(s => s.productId === 'abono' || (window.Combos && window.Combos.isDeliverySale(s))).reduce((sum, s) => sum + (s.price || 0), 0);
 
     const totalRealMoney = expectedSalesValue + abonosValue;
     const totalRealVES = totalRealMoney * rate;
@@ -3440,7 +3556,14 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 }
             }
 
-            if (window.Combos && window.Combos.isStaffSale(s)) {
+            if (window.Combos && window.Combos.isDeliverySale(s)) {
+                catKey = 'delivery';
+                catLabel = 'Delivery (fuera de IVA)';
+                icon = 'fa-motorcycle';
+                color = '#D4AF37';
+                unitLabel = 'envíos';
+                sortOrder = 85;
+            } else if (window.Combos && window.Combos.isStaffSale(s)) {
                 catKey = 'personal';
                 catLabel = 'Consumo del personal (al costo)';
                 icon = 'fa-user-group';
@@ -4332,7 +4455,9 @@ function showPosReceiptModal({
     // the toggle below only breaks the same total down into base imponible
     // + IVA (SENIAT) -- the amount charged never changes.
     // The staff's pastelitos (at cost) carry no IVA and stay out of the base.
-    const exemptVES = cart.reduce((sum, item) => sum + (window.Combos && window.Combos.isStaffSale(item) ? getItemTotalUSD(item) : 0), 0) * rate;
+    // The delivery is outside IVA too (and outside the factura talonario).
+    const exemptVES = cart.reduce((sum, item) => sum + (window.Combos && (window.Combos.isStaffSale(item) || window.Combos.isDeliverySale(item)) ? getItemTotalUSD(item) : 0), 0) * rate;
+    const deliveryReceiptVES = (window.Combos ? window.Combos.deliveryUsdOf(cart.map(item => ({ ...item, price: getItemTotalUSD(item), quantity: 1 }))) : 0) * rate;
     const baseImponibleVES = (totalVES - exemptVES) / 1.16;
     const iva16VES = totalVES - exemptVES - baseImponibleVES;
 
@@ -4417,7 +4542,7 @@ function showPosReceiptModal({
                     <span>01 -Oper.: CAJA PRINCIPAL</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 0.1rem;">
-                    <span>PRODUCTOS: ${cart.length}</span>
+                    <span>PRODUCTOS: ${cart.filter(item => !(window.Combos && window.Combos.isDeliverySale(item))).length}</span>
                     <span>TOT. REF: $${totalUSD.toFixed(2)}</span>
                 </div>
             </div>
@@ -4443,7 +4568,7 @@ function showPosReceiptModal({
                     <span>Total</span>
                 </div>
                 ${cart.map(item => {
-                    const displayName = cleanProductName(item.name);
+                    const displayName = window.Combos && window.Combos.isDeliverySale(item) ? window.Combos.DELIVERY.label : cleanProductName(item.name);
                     const qty = item.quantity || 1;
                     const itemTotalUSD = getItemTotalUSD(item);
                     const unitPrice = qty > 0 ? (itemTotalUSD / qty) : 0;
@@ -4478,6 +4603,11 @@ function showPosReceiptModal({
                         <span>IVA (16%):</span>
                         <span>${formatVES(iva16VES)}</span>
                     </div>
+                    ${deliveryReceiptVES > 0 ? `
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
+                        <span>DELIVERY (NO SUJETO A IVA):</span>
+                        <span>${formatVES(deliveryReceiptVES)}</span>
+                    </div>` : ''}
                 </div>
                 <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
                     <span>TOTAL VES:</span>
@@ -4603,12 +4733,14 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
     const effectiveRate = (rate && !isNaN(parseFloat(rate)) && parseFloat(rate) > 0) ? parseFloat(rate) : (window.bcvRate || 0);
-    const items = cart.map(item => {
+    // El delivery va fuera de la factura talonario (sin IVA ni exento).
+    const items = cart.filter(item => !(window.Combos && window.Combos.isDeliverySale(item))).map(item => {
         const qty = item.quantity || 1;
         const total = getItemTotalUSD(item);
         return { desc: cleanProductName(item.name), qty, price: Math.round((total / qty) * 100) / 100 };
     });
     const totalUSD = items.reduce((s, it) => s + it.qty * it.price, 0);
+    const deliveryOutUSD = cart.reduce((s, item) => s + (window.Combos && window.Combos.isDeliverySale(item) ? getItemTotalUSD(item) : 0), 0);
 
     const header = (title) => `
         <div class="inv-noprint" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 0.9rem;">
@@ -4860,6 +4992,7 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
             <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(212,175,55,0.3); margin-top: 0.4rem; padding-top: 0.4rem; font-weight: 900; color: var(--color-gold);">
                 <span>Total (IVA incluido)</span><span>$${totalUSD.toFixed(2)}</span>
             </div>
+            ${deliveryOutUSD > 0 ? `<div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.2rem;">🛵 Delivery $${deliveryOutUSD.toFixed(2)} cobrado aparte: no va en la factura (fuera de IVA).</div>` : ''}
             <div style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.2rem;">Tasa BCV: Bs ${effectiveRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Pago: ${escapeHtml(payMethod || '—')}</div>
         </div>
         ${window.handleEditSale ? `
@@ -5426,7 +5559,8 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
         'minis': { label: '🥐 Pastelitos mini', count: 0, amount: 0, class: 'fill-category-1' },
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
         'dulces': { label: '🍬 Dulces', count: 0, amount: 0, class: 'fill-category-5' },
-        'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' }
+        'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' },
+        'delivery': { label: '🛵 Delivery (fuera de IVA)', count: 0, amount: 0, class: 'fill-category-5' }
     };
 
     let totalCatVal = 0;
@@ -5434,7 +5568,9 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
         if (s.productId === 'abono') return;
         const product = products.find(p => p.id === s.productId);
         let cat = 'otros';
-        if (product && categories[product.category]) {
+        if (window.Combos && window.Combos.isDeliverySale(s)) {
+            cat = 'delivery';
+        } else if (product && categories[product.category]) {
             cat = product.category;
         }
         categories[cat].count++;
@@ -5651,7 +5787,8 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         'pasteles': { label: '🥐 Pasteles y Repostería', items: {} },
         'bebidas': { label: '🥤 Bebidas', items: {} },
         'dulces': { label: '🍬 Dulces', items: {} },
-        'personal': { label: '👥 Consumo del personal (al costo)', items: {} }
+        'personal': { label: '👥 Consumo del personal (al costo)', items: {} },
+        'delivery': { label: '🛵 Delivery (fuera de IVA)', items: {} }
     };
 
     salesLog.forEach(sale => {
@@ -5660,7 +5797,9 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         // Find product category
         const prod = products.find(p => p.id === sale.productId);
         let category = 'pasteles'; // fallback default
-        if (window.Combos && window.Combos.isStaffSale(sale)) {
+        if (window.Combos && window.Combos.isDeliverySale(sale)) {
+            category = 'delivery';
+        } else if (window.Combos && window.Combos.isStaffSale(sale)) {
             category = 'personal';
         } else if (prod && prod.category === 'bebidas') {
             category = 'bebidas';
@@ -6984,6 +7123,7 @@ function exportPnlToPDF(pnl, opts = {}) {
       <h3>Gastos</h3>
       <table><tr><th>Categoría / Detalle</th><th style="text-align:right">Monto</th></tr>${gastoRows}</table>
       ${pnl.abonos.count > 0 ? `<p class="meta">Abonos cobrados: ${pnl.abonos.count} · ${usd(pnl.abonos.montoUsd)} (fuera del cálculo de ganancia)</p>` : ''}
+      ${pnl.delivery && pnl.delivery.count > 0 ? `<p class="meta">Delivery cobrado: ${pnl.delivery.count} · ${usd(pnl.delivery.montoUsd)} (del motorizado, fuera de ventas y ganancia)</p>` : ''}
       <script>window.onload=function(){setTimeout(function(){window.print();},400);}</script>
       </body></html>`);
     printWindow.document.close();

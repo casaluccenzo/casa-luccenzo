@@ -858,7 +858,26 @@ const SUITES = [
         assert.strictEqual(invoiceDataForAccount([sale('Pastel de Pollo [Mesa 3]', 2.5)], 240).skip, 'sin cobrar', 'AutoInvoice: cuenta sin cobrar no lleva factura');
         assert.strictEqual(invoiceDataForAccount([sale('Pastel de Pollo · Consumo personal [Ana] (Pagado - Efectivo Bs.)', 1.2)], 240).skip, 'personal', 'AutoInvoice: consumo del personal no lleva factura');
         assert.strictEqual(invoiceDataForAccount([sale('Abono [Pedro] (Pagado - Efectivo $)', 5, { productId: 'abono' })], 240).skip, 'abono', 'AutoInvoice: abono de fiado no lleva factura');
-        console.log("✅ TEST PASSED: Factura talonario automática al cobrar (consumidor final, personal, sin cobrar)");
+        // Delivery: va en la cuenta pero fuera de la factura talonario.
+        const withDelivery = invoiceDataForAccount([
+            sale('Pastel de Pollo [Ana] (Pagado - Pago Móvil)', 2.5),
+            sale('Delivery [Ana] (Pagado - Pago Móvil)', 3, { productId: 'delivery' })
+        ], 240);
+        assert.deepStrictEqual(withDelivery.items, [{ desc: 'Pastel de Pollo', qty: 1, price: 2.5 }], 'AutoInvoice: el delivery no va en la factura');
+        assert.strictEqual(invoiceDataForAccount([sale('Delivery [Ana] (Pagado - Efectivo $)', 3, { productId: 'delivery' })], 240).skip, 'delivery', 'AutoInvoice: cuenta de solo delivery no lleva factura');
+        console.log("✅ TEST PASSED: Factura talonario automática al cobrar (consumidor final, personal, sin cobrar, delivery)");
+
+        // Delivery: monto libre en $, fuera de IVA.
+        assert.strictEqual(Combos.parseDeliveryUsd('2,5'), 2.5, 'Delivery: acepta coma decimal');
+        assert.strictEqual(Combos.parseDeliveryUsd('$3'), 3, 'Delivery: acepta el signo $');
+        assert.strictEqual(Combos.parseDeliveryUsd(''), 0, 'Delivery: vacío = sin delivery');
+        assert.strictEqual(Combos.parseDeliveryUsd('tres'), null, 'Delivery: texto no sirve');
+        assert.strictEqual(Combos.parseDeliveryUsd('500'), null, 'Delivery: tope contra un dedo de más');
+        assert.ok(Combos.isDeliverySale({ productId: 'delivery', name: 'Delivery [Ana]' }), 'Delivery: reconoce la línea por producto');
+        assert.ok(Combos.isDeliverySale('Delivery [Ana] (Pagado - Pago Móvil)'), 'Delivery: reconoce la venta por nombre');
+        assert.ok(!Combos.isDeliverySale({ productId: 'pollo', name: 'Pollo [Delivery]' }), 'Delivery: un cliente llamado Delivery no es delivery');
+        assert.strictEqual(Combos.deliveryUsdOf([{ productId: 'pollo', price: 2.5, quantity: 2 }, { productId: 'delivery', price: 3.5, quantity: 1 }]), 3.5, 'Delivery: monto de la cuenta');
+        console.log("✅ TEST PASSED: Delivery con monto libre fuera de IVA");
 
         // Pedido web: entrega + datos del Pago Móvil en el WhatsApp del cliente.
         const PedidoDelivery = require('../js/pedido-delivery');

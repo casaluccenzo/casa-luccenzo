@@ -301,9 +301,14 @@ function aggregatePnl(sales = [], expenses = [], products = [], opts = {}) {
     const merch = [];
     let abonoCount = 0;
     let abonoUsd = 0;
+    let deliveryCount = 0;
+    let deliveryUsd = 0;
     (sales || []).forEach(s => {
         const pid = s.productId || s.product_id;
         if (pid === 'abono') { abonoCount += 1; abonoUsd += parseFloat(s.price) || 0; return; }
+        // Delivery: lo cobra la caja pero es del motorizado (ver Combos.DELIVERY),
+        // así que no es venta del local ni ganancia.
+        if (pid === 'delivery') { deliveryCount += 1; deliveryUsd += parseFloat(s.price) || 0; return; }
         merch.push(s);
     });
 
@@ -397,6 +402,7 @@ function aggregatePnl(sales = [], expenses = [], products = [], opts = {}) {
         categorias,
         gastos: { totalUsd: Number(gastosUsd.toFixed(2)), porCategoria: gastosCategorias },
         abonos: { count: abonoCount, montoUsd: Number(abonoUsd.toFixed(2)) },
+        delivery: { count: deliveryCount, montoUsd: Number(deliveryUsd.toFixed(2)) },
         dias
     };
 }

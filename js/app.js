@@ -493,6 +493,38 @@ function addStaffMealToCart(productId) {
 window.addStaffMealToCart = addStaffMealToCart;
 
 /**
+ * Pone (o cambia, o quita con 0) el cargo de delivery de la cuenta activa:
+ * una sola línea con el monto en $ que cobra el motorizado. No es un producto
+ * (no toca la vitrina ni products.price) y va fuera de IVA y de la factura
+ * talonario (ver Combos.DELIVERY).
+ * @param {number} usd Monto en dólares; 0 lo quita
+ */
+function setCartDelivery(usd) {
+    if (!Combos) return;
+    const D = Combos.DELIVERY;
+    const amount = Math.round((parseFloat(usd) || 0) * 100) / 100;
+    const idx = currentCart.findIndex(item => Combos.isDeliverySale(item));
+    if (!(amount > 0)) {
+        if (idx !== -1) currentCart.splice(idx, 1);
+    } else if (amount > D.maxUsd) {
+        window.UIManager.showToast(`⚠️ El delivery no puede pasar de $${D.maxUsd}.`, "fa-solid fa-triangle-exclamation");
+        return;
+    } else if (idx !== -1) {
+        currentCart[idx].price = amount;
+        currentCart[idx].quantity = 1;
+    } else {
+        currentCart.push({ productId: D.productId, name: D.name, price: amount, quantity: 1, combo: 'delivery' });
+    }
+    triggerHaptic(15);
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.showToast(amount > 0
+        ? `🛵 Delivery $${amount.toFixed(2)} agregado (fuera de IVA).`
+        : "🛵 Delivery quitado de la cuenta.", "fa-solid fa-motorcycle");
+}
+window.setCartDelivery = setCartDelivery;
+
+/**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
  * goes through; the negative count is what tells the cashier a recount is due.
  * @param {Object} product Product just sold
@@ -965,8 +997,11 @@ function invoiceDataForAccount(accountSales, fallbackRate) {
     const [rawName, rawRif = ''] = tag.split(/\s+-\s+/);
     const methodMatch = first.name.match(/\(Pagado\s*-\s*(.*?)\)\s*$/);
 
+    // El delivery va fuera de la factura talonario (no lleva IVA ni exento).
+    const invoiceSales = accountSales.filter(s => !(Combos && Combos.isDeliverySale(s)));
+    if (invoiceSales.length === 0) return { skip: 'delivery' };
     const lines = {};
-    accountSales.forEach(s => {
+    invoiceSales.forEach(s => {
         const desc = s.name.replace(/\s*\[.*?\]/g, '').replace(/\s*\((?:Pagado|Punto|Pago|Efectivo|Biopago).*?\)/gi, '').trim();
         if (!lines[desc]) lines[desc] = { desc, qty: 0, total: 0 };
         lines[desc].qty += 1;
@@ -1235,6 +1270,7 @@ async function handleEditSale(timestamp) {
             };
             if (comboDef) line.combo = comboDef.id;
             else if (Combos && Combos.isStaffSale(cleanName)) line.combo = 'personal';
+            else if (Combos && Combos.isDeliverySale(sale)) line.combo = 'delivery';
             cartReconstructed.push(line);
         }
     });
@@ -2187,7 +2223,11 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
             const product = productsList.find(p => p.id === sale.productId);
             const rawCat = product ? product.category : 'otros';
 
-            if (Combos && Combos.isStaffSale(sale)) {
+            if (Combos && Combos.isDeliverySale(sale)) {
+                catKey = 'delivery';
+                catLabel = '🛵 Delivery (fuera de IVA)';
+                sortOrder = 85;
+            } else if (Combos && Combos.isStaffSale(sale)) {
                 catKey = 'personal';
                 catLabel = '👥 Consumo del personal (al costo)';
                 sortOrder = 80;
@@ -2231,7 +2271,9 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
         catGroup[cleanName].total += sale.price || 0;
     });
 
-    const totalItemsSold = reportSales.filter(s => s.productId !== 'abono').length;
+    const totalItemsSold = reportSales.filter(s => s.productId !== 'abono' && !(Combos && Combos.isDeliverySale(s))).length;
+    const deliverySales = reportSales.filter(s => Combos && Combos.isDeliverySale(s));
+    const totalDelivery = deliverySales.reduce((sum, s) => sum + (s.price || 0), 0);
 
     const shiftInfo = shift ? SHIFT_INFO[shift] : null;
     let message = shiftInfo
@@ -2272,6 +2314,9 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
     message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `📊 *RESUMEN FINANCIERO*\n\n`;
     message += `  💰 Ventas:  +$${totalSales.toFixed(2)} (Bs. ${(totalSales * rate).toFixed(2)})\n`;
+    if (totalDelivery > 0) {
+        message += `     _de eso, delivery (${deliverySales.length}): $${totalDelivery.toFixed(2)} (Bs. ${(totalDelivery * rate).toFixed(2)}), fuera de IVA_\n`;
+    }
     message += `  💸 Gastos:  -$${totalExpenses.toFixed(2)} (Bs. ${(totalExpenses * rate).toFixed(2)})\n`;
     message += `  ─────────────────\n`;
     message += `  💵 *CAJA NETA: $${netCash.toFixed(2)}*\n`;

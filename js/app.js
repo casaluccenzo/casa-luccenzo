@@ -2042,7 +2042,7 @@ async function loadRentabilidad(forceRefetch = false) {
     }
     // Se recalcula siempre con el catálogo actual, así un costo recién cargado se ve al instante.
     rentLast = window.AnalyticsManager.aggregateRentabilidad(rentCache[key].sales, products, {
-        start, end, periodLabel: label, bcvRate: window.bcvRate || 1, expenses: rentCache[key].expenses
+        start, end, periodLabel: label, bcvRate: window.bcvRate || 1, expenses: rentCache[key].expenses, soloConCosto: true
     });
     window.UIManager.renderRentabilidad(rentLast);
     renderRentExtras();

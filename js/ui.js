@@ -1224,6 +1224,13 @@ function renderRentabilidad(r) {
     const cls = v => v < 0 ? 'neg' : 'pos';
 
     const warn = [];
+    const excl = r.excluidas || { unidades: 0, ventasBs: 0, productos: [] };
+    const exclBox = excl.unidades > 0 ? `
+      <div class="rent-excl">
+        <div>Solo cuenta <strong>pasteles</strong> y productos con costo cargado. Quedan fuera ${excl.unidades} venta(s) por ${rentBs(excl.ventasBs)} de productos sin costo
+          <span style="color:var(--color-text-muted);">(${excl.productos.slice(0, 4).map(p => `${escapeHtml(p.name)} ×${p.unidades}`).join(', ')}${excl.productos.length > 4 ? '…' : ''})</span>.</div>
+        <button class="btn-action-small rent-open-costs"><i class="fa-solid fa-plus"></i> Cargar costos de bebidas y otros</button>
+      </div>` : '';
     if (r.sinCosto.unidades > 0) {
         warn.push(`⚠️ ${r.sinCosto.unidades} venta(s) por ${rentBs(r.sinCosto.ventasBs)} son de productos <strong>sin costo registrado</strong> (bebidas, etc.). Se cuentan como ganancia completa hasta que cargues su costo abajo en <strong>Costo por producto</strong>.`);
     }
@@ -1291,8 +1298,10 @@ function renderRentabilidad(r) {
     notes.push('Montos en Bs con la tasa de cada venta. Precios con IVA incluido (el 16% del Seniat va en el reparto). Ventas anuladas no cuentan.');
 
     c.innerHTML = (warn.length ? `<div class="rent-warn">${warn.join('<br>')}</div>` : '')
-        + kpis + table + gastos + dias
+        + exclBox + kpis + table + gastos + dias
         + `<div class="rent-note">${notes.join('<br>')}</div>`;
+
+    c.querySelectorAll('.rent-open-costs').forEach(b => b.addEventListener('click', () => openRentCosts()));
 
     c.querySelectorAll('.rent-cat-row').forEach(row => row.addEventListener('click', () => {
         c.querySelectorAll(`.rent-prod-row[data-parent="${row.dataset.idx}"]`).forEach(pr => {
@@ -1355,6 +1364,19 @@ function renderRentReparto(baseBs, shares, handlers = {}) {
  * @param {Array} products
  * @param {Function} onSave (productId, newCostBs) => Promise
  */
+let rentCostsOpen = false;
+
+/** Abre la lista de costos y la lleva a la vista. */
+function openRentCosts() {
+    rentCostsOpen = true;
+    const c = document.getElementById('admin-rent-costs');
+    if (!c) return;
+    c.querySelectorAll('.rent-costs-body').forEach(b => b.classList.remove('hidden'));
+    const t = c.querySelector('.rent-costs-toggle');
+    if (t) t.innerHTML = '<i class="fa-solid fa-chevron-up"></i> Ocultar costos';
+    c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function renderRentCosts(products, onSave) {
     const c = document.getElementById('admin-rent-costs');
     if (!c) return;
@@ -1362,14 +1384,22 @@ function renderRentCosts(products, onSave) {
     const hidden = p => window.Combos && window.Combos.isHiddenFromSale && window.Combos.isHiddenFromSale(p);
     const groups = [
         { label: '🥤 Bebidas', items: products.filter(p => p.category === 'bebidas' && !hidden(p)) },
-        { label: '🥐 Pastelitos', items: products.filter(p => p.category === 'pastelitos' && !hidden(p)) },
-        { label: '📦 Otros', items: products.filter(p => !['bebidas', 'pastelitos'].includes(p.category) && !hidden(p)) }
+        { label: '📦 Otros', items: products.filter(p => !['bebidas', 'pastelitos'].includes(p.category) && !hidden(p)) },
+        { label: '🥐 Pastelitos', items: products.filter(p => p.category === 'pastelitos' && !hidden(p)) }
     ].filter(g => g.items.length);
+    const sinCostoTotal = products.filter(p => p.category !== 'pastelitos' && !hidden(p) && !(parseFloat(p.cost) > 0)).length;
     const sinCosto = products.filter(p => p.category === 'bebidas' && !hidden(p) && !(parseFloat(p.cost) > 0)).length;
 
     c.innerHTML = `
-      <div class="rent-section-title">Costo por producto</div>
-      <div class="rent-note" style="margin:0 0 0.5rem;">Lo que te cuesta <strong>cada unidad</strong> en Bs (lo que pagas al proveedor). Cambiarlo aquí no toca el precio de venta. Se aplica a las ventas nuevas; en ventas viejas sin costo guardado se usa este valor.${sinCosto ? ` <strong style="color:#f59e0b;">${sinCosto} bebida(s) todavía sin costo.</strong>` : ''}</div>
+      <div class="rent-costs-head">
+        <div>
+          <div class="rent-section-title" style="margin:0.6rem 0 0.15rem;">Costo por producto</div>
+          <div class="rent-note" style="margin:0;">${sinCostoTotal ? `<strong style="color:#f59e0b;">${sinCostoTotal} producto(s) sin costo</strong> (${sinCosto} bebida(s)). No entran en la ganancia hasta que cargues su costo.` : 'Todos los productos tienen costo cargado.'}</div>
+        </div>
+        <button class="btn-action-small rent-costs-toggle">${rentCostsOpen ? '<i class="fa-solid fa-chevron-up"></i> Ocultar costos' : '<i class="fa-solid fa-plus"></i> Cargar costos de bebidas y otros'}</button>
+      </div>
+      <div class="rent-costs-body${rentCostsOpen ? '' : ' hidden'}">
+      <div class="rent-note" style="margin:0.5rem 0;">Escribe lo que te cuesta <strong>cada unidad</strong> en Bs (lo que pagas al proveedor) y toca Guardar. No cambia el precio de venta. Desde ese momento el producto entra en la rentabilidad, también en los días anteriores.</div>
       ${groups.map(g => `
         <div style="font-weight:800; font-size:0.78rem; margin:0.6rem 0 0.2rem;">${g.label}</div>
         ${g.items.map(p => {
@@ -1379,7 +1409,17 @@ function renderRentCosts(products, onSave) {
               <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-cost-input" data-id="${escapeHtml(p.id)}" value="${cost > 0 ? cost : ''}" placeholder="Bs">
               <button class="btn-action-small rent-cost-save" data-id="${escapeHtml(p.id)}">Guardar</button>
             </div>`;
-        }).join('')}`).join('')}`;
+        }).join('')}`).join('')}
+      </div>`;
+
+    const toggle = c.querySelector('.rent-costs-toggle');
+    if (toggle) toggle.addEventListener('click', () => {
+        if (rentCostsOpen) {
+            rentCostsOpen = false;
+            c.querySelectorAll('.rent-costs-body').forEach(b => b.classList.add('hidden'));
+            toggle.innerHTML = '<i class="fa-solid fa-plus"></i> Cargar costos de bebidas y otros';
+        } else openRentCosts();
+    });
 
     c.querySelectorAll('.rent-cost-save').forEach(b => b.addEventListener('click', async () => {
         const inp = Array.from(c.querySelectorAll(".rent-cost-input")).find(i => i.dataset.id === b.dataset.id);

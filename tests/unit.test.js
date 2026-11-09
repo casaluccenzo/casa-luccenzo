@@ -527,6 +527,13 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(rentBeb.costoBs, 500, "rentabilidad: bebidas con costo cargado");
     console.log("✅ TEST PASSED: aggregateRentabilidad en Bs, costo por venta, delivery fuera");
 
+    const rentSolo = aggregateRentabilidad(rentSales, rentProducts, { bcvRate: 900, soloConCosto: true });
+    assert.strictEqual(rentSolo.totals.ventasBs, 2200 + 2200 + 900, "rentabilidad soloConCosto: el agua sin costo no entra");
+    assert.strictEqual(rentSolo.excluidas.unidades, 1, "rentabilidad soloConCosto: 1 venta excluida");
+    assert.strictEqual(rentSolo.excluidas.ventasBs, 900, "rentabilidad soloConCosto: excluida Bs 900");
+    assert.strictEqual(rentSolo.sinCosto.unidades, 0, "rentabilidad soloConCosto: nada sin costo dentro del cálculo");
+    console.log("✅ TEST PASSED: aggregateRentabilidad soloConCosto deja fuera lo que no tiene costo");
+
     const rep = computeReparto(10000);
     assert.strictEqual(rep.asignadoPct, 88, "reparto: 6+6+20+20+16+20 = 88%");
     assert.strictEqual(rep.quedaPct, 12, "reparto: queda 12%");

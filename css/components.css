@@ -3051,3 +3051,9 @@ input[type="number"] {
     .rent-nav { flex: 1; }
     .rent-range { flex-wrap: wrap; }
 }
+.rent-excl { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(201, 162, 74, 0.08); border: 1px solid rgba(201, 162, 74, 0.45); border-radius: 8px; padding: 0.55rem 0.75rem; font-size: 0.78rem; margin-bottom: 0.75rem; line-height: 1.35; }
+.rent-excl > div { flex: 1 1 220px; }
+.rent-costs-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.rent-costs-head > div { flex: 1 1 220px; }
+.rent-costs-body.hidden { display: none; }
+.rent-open-costs, .rent-costs-toggle { background: rgba(201, 162, 74, 0.15) !important; border-color: var(--color-gold) !important; color: var(--color-gold) !important; font-weight: 800; }

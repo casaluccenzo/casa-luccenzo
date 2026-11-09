@@ -544,7 +544,10 @@ function buildPerformanceInsights({ weekdayPattern = [], flavorRanking = [], tre
  * Puro: la tasa actual entra por opts.bcvRate (solo para ventas sin tasa).
  */
 function aggregateRentabilidad(sales = [], products = [], opts = {}) {
-    const { start, end, periodLabel = '', bcvRate = 1, expenses = [] } = opts;
+    // soloConCosto: las ventas de productos sin costo cargado (bebidas, etc.) no
+    // entran en ventas ni ganancia; se cuentan aparte en `excluidas` hasta que
+    // el admin cargue su costo.
+    const { start, end, periodLabel = '', bcvRate = 1, expenses = [], soloConCosto = false } = opts;
     const rate = bcvRate > 0 ? bcvRate : 1;
     const productById = {};
     (products || []).forEach(p => { if (p && p.id != null) productById[p.id] = p; });
@@ -555,6 +558,7 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
     let delivery = { count: 0, bs: 0 };
     let abonos = { count: 0, bs: 0 };
     let estimadas = 0;
+    const excl = { unidades: 0, ventasBs: 0, _prod: {} };
 
     (sales || []).forEach(s => {
         if (!s) return;
@@ -573,6 +577,15 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
         if (real > 0) costoBs = real;
         else if (actual > 0) { costoBs = actual; estado = 'estimado'; estimadas += 1; }
         else estado = 'sin_costo';
+
+        if (soloConCosto && estado === 'sin_costo') {
+            const xname = (prod && prod.name) || (s.name || '').replace(PRODUCT_NAME_CLEAN_RE, '') || pid || '—';
+            excl.unidades += 1;
+            excl.ventasBs += bs;
+            const xp = excl._prod[pid || xname] || (excl._prod[pid || xname] = { id: pid || null, name: xname, unidades: 0, ventasBs: 0 });
+            xp.unidades += 1; xp.ventasBs += bs;
+            return;
+        }
 
         const key = resolvePnlCategory(s, productById);
         const c = cats[key] || (cats[key] = {
@@ -639,6 +652,11 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
         sinCosto: {
             unidades: categorias.reduce((t, c) => t + c.sinCosto.unidades, 0),
             ventasBs: r2(categorias.reduce((t, c) => t + c.sinCosto.ventasBs, 0))
+        },
+        excluidas: {
+            unidades: excl.unidades,
+            ventasBs: r2(excl.ventasBs),
+            productos: Object.values(excl._prod).map(p => ({ ...p, ventasBs: r2(p.ventasBs) })).sort((a, b) => b.unidades - a.unidades)
         },
         delivery: { count: delivery.count, bs: r2(delivery.bs) },
         abonos: { count: abonos.count, bs: r2(abonos.bs) },

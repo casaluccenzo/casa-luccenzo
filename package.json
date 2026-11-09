@@ -1,6 +1,6 @@
 {
   "name": "casa-lucenzo",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "Sistema de gestión de inventario y caja para Casa Lucenzo.",
   "main": "index.html",
   "scripts": {

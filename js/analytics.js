@@ -529,6 +529,150 @@ function buildPerformanceInsights({ weekdayPattern = [], flavorRanking = [], tre
     return insights;
 }
 
+/**
+ * Rentabilidad de un período, en bolívares (como se cobra en la tienda).
+ *
+ * Diferencias con aggregatePnl:
+ *  - Cada venta se pasa a Bs con SU propia tasa (bcv_rate de la venta), así el
+ *    pastel cobrado a Bs 2.200 da exactamente 2.200 aunque la tasa cambie.
+ *  - El costo se mira venta por venta: si la venta guardó cost_at_sale se usa
+ *    ese; si no (ventas de antes de cargar el costo de una bebida), se usa el
+ *    costo actual del producto y se marca como "estimado". Si el producto no
+ *    tiene costo, la venta cuenta como "sin costo" (su ganancia no es real).
+ *  - Delivery (del motorizado) y abonos de fiado quedan fuera.
+ * No toca products.price: solo lee.
+ * Puro: la tasa actual entra por opts.bcvRate (solo para ventas sin tasa).
+ */
+function aggregateRentabilidad(sales = [], products = [], opts = {}) {
+    const { start, end, periodLabel = '', bcvRate = 1, expenses = [] } = opts;
+    const rate = bcvRate > 0 ? bcvRate : 1;
+    const productById = {};
+    (products || []).forEach(p => { if (p && p.id != null) productById[p.id] = p; });
+    const r2 = v => Number((v || 0).toFixed(2));
+
+    const cats = {};
+    const dias = {};
+    let delivery = { count: 0, bs: 0 };
+    let abonos = { count: 0, bs: 0 };
+    let estimadas = 0;
+
+    (sales || []).forEach(s => {
+        if (!s) return;
+        const pid = s.productId || s.product_id;
+        const saleRate = parseFloat(s.bcv_rate) > 0 ? parseFloat(s.bcv_rate) : rate;
+        const usd = parseFloat(s.price) || 0;
+        const bs = usd * saleRate;
+        if (pid === 'abono') { abonos.count += 1; abonos.bs += bs; return; }
+        if (pid === 'delivery') { delivery.count += 1; delivery.bs += bs; return; }
+
+        const prod = pid ? productById[pid] : null;
+        const real = parseFloat(s.cost_at_sale) || 0;
+        const actual = prod ? (parseFloat(prod.cost) || 0) : 0;
+        let costoBs = 0;
+        let estado = 'real';
+        if (real > 0) costoBs = real;
+        else if (actual > 0) { costoBs = actual; estado = 'estimado'; estimadas += 1; }
+        else estado = 'sin_costo';
+
+        const key = resolvePnlCategory(s, productById);
+        const c = cats[key] || (cats[key] = {
+            key, label: PNL_CATEGORY_META[key].label, unidades: 0, ventasBs: 0, ventasUsd: 0,
+            costoBs: 0, costoUsd: 0, sinCosto: { unidades: 0, ventasBs: 0 }, _prod: {}
+        });
+        const pname = (prod && prod.name) || (s.name || '').replace(PRODUCT_NAME_CLEAN_RE, '') || pid || '—';
+        const pk = pid || pname;
+        const p = c._prod[pk] || (c._prod[pk] = {
+            id: pid || null, name: pname, unidades: 0, ventasBs: 0, costoBs: 0, sinCosto: 0,
+            costoActualBs: actual
+        });
+        [c, p].forEach(o => { o.unidades += 1; o.ventasBs += bs; o.costoBs += costoBs; });
+        c.ventasUsd += usd;
+        c.costoUsd += costoBs / saleRate;
+        if (estado === 'sin_costo') { c.sinCosto.unidades += 1; c.sinCosto.ventasBs += bs; p.sinCosto += 1; }
+
+        const dk = dateKey(parseTimestamp(s.timestamp));
+        const d = dias[dk] || (dias[dk] = { fecha: dk, ventasBs: 0, costoBs: 0 });
+        d.ventasBs += bs; d.costoBs += costoBs;
+    });
+
+    const categorias = Object.values(cats).map(c => ({
+        key: c.key,
+        label: c.label,
+        unidades: c.unidades,
+        ventasBs: r2(c.ventasBs),
+        ventasUsd: r2(c.ventasUsd),
+        costoBs: r2(c.costoBs),
+        costoUsd: r2(c.costoUsd),
+        gananciaBs: r2(c.ventasBs - c.costoBs),
+        gananciaUsd: r2(c.ventasUsd - c.costoUsd),
+        margenPct: c.ventasBs > 0 ? r2((c.ventasBs - c.costoBs) / c.ventasBs * 100) : 0,
+        sinCosto: { unidades: c.sinCosto.unidades, ventasBs: r2(c.sinCosto.ventasBs) },
+        productos: Object.values(c._prod).map(p => ({
+            id: p.id, name: p.name, unidades: p.unidades,
+            ventasBs: r2(p.ventasBs), costoBs: r2(p.costoBs), gananciaBs: r2(p.ventasBs - p.costoBs),
+            sinCosto: p.sinCosto, costoActualBs: p.costoActualBs
+        })).sort((a, b) => b.unidades - a.unidades)
+    })).sort((a, b) => PNL_CATEGORY_META[a.key].order - PNL_CATEGORY_META[b.key].order);
+
+    const sum = (k) => categorias.reduce((t, c) => t + c[k], 0);
+    const ventasBs = r2(sum('ventasBs'));
+    const costoBs = r2(sum('costoBs'));
+    const ventasUsd = r2(sum('ventasUsd'));
+    const costoUsd = r2(sum('costoUsd'));
+    const gastosUsd = (expenses || []).reduce((t, e) => t + expenseUsd(e, rate), 0);
+    const gastosBs = r2(gastosUsd * rate);
+    const gananciaBs = r2(ventasBs - costoBs);
+    const baseNetaBs = r2(gananciaBs - gastosBs);
+
+    return {
+        period: { start, end, label: periodLabel },
+        totals: {
+            ventasBs, ventasUsd, costoBs, costoUsd,
+            gananciaBs, gananciaUsd: r2(ventasUsd - costoUsd),
+            margenPct: ventasBs > 0 ? r2(gananciaBs / ventasBs * 100) : 0,
+            gastosBs, gastosUsd: r2(gastosUsd),
+            baseNetaBs, baseNetaUsd: r2(baseNetaBs / rate),
+            unidades: categorias.reduce((t, c) => t + c.unidades, 0)
+        },
+        categorias,
+        estimadas,
+        sinCosto: {
+            unidades: categorias.reduce((t, c) => t + c.sinCosto.unidades, 0),
+            ventasBs: r2(categorias.reduce((t, c) => t + c.sinCosto.ventasBs, 0))
+        },
+        delivery: { count: delivery.count, bs: r2(delivery.bs) },
+        abonos: { count: abonos.count, bs: r2(abonos.bs) },
+        dias: Object.values(dias).map(d => ({ fecha: d.fecha, ventasBs: r2(d.ventasBs), costoBs: r2(d.costoBs), gananciaBs: r2(d.ventasBs - d.costoBs) }))
+            .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    };
+}
+
+/** Reparto que usa Gustavo sobre la base neta (porcentajes editables en la pestaña). */
+const REPARTO_DEFAULT = [
+    { nombre: 'Ornella', pct: 6 },
+    { nombre: 'Kaira', pct: 6 },
+    { nombre: 'Gustavo', pct: 20 },
+    { nombre: 'Ginel', pct: 20 },
+    { nombre: 'Seniat', pct: 16 },
+    { nombre: 'Turco', pct: 20 }
+];
+
+/**
+ * Reparte una base en Bs según porcentajes. Lo que no se asigna queda en "queda".
+ * @returns {{filas:Array<{nombre,pct,bs}>, asignadoPct:number, quedaPct:number, quedaBs:number}}
+ */
+function computeReparto(baseBs = 0, shares = REPARTO_DEFAULT) {
+    const base = Number(baseBs) || 0;
+    const filas = (shares || []).map(s => {
+        const pct = Math.max(0, Number(s.pct) || 0);
+        return { nombre: String(s.nombre || '').trim() || '—', pct, bs: Number((base * pct / 100).toFixed(2)) };
+    });
+    const asignadoPct = Number(filas.reduce((t, f) => t + f.pct, 0).toFixed(2));
+    const quedaPct = Number((100 - asignadoPct).toFixed(2));
+    const quedaBs = Number((base - filas.reduce((t, f) => t + f.bs, 0)).toFixed(2));
+    return { filas, asignadoPct, quedaPct, quedaBs };
+}
+
 const AnalyticsManager = {
     WEEKDAY_LABELS,
     parseTimestamp,
@@ -541,7 +685,10 @@ const AnalyticsManager = {
     getUpcomingProjection,
     buildPerformanceInsights,
     estimateProductionCost,
-    aggregatePnl
+    aggregatePnl,
+    aggregateRentabilidad,
+    computeReparto,
+    REPARTO_DEFAULT
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -558,6 +705,9 @@ if (typeof module !== 'undefined' && module.exports) {
         buildPerformanceInsights,
         estimateProductionCost,
         aggregatePnl,
+        aggregateRentabilidad,
+        computeReparto,
+        REPARTO_DEFAULT,
         AnalyticsManager
     };
 }

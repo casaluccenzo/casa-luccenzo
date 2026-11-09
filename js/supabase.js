@@ -544,6 +544,31 @@ async function resetPastelitoCapacity(id) {
     }
 }
 
+// Rentabilidad: guarda SOLO el costo (Bs) de un producto. No reescribe precio,
+// stock ni nada más -- a diferencia de upsertProduct, que reemplaza la fila.
+async function updateProductCost(id, costBs) {
+    const cost = Math.max(0, Number(costBs) || 0);
+    const localDb = getLocalDb();
+    if (localDb) {
+        try {
+            await localDb.execute('UPDATE products SET cost = ?, updated_at = ? WHERE id = ?', [String(cost), new Date().toISOString(), id]);
+            return true;
+        } catch (e) {
+            console.error("PowerSync local updateProductCost failed:", e);
+            return false;
+        }
+    }
+    if (!client) return false;
+    try {
+        const { error } = await client.from('products').update({ cost, updated_at: new Date().toISOString() }).eq('id', id);
+        if (error) throw error;
+        return true;
+    } catch (e) {
+        console.error("Supabase updateProductCost failed:", e);
+        return false;
+    }
+}
+
 // Plan B, Task 6: modelo append-only para stock (spec §5.1a). En vez de
 // pisar products.stock/max/initial_stock, cada carga/venta/recuento inserta
 // UNA fila aca; recompute_product_stock() (migracion 033) recalcula esas 3
@@ -2282,6 +2307,7 @@ window.SupabaseManager = {
     fetchStatsData,
     fetchExpensesRange,
     fetchPnlData,
+    updateProductCost,
     fetchDayReport,
     fetchReportDays,
     fetchSavedDayReports,

@@ -53,7 +53,9 @@ const {
     getUpcomingProjection,
     buildPerformanceInsights,
     estimateProductionCost: getEstimate,
-    aggregatePnl
+    aggregatePnl,
+    aggregateRentabilidad,
+    computeReparto
 } = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
@@ -492,6 +494,47 @@ function runAnalyticsUnitTests() {
     const beb = pnl.categorias.find(c => c.key === 'bebidas');
     assert.strictEqual(beb.costoTercerosUsd, 0, "aggregatePnl: bebidas has no tercero cost");
     console.log("✅ TEST PASSED: aggregatePnl per-category breakdown");
+
+    // --- aggregateRentabilidad (pestaña Rentabilidad) ---
+    const rentProducts = [
+        { id: 'mechada', name: 'Carne Mechada', category: 'pastelitos', cost: 1000 },
+        { id: 'malta', name: 'Malta Retornable', category: 'bebidas', cost: 500 },
+        { id: 'agua', name: 'Agua', category: 'bebidas', cost: 0 }
+    ];
+    const rentSales = [
+        // pastel cobrado Bs 2.200 a tasa 880 -> $2,50; costo real guardado 1000
+        { productId: 'mechada', name: 'Carne Mechada [Ana]', price: 2.5, cost_at_sale: 1000, bcv_rate: 880, timestamp: day.toISOString() },
+        { productId: 'mechada', name: 'Carne Mechada [Ana]', price: 2.5, cost_at_sale: 1000, bcv_rate: 880, timestamp: day.toISOString() },
+        // malta vendida antes de cargar el costo: usa el costo actual (500) y queda "estimada"
+        { productId: 'malta', name: 'Malta Retornable [Ana]', price: 1, cost_at_sale: 0, bcv_rate: 900, timestamp: day.toISOString() },
+        // agua sin costo -> cuenta como "sin costo"
+        { productId: 'agua', name: 'Agua [Ana]', price: 1, cost_at_sale: null, bcv_rate: 900, timestamp: day.toISOString() },
+        // delivery y abono fuera
+        { productId: 'delivery', name: 'Delivery [Ana]', price: 2, bcv_rate: 900, timestamp: day.toISOString() },
+        { productId: 'abono', name: 'Abono', price: 5, bcv_rate: 900, timestamp: day.toISOString() }
+    ];
+    const rent = aggregateRentabilidad(rentSales, rentProducts, { bcvRate: 900 });
+    assert.strictEqual(rent.totals.ventasBs, 2200 + 2200 + 900 + 900, "rentabilidad: ventas en Bs con la tasa de cada venta");
+    assert.strictEqual(rent.totals.costoBs, 1000 + 1000 + 500, "rentabilidad: costo real + estimado");
+    assert.strictEqual(rent.totals.gananciaBs, 6200 - 2500, "rentabilidad: ganancia = ventas - costo");
+    assert.strictEqual(rent.estimadas, 1, "rentabilidad: 1 venta con costo estimado");
+    assert.strictEqual(rent.sinCosto.unidades, 1, "rentabilidad: 1 venta sin costo");
+    assert.strictEqual(rent.delivery.count, 1, "rentabilidad: delivery fuera");
+    assert.strictEqual(rent.abonos.count, 1, "rentabilidad: abono fuera");
+    const rentPast = rent.categorias.find(c => c.key === 'pasteles');
+    assert.strictEqual(rentPast.gananciaBs, 2400, "rentabilidad: pasteles 4400 - 2000");
+    const rentBeb = rent.categorias.find(c => c.key === 'bebidas');
+    assert.strictEqual(rentBeb.costoBs, 500, "rentabilidad: bebidas con costo cargado");
+    console.log("✅ TEST PASSED: aggregateRentabilidad en Bs, costo por venta, delivery fuera");
+
+    const rep = computeReparto(10000);
+    assert.strictEqual(rep.asignadoPct, 88, "reparto: 6+6+20+20+16+20 = 88%");
+    assert.strictEqual(rep.quedaPct, 12, "reparto: queda 12%");
+    assert.strictEqual(rep.quedaBs, 1200, "reparto: queda Bs 1.200 de 10.000");
+    assert.strictEqual(rep.filas.find(f => f.nombre === 'Seniat').bs, 1600, "reparto: Seniat 16%");
+    const rep2 = computeReparto(1000, [{ nombre: 'A', pct: 50 }, { nombre: 'B', pct: 25 }]);
+    assert.strictEqual(rep2.quedaBs, 250, "reparto: porcentajes editables");
+    console.log("✅ TEST PASSED: computeReparto con porcentajes por defecto y editables");
 
     assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
     assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");

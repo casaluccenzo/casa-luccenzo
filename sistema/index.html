@@ -672,6 +672,10 @@
                         <i class="fa-solid fa-sack-dollar"></i>
                         <span>Ganancias</span>
                     </button>
+                    <button id="admin-tab-btn-rent" class="admin-tab-btn">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                        <span>Rentabilidad</span>
+                    </button>
                     <div class="admin-sidebar-section-label">Sistema</div>
                     <button id="admin-tab-btn-devices" class="admin-tab-btn">
                         <i class="fa-solid fa-network-wired"></i>
@@ -1187,6 +1191,40 @@
                         <div id="admin-pnl-container">
                             <div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando resumen...</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5.9: RENTABILIDAD (ventas - costo proveedores, por categoría, reparto %) -->
+                <div id="admin-panel-rent" class="admin-panel">
+                    <div class="admin-panel-header">
+                        <h3 class="panel-title">Rentabilidad</h3>
+                        <div class="rent-toolbar">
+                            <div class="segmented" id="rent-mode-toggle">
+                                <button class="segmented-btn active" data-mode="day">Día</button>
+                                <button class="segmented-btn" data-mode="week">Semana</button>
+                                <button class="segmented-btn" data-mode="month">Mes</button>
+                                <button class="segmented-btn" data-mode="range">Rango</button>
+                            </div>
+                            <div class="rent-nav" id="rent-nav">
+                                <button id="btn-rent-prev" class="btn-action-small" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                                <span id="rent-period-label" class="rent-period-label"></span>
+                                <button id="btn-rent-next" class="btn-action-small" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                            <div class="rent-range hidden" id="rent-range">
+                                <input type="date" id="rent-range-from" class="form-input">
+                                <span>a</span>
+                                <input type="date" id="rent-range-to" class="form-input">
+                                <button id="btn-rent-range-apply" class="btn-action-small">Ver</button>
+                            </div>
+                            <button id="btn-rent-refresh" class="btn-action-small"><i class="fa-solid fa-rotate"></i> Refrescar</button>
+                        </div>
+                    </div>
+                    <div class="admin-panel-body">
+                        <div id="admin-rent-container">
+                            <div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando rentabilidad...</div>
+                        </div>
+                        <div id="admin-rent-reparto" class="rent-card"></div>
+                        <div id="admin-rent-costs" class="rent-card"></div>
                     </div>
                 </div>
 

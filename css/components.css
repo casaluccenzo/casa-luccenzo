@@ -2995,3 +2995,59 @@ input[type="number"] {
 .staff-meals-note i { color: #94A3B8; margin-top: 0.15rem; }
 .staff-meal-card { border-left: 3px solid #94A3B8; }
 .staff-meal-qty { font-size: 10.5px; font-weight: 800; color: #0A1426; background: #94A3B8; padding: 0.1rem 0.45rem; border-radius: 999px; }
+
+/* ===== Pestaña Rentabilidad (admin) ===== */
+.rent-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+.rent-toolbar .segmented-btn { padding: 4px 10px; font-size: 11px; }
+.rent-nav { display: flex; align-items: center; gap: 0.35rem; }
+.rent-period-label { font-size: 0.8rem; min-width: 150px; text-align: center; font-weight: 700; }
+.rent-range { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; }
+.rent-range.hidden, .rent-nav.hidden { display: none; }
+.rent-range input[type="date"] { height: 32px; padding: 0 0.4rem; font-size: 0.8rem; width: auto; }
+.rent-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+.rent-kpi { background: var(--v-0-0-0-25, rgba(0, 0, 0, 0.25)); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); padding: 0.65rem 0.75rem; min-width: 0; }
+.rent-kpi-label { font-size: 0.68rem; text-transform: uppercase; font-weight: 800; color: var(--color-text-muted); letter-spacing: 0.03em; }
+.rent-kpi-value { font-size: 1.15rem; font-weight: 900; margin-top: 0.15rem; overflow-wrap: anywhere; }
+.rent-kpi-sub { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.1rem; }
+.rent-kpi.ok .rent-kpi-value { color: #10B981; }
+.rent-kpi.bad .rent-kpi-value { color: var(--color-danger); }
+.rent-kpi.cost .rent-kpi-value { color: #f59e0b; }
+.rent-section-title { margin: 1.1rem 0 0.5rem; font-weight: 800; font-size: 0.85rem; color: var(--color-gold); }
+.rent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.rent-table th { text-align: right; font-size: 0.68rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 800; padding: 0.3rem 0.25rem; border-bottom: 1px solid var(--color-border-soft); }
+.rent-table th:first-child, .rent-table td:first-child { text-align: left; }
+.rent-table td { text-align: right; padding: 0.4rem 0.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); white-space: nowrap; }
+.rent-table td:first-child { white-space: normal; }
+.rent-table tr.rent-cat-row { cursor: pointer; font-weight: 800; }
+.rent-table tr.rent-prod-row td { font-size: 0.76rem; color: var(--color-text-muted); }
+.rent-table tr.rent-prod-row td:first-child { padding-left: 1rem; }
+.rent-table tr.rent-total td { font-weight: 900; border-top: 2px solid rgba(255, 255, 255, 0.15); }
+.rent-table .neg { color: var(--color-danger); }
+.rent-table .pos { color: #10B981; }
+.rent-warn { background: rgba(245, 158, 11, 0.12); border: 1px solid #f59e0b; border-radius: 8px; padding: 0.55rem 0.75rem; font-size: 0.78rem; margin-bottom: 0.75rem; line-height: 1.35; }
+.rent-note { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.5rem; line-height: 1.35; }
+.rent-card { margin-top: 1.25rem; padding-top: 0.25rem; border-top: 1px dashed rgba(255, 255, 255, 0.12); }
+.rent-card:empty { display: none; }
+.rent-edit-row { display: grid; grid-template-columns: 1fr 5.5rem auto; gap: 0.4rem; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.82rem; }
+.rent-edit-row input { height: 34px; padding: 0 0.5rem; font-size: 0.9rem; font-weight: 800; text-align: right; width: 100%; }
+.rent-edit-row .rent-edit-name { min-width: 0; }
+.rent-edit-row .rent-edit-name small { display: block; color: var(--color-text-muted); font-size: 0.7rem; }
+.rent-reparto-row { display: grid; grid-template-columns: 1fr 4.5rem 7.5rem 2rem; gap: 0.4rem; align-items: center; padding: 0.25rem 0; font-size: 0.82rem; }
+.rent-reparto-row input { height: 32px; padding: 0 0.45rem; font-size: 0.85rem; width: 100%; }
+.rent-reparto-row input.pct { text-align: right; font-weight: 800; }
+.rent-reparto-row .monto { text-align: right; font-weight: 800; white-space: nowrap; }
+.rent-reparto-row.queda { font-weight: 900; border-top: 2px solid rgba(255, 255, 255, 0.15); padding-top: 0.45rem; margin-top: 0.25rem; }
+.rent-btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+.rent-icon-btn { background: transparent; border: 1px solid var(--color-border-soft); color: var(--color-text-muted); border-radius: 6px; height: 32px; cursor: pointer; }
+
+@media (max-width: 768px) {
+    #admin-panel-rent .admin-panel-header { flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.75rem; }
+    .rent-toolbar { justify-content: flex-start; }
+    .rent-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #admin-panel-rent .admin-panel-body { padding: 0.9rem 0.75rem; }
+    .rent-table { font-size: 0.76rem; }
+    .rent-table .hide-sm { display: none; }
+    .rent-period-label { min-width: 0; flex: 1; }
+    .rent-nav { flex: 1; }
+    .rent-range { flex-wrap: wrap; }
+}

@@ -1920,6 +1920,172 @@ async function loadPnl(forceRefetch = false) {
     window.UIManager.renderPnl(pnlLast, { mode: pnlMode });
 }
 
+// ================= ADMIN RENTABILIDAD TAB =================
+
+let rentMode = 'day';          // 'day' | 'week' | 'month' | 'range'
+let rentAnchor = new Date();
+let rentRangeFrom = null;      // 'YYYY-MM-DD' (modo rango)
+let rentRangeTo = null;
+let rentCache = {};            // `${startISO}|${endISO}` -> { sales, expenses }
+let rentLast = null;
+const RENT_REPARTO_KEY = 'casa_lucenzo_reparto';
+
+function rentYmd(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function rentRange() {
+    if (rentMode === 'week' || rentMode === 'month') return pnlRange(rentMode, rentAnchor);
+    if (rentMode === 'range') {
+        const today = rentYmd(new Date());
+        const from = rentRangeFrom || today;
+        const to = rentRangeTo && rentRangeTo >= from ? rentRangeTo : from;
+        const start = new Date(from + 'T00:00:00');
+        const end = new Date(to + 'T00:00:00'); end.setDate(end.getDate() + 1);
+        const fmt = x => x.toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
+        const endLbl = new Date(to + 'T00:00:00');
+        return { start, end, label: from === to ? fmt(start) : `${fmt(start)} – ${fmt(endLbl)}` };
+    }
+    const start = new Date(rentAnchor); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(start.getDate() + 1);
+    const isToday = rentYmd(start) === rentYmd(new Date());
+    const lbl = start.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'short' });
+    return { start, end, label: (isToday ? 'Hoy, ' : '') + lbl };
+}
+
+function rentStep(dir) {
+    const d = new Date(rentRange().start);
+    if (rentMode === 'month') d.setMonth(d.getMonth() + dir);
+    else d.setDate(d.getDate() + (rentMode === 'week' ? 7 : 1) * dir);
+    return d;
+}
+
+function loadRentShares() {
+    try {
+        const raw = localStorage.getItem(RENT_REPARTO_KEY);
+        const list = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(list)) return list;
+    } catch (e) { /* sin almacenamiento: usar los de siempre */ }
+    return window.AnalyticsManager.REPARTO_DEFAULT.map(x => ({ ...x }));
+}
+
+function saveRentShares(list) {
+    try { localStorage.setItem(RENT_REPARTO_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+}
+
+function renderRentExtras() {
+    const base = rentLast ? rentLast.totals.baseNetaBs : 0;
+    window.UIManager.renderRentReparto(base, loadRentShares(), {
+        onChange: list => { saveRentShares(list); renderRentExtras(); },
+        onReset: () => { try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ } renderRentExtras(); }
+    });
+    window.UIManager.renderRentCosts(products, saveProductCostFromRent);
+}
+
+async function saveProductCostFromRent(productId, costBs) {
+    if (currentRole !== 'admin') return;
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const before = parseFloat(product.cost) || 0;
+    if (before === costBs) { window.UIManager.showToast('Sin cambios.', 'fa-solid fa-circle-info'); return; }
+    product.cost = costBs; // solo el costo: el precio de venta no se toca
+    window.StorageManager.saveProducts(products);
+    let ok = true;
+    if (window.SupabaseManager.isConfigured()) ok = await window.SupabaseManager.updateProductCost(productId, costBs);
+    if (!ok) {
+        product.cost = before;
+        window.StorageManager.saveProducts(products);
+        window.UIManager.showToast('❌ No se pudo guardar el costo. Revisa la conexión.', 'fa-solid fa-circle-xmark');
+        renderRentExtras();
+        return;
+    }
+    logActivity('Costo Editado', `Rentabilidad: ${product.name} costo Bs.${before.toFixed(2)} → Bs.${costBs.toFixed(2)}`);
+    window.UIManager.showToast(`✅ Costo de ${product.name}: Bs ${costBs.toLocaleString('es-VE')}`, 'fa-solid fa-check');
+    loadRentabilidad();
+}
+
+async function loadRentabilidad(forceRefetch = false) {
+    if (currentRole !== 'admin') return;
+    const { start, end, label } = rentRange();
+    const labelEl = document.getElementById('rent-period-label');
+    if (labelEl) labelEl.textContent = label;
+    const nextBtn = document.getElementById('btn-rent-next');
+    if (nextBtn) nextBtn.disabled = rentStep(1) > new Date();
+    document.querySelectorAll('#rent-mode-toggle .segmented-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === rentMode));
+    const nav = document.getElementById('rent-nav');
+    const rangeBox = document.getElementById('rent-range');
+    if (nav) nav.classList.toggle('hidden', rentMode === 'range');
+    if (rangeBox) rangeBox.classList.toggle('hidden', rentMode !== 'range');
+
+    const container = document.getElementById('admin-rent-container');
+    const key = `${start.toISOString()}|${end.toISOString()}`;
+    if (forceRefetch) delete rentCache[key];
+
+    if (!rentCache[key]) {
+        if (container) container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando rentabilidad...</div>`;
+        let data = null;
+        if (window.SupabaseManager.isConfigured() && navigator.onLine) {
+            try { data = await window.SupabaseManager.fetchPnlData(start.toISOString(), end.toISOString()); }
+            catch (err) { console.error('loadRentabilidad fetch failed:', err); }
+        }
+        if (!data) {
+            if (container) {
+                container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-danger); text-align:center; padding:1.5rem 0;">No se pudo cargar (¿sin conexión?).<br><button id="btn-rent-retry" class="btn-action-small" style="margin-top:0.75rem;"><i class="fa-solid fa-rotate"></i> Reintentar</button></div>`;
+                const retry = document.getElementById('btn-rent-retry');
+                if (retry) retry.addEventListener('click', () => loadRentabilidad(true));
+            }
+            rentLast = null;
+            renderRentExtras();
+            return;
+        }
+        rentCache[key] = data;
+    }
+    // Se recalcula siempre con el catálogo actual, así un costo recién cargado se ve al instante.
+    rentLast = window.AnalyticsManager.aggregateRentabilidad(rentCache[key].sales, products, {
+        start, end, periodLabel: label, bcvRate: window.bcvRate || 1, expenses: rentCache[key].expenses
+    });
+    window.UIManager.renderRentabilidad(rentLast);
+    renderRentExtras();
+}
+
+function initRentabilidadListeners() {
+    document.querySelectorAll('#rent-mode-toggle .segmented-btn').forEach(b => b.addEventListener('click', () => {
+        triggerHaptic(10);
+        rentMode = b.dataset.mode;
+        rentAnchor = new Date();
+        if (rentMode === 'range') {
+            const today = rentYmd(new Date());
+            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+            rentRangeFrom = rentRangeFrom || rentYmd(weekAgo);
+            rentRangeTo = rentRangeTo || today;
+            const f = document.getElementById('rent-range-from');
+            const t = document.getElementById('rent-range-to');
+            if (f) { f.value = rentRangeFrom; f.max = today; }
+            if (t) { t.value = rentRangeTo; t.max = today; }
+        }
+        loadRentabilidad();
+    }));
+    const prev = document.getElementById('btn-rent-prev');
+    if (prev) prev.addEventListener('click', () => { triggerHaptic(10); rentAnchor = rentStep(-1); loadRentabilidad(); });
+    const next = document.getElementById('btn-rent-next');
+    if (next) next.addEventListener('click', () => { triggerHaptic(10); if (rentStep(1) <= new Date()) { rentAnchor = rentStep(1); loadRentabilidad(); } });
+    const apply = document.getElementById('btn-rent-range-apply');
+    if (apply) apply.addEventListener('click', () => {
+        triggerHaptic(10);
+        const f = document.getElementById('rent-range-from');
+        const t = document.getElementById('rent-range-to');
+        rentRangeFrom = f && f.value ? f.value : rentRangeFrom;
+        rentRangeTo = t && t.value ? t.value : rentRangeTo;
+        if (rentRangeFrom && rentRangeTo && rentRangeTo < rentRangeFrom) {
+            const x = rentRangeFrom; rentRangeFrom = rentRangeTo; rentRangeTo = x;
+            if (f) f.value = rentRangeFrom; if (t) t.value = rentRangeTo;
+        }
+        loadRentabilidad();
+    });
+    const refresh = document.getElementById('btn-rent-refresh');
+    if (refresh) refresh.addEventListener('click', () => { triggerHaptic(10); loadRentabilidad(true); });
+}
+
 // ================= DEBTS virtual ledger (FIADOS) =================
 
 /**
@@ -5451,6 +5617,7 @@ function initAdminDashboardListeners() {
     const tabCostsBtn = document.getElementById('admin-tab-btn-costs');
     const tabExpensesBtn = document.getElementById('admin-tab-btn-expenses');
     const tabPnlBtn = document.getElementById('admin-tab-btn-pnl');
+    const tabRentBtn = document.getElementById('admin-tab-btn-rent');
     const tabAgentBtn = document.getElementById('admin-tab-btn-agent');
     const tabPreferencesBtn = document.getElementById('admin-tab-btn-preferences');
 
@@ -5462,13 +5629,14 @@ function initAdminDashboardListeners() {
     const panelCosts = document.getElementById('admin-panel-costs');
     const panelExpenses = document.getElementById('admin-panel-expenses');
     const panelPnl = document.getElementById('admin-panel-pnl');
+    const panelRent = document.getElementById('admin-panel-rent');
     const panelAgent = document.getElementById('admin-panel-agent');
     const panelPreferences = document.getElementById('admin-panel-preferences');
 
     if (!tabSummaryBtn) return; // Not loaded yet
 
-    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
-    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelAgent, panelPreferences].filter(Boolean);
+    const allTabBtns = [tabSummaryBtn, tabAnalyticsBtn, tabProductsBtn, tabDevicesBtn, tabLogsBtn, tabCostsBtn, tabExpensesBtn, tabPnlBtn, tabRentBtn, tabAgentBtn, tabPreferencesBtn].filter(Boolean);
+    const allPanels = [panelSummary, panelAnalytics, panelProducts, panelDevices, panelLogs, panelCosts, panelExpenses, panelPnl, panelRent, panelAgent, panelPreferences].filter(Boolean);
 
     // Mobile-only off-canvas drawer for the sidebar (desktop/tablet keep it
     // permanently visible -- these elements are simply display:none there).
@@ -5635,6 +5803,14 @@ function initAdminDashboardListeners() {
     });
     const admExpMonth = document.getElementById('admin-expense-filter-month');
     if (admExpMonth) admExpMonth.addEventListener('change', () => loadAndRenderExpensesTab(true));
+
+    if (tabRentBtn && panelRent) {
+        tabRentBtn.addEventListener('click', () => {
+            activateTab(tabRentBtn, panelRent);
+            loadRentabilidad();
+        });
+        initRentabilidadListeners();
+    }
 
     if (tabPnlBtn && panelPnl) {
         tabPnlBtn.addEventListener('click', () => {

@@ -1204,6 +1204,192 @@ function renderPnl(pnl, opts = {}) {
     }));
 }
 
+// ================= RENTABILIDAD (admin) =================
+const rentBs = v => 'Bs ' + (Number(v) || 0).toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const rentUsd = v => '$' + (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Pinta la rentabilidad del período: tarjetas, tabla por categoría (con
+ * productos al tocar) y ganancia por día.
+ * @param {Object} r Salida de AnalyticsManager.aggregateRentabilidad
+ */
+function renderRentabilidad(r) {
+    const c = document.getElementById('admin-rent-container');
+    if (!c || !r) return;
+    const t = r.totals;
+    if (t.unidades === 0) {
+        c.innerHTML = `<div style="font-size:0.9rem; color:var(--color-text-muted); text-align:center; padding:2rem 0;">Sin ventas en este período.</div>`;
+        return;
+    }
+    const cls = v => v < 0 ? 'neg' : 'pos';
+
+    const warn = [];
+    if (r.sinCosto.unidades > 0) {
+        warn.push(`⚠️ ${r.sinCosto.unidades} venta(s) por ${rentBs(r.sinCosto.ventasBs)} son de productos <strong>sin costo registrado</strong> (bebidas, etc.). Se cuentan como ganancia completa hasta que cargues su costo abajo en <strong>Costo por producto</strong>.`);
+    }
+    if (r.estimadas > 0) {
+        warn.push(`ℹ️ ${r.estimadas} venta(s) no guardaron el costo al venderse; se usó el costo actual del producto.`);
+    }
+
+    const kpis = `
+      <div class="rent-kpis">
+        <div class="rent-kpi"><div class="rent-kpi-label">Ventas</div><div class="rent-kpi-value">${rentBs(t.ventasBs)}</div><div class="rent-kpi-sub">${rentUsd(t.ventasUsd)} · ${t.unidades} u</div></div>
+        <div class="rent-kpi cost"><div class="rent-kpi-label">Costo proveedores</div><div class="rent-kpi-value">${rentBs(t.costoBs)}</div><div class="rent-kpi-sub">${rentUsd(t.costoUsd)}</div></div>
+        <div class="rent-kpi ${t.gananciaBs < 0 ? 'bad' : 'ok'}"><div class="rent-kpi-label">Ganancia</div><div class="rent-kpi-value">${rentBs(t.gananciaBs)}</div><div class="rent-kpi-sub">${rentUsd(t.gananciaUsd)}</div></div>
+        <div class="rent-kpi"><div class="rent-kpi-label">Margen</div><div class="rent-kpi-value">${t.margenPct.toLocaleString('es-VE', { maximumFractionDigits: 1 })}%</div><div class="rent-kpi-sub">de cada Bs 100 vendidos</div></div>
+      </div>`;
+
+    const rows = r.categorias.map((cat, i) => `
+        <tr class="rent-cat-row" data-idx="${i}">
+          <td>${cat.label} <i class="fa-solid fa-chevron-down" style="font-size:0.65em; opacity:0.6;"></i></td>
+          <td class="hide-sm">${cat.unidades}</td>
+          <td>${rentBs(cat.ventasBs)}</td>
+          <td>${cat.costoBs > 0 ? '−' + rentBs(cat.costoBs) : (cat.sinCosto.unidades ? '<span style="color:#f59e0b;">sin costo</span>' : rentBs(0))}</td>
+          <td class="${cls(cat.gananciaBs)}">${rentBs(cat.gananciaBs)}</td>
+          <td class="hide-sm">${cat.margenPct.toLocaleString('es-VE', { maximumFractionDigits: 1 })}%</td>
+        </tr>
+        ${cat.productos.map(p => `
+        <tr class="rent-prod-row" data-parent="${i}" style="display:none;">
+          <td>${escapeHtml(p.name)} ×${p.unidades}</td>
+          <td class="hide-sm"></td>
+          <td>${rentBs(p.ventasBs)}</td>
+          <td>${p.costoBs > 0 ? '−' + rentBs(p.costoBs) : (p.sinCosto ? '<span style="color:#f59e0b;">sin costo</span>' : rentBs(0))}</td>
+          <td>${rentBs(p.gananciaBs)}</td>
+          <td class="hide-sm"></td>
+        </tr>`).join('')}`).join('');
+
+    const table = `
+      <div class="rent-section-title">Por categoría <span style="font-weight:600; color:var(--color-text-muted); font-size:0.72rem;">(toca una para ver los productos)</span></div>
+      <table class="rent-table">
+        <thead><tr><th>Categoría</th><th class="hide-sm">Unid.</th><th>Ventas</th><th>Costo</th><th>Ganancia</th><th class="hide-sm">Margen</th></tr></thead>
+        <tbody>${rows}
+          <tr class="rent-total"><td>Total</td><td class="hide-sm">${t.unidades}</td><td>${rentBs(t.ventasBs)}</td><td>−${rentBs(t.costoBs)}</td><td class="${cls(t.gananciaBs)}">${rentBs(t.gananciaBs)}</td><td class="hide-sm">${t.margenPct.toLocaleString('es-VE', { maximumFractionDigits: 1 })}%</td></tr>
+        </tbody>
+      </table>`;
+
+    const gastos = t.gastosBs > 0 ? `
+      <table class="rent-table" style="margin-top:0.5rem;">
+        <tr><td>Ganancia</td><td>${rentBs(t.gananciaBs)}</td></tr>
+        <tr><td>− Gastos del local (pestaña Gastos)</td><td>−${rentBs(t.gastosBs)}</td></tr>
+        <tr class="rent-total"><td>= Base neta para el reparto</td><td class="${cls(t.baseNetaBs)}">${rentBs(t.baseNetaBs)}</td></tr>
+      </table>` : '';
+
+    const dias = r.dias.length > 1 ? `
+      <div class="rent-section-title">Por día</div>
+      <table class="rent-table">
+        <thead><tr><th>Día</th><th>Ventas</th><th>Costo</th><th>Ganancia</th></tr></thead>
+        <tbody>${r.dias.map(d => {
+            const dt = new Date(d.fecha + 'T12:00:00');
+            const lbl = dt.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
+            return `<tr><td>${lbl}</td><td>${rentBs(d.ventasBs)}</td><td>−${rentBs(d.costoBs)}</td><td class="${cls(d.gananciaBs)}">${rentBs(d.gananciaBs)}</td></tr>`;
+        }).join('')}</tbody>
+      </table>` : '';
+
+    const notes = [];
+    if (r.delivery.count > 0) notes.push(`🛵 Delivery cobrado: ${r.delivery.count} envío(s) · ${rentBs(r.delivery.bs)} (es del motorizado, fuera de ventas y ganancia).`);
+    if (r.abonos.count > 0) notes.push(`Abonos de fiado: ${r.abonos.count} · ${rentBs(r.abonos.bs)} (fuera del cálculo).`);
+    notes.push('Montos en Bs con la tasa de cada venta. Precios con IVA incluido (el 16% del Seniat va en el reparto). Ventas anuladas no cuentan.');
+
+    c.innerHTML = (warn.length ? `<div class="rent-warn">${warn.join('<br>')}</div>` : '')
+        + kpis + table + gastos + dias
+        + `<div class="rent-note">${notes.join('<br>')}</div>`;
+
+    c.querySelectorAll('.rent-cat-row').forEach(row => row.addEventListener('click', () => {
+        c.querySelectorAll(`.rent-prod-row[data-parent="${row.dataset.idx}"]`).forEach(pr => {
+            pr.style.display = pr.style.display === 'none' ? 'table-row' : 'none';
+        });
+    }));
+}
+
+/**
+ * Reparto por porcentajes sobre la base neta, con porcentajes editables.
+ * @param {number} baseBs
+ * @param {Array<{nombre,pct}>} shares
+ * @param {{onChange:Function, onReset:Function}} handlers onChange(newShares)
+ */
+function renderRentReparto(baseBs, shares, handlers = {}) {
+    const c = document.getElementById('admin-rent-reparto');
+    if (!c) return;
+    const rep = window.AnalyticsManager.computeReparto(baseBs, shares);
+    const over = rep.asignadoPct > 100;
+    c.innerHTML = `
+      <div class="rent-section-title">Reparto de la ganancia</div>
+      <div class="rent-note" style="margin:0 0 0.5rem;">Sobre la base neta de este período: <strong>${rentBs(baseBs)}</strong>. Puedes cambiar nombres y porcentajes; se guardan en este teléfono.</div>
+      ${rep.filas.map((f, i) => `
+        <div class="rent-reparto-row">
+          <input type="text" class="form-input rent-rep-name" data-i="${i}" value="${escapeHtml(f.nombre)}" aria-label="Nombre">
+          <input type="number" inputmode="decimal" min="0" max="100" step="0.5" class="form-input pct rent-rep-pct" data-i="${i}" value="${f.pct}" aria-label="Porcentaje">
+          <span class="monto">${rentBs(f.bs)}</span>
+          <button class="rent-icon-btn rent-rep-del" data-i="${i}" aria-label="Quitar"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('')}
+      <div class="rent-reparto-row queda">
+        <span>Queda (sin asignar)</span>
+        <span style="text-align:right;${over ? ' color:var(--color-danger);' : ''}">${rep.quedaPct.toLocaleString('es-VE')}%</span>
+        <span class="monto${rep.quedaBs < 0 ? ' neg' : ''}" style="${rep.quedaBs < 0 ? 'color:var(--color-danger);' : 'color:#10B981;'}">${rentBs(rep.quedaBs)}</span>
+        <span></span>
+      </div>
+      ${over ? `<div class="rent-warn" style="margin-top:0.5rem;">Los porcentajes suman ${rep.asignadoPct}%: pasan del 100%.</div>` : ''}
+      <div class="rent-btn-row">
+        <button id="btn-rent-rep-add" class="btn-action-small"><i class="fa-solid fa-plus"></i> Agregar persona</button>
+        <button id="btn-rent-rep-reset" class="btn-action-small"><i class="fa-solid fa-rotate-left"></i> Volver a los de siempre</button>
+      </div>`;
+
+    const read = () => Array.from(c.querySelectorAll('.rent-rep-name')).map(inp => ({
+        nombre: inp.value,
+        pct: parseFloat(c.querySelector(`.rent-rep-pct[data-i="${inp.dataset.i}"]`).value) || 0
+    }));
+    const emit = list => handlers.onChange && handlers.onChange(list);
+    c.querySelectorAll('.rent-rep-pct, .rent-rep-name').forEach(inp => inp.addEventListener('change', () => emit(read())));
+    c.querySelectorAll('.rent-rep-del').forEach(b => b.addEventListener('click', () => {
+        const list = read(); list.splice(Number(b.dataset.i), 1); emit(list);
+    }));
+    const add = document.getElementById('btn-rent-rep-add');
+    if (add) add.addEventListener('click', () => emit([...read(), { nombre: 'Nuevo', pct: 0 }]));
+    const reset = document.getElementById('btn-rent-rep-reset');
+    if (reset) reset.addEventListener('click', () => handlers.onReset && handlers.onReset());
+}
+
+/**
+ * Lista de costos por producto (Bs) para que el admin cargue lo que le cuesta
+ * cada bebida. Solo escribe products.cost, nunca el precio.
+ * @param {Array} products
+ * @param {Function} onSave (productId, newCostBs) => Promise
+ */
+function renderRentCosts(products, onSave) {
+    const c = document.getElementById('admin-rent-costs');
+    if (!c) return;
+    const rate = window.bcvRate || 0;
+    const hidden = p => window.Combos && window.Combos.isHiddenFromSale && window.Combos.isHiddenFromSale(p);
+    const groups = [
+        { label: '🥤 Bebidas', items: products.filter(p => p.category === 'bebidas' && !hidden(p)) },
+        { label: '🥐 Pastelitos', items: products.filter(p => p.category === 'pastelitos' && !hidden(p)) },
+        { label: '📦 Otros', items: products.filter(p => !['bebidas', 'pastelitos'].includes(p.category) && !hidden(p)) }
+    ].filter(g => g.items.length);
+    const sinCosto = products.filter(p => p.category === 'bebidas' && !hidden(p) && !(parseFloat(p.cost) > 0)).length;
+
+    c.innerHTML = `
+      <div class="rent-section-title">Costo por producto</div>
+      <div class="rent-note" style="margin:0 0 0.5rem;">Lo que te cuesta <strong>cada unidad</strong> en Bs (lo que pagas al proveedor). Cambiarlo aquí no toca el precio de venta. Se aplica a las ventas nuevas; en ventas viejas sin costo guardado se usa este valor.${sinCosto ? ` <strong style="color:#f59e0b;">${sinCosto} bebida(s) todavía sin costo.</strong>` : ''}</div>
+      ${groups.map(g => `
+        <div style="font-weight:800; font-size:0.78rem; margin:0.6rem 0 0.2rem;">${g.label}</div>
+        ${g.items.map(p => {
+            const cost = parseFloat(p.cost) || 0;
+            return `<div class="rent-edit-row">
+              <div class="rent-edit-name">${escapeHtml(p.name)}<small>${cost > 0 ? `Costo Bs ${cost.toLocaleString('es-VE')}${rate > 0 ? ` ≈ ${rentUsd(cost / rate)}` : ''}` : '<span style="color:#f59e0b;">Sin costo</span>'}</small></div>
+              <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-cost-input" data-id="${escapeHtml(p.id)}" value="${cost > 0 ? cost : ''}" placeholder="Bs">
+              <button class="btn-action-small rent-cost-save" data-id="${escapeHtml(p.id)}">Guardar</button>
+            </div>`;
+        }).join('')}`).join('')}`;
+
+    c.querySelectorAll('.rent-cost-save').forEach(b => b.addEventListener('click', async () => {
+        const inp = Array.from(c.querySelectorAll(".rent-cost-input")).find(i => i.dataset.id === b.dataset.id);
+        const v = Math.round((parseFloat(inp && inp.value) || 0) * 100) / 100;
+        if (v < 0) return;
+        b.disabled = true;
+        try { if (onSave) await onSave(b.dataset.id, v); } finally { b.disabled = false; }
+    }));
+}
+
 /**
  * Render the clients lists and balances in the Debts tab
  * @param {Array} debts List of customer debts
@@ -7546,6 +7732,9 @@ window.UIManager = {
     renderExpenses,
     renderAdminExpenses,
     renderPnl,
+    renderRentabilidad,
+    renderRentReparto,
+    renderRentCosts,
     renderDebts,
     renderPedidosOnline,
     updatePedidosBadge,

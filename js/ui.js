@@ -4130,6 +4130,11 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     let activeCount = 0;
     let paidCount = 0;
 
+    // Historial separado por turno (mañana / tarde), con la misma raya de las
+    // 3:30 p.m. de Caracas que usa el Corte de turno.
+    const shiftOf = window.shiftOfTimestamp || (() => 'manana');
+    const shiftBuckets = { manana: { cards: [], total: 0 }, tarde: { cards: [], total: 0 } };
+
     groupedList.forEach(group => {
         let timeStr;
         try {
@@ -4285,9 +4290,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
         });
 
         historialGroups.set(group.timestamp, group);
-        pagadosContainer.appendChild(card);
+        const bucket = shiftBuckets[shiftOf(group.timestamp)] || shiftBuckets.manana;
+        bucket.cards.push(card);
+        bucket.total += group.total;
         paidCount++;
     });
+    if (paidCount > 0) renderHistorialShifts(pagadosContainer, shiftBuckets);
     refreshHistorialInvoices();
 
     if (activeCount === 0) {
@@ -4296,6 +4304,70 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
     if (paidCount === 0) {
         pagadosContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); padding: 0.5rem; text-align: center;">No hay historial de cuentas pagadas hoy.</div>';
     }
+}
+
+// Turno que se está mirando en el Historial (se mantiene al repintar).
+let historialShiftTab = null;
+const HISTORIAL_SHIFTS = [
+    { key: 'manana', icon: 'fa-sun', label: 'Turno mañana', hours: '6:00 a.m. a 1:00 p.m.' },
+    { key: 'tarde', icon: 'fa-moon', label: 'Turno tarde / noche', hours: '6:00 p.m. a 9:30 p.m.' }
+];
+
+/**
+ * Pinta el Historial en dos pestañas: Turno mañana y Turno tarde/noche, cada
+ * una con su cantidad de cuentas y su total. Abre por defecto el turno en curso.
+ */
+function renderHistorialShifts(container, buckets) {
+    if (!historialShiftTab) historialShiftTab = window.shiftOfTimestamp ? window.shiftOfTimestamp() : 'manana';
+    const rate = window.bcvRate || 1;
+    const fmtBs = (n) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    container.style.display = 'block';
+    container.innerHTML = '';
+
+    const tabs = document.createElement('div');
+    tabs.className = 'hist-shift-tabs';
+    const panels = {};
+    HISTORIAL_SHIFTS.forEach(sh => {
+        const b = buckets[sh.key];
+        const n = b.cards.length;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `hist-shift-tab hist-shift-${sh.key}`;
+        btn.dataset.shift = sh.key;
+        btn.innerHTML = `
+            <span class="hist-shift-name"><i class="fa-solid ${sh.icon}"></i> ${sh.label}</span>
+            <span class="hist-shift-hours">${sh.hours}</span>
+            <span class="hist-shift-sum">${n} ${n === 1 ? 'cuenta' : 'cuentas'} · <strong>$${b.total.toFixed(2)}</strong> · Bs. ${fmtBs(b.total * rate)}</span>`;
+        tabs.appendChild(btn);
+
+        const panel = document.createElement('div');
+        panel.className = `hist-shift-panel hist-shift-${sh.key}`;
+        panel.dataset.shift = sh.key;
+        const head = document.createElement('div');
+        head.className = 'hist-shift-head';
+        head.innerHTML = `<i class="fa-solid ${sh.icon}"></i> ${sh.label} <span>${sh.hours}</span>`;
+        panel.appendChild(head);
+        const grid = document.createElement('div');
+        grid.className = 'hist-shift-grid';
+        if (n) b.cards.forEach(c => grid.appendChild(c));
+        else grid.innerHTML = `<div class="hist-shift-empty">No hay cuentas pagadas en el ${sh.label.toLowerCase()} de hoy.</div>`;
+        panel.appendChild(grid);
+        panels[sh.key] = panel;
+    });
+
+    const select = (key) => {
+        historialShiftTab = key;
+        tabs.querySelectorAll('.hist-shift-tab').forEach(t => t.classList.toggle('active', t.dataset.shift === key));
+        Object.entries(panels).forEach(([k, p]) => p.classList.toggle('hidden', k !== key));
+    };
+    tabs.addEventListener('click', (e) => {
+        const t = e.target.closest('.hist-shift-tab');
+        if (t) select(t.dataset.shift);
+    });
+
+    container.appendChild(tabs);
+    HISTORIAL_SHIFTS.forEach(sh => container.appendChild(panels[sh.key]));
+    select(historialShiftTab);
 }
 
 // Cuentas del Historial por horario, para abrir su factura desde la etiqueta.

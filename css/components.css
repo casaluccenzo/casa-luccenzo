@@ -3057,3 +3057,26 @@ input[type="number"] {
 .rent-costs-head > div { flex: 1 1 220px; }
 .rent-costs-body.hidden { display: none; }
 .rent-open-costs, .rent-costs-toggle { background: rgba(201, 162, 74, 0.15) !important; border-color: var(--color-gold) !important; color: var(--color-gold) !important; font-weight: 800; }
+
+/* ===== Historial por turno (mañana / tarde-noche) ===== */
+.hist-shift-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem; }
+.hist-shift-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left; padding: 0.7rem 0.85rem; border-radius: 12px; cursor: pointer; background: rgba(255, 255, 255, 0.04); border: 1.5px solid rgba(255, 255, 255, 0.12); color: var(--color-text-muted); font-family: inherit; }
+.hist-shift-tab .hist-shift-name { font-weight: 900; font-size: 0.95rem; color: var(--color-white); display: flex; align-items: center; gap: 0.4rem; }
+.hist-shift-tab .hist-shift-hours { font-size: 0.72rem; font-weight: 700; }
+.hist-shift-tab .hist-shift-sum { font-size: 0.78rem; margin-top: 0.2rem; }
+.hist-shift-tab .hist-shift-sum strong { color: var(--color-white); }
+.hist-shift-tab.hist-shift-manana .hist-shift-name i { color: #F4B942; }
+.hist-shift-tab.hist-shift-tarde .hist-shift-name i { color: #8FB3FF; }
+.hist-shift-tab.hist-shift-manana.active { background: rgba(244, 185, 66, 0.16); border-color: #F4B942; box-shadow: 0 0 0 1px #F4B942 inset; }
+.hist-shift-tab.hist-shift-tarde.active { background: rgba(110, 150, 255, 0.18); border-color: #8FB3FF; box-shadow: 0 0 0 1px #8FB3FF inset; }
+.hist-shift-tab.active .hist-shift-sum, .hist-shift-tab.active .hist-shift-hours { color: var(--color-white); }
+.hist-shift-panel.hidden { display: none; }
+.hist-shift-head { display: flex; align-items: baseline; gap: 0.45rem; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.35rem 0.7rem; border-radius: 8px; margin-bottom: 0.75rem; }
+.hist-shift-head span { font-size: 0.72rem; font-weight: 700; text-transform: none; letter-spacing: 0; opacity: 0.85; }
+.hist-shift-panel.hist-shift-manana .hist-shift-head { color: #F4B942; background: rgba(244, 185, 66, 0.10); border-left: 4px solid #F4B942; }
+.hist-shift-panel.hist-shift-tarde .hist-shift-head { color: #8FB3FF; background: rgba(110, 150, 255, 0.12); border-left: 4px solid #8FB3FF; }
+.hist-shift-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+.hist-shift-empty { font-size: 11px; color: var(--color-text-muted); padding: 0.75rem; text-align: center; }
+@media (min-width: 768px) {
+    .hist-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; }
+}

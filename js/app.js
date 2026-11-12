@@ -2301,16 +2301,16 @@ function openDayCloseModal() {
 
 // ================= CORTE DE TURNO =================
 //
-// El local trabaja dos turnos: mañana (5:30 a.m. – 1:00 p.m.) y tarde
-// (6:00 p.m. – 9:00 p.m.). El corte de turno es un resumen de lo vendido en
+// El local trabaja dos turnos: mañana (6:00 a.m. – 1:00 p.m.) y tarde
+// (6:00 p.m. – 9:30 p.m.). El corte de turno es un resumen de lo vendido en
 // el turno, con su PDF, SIN cerrar la jornada: la caja, la vitrina y el stock
 // siguen igual. El Cierre de Jornada de la noche trae los dos turnos y el
 // total del día. La raya entre turnos es a las 3:30 p.m. (hora de Caracas),
 // la misma que usa lib/day-report.js para el PDF.
 const SHIFT_SPLIT_MIN = 15 * 60 + 30;
 const SHIFT_INFO = {
-    manana: { label: 'Turno mañana', short: 'mañana', emoji: '☀️', hours: '5:30 a.m. a 1:00 p.m.' },
-    tarde: { label: 'Turno tarde', short: 'tarde', emoji: '🌙', hours: '6:00 p.m. a 9:00 p.m.' }
+    manana: { label: 'Turno mañana', short: 'mañana', emoji: '☀️', hours: '6:00 a.m. a 1:00 p.m.' },
+    tarde: { label: 'Turno tarde', short: 'tarde', emoji: '🌙', hours: '6:00 p.m. a 9:30 p.m.' }
 };
 
 /** 'manana' o 'tarde' según la hora de Caracas de un timestamp (o de ahora). */

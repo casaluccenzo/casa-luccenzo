@@ -421,9 +421,16 @@
                         <h3 style="font-family: var(--font-serif); font-weight: 900; color: var(--color-success); font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-clock-rotate-left"></i> Historial de Cierres por Cliente (Pagados)
                         </h3>
-                        <p class="card-desc">
+                        <p class="card-desc" id="hist-day-desc">
                             Cuentas que ya fueron cobradas y cerradas en la jornada de hoy.
                         </p>
+                        <div class="hist-day-bar">
+                            <label for="hist-day-input"><i class="fa-solid fa-calendar-day"></i> Ver el día:</label>
+                            <input type="date" id="hist-day-input" class="hist-day-input">
+                            <button type="button" id="hist-day-prev" class="hist-day-btn" title="Día anterior">◀</button>
+                            <button type="button" id="hist-day-next" class="hist-day-btn" title="Día siguiente">▶</button>
+                            <button type="button" id="hist-day-today" class="hist-day-btn hist-day-today">Hoy</button>
+                        </div>
                         <div id="clientes-pagados-container" class="stack-md">
                             <!-- Dynamic paid closures history -->
                         </div>

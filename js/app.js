@@ -2321,6 +2321,8 @@ function shiftOfTimestamp(ts) {
 }
 
 window.shiftOfTimestamp = shiftOfTimestamp;
+// Repinta Clientes con lo de hoy (lo usa el selector de día del Historial al volver a "Hoy").
+window.refreshClientesView = () => window.UIManager.renderClientesView(salesLog, handleUndoSale, handleEditSale, markTransactionAsPaid, products);
 
 /** Cambia título y botón del modal: corte de turno (no cierra) o cierre normal. */
 function setDayCloseModalShift(shift) {

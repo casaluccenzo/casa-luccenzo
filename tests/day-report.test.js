@@ -82,3 +82,16 @@ Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDe
     for (const buf of bufs) assert.ok(buf.slice(0, 5).toString() === '%PDF-' && buf.length > 5000);
     console.log('day-report.test.js: OK');
 }).catch(e => { console.error(e); process.exit(1); });
+
+// PDF de Rentabilidad: dibuja datos ya calculados y tolera basura sin romperse.
+(async () => {
+    const { renderRentPdf } = require('../lib/rent-report');
+    const pdf = await renderRentPdf({
+        label: '2 nov – 8 nov', totals: { ventasBs: 1000, costoBs: 400, gananciaBs: 600, unidades: 3 },
+        categorias: [{ label: 'Pastelitos', unidades: 3, ventasBs: 1000, costoBs: 400, gananciaBs: 600, margenPct: 60, productos: [{ name: 'Pollo', unidades: 3 }] }],
+        dias: [{ fecha: '2026-11-02', ventasBs: 500 }, { fecha: 'mal', ventasBs: 'x' }],
+        reparto: { baseBs: 600, filas: [{ nombre: 'Ana', pct: 50, bs: 300 }], quedaPct: 50, quedaBs: 300 }
+    });
+    assert.ok(pdf.slice(0, 4).toString() === '%PDF');
+    console.log('rent-report tests passed');
+})().catch(e => { console.error(e); process.exit(1); });

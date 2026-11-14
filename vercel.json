@@ -2,6 +2,9 @@
   "buildCommand": "node scripts/build.js",
   "outputDirectory": "www",
   "functions": {
+    "api/rentabilidad-pdf.js": {
+      "includeFiles": "{img/logo-factura.png,js/combos.js,node_modules/pdfkit/js/data/**}"
+    },
     "api/cierre-pdf.js": {
       "includeFiles": "{img/logo-factura.png,js/combos.js,node_modules/pdfkit/js/data/**}"
     }

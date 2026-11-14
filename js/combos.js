@@ -34,6 +34,15 @@
     // toca vitrina ni products.price). `maxUsd`: tope contra un dedo de más.
     const DELIVERY = { productId: 'delivery', name: 'Delivery', label: 'Delivery (fuera de IVA)', quickUsd: [2, 2.5, 3, 3.5], maxUsd: 50 };
 
+    // Producto extra: algo que no está en el sistema (un jugo o una bebida que
+    // se compra en el local de al lado para el cliente). La caja pone nombre,
+    // precio (en Bs o $), cantidad y, si quiere, lo que le costó. Es venta del
+    // local: lleva IVA incluido y va en la factura talonario como cualquier
+    // producto. En la base es una fila de `sales` por unidad con product_id
+    // 'extra' y el nombre escrito; no toca vitrina, stock ni products.price.
+    // El costo (si se puso) queda en cost_at_sale para Rentabilidad.
+    const EXTRA = { productId: 'extra', label: 'Productos extra', maxNameLen: 40, maxUsd: 50, maxBs: 50000, maxQty: 50 };
+
     // Categorías que ya no se venden (dulces desde el 27/10/2026, empanadas
     // desde el 31/10/2026, minis y tostones desde el 03/11/2026): no salen en la Vitrina, la cocina, las alertas de
     // stock ni el menú web. Los productos
@@ -156,6 +165,47 @@
         return (items || []).reduce((sum, it) => sum + (isDeliverySale(it) ? (parseFloat(it.price) || 0) * (it.quantity || 1) : 0), 0);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, DELIVERY, isDeliverySale, parseDeliveryUsd, deliveryUsdOf, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
+    /** ¿Esta venta (o línea de cuenta) es un producto extra (comprado afuera)? */
+    function isExtraSale(sale) {
+        if (!sale || typeof sale !== 'object') return false;
+        return (sale.productId || sale.product_id) === EXTRA.productId;
+    }
+
+    /**
+     * Nombre de un producto extra tal como lo escribe la caja, limpio: sin
+     * corchetes ni paréntesis (el nombre de la venta lleva "[cliente]" y
+     * "(Pagado - ...)") ni el "·" de combos/personal. '' si no sirve.
+     */
+    function cleanExtraName(text) {
+        return String(text == null ? '' : text)
+            .replace(/[[\](){}·<>]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, EXTRA.maxNameLen)
+            .trim();
+    }
+
+    /** Monto escrito ("1.500", "1500,50", "$2,5") como número, o null si no sirve. 0 = vacío. */
+    function parseAmount(text, currency) {
+        let clean = String(text == null ? '' : text).replace(/[$\s]|bs\.?/gi, '');
+        if (clean === '') return 0;
+        if (currency === 'bs') {
+            // En Bs se escribe "1.500" o "1.500,50": el punto es de miles.
+            if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(clean)) clean = clean.replace(/\./g, '');
+        }
+        clean = clean.replace(',', '.');
+        if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
+        const n = Math.round(parseFloat(clean) * 100) / 100;
+        const max = currency === 'bs' ? EXTRA.maxBs : EXTRA.maxUsd;
+        if (!(n >= 0) || n > max) return null;
+        return n;
+    }
+
+    /** Parte de una cuenta (líneas con price y quantity) que es producto extra, en $. */
+    function extraUsdOf(items) {
+        return (items || []).reduce((sum, it) => sum + (isExtraSale(it) ? (parseFloat(it.price) || 0) * (it.quantity || 1) : 0), 0);
+    }
+
+    root.Combos = { PROMO, COMBOS, STAFF, DELIVERY, EXTRA, isExtraSale, cleanExtraName, parseAmount, extraUsdOf, isDeliverySale, parseDeliveryUsd, deliveryUsdOf, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

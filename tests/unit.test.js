@@ -534,6 +534,22 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(rentSolo.sinCosto.unidades, 0, "rentabilidad soloConCosto: nada sin costo dentro del cálculo");
     console.log("✅ TEST PASSED: aggregateRentabilidad soloConCosto deja fuera lo que no tiene costo");
 
+    // Producto extra (comprado afuera): con costo entra con su ganancia; sin costo va aparte.
+    const rentExtra = aggregateRentabilidad([
+        { productId: 'extra', name: 'Jugo de naranja [Ana]', price: 2, cost_at_sale: 1000, bcv_rate: 900, timestamp: day.toISOString() },
+        { productId: 'extra', name: 'Jugo de naranja [Ana]', price: 2, cost_at_sale: 1000, bcv_rate: 900, timestamp: day.toISOString() },
+        { productId: 'extra', name: 'Refresco [Luis]', price: 1, cost_at_sale: 0, bcv_rate: 900, timestamp: day.toISOString() }
+    ], rentProducts, { bcvRate: 900, soloConCosto: true });
+    const extraCat = rentExtra.categorias.find(c => c.key === 'extra');
+    assert.ok(extraCat, "rentabilidad: categoría Productos extra");
+    assert.strictEqual(extraCat.ventasBs, 3600, "rentabilidad extra: 2 jugos a Bs 1.800");
+    assert.strictEqual(extraCat.gananciaBs, 1600, "rentabilidad extra: ganancia 3600 - 2000");
+    assert.strictEqual(extraCat.productos[0].name, 'Jugo de naranja', "rentabilidad extra: agrupa por nombre");
+    assert.strictEqual(extraCat.productos[0].id, null, "rentabilidad extra: sin id de producto (no se carga costo en products)");
+    assert.deepStrictEqual(rentExtra.extrasSinCosto, { count: 1, bs: 900 }, "rentabilidad extra: sin costo va aparte");
+    assert.strictEqual(rentExtra.excluidas.unidades, 0, "rentabilidad extra: no cae en 'cargar costos'");
+    console.log("✅ TEST PASSED: aggregateRentabilidad con productos extra");
+
     const rep = computeReparto(10000);
     assert.strictEqual(rep.asignadoPct, 88, "reparto: 6+6+20+20+16+20 = 88%");
     assert.strictEqual(rep.quedaPct, 12, "reparto: queda 12%");
@@ -916,6 +932,26 @@ const SUITES = [
         assert.deepStrictEqual(withDelivery.items, [{ desc: 'Pastel de Pollo', qty: 1, price: 2.5 }], 'AutoInvoice: el delivery no va en la factura');
         assert.strictEqual(invoiceDataForAccount([sale('Delivery [Ana] (Pagado - Efectivo $)', 3, { productId: 'delivery' })], 240).skip, 'delivery', 'AutoInvoice: cuenta de solo delivery no lleva factura');
         console.log("✅ TEST PASSED: Factura talonario automática al cobrar (consumidor final, personal, sin cobrar, delivery)");
+
+        // Producto extra: venta del local, va en la factura con su nombre.
+        const withExtra = invoiceDataForAccount([
+            sale('Pastel de Pollo [Ana] (Pagado - Pago Móvil)', 2.5),
+            sale('Jugo de naranja [Ana] (Pagado - Pago Móvil)', 1.5, { productId: 'extra' }),
+            sale('Jugo de naranja [Ana] (Pagado - Pago Móvil)', 1.5, { productId: 'extra' })
+        ], 240);
+        assert.deepStrictEqual(withExtra.items, [{ desc: 'Pastel de Pollo', qty: 1, price: 2.5 }, { desc: 'Jugo de naranja', qty: 2, price: 1.5 }], 'AutoInvoice: el producto extra va en la factura');
+        assert.strictEqual(Combos.cleanExtraName(' Jugo [x] (grande) · frío '), 'Jugo x grande frío', 'Extra: nombre sin corchetes ni paréntesis');
+        assert.strictEqual(Combos.cleanExtraName('   '), '', 'Extra: nombre vacío no sirve');
+        assert.strictEqual(Combos.parseAmount('1.500', 'bs'), 1500, 'Extra: Bs con punto de miles');
+        assert.strictEqual(Combos.parseAmount('1.500,50', 'bs'), 1500.5, 'Extra: Bs con miles y decimales');
+        assert.strictEqual(Combos.parseAmount('800', 'bs'), 800, 'Extra: Bs simple');
+        assert.strictEqual(Combos.parseAmount('2,5', 'usd'), 2.5, 'Extra: $ con coma');
+        assert.strictEqual(Combos.parseAmount('jugo', 'bs'), null, 'Extra: texto no sirve');
+        assert.strictEqual(Combos.parseAmount('500', 'usd'), null, 'Extra: tope en $');
+        assert.ok(Combos.isExtraSale({ productId: 'extra', name: 'Jugo [Ana]' }), 'Extra: reconoce la línea');
+        assert.ok(!Combos.isExtraSale({ productId: 'pollo', name: 'Pollo [Extra]' }), 'Extra: un cliente llamado Extra no es extra');
+        assert.strictEqual(Combos.extraUsdOf([{ productId: 'pollo', price: 2.5, quantity: 2 }, { productId: 'extra', price: 1.5, quantity: 2 }]), 3, 'Extra: monto de la cuenta');
+        console.log("✅ TEST PASSED: Producto extra (nombre y precio libres, va en la factura)");
 
         // Delivery: monto libre en $, fuera de IVA.
         assert.strictEqual(Combos.parseDeliveryUsd('2,5'), 2.5, 'Delivery: acepta coma decimal');

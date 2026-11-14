@@ -525,6 +525,54 @@ function setCartDelivery(usd) {
 window.setCartDelivery = setCartDelivery;
 
 /**
+ * Agrega a la cuenta activa un producto extra: algo que no está en el sistema
+ * (un jugo o una bebida comprada en el local de al lado). Lleva el nombre y
+ * el precio que pone la caja; es venta del local con IVA incluido y va en la
+ * factura talonario. No toca la vitrina, el stock ni products.price (ver
+ * Combos.EXTRA). Si ya hay una línea con el mismo nombre y precio, suma.
+ * @param {{name: string, unitUsd: number, qty: number, costBs?: number}} extra
+ */
+function addCartExtra({ name, unitUsd, qty, costBs = 0 }) {
+    if (!Combos) return false;
+    const E = Combos.EXTRA;
+    const cleanName = Combos.cleanExtraName(name);
+    const price = Math.round((parseFloat(unitUsd) || 0) * 1e6) / 1e6;
+    const quantity = Math.floor(parseFloat(qty) || 0);
+    const cost = Math.round((parseFloat(costBs) || 0) * 100) / 100;
+    if (!cleanName) {
+        window.UIManager.showToast("⚠️ Escriba el nombre del producto.", "fa-solid fa-triangle-exclamation");
+        return false;
+    }
+    if (!(price > 0) || price > E.maxUsd) {
+        window.UIManager.showToast(`⚠️ Revise el precio (hasta $${E.maxUsd} por unidad).`, "fa-solid fa-triangle-exclamation");
+        return false;
+    }
+    if (!(quantity >= 1) || quantity > E.maxQty) {
+        window.UIManager.showToast(`⚠️ La cantidad va de 1 a ${E.maxQty}.`, "fa-solid fa-triangle-exclamation");
+        return false;
+    }
+    const same = currentCart.find(item => Combos.isExtraSale(item) && item.name === cleanName && Math.abs(item.price - price) < 1e-6 && (item.costBs || 0) === cost);
+    if (same) {
+        same.quantity = Math.min(E.maxQty, same.quantity + quantity);
+    } else {
+        currentCart.push({
+            productId: E.productId,
+            name: cleanName,
+            price,
+            quantity,
+            costBs: cost,
+            combo: `extra-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+        });
+    }
+    triggerHaptic(15);
+    localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+    window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+    window.UIManager.showToast(`🛍️ ${quantity} × ${cleanName} agregado a la cuenta.`, "fa-solid fa-bag-shopping");
+    return true;
+}
+window.addCartExtra = addCartExtra;
+
+/**
  * Heads-up when a sale leaves the vitrina below zero. The sale itself still
  * goes through; the negative count is what tells the cashier a recount is due.
  * @param {Object} product Product just sold
@@ -677,6 +725,16 @@ function handleCartQtyChange(id, newQty) {
 function handleAddToCart(productId) {
     // The quick-access bar hands over the product itself.
     if (productId && typeof productId === 'object') productId = productId.id;
+    // Producto extra: "+" suma uno a esa línea (no hay vitrina que descontar).
+    if (Combos && String(productId).startsWith(`${Combos.EXTRA.productId}|`)) {
+        const line = currentCart.find(item => cartKeyOf(item) === productId);
+        if (!line || line.quantity >= Combos.EXTRA.maxQty) return;
+        triggerHaptic(15);
+        line.quantity++;
+        localStorage.setItem('casa_lucenzo_current_cart', JSON.stringify(currentCart));
+        window.UIManager.renderActiveCart(currentCart, handleAddToCart, handleRemoveFromCart, handleClearCart, handleCheckoutCart);
+        return;
+    }
     // "+" is hidden on combo lines; another combo goes through the combo picker.
     if (String(productId).includes('|')) return;
     const product = products.find(p => p.id === productId);
@@ -853,7 +911,8 @@ async function handleCheckoutCart() {
                 productId: cartItem.productId,
                 name: `${cartItem.name} [${clientName}]`,
                 price: cartItem.price || 0,
-                cost: prod ? (prod.cost || 0) : 0,
+                // Producto extra: lo que costó afuera (si la caja lo puso).
+                cost: prod ? (prod.cost || 0) : (Combos && Combos.isExtraSale(cartItem) ? (cartItem.costBs || 0) : 0),
                 timestamp: timestamp
             };
             newSales.push(saleItem);
@@ -1258,7 +1317,9 @@ async function handleEditSale(timestamp) {
         // "Pollo · Combo Clásico" comes back as a combo line, not a loose one.
         const comboMatch = Combos && cleanName.match(/ · (Combo .+)$/);
         const comboDef = comboMatch && Combos.COMBOS.find(c => c.name === comboMatch[1]);
-        const existing = cartReconstructed.find(item => item.productId === sale.productId && item.name === cleanName);
+        const isExtra = !!(Combos && Combos.isExtraSale(sale));
+        const existing = cartReconstructed.find(item => item.productId === sale.productId && item.name === cleanName
+            && (!isExtra || (Math.abs(item.price - (sale.price || 0)) < 1e-6 && (item.costBs || 0) === (parseFloat(sale.cost_at_sale ?? sale.cost) || 0))));
         if (existing) {
             existing.quantity++;
         } else {
@@ -1271,6 +1332,10 @@ async function handleEditSale(timestamp) {
             if (comboDef) line.combo = comboDef.id;
             else if (Combos && Combos.isStaffSale(cleanName)) line.combo = 'personal';
             else if (Combos && Combos.isDeliverySale(sale)) line.combo = 'delivery';
+            else if (isExtra) {
+                line.combo = `extra-${cartReconstructed.length}`;
+                line.costBs = parseFloat(sale.cost_at_sale ?? sale.cost) || 0;
+            }
             cartReconstructed.push(line);
         }
     });
@@ -2114,6 +2179,7 @@ async function generateRentabilidadPdf(btn) {
             dias: rentLast.dias,
             excluidas: rentLast.excluidas,
             delivery: rentLast.delivery,
+            extrasSinCosto: rentLast.extrasSinCosto,
             reparto: { baseBs: rentLast.totals.baseNetaBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs }
         };
         const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {
@@ -2480,6 +2546,10 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
                 catKey = 'delivery';
                 catLabel = '🛵 Delivery (fuera de IVA)';
                 sortOrder = 85;
+            } else if (Combos && Combos.isExtraSale(sale)) {
+                catKey = 'extra';
+                catLabel = '🛍️ Productos extra (comprados afuera)';
+                sortOrder = 75;
             } else if (Combos && Combos.isStaffSale(sale)) {
                 catKey = 'personal';
                 catLabel = '👥 Consumo del personal (al costo)';

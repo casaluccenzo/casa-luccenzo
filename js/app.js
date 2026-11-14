@@ -2084,6 +2084,91 @@ function initRentabilidadListeners() {
     });
     const refresh = document.getElementById('btn-rent-refresh');
     if (refresh) refresh.addEventListener('click', () => { triggerHaptic(10); loadRentabilidad(true); });
+    const pdfBtn = document.getElementById('btn-rent-pdf');
+    if (pdfBtn) pdfBtn.addEventListener('click', () => { triggerHaptic(10); generateRentabilidadPdf(pdfBtn); });
+}
+
+/**
+ * PDF de lo que se ve en la pestaña Rentabilidad (el período elegido, con el
+ * reparto guardado en este teléfono). El servidor solo dibuja los números que
+ * se le mandan; no cambia nada en la base. Al terminar muestra la tarjeta
+ * Compartir (WhatsApp) igual que el PDF del cierre.
+ */
+async function generateRentabilidadPdf(btn) {
+    if (currentRole !== 'admin') return;
+    if (!rentLast || !rentLast.totals || rentLast.totals.unidades === 0) {
+        window.UIManager.showToast('No hay ventas en este período para sacar el PDF.', 'fa-solid fa-circle-info');
+        return;
+    }
+    if (!requireOnline('Generar el PDF de rentabilidad')) return;
+    const original = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PDF...'; }
+    try {
+        const rep = window.AnalyticsManager.computeReparto(rentLast.totals.baseNetaBs, loadRentShares());
+        const payload = {
+            label: rentLast.period.label,
+            mode: rentMode,
+            rate: window.bcvRate || 0,
+            totals: rentLast.totals,
+            categorias: rentLast.categorias,
+            dias: rentLast.dias,
+            excluidas: rentLast.excluidas,
+            delivery: rentLast.delivery,
+            reparto: { baseBs: rentLast.totals.baseNetaBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs }
+        };
+        const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const slug = String(rentLast.period.label).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        showPdfBlobShareCard(blob, `rentabilidad-${slug || 'periodo'}-casa-lucenzo.pdf`, `Rentabilidad ${rentLast.period.label} - Casa Lucenzo`);
+    } catch (e) {
+        console.error('generateRentabilidadPdf failed:', e);
+        window.UIManager.showToast('❌ No se pudo generar el PDF. Revisa la conexión.', 'fa-solid fa-circle-xmark');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = original; }
+    }
+}
+
+/** Tarjeta "PDF listo" con Compartir (WhatsApp) / Abrir para un PDF que ya está en memoria. */
+function showPdfBlobShareCard(blob, fileName, shareTitle) {
+    let file = null;
+    try {
+        const f = new window.File([blob], fileName, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) file = f;
+    } catch (e) { /* sin compartir archivos: el botón abre el PDF */ }
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById('day-report-share-card')?.remove();
+    const card = document.createElement('div');
+    card.id = 'day-report-share-card';
+    card.style.cssText = 'position:fixed;left:50%;bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10050;display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.7rem 0.6rem 0.9rem;border-radius:14px;background:#0f2a52;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.35);font-size:0.8125rem;max-width:calc(100vw - 32px);';
+    card.innerHTML = `
+        <i class="fa-solid fa-file-pdf" style="color: var(--color-danger);"></i>
+        <span style="font-weight:700;white-space:nowrap;">PDF de rentabilidad listo</span>
+        <button type="button" data-act="open" style="height:34px;padding:0 0.7rem;border:1px solid rgba(255,255,255,0.35);border-radius:10px;background:transparent;color:#fff;font-weight:700;cursor:pointer;">Abrir</button>
+        ${file ? `<button type="button" data-act="share" style="height:34px;padding:0 0.8rem;border:none;border-radius:10px;background:#25d366;color:#fff;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="fa-brands fa-whatsapp"></i> Compartir</button>` : ''}
+        <button type="button" data-act="close" aria-label="Cerrar" style="height:34px;width:34px;border:none;border-radius:10px;background:transparent;color:#cbd5e1;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>`;
+    document.body.appendChild(card);
+
+    const remove = () => { card.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); };
+    const timer = setTimeout(remove, 120000);
+    card.querySelector('[data-act="close"]').addEventListener('click', () => { clearTimeout(timer); remove(); });
+    card.querySelector('[data-act="open"]').addEventListener('click', () => { triggerHaptic(15); window.open(url, '_blank'); });
+    const share = card.querySelector('[data-act="share"]');
+    if (share) share.addEventListener('click', async () => {
+        triggerHaptic(15);
+        try {
+            await navigator.share({ files: [file], title: shareTitle });
+            clearTimeout(timer);
+            remove();
+        } catch (e) {
+            if (e && e.name !== 'AbortError') window.open(url, '_blank');
+        }
+    });
 }
 
 // ================= DEBTS virtual ledger (FIADOS) =================

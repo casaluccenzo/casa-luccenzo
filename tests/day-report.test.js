@@ -78,7 +78,22 @@ assert.strictEqual(withDel.totals.units, 1, 'el delivery no cuenta como producto
 assert.strictEqual(withDel.totals.deliveryCount, 1);
 assert.strictEqual(withDel.categories.find(c => c.key === 'delivery').totalBs, rosa.deliveryBs);
 
-Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDel)]).then(bufs => {
+// Producto extra: venta del local con IVA, en su propia categoría.
+const withExtra = buildReport({
+    date: '2026-10-28', bcvRate: R, productCategories: { pollo: 'pastelitos' },
+    sales: [
+        sale('Pollo [Rosa] (Pagado - Pago Móvil)', P, delTs, 'pollo'),
+        sale('Jugo de naranja [Rosa] (Pagado - Pago Móvil)', 1.5, delTs, 'extra'),
+        sale('Jugo de naranja [Rosa] (Pagado - Pago Móvil)', 1.5, delTs, 'extra')
+    ]
+});
+const extraCat = withExtra.categories.find(c => c.key === 'extra');
+assert.strictEqual(extraCat.qty, 2, 'productos extra: 2 jugos');
+assert.strictEqual(withExtra.totals.units, 3, 'el producto extra cuenta como producto vendido');
+const [rosaX] = withExtra.accounts;
+assert.strictEqual(Math.round((rosaX.baseBs + rosaX.ivaBs) * 100), Math.round(rosaX.totalBs * 100), 'el extra lleva IVA incluido');
+
+Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDel), renderPdf(withExtra)]).then(bufs => {
     for (const buf of bufs) assert.ok(buf.slice(0, 5).toString() === '%PDF-' && buf.length > 5000);
     console.log('day-report.test.js: OK');
 }).catch(e => { console.error(e); process.exit(1); });

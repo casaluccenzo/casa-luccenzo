@@ -1295,6 +1295,7 @@ function renderRentabilidad(r) {
     const notes = [];
     if (r.delivery.count > 0) notes.push(`🛵 Delivery cobrado: ${r.delivery.count} envío(s) · ${rentBs(r.delivery.bs)} (es del motorizado, fuera de ventas y ganancia).`);
     if (r.abonos.count > 0) notes.push(`Abonos de fiado: ${r.abonos.count} · ${rentBs(r.abonos.bs)} (fuera del cálculo).`);
+    if (r.extrasSinCosto && r.extrasSinCosto.count > 0) notes.push(`🛍️ Productos extra sin costo puesto: ${r.extrasSinCosto.count} · ${rentBs(r.extrasSinCosto.bs)} (fuera de ventas y ganancia; al agregarlos ponga "lo que me costó" para que cuenten).`);
     notes.push('Montos en Bs con la tasa de cada venta. Precios con IVA incluido (el 16% del Seniat va en el reparto). Ventas anuladas no cuentan.');
 
     c.innerHTML = (warn.length ? `<div class="rent-warn">${warn.join('<br>')}</div>` : '')
@@ -1709,6 +1710,10 @@ function renderDayCloseModal(salesLog, expenses, products = [], customDateLabel 
                 catKey = 'delivery';
                 catLabel = '🛵 Delivery (fuera de IVA)';
                 sortOrder = 85;
+            } else if (window.Combos && window.Combos.isExtraSale(sale)) {
+                catKey = 'extra';
+                catLabel = '🛍️ Productos extra (comprados afuera)';
+                sortOrder = 75;
             } else if (window.Combos && window.Combos.isStaffSale(sale)) {
                 catKey = 'personal';
                 catLabel = '👥 Consumo del personal (al costo)';
@@ -3044,6 +3049,132 @@ function openDeliveryPicker(currentUsd = 0) {
     updatePreview();
 }
 
+/**
+ * Producto extra para la cuenta activa: algo que no está en el sistema (un
+ * jugo o una bebida comprada en el local de al lado). Nombre, precio por
+ * unidad en Bs o $, cantidad y, si se quiere, lo que costó (para que
+ * Rentabilidad sepa la ganancia). Se guarda con window.addCartExtra.
+ */
+function openExtraPicker() {
+    const C = window.Combos;
+    const E = C && C.EXTRA;
+    if (!E || !window.addCartExtra) return;
+    const rate = window.bcvRate || 0;
+    const fmtBs = (v) => v.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let currency = rate > 0 ? 'bs' : 'usd';
+    let qty = 1;
+    const fieldStyle = 'width: 100%; height: 44px; padding: 0 0.75rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.5); background: rgba(255,255,255,0.06); color: var(--color-white); font-size: 1rem; font-weight: 700; box-sizing: border-box;';
+    const labelStyle = 'display: block; font-size: 0.75rem; font-weight: 800; color: var(--color-gold); margin: 0.75rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.04em;';
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <strong>🛍️ Producto extra</strong>
+                <button type="button" class="btn-combo-close" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="combo-picker-hint">Algo que no está en el sistema (por ejemplo, un jugo comprado al lado). Se suma a la cuenta con IVA incluido y sale en la factura. No toca la vitrina.</p>
+                <form class="extra-form">
+                    <label style="${labelStyle}" for="extra-name">Nombre</label>
+                    <input id="extra-name" class="extra-name" type="text" maxlength="${E.maxNameLen}" autocomplete="off" placeholder="Ej. Jugo de naranja" style="${fieldStyle}">
+                    <div class="extra-chips" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem;">
+                        ${['Jugo', 'Refresco', 'Agua', 'Café', 'Té'].map(n => `<button type="button" class="extra-chip" data-name="${n}" style="padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); color: var(--color-white); font-size: 0.8rem; cursor: pointer;">${n}</button>`).join('')}
+                    </div>
+
+                    <label style="${labelStyle}" for="extra-price">Precio por unidad</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input id="extra-price" class="extra-price" type="text" inputmode="decimal" autocomplete="off" style="${fieldStyle} flex: 1; min-width: 0;">
+                        <div class="extra-currency" role="group" aria-label="Moneda" style="display: flex; border: 1px solid rgba(212,175,55,0.5); border-radius: 8px; overflow: hidden; flex-shrink: 0;">
+                            <button type="button" data-cur="bs" style="width: 52px; border: none; font-weight: 900; cursor: pointer;">Bs</button>
+                            <button type="button" data-cur="usd" style="width: 52px; border: none; font-weight: 900; cursor: pointer;">$</button>
+                        </div>
+                    </div>
+
+                    <label style="${labelStyle}">Cantidad</label>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button type="button" class="btn-cart-adjust-circle minus extra-qty-minus" aria-label="Uno menos">-</button>
+                        <span class="extra-qty cart-qty-badge" style="min-width: 2ch; text-align: center; font-size: 1.15rem;">1</span>
+                        <button type="button" class="btn-cart-adjust-circle plus extra-qty-plus" aria-label="Uno más">+</button>
+                    </div>
+
+                    <label style="${labelStyle}" for="extra-cost">Lo que me costó por unidad (opcional, Bs)</label>
+                    <input id="extra-cost" class="extra-cost" type="text" inputmode="decimal" autocomplete="off" placeholder="Para saber la ganancia" style="${fieldStyle}">
+
+                    <div class="extra-preview" style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.75rem; min-height: 1.2em;"></div>
+                    <button type="submit" style="width: 100%; height: 48px; margin-top: 0.6rem; border-radius: 8px; border: none; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; font-size: 1rem; cursor: pointer;"><i class="fa-solid fa-plus"></i> Agregar a la cuenta</button>
+                </form>
+            </div>
+        </div>`;
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.btn-combo-close').addEventListener('click', close);
+
+    const nameIn = overlay.querySelector('.extra-name');
+    const priceIn = overlay.querySelector('.extra-price');
+    const costIn = overlay.querySelector('.extra-cost');
+    const qtyEl = overlay.querySelector('.extra-qty');
+    const preview = overlay.querySelector('.extra-preview');
+    const curBtns = overlay.querySelectorAll('[data-cur]');
+
+    // Lee el formulario: { name, unitUsd, unitBs, costBs } o { error }.
+    const read = () => {
+        const name = C.cleanExtraName(nameIn.value);
+        const price = C.parseAmount(priceIn.value, currency);
+        const cost = C.parseAmount(costIn.value, 'bs');
+        if (price === null) return { error: currency === 'bs' ? `Escriba el precio en Bs (ej. 1.500).` : `Escriba el precio en $ (ej. 1,50).` };
+        if (cost === null) return { error: 'Escriba lo que costó en Bs, o déjelo vacío.' };
+        if (!(price > 0)) return { empty: true };
+        const unitUsd = currency === 'bs' ? (rate > 0 ? price / rate : 0) : price;
+        const unitBs = currency === 'bs' ? price : price * rate;
+        if (!(unitUsd > 0)) return { error: 'Falta la tasa BCV del día para cobrar en Bs. Use $.' };
+        if (unitUsd > E.maxUsd) return { error: `Máximo $${E.maxUsd} por unidad.` };
+        return { name, unitUsd, unitBs, costBs: cost };
+    };
+    const update = () => {
+        curBtns.forEach(b => {
+            const on = b.getAttribute('data-cur') === currency;
+            b.style.background = on ? 'var(--color-gold)' : 'transparent';
+            b.style.color = on ? 'var(--color-bg-navy)' : 'var(--color-white)';
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        priceIn.placeholder = currency === 'bs' ? 'Ej. 1.500' : 'Ej. 1,50';
+        qtyEl.textContent = String(qty);
+        const r = read();
+        preview.style.color = r.error ? 'var(--color-danger)' : 'var(--color-text-muted)';
+        if (r.error) { preview.textContent = r.error; return; }
+        if (r.empty) { preview.textContent = ''; return; }
+        const totUsd = r.unitUsd * qty;
+        preview.innerHTML = `<b style="color: var(--color-white);">${qty} × ${escapeHtml(r.name || 'producto')}</b> = ${rate > 0 ? `Bs ${fmtBs(r.unitBs * qty)} · ` : ''}$${totUsd.toFixed(2)}`
+            + (r.costBs > 0 && rate > 0 ? `<br>Ganancia: Bs ${fmtBs((r.unitBs - r.costBs) * qty)}` : '');
+    };
+    curBtns.forEach(b => b.addEventListener('click', () => {
+        const next = b.getAttribute('data-cur');
+        if (next === 'bs' && !(rate > 0)) { preview.textContent = 'Falta la tasa BCV del día para cobrar en Bs. Use $.'; preview.style.color = 'var(--color-danger)'; return; }
+        currency = next;
+        update();
+        priceIn.focus();
+    }));
+    overlay.querySelectorAll('.extra-chip').forEach(b => b.addEventListener('click', () => {
+        nameIn.value = b.getAttribute('data-name');
+        update();
+        nameIn.focus();
+    }));
+    overlay.querySelector('.extra-qty-minus').addEventListener('click', () => { qty = Math.max(1, qty - 1); update(); });
+    overlay.querySelector('.extra-qty-plus').addEventListener('click', () => { qty = Math.min(E.maxQty, qty + 1); update(); });
+    [nameIn, priceIn, costIn].forEach(i => i.addEventListener('input', update));
+    overlay.querySelector('.extra-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const r = read();
+        if (!r.name) { preview.textContent = 'Escriba el nombre del producto.'; preview.style.color = 'var(--color-danger)'; nameIn.focus(); return; }
+        if (r.error || r.empty) { if (r.empty) { preview.textContent = 'Escriba el precio.'; preview.style.color = 'var(--color-danger)'; } priceIn.focus(); return; }
+        if (window.addCartExtra({ name: r.name, unitUsd: r.unitUsd, qty, costBs: r.costBs })) close();
+    });
+    document.body.appendChild(overlay);
+    update();
+    nameIn.focus();
+}
+
 function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     const container = document.getElementById('active-cart-container');
     if (!container) return;
@@ -3067,6 +3198,7 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     const deliveryVES = deliveryUSD * (window.bcvRate || 1);
     const iva = splitIvaIncluded(totalUSD - exemptUSD - deliveryUSD, totalVES - exemptVES - deliveryVES);
     const isDelivery = (item) => !!(window.Combos && window.Combos.isDeliverySale(item));
+    const isExtra = (item) => !!(window.Combos && window.Combos.isExtraSale(item));
     const productLines = cart.filter(item => !isDelivery(item));
 
     container.innerHTML = `
@@ -3095,17 +3227,18 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                         </div>
                     </div>
                 ` : `
-                    <div class="cart-item-row">
+                    <div class="cart-item-row${isExtra(item) ? ' cart-extra-row' : ''}">
                         <div class="cart-item-details">
-                            <span class="cart-item-title">${escapeHtml(item.name)}</span>
+                            <span class="cart-item-title">${isExtra(item) ? '🛍️ ' : ''}${escapeHtml(item.name)}</span>
                             <span class="cart-item-sub">
-                                $${(item.price || 0).toFixed(2)} &bull; Sub: $${((item.price || 0) * item.quantity).toFixed(2)}
+                                $${(item.price || 0).toFixed(2)} &bull; Sub: $${((item.price || 0) * item.quantity).toFixed(2)}${isExtra(item) ? ` &bull; Bs. ${((item.price || 0) * item.quantity * (window.bcvRate || 1)).toFixed(2)} &bull; extra` : ''}
                             </span>
                         </div>
                         <div class="cart-item-controls">
                             <button class="btn-cart-adjust-circle minus" data-id="${escapeHtml(item.combo ? `${item.productId}|${item.combo}` : item.productId)}" data-action="minus">-</button>
                             <span class="cart-qty-badge">${item.quantity}</span>
-                            ${item.combo ? '' : `<button class="btn-cart-adjust-circle plus" data-id="${escapeHtml(item.productId)}" data-action="plus">+</button>`}
+                            ${isExtra(item) ? `<button class="btn-cart-adjust-circle plus" data-id="${escapeHtml(`${item.productId}|${item.combo}`)}" data-action="plus">+</button>`
+                                : item.combo ? '' : `<button class="btn-cart-adjust-circle plus" data-id="${escapeHtml(item.productId)}" data-action="plus">+</button>`}
                         </div>
                     </div>
                 `).join('')}
@@ -3156,6 +3289,9 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                 ${window.Combos ? `
                 <button class="btn-cart-secondary btn-cart-delivery" id="btn-cart-delivery">
                     <i class="fa-solid fa-motorcycle"></i> ${deliveryUSD > 0 ? `Delivery $${deliveryUSD.toFixed(2)}` : 'Agregar delivery'}
+                </button>
+                <button class="btn-cart-secondary btn-cart-extra" id="btn-cart-extra">
+                    <i class="fa-solid fa-bag-shopping"></i> Agregar producto extra
                 </button>` : ''}
             </div>
         </div>
@@ -3164,6 +3300,8 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     container.querySelectorAll('#btn-cart-delivery, [data-action="delivery-edit"]').forEach(btn => {
         btn.addEventListener('click', () => openDeliveryPicker(deliveryUSD));
     });
+    const extraBtn = container.querySelector('#btn-cart-extra');
+    if (extraBtn) extraBtn.addEventListener('click', () => openExtraPicker());
 
     // Bind event listeners
     container.querySelectorAll('[data-action="minus"]').forEach(btn => {
@@ -3728,7 +3866,8 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
 
     // Add any manual abonos/other non-inventory transactions recorded today
     // (and the delivery charges, which don't come out of the vitrina either)
-    const abonosValue = todaySalesLog.filter(s => s.productId === 'abono' || (window.Combos && window.Combos.isDeliverySale(s))).reduce((sum, s) => sum + (s.price || 0), 0);
+    // and the productos extra bought next door)
+    const abonosValue = todaySalesLog.filter(s => s.productId === 'abono' || (window.Combos && (window.Combos.isDeliverySale(s) || window.Combos.isExtraSale(s)))).reduce((sum, s) => sum + (s.price || 0), 0);
 
     const totalRealMoney = expectedSalesValue + abonosValue;
     const totalRealVES = totalRealMoney * rate;
@@ -3789,6 +3928,13 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 color = '#D4AF37';
                 unitLabel = 'envíos';
                 sortOrder = 85;
+            } else if (window.Combos && window.Combos.isExtraSale(s)) {
+                catKey = 'extra';
+                catLabel = 'Productos extra (comprados afuera)';
+                icon = 'fa-bag-shopping';
+                color = '#38BDF8';
+                unitLabel = 'unid.';
+                sortOrder = 75;
             } else if (window.Combos && window.Combos.isStaffSale(s)) {
                 catKey = 'personal';
                 catLabel = 'Consumo del personal (al costo)';
@@ -6013,6 +6159,7 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
         'bebidas': { label: '🥤 Bebidas & Jugos', count: 0, amount: 0, class: 'fill-category-2' },
         'dulces': { label: '🍬 Dulces', count: 0, amount: 0, class: 'fill-category-5' },
         'otros': { label: '📦 Otros / Varios', count: 0, amount: 0, class: 'fill-category-2' },
+        'extra': { label: '🛍️ Productos extra', count: 0, amount: 0, class: 'fill-category-2' },
         'delivery': { label: '🛵 Delivery (fuera de IVA)', count: 0, amount: 0, class: 'fill-category-5' }
     };
 
@@ -6023,6 +6170,8 @@ function renderPaymentAndCategoryStats(salesLog = [], products = [], paymentFilt
         let cat = 'otros';
         if (window.Combos && window.Combos.isDeliverySale(s)) {
             cat = 'delivery';
+        } else if (window.Combos && window.Combos.isExtraSale(s)) {
+            cat = 'extra';
         } else if (product && categories[product.category]) {
             cat = product.category;
         }
@@ -6240,6 +6389,7 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         'pasteles': { label: '🥐 Pasteles y Repostería', items: {} },
         'bebidas': { label: '🥤 Bebidas', items: {} },
         'dulces': { label: '🍬 Dulces', items: {} },
+        'extra': { label: '🛍️ Productos extra (comprados afuera)', items: {} },
         'personal': { label: '👥 Consumo del personal (al costo)', items: {} },
         'delivery': { label: '🛵 Delivery (fuera de IVA)', items: {} }
     };
@@ -6252,6 +6402,8 @@ function exportDayCloseToPDF(salesLog = [], expenses = [], products = [], custom
         let category = 'pasteles'; // fallback default
         if (window.Combos && window.Combos.isDeliverySale(sale)) {
             category = 'delivery';
+        } else if (window.Combos && window.Combos.isExtraSale(sale)) {
+            category = 'extra';
         } else if (window.Combos && window.Combos.isStaffSale(sale)) {
             category = 'personal';
         } else if (prod && prod.category === 'bebidas') {

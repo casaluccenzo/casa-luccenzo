@@ -246,7 +246,8 @@ const PNL_CATEGORY_META = {
     pasteles: { label: '🥐 Pasteles y Repostería', order: 1 },
     bebidas:  { label: '🥤 Bebidas',               order: 2 },
     dulces:   { label: '🍬 Dulces',                order: 3 },
-    otros:    { label: '📦 Otros / Varios',         order: 4 }
+    otros:    { label: '📦 Otros / Varios',         order: 4 },
+    extra:    { label: '🛍️ Productos extra',        order: 5 }
 };
 
 const EXPENSE_CATEGORY_META = {
@@ -260,6 +261,8 @@ const PRODUCT_NAME_CLEAN_RE = /\s*\[.*\](\s*\(Pagado(?: - .*?)?\))?$/;
 
 function resolvePnlCategory(sale, productById) {
     const pid = sale.productId || sale.product_id;
+    // Producto extra (comprado afuera, ver Combos.EXTRA): su propia categoría.
+    if (pid === 'extra') return 'extra';
     const prod = pid ? productById[pid] : null;
     let cat = prod ? prod.category : '';
     if (!cat || cat === 'otros') {
@@ -557,6 +560,9 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
     const dias = {};
     let delivery = { count: 0, bs: 0 };
     let abonos = { count: 0, bs: 0 };
+    // Productos extra sin el costo puesto: no se sabe cuánto se ganó, así que
+    // van aparte (fuera de ventas y ganancia) en vez de inflar la ganancia.
+    let extrasSinCosto = { count: 0, bs: 0 };
     let estimadas = 0;
     const excl = { unidades: 0, ventasBs: 0, _prod: {} };
 
@@ -571,6 +577,8 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
 
         const prod = pid ? productById[pid] : null;
         const real = parseFloat(s.cost_at_sale) || 0;
+        const isExtra = pid === 'extra';
+        if (isExtra && !(real > 0)) { extrasSinCosto.count += 1; extrasSinCosto.bs += bs; return; }
         const actual = prod ? (parseFloat(prod.cost) || 0) : 0;
         let costoBs = 0;
         let estado = 'real';
@@ -593,9 +601,10 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
             costoBs: 0, costoUsd: 0, sinCosto: { unidades: 0, ventasBs: 0 }, _prod: {}
         });
         const pname = (prod && prod.name) || (s.name || '').replace(PRODUCT_NAME_CLEAN_RE, '') || pid || '—';
-        const pk = pid || pname;
+        // Cada producto extra se agrupa por su nombre (todos tienen id 'extra').
+        const pk = isExtra ? `extra:${pname}` : (pid || pname);
         const p = c._prod[pk] || (c._prod[pk] = {
-            id: pid || null, name: pname, unidades: 0, ventasBs: 0, costoBs: 0, sinCosto: 0,
+            id: isExtra ? null : (pid || null), name: pname, unidades: 0, ventasBs: 0, costoBs: 0, sinCosto: 0,
             costoActualBs: actual
         });
         [c, p].forEach(o => { o.unidades += 1; o.ventasBs += bs; o.costoBs += costoBs; });
@@ -660,6 +669,7 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
         },
         delivery: { count: delivery.count, bs: r2(delivery.bs) },
         abonos: { count: abonos.count, bs: r2(abonos.bs) },
+        extrasSinCosto: { count: extrasSinCosto.count, bs: r2(extrasSinCosto.bs) },
         dias: Object.values(dias).map(d => ({ fecha: d.fecha, ventasBs: r2(d.ventasBs), costoBs: r2(d.costoBs), gananciaBs: r2(d.ventasBs - d.costoBs) }))
             .sort((a, b) => a.fecha.localeCompare(b.fecha))
     };

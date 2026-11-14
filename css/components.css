@@ -1681,6 +1681,21 @@ input:checked + .slider:before {
     border-color: rgba(212, 175, 55, 0.7);
 }
 
+/* Producto extra (comprado afuera): justo debajo de "Agregar delivery". */
+.btn-cart-secondary.btn-cart-extra {
+    grid-column: span 2;
+    order: -1;
+    color: #7dd3fc;
+    border-color: rgba(56, 189, 248, 0.45);
+    background-color: rgba(56, 189, 248, 0.08);
+    font-size: 0.8125rem;
+}
+
+.btn-cart-secondary.btn-cart-extra:hover {
+    background-color: rgba(56, 189, 248, 0.16);
+    border-color: rgba(56, 189, 248, 0.7);
+}
+
 /* ================= CUSTOM NEW STYLES: VITRINA, CLIENTES, COCINA ================= */
 
 .vitrina-stats-bar {

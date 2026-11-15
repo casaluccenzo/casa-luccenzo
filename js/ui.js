@@ -1030,7 +1030,7 @@ function renderExpenses(expenses, onRemove) {
         return;
     }
 
-    // Borrar un gasto ya anotado: solo el admin.
+    // Borrar un gasto: el admin directo; la vendedora ve un candado y se le pide la clave de supervisor.
     const canDeleteExpense = sessionStorage.getItem('casa_lucenzo_active_role') === 'admin';
     expenses.forEach(exp => {
         const row = document.createElement('div');
@@ -1039,7 +1039,7 @@ function renderExpenses(expenses, onRemove) {
             <span class="expense-desc">${escapeHtml(exp.description)}</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span class="expense-amount">-$${exp.amount.toFixed(2)} <span style="font-size: 0.625rem; opacity: 0.75; margin-left: 0.125rem;">(Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)})</span></span>
-                ${canDeleteExpense ? `<button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>` : ''}
+                <button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense" title="${canDeleteExpense ? 'Borrar gasto' : 'Borrar gasto (pide clave de supervisor)'}">${canDeleteExpense ? '&times;' : '<i class="fa-solid fa-lock" style="font-size: 7px;"></i> &times;'}</button>
             </div>
         `;
 

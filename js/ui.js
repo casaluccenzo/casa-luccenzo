@@ -191,10 +191,13 @@ function renderCategoryFilterBar(activeCategory, onCategoryChange, products) {
         { id: 'bebidas', name: 'Bebidas' },
         { id: 'dulces', name: 'Dulces' }
     ];
-    const presentIds = new Set((products || []).map(p => p.category));
+    // Solo las categorías con algo que la caja vende: una categoría oculta
+    // (Combos.HIDDEN) sigue con su pestaña si tiene productos en keepInPos
+    // (Dulces: cajas y Porción de Tres Leches).
+    const presentIds = new Set(forSale(products).map(p => p.category));
     const categories = [
         { id: 'todos', name: 'Todo' },
-        ...allCategories.filter(cat => presentIds.has(cat.id) && !(window.Combos && window.Combos.isHiddenCategory(cat.id)))
+        ...allCategories.filter(cat => presentIds.has(cat.id))
     ];
     // Pestaña del personal: solo si algún pastel tiene costo cargado.
     if (window.Combos && (products || []).some(p => window.Combos.staffBsPrice(p) > 0)) {

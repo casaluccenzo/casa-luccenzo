@@ -1030,6 +1030,8 @@ function renderExpenses(expenses, onRemove) {
         return;
     }
 
+    // Borrar un gasto ya anotado: solo el admin.
+    const canDeleteExpense = sessionStorage.getItem('casa_lucenzo_active_role') === 'admin';
     expenses.forEach(exp => {
         const row = document.createElement('div');
         row.className = 'expense-item';
@@ -1037,11 +1039,11 @@ function renderExpenses(expenses, onRemove) {
             <span class="expense-desc">${escapeHtml(exp.description)}</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span class="expense-amount">-$${exp.amount.toFixed(2)} <span style="font-size: 0.625rem; opacity: 0.75; margin-left: 0.125rem;">(Bs. ${(exp.amount * (window.bcvRate || 1)).toFixed(2)})</span></span>
-                <button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>
+                ${canDeleteExpense ? `<button class="btn-undo" style="padding: 0.125rem 0.25rem; font-size: 8px;" data-action="remove-expense">&times;</button>` : ''}
             </div>
         `;
 
-        row.querySelector('[data-action="remove-expense"]').addEventListener('click', () => {
+        row.querySelector('[data-action="remove-expense"]')?.addEventListener('click', () => {
             onRemove(exp.uuid);
         });
 

@@ -1713,6 +1713,8 @@ async function confirmReceipt() {
 }
 
 function resetToMax() {
+    // Rellenar todo cambia el inventario de golpe: solo el admin.
+    if (currentRole !== 'admin') return;
     triggerHaptic(15);
     products.forEach(p => {
         const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
@@ -1783,6 +1785,8 @@ function addExpense(e) {
  * @param {string} uuid Expense unique identifier
  */
 function deleteExpense(uuid) {
+    // Borrar un gasto ya anotado: solo el admin.
+    if (currentRole !== 'admin') return;
     triggerHaptic(15);
     expenses = expenses.filter(e => e.uuid !== uuid);
     window.StorageManager.saveExpenses(expenses);
@@ -4571,6 +4575,10 @@ function applyUserRole(role) {
     const isAdminRole = role === 'admin';
     const reportHistoryBtn = document.getElementById('btn-report-history');
     if (reportHistoryBtn) reportHistoryBtn.classList.toggle('hidden', !isAdminRole);
+    const resetAllBtn = document.getElementById('btn-reset-all');
+    if (resetAllBtn) resetAllBtn.classList.toggle('hidden', !isAdminRole);
+    // Repinta los gastos para mostrar u ocultar la "×" de borrar según el perfil.
+    if (window.UIManager && window.UIManager.renderExpenses) window.UIManager.renderExpenses(expenses, deleteExpense);
     const histDayBar = document.querySelector('#sub-view-historial .hist-day-bar');
     if (histDayBar) histDayBar.classList.toggle('hidden', !isAdminRole);
     if (!isAdminRole) {

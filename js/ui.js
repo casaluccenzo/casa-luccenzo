@@ -4845,8 +4845,8 @@ function promptClientRif(initial = '') {
 }
 
 /**
- * Al cobrar: nombre y cédula del cliente en una sola ventana, con un buscador
- * de clientes que ya compraron antes (js/clientes-frecuentes.js). Tocar uno
+ * Al cobrar: nombre y cédula del cliente en una sola ventana. El campo del nombre es un buscador
+ * con menú desplegable de clientes que ya compraron (js/clientes-frecuentes.js). Elegir uno
  * llena el nombre y la cédula; se pueden corregir antes de seguir.
  * Resuelve con { name, rif } (rif '' si se deja vacío) o null si se cancela.
  */
@@ -4863,16 +4863,17 @@ function promptClientData(defaultName = '', localSales = [], defaultRif = '') {
         const inputStyle = 'box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; color: var(--color-white); font-weight: 700; font-size: 1rem;';
         const labelStyle = 'display: block; font-size: 0.75rem; color: var(--color-text-muted); font-weight: 800; margin: 0.7rem 0 0.25rem; text-transform: uppercase;';
         overlay.innerHTML = `
-            <form style="width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto; background: #111827; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 1.1rem; color: #FFFFFF; box-sizing: border-box;">
+            <form style="width: 100%; max-width: 420px; background: #111827; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 1.1rem; color: #FFFFFF; box-sizing: border-box;">
                 <div style="font-weight: 900; color: var(--color-gold); font-size: 1.05rem;"><i class="fa-solid fa-user"></i> Datos del cliente</div>
-                ${CF ? `
-                <label for="checkout-client-search" style="${labelStyle}"><i class="fa-solid fa-magnifying-glass"></i> Buscar cliente que ya vino</label>
-                <input type="search" id="checkout-client-search" autocomplete="off" placeholder="Nombre o número de cédula" style="${inputStyle} width: 100%;">
-                <div class="checkout-client-results" style="display: grid; gap: 0.35rem; margin-top: 0.45rem;">
-                    <div style="font-size: 0.8rem; color: var(--color-text-muted);">Cargando clientes…</div>
-                </div>` : ''}
                 <label for="checkout-client-name" style="${labelStyle}">Nombre y apellido / Razón Social</label>
-                <input type="text" id="checkout-client-name" autocomplete="off" maxlength="80" value="${escapeHtml(defaultName)}" placeholder="Ej: María Pérez" style="${inputStyle} width: 100%;">
+                <div style="position: relative;">
+                    <input type="text" id="checkout-client-name" autocomplete="off" maxlength="80" value="${escapeHtml(defaultName)}"
+                        placeholder="${CF ? 'Escriba para buscar o agregar' : 'Ej: María Pérez'}"
+                        role="combobox" aria-expanded="false" aria-controls="checkout-client-list" aria-autocomplete="list"
+                        style="${inputStyle} width: 100%; padding-right: 40px;">
+                    ${CF ? `<button type="button" class="btn-client-toggle" aria-label="Ver clientes" tabindex="-1" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: none; background: transparent; color: var(--color-gold); font-size: 0.9rem; cursor: pointer;">▼</button>
+                    <div id="checkout-client-list" role="listbox" hidden style="position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; max-height: 220px; overflow-y: auto; background: #0b1220; border: 1px solid rgba(212,175,55,0.45); border-radius: 8px; box-shadow: 0 12px 30px rgba(0,0,0,0.6);"></div>` : ''}
+                </div>
                 <label for="checkout-rif" style="${labelStyle}">Cédula / RIF (opcional)</label>
                 ${rifFieldHtml('checkout-rif', defaultRif, inputStyle)}
                 <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
@@ -4885,10 +4886,18 @@ function promptClientData(defaultName = '', localSales = [], defaultRif = '') {
         const nameInput = overlay.querySelector('#checkout-client-name');
         const rifType = overlay.querySelector('#checkout-rif-type');
         const rifInput = overlay.querySelector('#checkout-rif');
-        const searchInput = overlay.querySelector('#checkout-client-search');
-        const results = overlay.querySelector('.checkout-client-results');
+        const list = overlay.querySelector('#checkout-client-list');
         let directory = [];
         let loaded = false;
+        let found = [];
+        let active = -1;
+
+        const closeList = () => {
+            if (!list) return;
+            list.hidden = true;
+            nameInput.setAttribute('aria-expanded', 'false');
+            active = -1;
+        };
 
         const pick = (c) => {
             const { letter, number } = splitRif(c.rif);
@@ -4896,46 +4905,51 @@ function promptClientData(defaultName = '', localSales = [], defaultRif = '') {
             if (![...rifType.options].some(o => o.value === letter)) { const opt = document.createElement('option'); opt.value = letter; opt.textContent = `${letter}-`; rifType.appendChild(opt); }
             rifType.value = letter;
             rifInput.value = number;
-            if (searchInput) searchInput.value = '';
-            renderResults();
-            nameInput.focus();
+            closeList();
         };
 
-        function renderResults() {
-            if (!results) return;
-            if (!loaded) return;
-            const q = searchInput.value;
-            if (!directory.length) {
-                results.innerHTML = `<div style="font-size: 0.8rem; color: var(--color-text-muted);">Todavía no hay clientes con cédula guardada.</div>`;
-                return;
+        // Menú desplegable bajo el nombre: filtra mientras se escribe (pocos a la vista, el resto con scroll).
+        function openList() {
+            if (!list) return;
+            if (!loaded) {
+                list.innerHTML = `<div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; color: var(--color-text-muted);">Cargando clientes…</div>`;
+            } else {
+                found = CF.search(directory, nameInput.value, 30);
+                if (!found.length) { closeList(); return; }
+                list.innerHTML = found.map((c, i) => `
+                    <div role="option" data-i="${i}" aria-selected="${i === active}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06); background: ${i === active ? 'rgba(212,175,55,0.2)' : 'transparent'};">
+                        <span style="font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(c.name)}</span>
+                        <span style="flex: 0 0 auto; font-size: 0.8rem; color: var(--color-gold); font-weight: 800;">${escapeHtml(c.rif)}</span>
+                    </div>`).join('');
+                // mousedown (no click) para elegir antes de que el campo pierda el foco.
+                list.querySelectorAll('[data-i]').forEach(row => {
+                    row.addEventListener('mousedown', (e) => { e.preventDefault(); pick(found[Number(row.dataset.i)]); });
+                });
+                const sel = list.querySelector(`[data-i="${active}"]`);
+                if (sel) sel.scrollIntoView({ block: 'nearest' });
             }
-            const found = CF.search(directory, q, q.trim() ? 8 : 5);
-            if (!found.length) {
-                results.innerHTML = `<div style="font-size: 0.8rem; color: var(--color-text-muted);">No aparece. Escriba el nombre y la cédula abajo.</div>`;
-                return;
-            }
-            results.innerHTML = (q.trim() ? '' : `<div style="font-size: 0.72rem; color: var(--color-text-muted);">Los que más vienen:</div>`) + found.map((c, i) => `
-                <button type="button" data-i="${i}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: left; padding: 0.55rem 0.7rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.3); background: rgba(212,175,55,0.08); color: var(--color-white); cursor: pointer; font: inherit;">
-                    <span style="font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(c.name)}</span>
-                    <span style="flex: 0 0 auto; font-size: 0.8rem; color: var(--color-gold); font-weight: 800;">${escapeHtml(c.rif)}</span>
-                </button>`).join('');
-            results.querySelectorAll('button[data-i]').forEach(btn => {
-                btn.addEventListener('click', () => pick(found[Number(btn.dataset.i)]));
-            });
+            list.hidden = false;
+            nameInput.setAttribute('aria-expanded', 'true');
         }
 
-        if (CF && searchInput) {
-            searchInput.addEventListener('input', renderResults);
-            searchInput.addEventListener('keydown', (e) => {
-                // Enter en el buscador elige el primero, no cobra.
-                if (e.key !== 'Enter') return;
-                e.preventDefault();
-                const first = CF.search(directory, searchInput.value, 1)[0];
-                if (first) pick(first);
+        if (CF && list) {
+            nameInput.addEventListener('input', () => { active = -1; openList(); });
+            nameInput.addEventListener('focus', openList);
+            nameInput.addEventListener('blur', () => setTimeout(closeList, 120));
+            nameInput.addEventListener('keydown', (e) => {
+                if (list.hidden || !found.length) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(found.length - 1, active + 1); openList(); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); openList(); }
+                else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(found[active]); }
+                else if (e.key === 'Escape') { e.preventDefault(); closeList(); }
             });
-            CF.load(localSales).then(list => { directory = list || []; }).catch(() => { directory = []; }).finally(() => {
+            overlay.querySelector('.btn-client-toggle').addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                if (list.hidden) { nameInput.focus(); openList(); } else closeList();
+            });
+            CF.load(localSales).then(l => { directory = l || []; }).catch(() => { directory = []; }).finally(() => {
                 loaded = true;
-                renderResults();
+                if (!list.hidden) openList();
             });
         }
 
@@ -4945,7 +4959,7 @@ function promptClientData(defaultName = '', localSales = [], defaultRif = '') {
             e.preventDefault();
             finish({ name: nameInput.value.trim(), rif: readRifField(overlay, 'checkout-rif') });
         });
-        setTimeout(() => (searchInput || nameInput).focus(), 50);
+        setTimeout(() => nameInput.focus(), 50);
     });
 }
 

@@ -864,14 +864,19 @@ async function handleCheckoutCart() {
     triggerHaptic(15);
     const defaultName = sessionStorage.getItem('casa_lucenzo_editing_client_name') || "";
     const cameFromClientes = !!defaultName;
-    const clientNameInput = prompt("Ingresa el nombre del cliente / Razón Social:", defaultName);
-    if (clientNameInput === null) return; // Cancelled
+    // Nombre y cédula en una sola ventana, con buscador de clientes que ya
+    // vinieron (js/clientes-frecuentes.js).
+    // Al modificar una cuenta el nombre viene como "Nombre - V-123": la cédula va en su casilla.
+    const defaultMatch = defaultName.match(/^(.*?)\s+-\s+([VJEGP]-[\d.\-\s]+)$/i);
+    const clientData = await window.UIManager.promptClientData(
+        defaultMatch ? defaultMatch[1] : defaultName,
+        salesLog,
+        defaultMatch ? defaultMatch[2].trim() : ''
+    );
+    if (clientData === null) return; // Cancelled
 
-    const clientRifInput = await window.UIManager.promptClientRif("");
-    if (clientRifInput === null) return; // Cancelled
-
-    const rawName = clientNameInput.trim() || `Cliente #${salesLog.length + 1}`;
-    const rawRif = (clientRifInput && clientRifInput.trim()) ? clientRifInput.trim() : "";
+    const rawName = (clientData.name || '').trim() || `Cliente #${salesLog.length + 1}`;
+    const rawRif = (clientData.rif || '').trim();
     const clientName = rawRif ? `${rawName} - ${rawRif}` : rawName;
     
     const editingTimestamp = sessionStorage.getItem('casa_lucenzo_editing_timestamp');

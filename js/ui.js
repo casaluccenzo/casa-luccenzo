@@ -5225,7 +5225,7 @@ function showPosReceiptModal({
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 0.4rem 0.6rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.75rem;">
             <span style="color: var(--color-text-muted); font-weight: 600;">¿Cliente pidió factura?</span>
             <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
-                <input type="checkbox" id="toggle-pos-iva" style="cursor: pointer;">
+                <input type="checkbox" id="toggle-pos-iva" style="cursor: pointer;" checked>
                 <span style="font-weight: 700; color: var(--color-gold);">Facturar con IVA (16% incluido)</span>
             </label>
         </div>
@@ -5317,7 +5317,7 @@ function showPosReceiptModal({
                     <span>SUBTOTAL:</span>
                     <span id="pos-subtotal-value">${formatVES(totalVES)}</span>
                 </div>
-                <div id="pos-iva-rows" style="display: none;">
+                <div id="pos-iva-rows" style="display: block;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.15rem; border-top: 1px dashed #aaa; padding-top: 0.2rem;">
                         <span>BASE IMPONIBLE:</span>
                         <span>${formatVES(baseImponibleVES)}</span>

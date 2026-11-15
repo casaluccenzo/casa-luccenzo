@@ -26,6 +26,20 @@ function parseTimestamp(timestampStr) {
     return new Date(cleanStr);
 }
 
+/**
+ * Costo en Bs de UNA unidad de un producto con una tasa dada.
+ * Si el producto tiene costo en dólares (products.cost_usd, migración 049),
+ * se convierte con esa tasa: así el costo en Bs sigue al dólar. Si no, se usa
+ * el costo fijo en Bs (products.cost). Nunca toca products.price.
+ */
+function productCostBs(prod, rate) {
+    if (!prod) return 0;
+    const usd = parseFloat(prod.cost_usd);
+    const r = parseFloat(rate);
+    if (usd > 0 && r > 0) return Math.round(usd * r * 100) / 100;
+    return parseFloat(prod.cost) || 0;
+}
+
 function dateKey(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -222,7 +236,8 @@ function estimateProductionCost(sales = [], products = [], bcvRate = 1) {
             const pid = s.productId || s.product_id;
             if (!pid || pid === 'abono') return sum;
             const prod = productById[pid];
-            const c = prod && prod.cost ? parseFloat(prod.cost) : 0;
+            const r = parseFloat(s.bcv_rate) > 0 ? parseFloat(s.bcv_rate) : rate;
+            const c = productCostBs(prod, r);
             return sum + (c > 0 ? c : 0);
         }, 0);
 
@@ -579,7 +594,9 @@ function aggregateRentabilidad(sales = [], products = [], opts = {}) {
         const real = parseFloat(s.cost_at_sale) || 0;
         const isExtra = pid === 'extra';
         if (isExtra && !(real > 0)) { extrasSinCosto.count += 1; extrasSinCosto.bs += bs; return; }
-        const actual = prod ? (parseFloat(prod.cost) || 0) : 0;
+        // Costo actual: si está en dólares se pasa a Bs con la tasa de ESA
+        // venta, así un día viejo no cambia cuando sube la tasa de hoy.
+        const actual = productCostBs(prod, saleRate);
         let costoBs = 0;
         let estado = 'real';
         if (real > 0) costoBs = real;
@@ -716,6 +733,7 @@ const AnalyticsManager = {
     aggregatePnl,
     aggregateRentabilidad,
     computeReparto,
+    productCostBs,
     REPARTO_DEFAULT
 };
 
@@ -735,6 +753,7 @@ if (typeof module !== 'undefined' && module.exports) {
         aggregatePnl,
         aggregateRentabilidad,
         computeReparto,
+        productCostBs,
         REPARTO_DEFAULT,
         AnalyticsManager
     };

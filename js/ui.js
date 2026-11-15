@@ -1365,12 +1365,18 @@ function renderRentReparto(baseBs, shares, handlers = {}) {
 }
 
 /**
- * Lista de costos por producto (Bs) para que el admin cargue lo que le cuesta
- * cada bebida. Solo escribe products.cost, nunca el precio.
+ * Lista de costos por producto para que el admin cargue lo que le cuesta
+ * cada bebida, en dólares o en Bs (selector arriba). En dólares se guarda
+ * cost_usd y cada venta lo pasa a Bs con la tasa de su momento.
+ * Solo escribe products.cost / cost_usd, nunca el precio.
  * @param {Array} products
- * @param {Function} onSave (productId, newCostBs) => Promise
+ * @param {Function} onSave (productId, monto, moneda 'usd'|'bs') => Promise
  */
 let rentCostsOpen = false;
+const RENT_COST_CUR_KEY = 'casa_lucenzo_costo_moneda';
+function rentCostCurrency() {
+    try { return localStorage.getItem(RENT_COST_CUR_KEY) === 'bs' ? 'bs' : 'usd'; } catch (e) { return 'usd'; }
+}
 
 /** Abre la lista de costos y la lleva a la vista. */
 function openRentCosts() {
@@ -1393,8 +1399,11 @@ function renderRentCosts(products, onSave) {
         { label: '📦 Otros', items: products.filter(p => !['bebidas', 'pastelitos'].includes(p.category) && !hidden(p)) },
         { label: '🥐 Pastelitos', items: products.filter(p => p.category === 'pastelitos' && !hidden(p)) }
     ].filter(g => g.items.length);
-    const sinCostoTotal = products.filter(p => p.category !== 'pastelitos' && !hidden(p) && !(parseFloat(p.cost) > 0)).length;
-    const sinCosto = products.filter(p => p.category === 'bebidas' && !hidden(p) && !(parseFloat(p.cost) > 0)).length;
+    const tieneCosto = p => parseFloat(p.cost) > 0 || parseFloat(p.cost_usd) > 0;
+    const sinCostoTotal = products.filter(p => p.category !== 'pastelitos' && !hidden(p) && !tieneCosto(p)).length;
+    const sinCosto = products.filter(p => p.category === 'bebidas' && !hidden(p) && !tieneCosto(p)).length;
+    const cur = rentCostCurrency();
+    const fmtBs = v => 'Bs ' + (Number(v) || 0).toLocaleString('es-VE', { maximumFractionDigits: 2 });
 
     c.innerHTML = `
       <div class="rent-costs-head">
@@ -1405,18 +1414,36 @@ function renderRentCosts(products, onSave) {
         <button class="btn-action-small rent-costs-toggle">${rentCostsOpen ? '<i class="fa-solid fa-chevron-up"></i> Ocultar costos' : '<i class="fa-solid fa-plus"></i> Cargar costos de bebidas y otros'}</button>
       </div>
       <div class="rent-costs-body${rentCostsOpen ? '' : ' hidden'}">
-      <div class="rent-note" style="margin:0.5rem 0;">Escribe lo que te cuesta <strong>cada unidad</strong> en Bs (lo que pagas al proveedor) y toca Guardar. No cambia el precio de venta. Desde ese momento el producto entra en la rentabilidad, también en los días anteriores.</div>
+      <div class="rent-cost-cur">
+        <span>Escribir costos en:</span>
+        <button type="button" class="rent-cost-cur-btn${cur === 'usd' ? ' active' : ''}" data-cur="usd">$ Dólares</button>
+        <button type="button" class="rent-cost-cur-btn${cur === 'bs' ? ' active' : ''}" data-cur="bs">Bs</button>
+      </div>
+      <div class="rent-note" style="margin:0.5rem 0;">${cur === 'usd'
+          ? `Escribe lo que te cuesta <strong>cada unidad en dólares</strong> (lo que pagas al proveedor) y toca Guardar. El sistema lo pasa a bolívares con la tasa de cada venta${rate > 0 ? ` (hoy ${rate.toLocaleString('es-VE')} Bs/$)` : ''}, así el costo en Bs sube solo cuando sube la tasa. No cambia el precio de venta.`
+          : 'Escribe lo que te cuesta <strong>cada unidad en Bs</strong> (lo que pagas al proveedor) y toca Guardar. Ese monto queda fijo en Bs aunque cambie la tasa. No cambia el precio de venta.'}</div>
       ${groups.map(g => `
         <div style="font-weight:800; font-size:0.78rem; margin:0.6rem 0 0.2rem;">${g.label}</div>
         ${g.items.map(p => {
             const cost = parseFloat(p.cost) || 0;
+            const usd = parseFloat(p.cost_usd) || 0;
+            let label;
+            if (usd > 0) label = `Costo ${rentUsd(usd)}${rate > 0 ? ` · hoy ${fmtBs(usd * rate)}` : ''}`;
+            else if (cost > 0) label = `Costo ${fmtBs(cost)} fijo${rate > 0 ? ` ≈ ${rentUsd(cost / rate)}` : ''}`;
+            else label = '<span style="color:#f59e0b;">Sin costo</span>';
+            const val = cur === 'usd' ? (usd > 0 ? usd : '') : (usd > 0 ? '' : (cost > 0 ? cost : ''));
             return `<div class="rent-edit-row">
-              <div class="rent-edit-name">${escapeHtml(p.name)}<small>${cost > 0 ? `Costo Bs ${cost.toLocaleString('es-VE')}${rate > 0 ? ` ≈ ${rentUsd(cost / rate)}` : ''}` : '<span style="color:#f59e0b;">Sin costo</span>'}</small></div>
-              <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-cost-input" data-id="${escapeHtml(p.id)}" value="${cost > 0 ? cost : ''}" placeholder="Bs">
+              <div class="rent-edit-name">${escapeHtml(p.name)}<small>${label}</small></div>
+              <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-cost-input" data-id="${escapeHtml(p.id)}" value="${val}" placeholder="${cur === 'usd' ? '$' : 'Bs'}">
               <button class="btn-action-small rent-cost-save" data-id="${escapeHtml(p.id)}">Guardar</button>
             </div>`;
         }).join('')}`).join('')}
       </div>`;
+
+    c.querySelectorAll('.rent-cost-cur-btn').forEach(b => b.addEventListener('click', () => {
+        try { localStorage.setItem(RENT_COST_CUR_KEY, b.dataset.cur); } catch (e) { /* ignore */ }
+        renderRentCosts(products, onSave);
+    }));
 
     const toggle = c.querySelector('.rent-costs-toggle');
     if (toggle) toggle.addEventListener('click', () => {
@@ -1429,10 +1456,11 @@ function renderRentCosts(products, onSave) {
 
     c.querySelectorAll('.rent-cost-save').forEach(b => b.addEventListener('click', async () => {
         const inp = Array.from(c.querySelectorAll(".rent-cost-input")).find(i => i.dataset.id === b.dataset.id);
-        const v = Math.round((parseFloat(inp && inp.value) || 0) * 100) / 100;
+        if (!inp || String(inp.value).trim() === "") { inp && inp.focus(); return; } // vacío: no borra el costo
+        const v = Math.round((parseFloat(inp.value) || 0) * 100) / 100;
         if (v < 0) return;
         b.disabled = true;
-        try { if (onSave) await onSave(b.dataset.id, v); } finally { b.disabled = false; }
+        try { if (onSave) await onSave(b.dataset.id, v, cur); } finally { b.disabled = false; }
     }));
 }
 

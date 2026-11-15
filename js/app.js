@@ -917,7 +917,8 @@ async function handleCheckoutCart() {
                 name: `${cartItem.name} [${clientName}]`,
                 price: cartItem.price || 0,
                 // Producto extra: lo que costó afuera (si la caja lo puso).
-                cost: prod ? (prod.cost || 0) : (Combos && Combos.isExtraSale(cartItem) ? (cartItem.costBs || 0) : 0),
+                // Costo en $ (si lo tiene) se pasa a Bs con la tasa de este cobro.
+                cost: prod ? window.AnalyticsManager.productCostBs(prod, bcvRate) : (Combos && Combos.isExtraSale(cartItem) ? (cartItem.costBs || 0) : 0),
                 timestamp: timestamp
             };
             newSales.push(saleItem);
@@ -1251,7 +1252,7 @@ async function handleAutocorrectSales(discrepancyList) {
                 productId: item.product.id,
                 name: `${item.product.name} [Ajuste Inventario]`,
                 price: saleUsdPrice(item.product, bcvRate),
-                cost: item.product.cost || 0,
+                cost: window.AnalyticsManager.productCostBs(item.product, bcvRate),
                 timestamp: timestamp
             };
             newSales.push(saleItem);
@@ -2073,25 +2074,42 @@ function renderRentExtras() {
     window.UIManager.renderRentCosts(products, saveProductCostFromRent);
 }
 
-async function saveProductCostFromRent(productId, costBs) {
+// moneda 'usd': el monto es el costo en dólares; se guarda en cost_usd y en
+// cost queda su equivalente en Bs con la tasa de hoy. Cada venta luego usa la
+// tasa de su momento (cost_at_sale), así que los días viejos no cambian.
+async function saveProductCostFromRent(productId, amount, moneda = 'bs') {
     if (currentRole !== 'admin') return;
     const product = products.find(p => p.id === productId);
     if (!product) return;
+    const enUsd = moneda === 'usd';
+    if (enUsd && !(bcvRate > 0)) {
+        window.UIManager.showToast('❌ No hay tasa del día. Actualiza la tasa e intenta de nuevo.', 'fa-solid fa-circle-xmark');
+        return;
+    }
+    const costUsd = enUsd && amount > 0 ? amount : null;
+    const costBs = enUsd ? Math.round(amount * bcvRate * 100) / 100 : amount;
     const before = parseFloat(product.cost) || 0;
-    if (before === costBs) { window.UIManager.showToast('Sin cambios.', 'fa-solid fa-circle-info'); return; }
+    const beforeUsd = product.cost_usd > 0 ? product.cost_usd : null;
+    if (before === costBs && beforeUsd === costUsd) { window.UIManager.showToast('Sin cambios.', 'fa-solid fa-circle-info'); return; }
     product.cost = costBs; // solo el costo: el precio de venta no se toca
+    product.cost_usd = costUsd;
     window.StorageManager.saveProducts(products);
     let ok = true;
-    if (window.SupabaseManager.isConfigured()) ok = await window.SupabaseManager.updateProductCost(productId, costBs);
+    if (window.SupabaseManager.isConfigured()) ok = await window.SupabaseManager.updateProductCost(productId, costBs, costUsd);
     if (!ok) {
         product.cost = before;
+        product.cost_usd = beforeUsd;
         window.StorageManager.saveProducts(products);
         window.UIManager.showToast('❌ No se pudo guardar el costo. Revisa la conexión.', 'fa-solid fa-circle-xmark');
         renderRentExtras();
         return;
     }
-    logActivity('Costo Editado', `Rentabilidad: ${product.name} costo Bs.${before.toFixed(2)} → Bs.${costBs.toFixed(2)}`);
-    window.UIManager.showToast(`✅ Costo de ${product.name}: Bs ${costBs.toLocaleString('es-VE')}`, 'fa-solid fa-check');
+    const fmtBefore = beforeUsd ? `$${beforeUsd.toFixed(2)}` : `Bs.${before.toFixed(2)}`;
+    const fmtAfter = costUsd ? `$${costUsd.toFixed(2)} (Bs.${costBs.toFixed(2)} a tasa ${bcvRate})` : `Bs.${costBs.toFixed(2)}`;
+    logActivity('Costo Editado', `Rentabilidad: ${product.name} costo ${fmtBefore} → ${fmtAfter}`);
+    window.UIManager.showToast(costUsd
+        ? `✅ Costo de ${product.name}: $${costUsd.toLocaleString('es-VE')} (hoy Bs ${costBs.toLocaleString('es-VE')})`
+        : `✅ Costo de ${product.name}: Bs ${costBs.toLocaleString('es-VE')}`, 'fa-solid fa-check');
     loadRentabilidad();
 }
 
@@ -3897,6 +3915,7 @@ async function handleRealtimeDbUpdate(tableName, payload) {
                 unit: newRow.unit,
                 price: parseFloat(newRow.price) || 0,
                 cost: parseFloat(newRow.cost) || 0,
+                cost_usd: newRow.cost_usd != null ? (parseFloat(newRow.cost_usd) || null) : null,
                 category: newRow.category || 'pastelitos',
                 initial_stock: (newRow.initial_stock !== null && newRow.initial_stock !== undefined) ? parseInt(newRow.initial_stock) : parseInt(newRow.stock)
             };
@@ -6316,6 +6335,9 @@ function initAdminDashboardListeners() {
 
             product.name = newName;
             product.price = newPrice;
+            // Si el costo estaba en dólares (Rentabilidad) y aquí cambiaron el
+            // monto en Bs, manda el de Bs: se borra el de dólares.
+            if (product.cost_usd > 0 && Math.abs(newCost - (parseFloat(product.cost) || 0)) > 0.005) product.cost_usd = null;
             product.cost = newCost;
             product.price_bs = newPriceBs > 0 ? newPriceBs : null;
             product.category = newCategory;

@@ -4844,6 +4844,111 @@ function promptClientRif(initial = '') {
     });
 }
 
+/**
+ * Al cobrar: nombre y cédula del cliente en una sola ventana, con un buscador
+ * de clientes que ya compraron antes (js/clientes-frecuentes.js). Tocar uno
+ * llena el nombre y la cédula; se pueden corregir antes de seguir.
+ * Resuelve con { name, rif } (rif '' si se deja vacío) o null si se cancela.
+ */
+function promptClientData(defaultName = '', localSales = [], defaultRif = '') {
+    return new Promise((resolve) => {
+        const CF = window.ClientesFrecuentes;
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-backdrop';
+        Object.assign(overlay.style, {
+            position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: '3200', padding: '1rem', boxSizing: 'border-box'
+        });
+        const inputStyle = 'box-sizing: border-box; background: var(--v-0-0-0-4, rgba(0, 0, 0, 0.4)); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; color: var(--color-white); font-weight: 700; font-size: 1rem;';
+        const labelStyle = 'display: block; font-size: 0.75rem; color: var(--color-text-muted); font-weight: 800; margin: 0.7rem 0 0.25rem; text-transform: uppercase;';
+        overlay.innerHTML = `
+            <form style="width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto; background: #111827; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 1.1rem; color: #FFFFFF; box-sizing: border-box;">
+                <div style="font-weight: 900; color: var(--color-gold); font-size: 1.05rem;"><i class="fa-solid fa-user"></i> Datos del cliente</div>
+                ${CF ? `
+                <label for="checkout-client-search" style="${labelStyle}"><i class="fa-solid fa-magnifying-glass"></i> Buscar cliente que ya vino</label>
+                <input type="search" id="checkout-client-search" autocomplete="off" placeholder="Nombre o número de cédula" style="${inputStyle} width: 100%;">
+                <div class="checkout-client-results" style="display: grid; gap: 0.35rem; margin-top: 0.45rem;">
+                    <div style="font-size: 0.8rem; color: var(--color-text-muted);">Cargando clientes…</div>
+                </div>` : ''}
+                <label for="checkout-client-name" style="${labelStyle}">Nombre y apellido / Razón Social</label>
+                <input type="text" id="checkout-client-name" autocomplete="off" maxlength="80" value="${escapeHtml(defaultName)}" placeholder="Ej: María Pérez" style="${inputStyle} width: 100%;">
+                <label for="checkout-rif" style="${labelStyle}">Cédula / RIF (opcional)</label>
+                ${rifFieldHtml('checkout-rif', defaultRif, inputStyle)}
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <button type="button" class="btn-client-cancel" style="flex: 1; height: 44px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--color-white); font-weight: 800; cursor: pointer;">Cancelar</button>
+                    <button type="submit" style="flex: 2; height: 44px; border-radius: 8px; border: none; background: var(--color-gold); color: var(--color-bg-navy); font-weight: 900; cursor: pointer;">Continuar</button>
+                </div>
+            </form>`;
+        document.body.appendChild(overlay);
+        const form = overlay.querySelector('form');
+        const nameInput = overlay.querySelector('#checkout-client-name');
+        const rifType = overlay.querySelector('#checkout-rif-type');
+        const rifInput = overlay.querySelector('#checkout-rif');
+        const searchInput = overlay.querySelector('#checkout-client-search');
+        const results = overlay.querySelector('.checkout-client-results');
+        let directory = [];
+        let loaded = false;
+
+        const pick = (c) => {
+            const { letter, number } = splitRif(c.rif);
+            nameInput.value = c.name;
+            if (![...rifType.options].some(o => o.value === letter)) { const opt = document.createElement('option'); opt.value = letter; opt.textContent = `${letter}-`; rifType.appendChild(opt); }
+            rifType.value = letter;
+            rifInput.value = number;
+            if (searchInput) searchInput.value = '';
+            renderResults();
+            nameInput.focus();
+        };
+
+        function renderResults() {
+            if (!results) return;
+            if (!loaded) return;
+            const q = searchInput.value;
+            if (!directory.length) {
+                results.innerHTML = `<div style="font-size: 0.8rem; color: var(--color-text-muted);">Todavía no hay clientes con cédula guardada.</div>`;
+                return;
+            }
+            const found = CF.search(directory, q, q.trim() ? 8 : 5);
+            if (!found.length) {
+                results.innerHTML = `<div style="font-size: 0.8rem; color: var(--color-text-muted);">No aparece. Escriba el nombre y la cédula abajo.</div>`;
+                return;
+            }
+            results.innerHTML = (q.trim() ? '' : `<div style="font-size: 0.72rem; color: var(--color-text-muted);">Los que más vienen:</div>`) + found.map((c, i) => `
+                <button type="button" data-i="${i}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: left; padding: 0.55rem 0.7rem; border-radius: 8px; border: 1px solid rgba(212,175,55,0.3); background: rgba(212,175,55,0.08); color: var(--color-white); cursor: pointer; font: inherit;">
+                    <span style="font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(c.name)}</span>
+                    <span style="flex: 0 0 auto; font-size: 0.8rem; color: var(--color-gold); font-weight: 800;">${escapeHtml(c.rif)}</span>
+                </button>`).join('');
+            results.querySelectorAll('button[data-i]').forEach(btn => {
+                btn.addEventListener('click', () => pick(found[Number(btn.dataset.i)]));
+            });
+        }
+
+        if (CF && searchInput) {
+            searchInput.addEventListener('input', renderResults);
+            searchInput.addEventListener('keydown', (e) => {
+                // Enter en el buscador elige el primero, no cobra.
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const first = CF.search(directory, searchInput.value, 1)[0];
+                if (first) pick(first);
+            });
+            CF.load(localSales).then(list => { directory = list || []; }).catch(() => { directory = []; }).finally(() => {
+                loaded = true;
+                renderResults();
+            });
+        }
+
+        const finish = (value) => { overlay.remove(); resolve(value); };
+        overlay.querySelector('.btn-client-cancel').addEventListener('click', () => finish(null));
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            finish({ name: nameInput.value.trim(), rif: readRifField(overlay, 'checkout-rif') });
+        });
+        setTimeout(() => (searchInput || nameInput).focus(), 50);
+    });
+}
+
 function showPaymentMethodModal(clientName, clientRif, items = [], timestamp = new Date().toISOString(), onSelect = null) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-backdrop';
@@ -8173,6 +8278,7 @@ window.UIManager = {
     showPosReceiptModal,
     showInvoiceModal,
     promptClientRif,
+    promptClientData,
     showUpdateOverlay,
     updateOverlayStatusSuccess,
     renderActiveDevices,

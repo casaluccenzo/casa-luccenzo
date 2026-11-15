@@ -26,6 +26,7 @@ const SCRIPTS = [
   'agent.js',
   'combos.js',
   'invoice.js',
+  'clientes-frecuentes.js',
   'ui.js',
   'wifi.js',
   'app.js',

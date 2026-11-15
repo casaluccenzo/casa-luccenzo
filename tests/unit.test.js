@@ -985,6 +985,28 @@ const SUITES = [
         assert.ok(PedidoDelivery.whatsappUrl(pedidoWeb).startsWith('https://wa.me/584120839311?text='), 'PedidoDelivery: va al WhatsApp de comprobantes');
         console.log("✅ TEST PASSED: Pedido web con dirección y Pago Móvil en el WhatsApp");
 
+        // Buscador de clientes al cobrar: facturas + cuentas con cédula, sin repetidos.
+        const CF = require('../js/clientes-frecuentes');
+        assert.deepStrictEqual(CF.parseSaleClient('Pollo [Gina España - V-20172306] (Pagado - Pago Móvil)'), { name: 'Gina España', rif: 'V-20172306' }, 'Clientes: cédula desde la venta');
+        assert.deepStrictEqual(CF.parseSaleClient('Pollo [MICEVEN C.A - J-41302282-6]'), { name: 'MICEVEN C.A', rif: 'J-41302282-6' }, 'Clientes: RIF con guion');
+        assert.strictEqual(CF.parseSaleClient('Pollo [señor de lentes] (Pagado - Pago Móvil)'), null, 'Clientes: apodo sin cédula no cuenta');
+        assert.strictEqual(CF.rifKey('V- 20.172.306'), CF.rifKey('V-20172306'), 'Clientes: misma cédula escrita distinto');
+        assert.strictEqual(CF.rifKey('V-00000000'), null, 'Clientes: Consumidor final no entra');
+        const dir = CF.buildDirectory(CF.entriesFrom(
+            [{ client_name: 'Gina  España', client_rif: 'V- 20172306', sale_timestamp: '2026-11-01T10:00:00Z' },
+             { client_name: 'CONSUMIDOR FINAL', client_rif: 'V-00000000', sale_timestamp: '2026-11-02T10:00:00Z' },
+             { client_name: 'CVCONCA', client_rif: 'J-41297754', sale_timestamp: '2026-11-04T10:00:00Z' }],
+            [{ name: 'Pollo [Gina España - V-20172306] (Pagado - Pago Móvil)', timestamp: '2026-11-05T10:00:00Z' },
+             { name: 'Malta [Gina España - V-20172306] (Pagado - Pago Móvil)', timestamp: '2026-11-05T10:00:00Z' },
+             { name: 'Pollo [Cliente #4 - V-20172306]', timestamp: '2026-11-06T10:00:00Z' }]
+        ));
+        assert.strictEqual(dir.length, 2, 'Clientes: uno por cédula, sin Consumidor final');
+        assert.deepStrictEqual([dir[0].name, dir[0].rif, dir[0].visits], ['Gina España', 'V-20172306', 3], 'Clientes: nombre más reciente no genérico y visitas');
+        assert.strictEqual(CF.search(dir, 'gina espana')[0].rif, 'V-20172306', 'Clientes: busca sin acentos');
+        assert.strictEqual(CF.search(dir, '41297')[0].name, 'CVCONCA', 'Clientes: busca por número de cédula');
+        assert.strictEqual(CF.search(dir, 'pedro').length, 0, 'Clientes: sin resultados');
+        console.log("✅ TEST PASSED: Buscador de clientes frecuentes al cobrar");
+
         console.log("\n🎉 ALL UNIT TESTS PASSED ON REAL APPLICATION CODE! (100% Verification)");
         process.exit(0);
     }

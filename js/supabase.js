@@ -1411,6 +1411,34 @@ async function fetchInvoicesSince(sinceIso) {
     }
 }
 
+/**
+ * Clientes que ya compraron con cédula, para el buscador al cobrar
+ * (js/clientes-frecuentes.js): las facturas con cédula real y las cuentas cuyo
+ * nombre lleva "[Nombre - V-123]". Solo lectura. null si no se pudo consultar.
+ */
+async function fetchKnownClients() {
+    if (!client) return null;
+    try {
+        const invoices = await fetchAllPages(offset => client.from('invoices')
+            .select('client_name, client_rif, sale_timestamp')
+            .neq('client_rif', 'V-00000000')
+            .not('client_rif', 'is', null)
+            .order('number', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
+        const sales = await fetchAllPages(offset => client.from('sales')
+            .select('name, timestamp')
+            .is('voided_at', null)
+            .or('name.ilike.%- V-%,name.ilike.%- J-%,name.ilike.%- E-%,name.ilike.%- G-%,name.ilike.%- P-%')
+            .order('timestamp', { ascending: true })
+            .order('uuid', { ascending: true })
+            .range(offset, offset + POSTGREST_PAGE_SIZE - 1));
+        return { invoices, sales };
+    } catch (err) {
+        console.error('fetchKnownClients:', err);
+        return null;
+    }
+}
+
 async function getUserProfile(userId) {
     if (!client || !userId) return null;
     try {
@@ -2302,6 +2330,7 @@ window.SupabaseManager = {
     updateInvoiceClient,
     voidInvoiceForCorrection,
     fetchInvoicesSince,
+    fetchKnownClients,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,
     fetchStatsData,

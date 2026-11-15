@@ -48,8 +48,10 @@
     // stock ni el menú web. Los productos
     // y sus ventas viejas quedan en la base, así que cierres e informes siguen
     // sumando igual. `keepInPos`: productos de esa categoría que la caja sigue
-    // cobrando. Para volver a vender la categoría, sacarla de `categories`.
-    const HIDDEN = { categories: ['dulces', 'empanadas', 'minis'], keepInPos: ['caja_chica', 'caja_grande'],
+    // cobrando (por ellos la pestaña sigue en la Vitrina de la caja, pero no en
+    // el menú web). Porción de Tres Leches desde el 15/11/2026, Bs 4.100 fijo
+    // (products.price_bs). Para volver a vender la categoría, sacarla de `categories`.
+    const HIDDEN = { categories: ['dulces', 'empanadas', 'minis'], keepInPos: ['caja_chica', 'caja_grande', 'porcion_tres_leches'],
         // Combos ocultos desde el 03/11/2026 (se estudian otras opciones): no salen en
         // la barra de la caja ni en el menú web. COMBOS y las ventas viejas quedan
         // intactos. Para volver a ofrecerlos, poner `combos: false`.

@@ -1712,7 +1712,9 @@ async function confirmReceipt() {
     }
 }
 
-function resetToMax() {
+async function resetToMax() {
+    // Rellenar todo cambia el inventario de golpe: admin, o vendedora con clave de supervisor.
+    if (!(await requireSupervisor('Rellenar todo: llenar la vitrina hasta el máximo'))) return;
     triggerHaptic(15);
     products.forEach(p => {
         const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
@@ -1782,7 +1784,26 @@ function addExpense(e) {
  * Delete expense transaction
  * @param {string} uuid Expense unique identifier
  */
-function deleteExpense(uuid) {
+/**
+ * Acciones solo del admin: la vendedora puede hacerlas si alguien escribe la
+ * clave de supervisor (js/supervisor.js). Cada autorización queda en el
+ * registro de actividad.
+ */
+async function requireSupervisor(actionLabel) {
+    if (currentRole === 'admin') return true;
+    if (!window.Supervisor) return false;
+    const ok = await window.Supervisor.ask(actionLabel);
+    if (ok) logActivity("Autorización Supervisor", actionLabel);
+    return ok;
+}
+
+async function deleteExpense(uuid) {
+    // Borrar un gasto ya anotado: admin, o vendedora con clave de supervisor.
+    if (currentRole !== 'admin') {
+        const exp = expenses.find(e => e.uuid === uuid);
+        const label = exp ? `Borrar el gasto "${exp.description || ''}" ($${(parseFloat(exp.amount) || 0).toFixed(2)})` : 'Borrar un gasto';
+        if (!(await requireSupervisor(label))) return;
+    }
     triggerHaptic(15);
     expenses = expenses.filter(e => e.uuid !== uuid);
     window.StorageManager.saveExpenses(expenses);
@@ -4571,6 +4592,8 @@ function applyUserRole(role) {
     const isAdminRole = role === 'admin';
     const reportHistoryBtn = document.getElementById('btn-report-history');
     if (reportHistoryBtn) reportHistoryBtn.classList.toggle('hidden', !isAdminRole);
+    // Repinta los gastos para mostrar u ocultar la "×" de borrar según el perfil.
+    if (window.UIManager && window.UIManager.renderExpenses) window.UIManager.renderExpenses(expenses, deleteExpense);
     const histDayBar = document.querySelector('#sub-view-historial .hist-day-bar');
     if (histDayBar) histDayBar.classList.toggle('hidden', !isAdminRole);
     if (!isAdminRole) {

@@ -27,6 +27,7 @@ const SCRIPTS = [
   'combos.js',
   'invoice.js',
   'clientes-frecuentes.js',
+  'supervisor.js',
   'ui.js',
   'wifi.js',
   'app.js',

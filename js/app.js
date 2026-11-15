@@ -2673,6 +2673,8 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
  * Open report history modal and load days from Supabase
  */
 async function openReportHistoryModal() {
+    // Historial de reportes (días pasados): solo el admin.
+    if (currentRole !== 'admin') return;
     triggerHaptic(15);
     const modal = document.getElementById('report-history-modal');
     const body = document.getElementById('report-history-modal-body');
@@ -4563,6 +4565,19 @@ function applyUserRole(role) {
     if (undoSales) undoSales.classList.add('hidden');
     if (clearSales) clearSales.classList.remove('hidden');
     if (dayCloseSec) dayCloseSec.classList.remove('hidden');
+
+    // Días pasados (Historial de reportes y "Ver el día" del Historial de
+    // Clientes) solo para el admin: ventas solo ve la jornada de hoy.
+    const isAdminRole = role === 'admin';
+    const reportHistoryBtn = document.getElementById('btn-report-history');
+    if (reportHistoryBtn) reportHistoryBtn.classList.toggle('hidden', !isAdminRole);
+    const histDayBar = document.querySelector('#sub-view-historial .hist-day-bar');
+    if (histDayBar) histDayBar.classList.toggle('hidden', !isAdminRole);
+    if (!isAdminRole) {
+        const reportHistoryModal = document.getElementById('report-history-modal');
+        if (reportHistoryModal) reportHistoryModal.classList.add('hidden');
+        if (window.UIManager && window.UIManager.resetHistorialToToday) window.UIManager.resetHistorialToToday();
+    }
 
     // Lock BCV Rate input for non-admin roles
     const bcvRateInput = document.getElementById('header-bcv-rate-input');

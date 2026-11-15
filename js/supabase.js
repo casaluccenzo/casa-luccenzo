@@ -181,6 +181,7 @@ function mapProductRow(p) {
         price: toNum(p.price),
         cost: toNum(p.cost),
         price_bs: toNum(p.price_bs),
+        cost_usd: toNum(p.cost_usd),
         initial_stock: (p.initial_stock !== null && p.initial_stock !== undefined) ? p.initial_stock : p.stock
     };
 }
@@ -229,7 +230,7 @@ async function fetchProducts() {
             const rows = await localDb.getAll(`
                 SELECT
                     p.id, p.name, p.min, p.max, p.unit, p.price, p.category, p.updated_at,
-                    p.cost, p.price_bs, p.location_id, p.stock_computed, p.initial_stock_computed, p.max_computed,
+                    p.cost, p.price_bs, p.cost_usd, p.location_id, p.stock_computed, p.initial_stock_computed, p.max_computed,
                     CASE WHEN p.category = 'pastelitos' THEN
                         COALESCE((
                             SELECT SUM(sm.delta) FROM stock_movements sm
@@ -462,17 +463,23 @@ async function upsertProduct(product) {
             // la fila entera, asi que hay que releerlas primero o quedan NULL
             // localmente y ese NULL sube pisando el valor real en Postgres.
             const existing = await localDb.getOptional(
-                'SELECT stock_computed, initial_stock_computed, max_computed FROM products WHERE id = ?',
+                'SELECT stock_computed, initial_stock_computed, max_computed, cost_usd FROM products WHERE id = ?',
                 [product.id]
             );
+            // cost_usd (migracion 049): si el objeto no lo trae, se conserva el
+            // de la fila (REPLACE reescribe la fila entera).
+            const costUsd = ('cost_usd' in product)
+                ? (product.cost_usd > 0 ? String(product.cost_usd) : null)
+                : (existing ? existing.cost_usd : null);
             await localDb.execute(
                 `INSERT OR REPLACE INTO products
-                   (id, name, stock, min, max, unit, price, cost, price_bs, category, initial_stock, updated_at,
+                   (id, name, stock, min, max, unit, price, cost, price_bs, cost_usd, category, initial_stock, updated_at,
                     location_id, stock_computed, initial_stock_computed, max_computed)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [product.id, product.name, product.stock, product.min, product.max, product.unit,
                  String(product.price), String(product.cost || 0),
                  product.price_bs > 0 ? String(product.price_bs) : null,
+                 costUsd,
                  product.category, initialStock,
                  new Date().toISOString(), DEFAULT_LOCATION_ID,
                  existing ? existing.stock_computed : null,
@@ -499,6 +506,7 @@ async function upsertProduct(product) {
         initial_stock: initialStock,
         updated_at: new Date().toISOString()
     };
+    if ('cost_usd' in product) payload.cost_usd = product.cost_usd > 0 ? product.cost_usd : null;
     try {
         const { error } = await client.from('products').upsert(payload);
         if (error) throw error;
@@ -546,12 +554,15 @@ async function resetPastelitoCapacity(id) {
 
 // Rentabilidad: guarda SOLO el costo (Bs) de un producto. No reescribe precio,
 // stock ni nada más -- a diferencia de upsertProduct, que reemplaza la fila.
-async function updateProductCost(id, costBs) {
+// costUsd (opcional): costo en dólares (migracion 049). null = el costo
+// queda solo en Bs y se borra el de dólares que hubiera.
+async function updateProductCost(id, costBs, costUsd = null) {
     const cost = Math.max(0, Number(costBs) || 0);
+    const usd = Number(costUsd) > 0 ? Number(costUsd) : null;
     const localDb = getLocalDb();
     if (localDb) {
         try {
-            await localDb.execute('UPDATE products SET cost = ?, updated_at = ? WHERE id = ?', [String(cost), new Date().toISOString(), id]);
+            await localDb.execute('UPDATE products SET cost = ?, cost_usd = ?, updated_at = ? WHERE id = ?', [String(cost), usd === null ? null : String(usd), new Date().toISOString(), id]);
             return true;
         } catch (e) {
             console.error("PowerSync local updateProductCost failed:", e);
@@ -560,7 +571,7 @@ async function updateProductCost(id, costBs) {
     }
     if (!client) return false;
     try {
-        const { error } = await client.from('products').update({ cost, updated_at: new Date().toISOString() }).eq('id', id);
+        const { error } = await client.from('products').update({ cost, cost_usd: usd, updated_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
         return true;
     } catch (e) {

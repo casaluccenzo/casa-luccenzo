@@ -43,6 +43,8 @@ const products = new Table(
         cost: column.text,
         // Precio fijo en Bs, opcional (migracion 040). NULL = se cobra price.
         price_bs: column.text,
+        // Costo opcional en dólares (migracion 049). NULL = el costo es cost (Bs).
+        cost_usd: column.text,
         location_id: column.text,
         // Columnas sombra (migracion 029). Plan A las mantiene siempre
         // iguales a las reales desde la migracion 033 (Task 2) -- dejarlas

@@ -55,7 +55,8 @@ const {
     estimateProductionCost: getEstimate,
     aggregatePnl,
     aggregateRentabilidad,
-    computeReparto
+    computeReparto,
+    productCostBs
 } = require('../js/analytics');
 
 // Setup mock environment variables for unit testing
@@ -552,6 +553,19 @@ function runAnalyticsUnitTests() {
     assert.deepStrictEqual(rentExtra.extrasSinCosto, { count: 1, bs: 900 }, "rentabilidad extra: sin costo va aparte");
     assert.strictEqual(rentExtra.excluidas.unidades, 0, "rentabilidad extra: no cae en 'cargar costos'");
     console.log("✅ TEST PASSED: aggregateRentabilidad con productos extra");
+
+    // Costo en dólares (cost_usd): cada venta lo pasa a Bs con SU tasa.
+    assert.strictEqual(productCostBs({ cost: 400, cost_usd: 0.5 }, 900), 450, "costo usd: 0,50 x 900");
+    assert.strictEqual(productCostBs({ cost: 400, cost_usd: null }, 900), 400, "costo bs fijo si no hay usd");
+    assert.strictEqual(productCostBs({ cost: 400, cost_usd: 0.5 }, 0), 400, "sin tasa usa el costo en Bs");
+    const rentUsdCost = aggregateRentabilidad([
+        // venta vieja sin cost_at_sale, tasa 800 -> estimado 0,5 x 800 = 400
+        { productId: 'coca', name: 'Coca [Ana]', price: 1, cost_at_sale: null, bcv_rate: 800, timestamp: day.toISOString() },
+        // venta nueva con cost_at_sale congelado (0,5 x 900) -> 450
+        { productId: 'coca', name: 'Coca [Ana]', price: 1, cost_at_sale: 450, bcv_rate: 900, timestamp: day.toISOString() }
+    ], [{ id: 'coca', name: 'Coca', category: 'bebidas', cost: 475, cost_usd: 0.5 }], { bcvRate: 950, soloConCosto: true });
+    assert.strictEqual(rentUsdCost.totals.costoBs, 850, "costo usd: cada venta con su tasa, no la de hoy");
+    console.log("✅ TEST PASSED: costo en dólares se convierte con la tasa de cada venta");
 
     const rep = computeReparto(10000);
     assert.strictEqual(rep.asignadoPct, 88, "reparto: 6+6+20+20+16+20 = 88%");

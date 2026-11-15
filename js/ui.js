@@ -4519,7 +4519,9 @@ function formatHistDay(dateStr) {
 /** Cambia el día del Historial: hoy vuelve a la vista de siempre, otro día se busca en la base. */
 function setHistorialDay(dateStr) {
     const today = localDateStr();
-    if (!dateStr || dateStr >= today) {
+    // Días pasados: solo el admin. Ventas solo ve la jornada de hoy.
+    const canSeePastDays = !!(window.getCurrentRole && window.getCurrentRole() === 'admin');
+    if (!dateStr || dateStr >= today || !canSeePastDays) {
         historialDay = null;
         historialShiftTab = null;
         updateHistorialDayBar();
@@ -4536,6 +4538,7 @@ function setHistorialDay(dateStr) {
 async function renderHistorialPastDay(dateStr) {
     const container = document.getElementById('clientes-pagados-container');
     if (!container) return;
+    if (!(window.getCurrentRole && window.getCurrentRole() === 'admin')) return;
     const req = ++historialDayReq;
     historialGroups.clear();
     container.style.display = 'block';
@@ -8256,6 +8259,7 @@ function renderUsersManagement(users, onEdit, onDelete) {
 }
 
 window.UIManager = {
+    resetHistorialToToday: () => { if (historialDay) setHistorialDay(null); },
     switchView,
     renderSearchBar,
     renderCategoryFilterBar,

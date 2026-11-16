@@ -53,7 +53,7 @@
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
          in sw.js -- the service worker keys its cache by the exact request URL,
          so a stale ?v= here means users keep running old JS. -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
     <!-- Plan B, Task 10: bcryptjs, pure JS/zero deps, for local PIN
          verification (js/supabase.js:verifyQuickPin). Verified in a real
          browser that its UMD build exposes window.bcrypt via a plain
@@ -78,6 +78,8 @@
     }
     </script>
     <!-- shared.js first: it owns escapeHtml/showToast, used by every module below -->
+    <!-- intl-cache.js primero: reusa los formateadores de números/fechas (solo velocidad, mismo texto) -->
+    <script src="/js/intl-cache.js?v=__APP_VERSION__"></script>
     <script src="/js/ui/shared.js?v=__APP_VERSION__"></script>
     <script src="/js/storage.js?v=__APP_VERSION__"></script>
     <script src="/js/supabase.js?v=__APP_VERSION__"></script>

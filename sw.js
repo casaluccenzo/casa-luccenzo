@@ -10,6 +10,7 @@ const CACHE_NAME = `casa-lucenzo-v${APP_VERSION}`;
 
 // Every script sistema/index.html loads, in the same order, with the same ?v=.
 const SCRIPTS = [
+  'intl-cache.js',
   'ui/shared.js',
   'storage.js',
   'supabase.js',

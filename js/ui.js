@@ -2376,12 +2376,17 @@ function renderStats(salesLog, expenses = [], products = [], opts = {}) {
         });
     }
 
+    // Fin de cada día calculado una sola vez (antes se creaba una fecha nueva
+    // por cada venta x cada día: ~5.000 fechas por dibujo con una semana normal).
+    last7Days.forEach(day => {
+        const dayEnd = new Date(day.date);
+        dayEnd.setHours(23,59,59,999);
+        day.end = dayEnd;
+    });
     salesLog.forEach(sale => {
         const saleDate = parseUTCTimestamp(sale.timestamp);
         last7Days.forEach(day => {
-            const dayEnd = new Date(day.date);
-            dayEnd.setHours(23,59,59,999);
-            if (saleDate >= day.date && saleDate <= dayEnd) {
+            if (saleDate >= day.date && saleDate <= day.end) {
                 day.income += sale.price || 0;
             }
         });

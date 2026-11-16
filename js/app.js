@@ -3602,7 +3602,9 @@ async function loadAllDataFromSupabase() {
         ingredients = window.StorageManager.loadIngredients();
     }
 
-    renderAllViews();
+    // Refresco general (al abrir, cada 3 min, al volver a la app): puede reusar
+    // la semana de ventas del Resumen si se bajó hace < 60 s y no cambió nada.
+    renderAllViews({ statsMaxAgeMs: 60 * 1000 });
     markSyncFresh();
 }
 
@@ -3630,8 +3632,51 @@ function loadAllDataFromLocalStorage() {
     renderAllViews();
 }
 
-async function loadAndRenderAdminStats() {
+// Velocidad (2026-11-16): la semana de ventas del Resumen del admin se bajaba
+// completa en CADA renderAllViews -- al abrir la app se pedía 2-3 veces seguidas
+// (applyUserRole y luego el refresco general), y otra vez en cada foco/refresco.
+// Ahora la ruta de refresco general (loadAllDataFromSupabase) puede reusar la
+// última descarga si tiene menos de `statsMaxAgeMs` Y no llegó ninguna venta,
+// gasto o cierre por tiempo real desde entonces (adminStatsDataVersion). Todas
+// las demás llamadas (abrir la pestaña, después de cobrar, cierre de jornada,
+// deshacer/corregir) siguen bajando datos frescos como antes.
+let adminStatsDataVersion = 0;
+let adminStatsDataCache = null; // { data, at, version }
+let adminStatsDataInFlight = null; // { promise, version }
+function invalidateAdminStatsCache() {
+    adminStatsDataVersion++;
+}
+async function fetchAdminStatsData(maxAgeMs) {
+    if (maxAgeMs > 0) {
+        const c = adminStatsDataCache;
+        if (c && c.version === adminStatsDataVersion && (Date.now() - c.at) < maxAgeMs) {
+            return c.data;
+        }
+        // Ya hay una descarga en camino y nada cambió desde que empezó: esperarla
+        // en vez de pedir lo mismo otra vez.
+        const f = adminStatsDataInFlight;
+        if (f && f.version === adminStatsDataVersion) {
+            return f.promise;
+        }
+    }
+    const versionAtStart = adminStatsDataVersion;
+    const promise = window.SupabaseManager.fetchStatsData();
+    const entry = { promise, version: versionAtStart };
+    adminStatsDataInFlight = entry;
+    try {
+        const data = await promise;
+        if (data && Array.isArray(data.sales)) {
+            adminStatsDataCache = { data, at: Date.now(), version: versionAtStart };
+        }
+        return data;
+    } finally {
+        if (adminStatsDataInFlight === entry) adminStatsDataInFlight = null;
+    }
+}
+
+async function loadAndRenderAdminStats(opts = {}) {
     if (currentRole !== 'admin') return;
+    const statsMaxAgeMs = opts.statsMaxAgeMs || 0;
 
     // Se dispara ya mismo, en paralelo con todo lo demás: fetchActivityLogs()
     // ya trae su propio fallback a localStorage si no hay Supabase configurado
@@ -3652,7 +3697,7 @@ async function loadAndRenderAdminStats() {
 
     if (window.SupabaseManager.isConfigured() && navigator.onLine) {
         try {
-            const data = await window.SupabaseManager.fetchStatsData();
+            const data = await fetchAdminStatsData(statsMaxAgeMs);
             if (data && Array.isArray(data.sales)) {
                 // Merge Supabase stats data with local salesLog to ensure 100% of sales are captured
                 const supUuids = new Set(data.sales.map(s => s.uuid));
@@ -3849,7 +3894,7 @@ async function deactivateUserHandler(id) {
 /**
  * Triggers rendering for all active templates
  */
-function renderAllViews() {
+function renderAllViews(opts = {}) {
     window.UIManager.renderSearchBar(handleSearchChange);
     window.UIManager.renderCategoryFilterBar(activeCategory, handleCategoryChange, products);
     window.UIManager.renderLocal(products, adjustStock, activeCategory, searchQuery);
@@ -3870,7 +3915,7 @@ function renderAllViews() {
     }
 
     if (currentRole === 'admin') {
-        loadAndRenderAdminStats();
+        loadAndRenderAdminStats({ statsMaxAgeMs: opts.statsMaxAgeMs || 0 });
         updateAdminDashboard();
     }
     if (window.InventoryManager && window.InventoryManager.updateLowStockUI) {
@@ -3913,6 +3958,9 @@ function scheduleRealtimeSalesRender() {
 async function handleRealtimeDbUpdate(tableName, payload) {
     console.log(`Realtime postgres update detected for table: ${tableName}`, payload);
     markSyncFresh();
+    if (!payload || tableName === 'sales' || tableName === 'expenses' || tableName === 'app_config' || tableName === 'all') {
+        invalidateAdminStatsCache();
+    }
 
     // Fallback: If no payload is supplied, perform standard full fetch
     if (!payload || !payload.eventType) {

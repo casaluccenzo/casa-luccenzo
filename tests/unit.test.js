@@ -291,6 +291,8 @@ function runCoreUnitTests() {
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'porcion_tres_leches', category: 'dulces' }), false, "REAL Ocultos: la Porción de Tres Leches se vende en la caja");
     assert.strictEqual(Combos.fixedBsPrice({ id: 'porcion_tres_leches', category: 'dulces', price: 4.49, price_bs: 4100 }), 4100, "REAL Tres Leches: precio fijo Bs 4.100");
     assert.strictEqual(Combos.comboPastelBsPrice({ id: 'porcion_tres_leches', category: 'dulces', price_bs: 4100 }, new Date('2026-11-17T15:00:00Z')), 4100, "REAL Tres Leches: la promo del martes no la toca");
+    assert.strictEqual(Combos.isHiddenFromSale({ id: 'porcion_de_torta', category: 'dulces' }), false, "REAL Ocultos: la Porción de Torta se vende en la caja");
+    assert.strictEqual(Combos.fixedBsPrice({ id: 'porcion_de_torta', category: 'dulces', price: 1.09, price_bs: 1000 }), 1000, "REAL Torta: precio fijo Bs 1.000");
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'malta', category: 'bebidas' }), false, "REAL Ocultos: bebidas siguen a la venta");
     assert.strictEqual(Combos.isHiddenCategory('dulces'), true, "REAL Ocultos: el menú web oculta toda la categoría");
     assert.strictEqual(Combos.isHiddenFromSale({ id: 'empanada_pollo', category: 'empanadas' }), true, "REAL Ocultos: las empanadas ya no se venden");

@@ -1317,23 +1317,33 @@ function renderRentabilidad(r) {
 }
 
 /**
- * Reparto por porcentajes sobre la base neta, con porcentajes editables.
- * @param {number} baseBs
- * @param {Array<{nombre,pct}>} shares
+ * Dos repartos con las MISMAS personas: uno sobre la ganancia de los pastelitos
+ * y otro, más abajo, sobre la ganancia de todo lo demás. Cada persona tiene su
+ * porcentaje en cada bloque (`pct` y `pctOtros`); el nombre es el mismo en los
+ * dos, así que cambiarlo, agregar o quitar una persona afecta a ambos.
+ * @param {Array<{field,titulo,baseBs,gananciaBs,gastosBs}>} blocks
+ * @param {Array<{nombre,pct,pctOtros}>} shares
  * @param {{onChange:Function, onReset:Function}} handlers onChange(newShares)
  */
-function renderRentReparto(baseBs, shares, handlers = {}) {
+function renderRentReparto(blocks, shares, handlers = {}) {
     const c = document.getElementById('admin-rent-reparto');
     if (!c) return;
-    const rep = window.AnalyticsManager.computeReparto(baseBs, shares);
-    const over = rep.asignadoPct > 100;
-    c.innerHTML = `
-      <div class="rent-section-title">Reparto de la ganancia</div>
-      <div class="rent-note" style="margin:0 0 0.5rem;">Sobre la base neta de este período: <strong>${rentBs(baseBs)}</strong>. Puedes cambiar nombres y porcentajes; se guardan en este teléfono.</div>
+    const list = (shares || []).map(x => ({ ...x }));
+
+    const blockHtml = (b, bi) => {
+        const rep = window.AnalyticsManager.computeReparto(b.baseBs, list.map(x => ({ nombre: x.nombre, pct: x[b.field] })));
+        const over = rep.asignadoPct > 100;
+        const baseTxt = b.gastosBs > 0
+            ? `Ganancia ${rentBs(b.gananciaBs)} − gastos del local ${rentBs(b.gastosBs)} = <strong>${rentBs(b.baseBs)}</strong>.`
+            : `Ganancia de este período: <strong>${rentBs(b.baseBs)}</strong>.`;
+        return `
+      <div class="rent-reparto-block"${bi > 0 ? ' style="margin-top:1.25rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.15);"' : ''}>
+      <div class="rent-section-title">${bi === 0 ? '🥟 ' : '🥤 '}${escapeHtml(b.titulo)}</div>
+      <div class="rent-note" style="margin:0 0 0.5rem;">${baseTxt}</div>
       ${rep.filas.map((f, i) => `
         <div class="rent-reparto-row">
-          <input type="text" class="form-input rent-rep-name" data-i="${i}" value="${escapeHtml(f.nombre)}" aria-label="Nombre">
-          <input type="number" inputmode="decimal" min="0" max="100" step="0.5" class="form-input pct rent-rep-pct" data-i="${i}" value="${f.pct}" aria-label="Porcentaje">
+          <input type="text" class="form-input rent-rep-name" data-i="${i}" value="${escapeHtml(list[i].nombre || '')}" aria-label="Nombre">
+          <input type="number" inputmode="decimal" min="0" max="100" step="0.5" class="form-input pct rent-rep-pct" data-i="${i}" data-field="${b.field}" value="${f.pct}" aria-label="Porcentaje">
           <span class="monto">${rentBs(f.bs)}</span>
           <button class="rent-icon-btn rent-rep-del" data-i="${i}" aria-label="Quitar"><i class="fa-solid fa-xmark"></i></button>
         </div>`).join('')}
@@ -1344,22 +1354,28 @@ function renderRentReparto(baseBs, shares, handlers = {}) {
         <span></span>
       </div>
       ${over ? `<div class="rent-warn" style="margin-top:0.5rem;">Los porcentajes suman ${rep.asignadoPct}%: pasan del 100%.</div>` : ''}
+      </div>`;
+    };
+
+    c.innerHTML = (blocks || []).map(blockHtml).join('') + `
+      <div class="rent-note" style="margin:0.6rem 0 0;">Las personas son las mismas en los dos repartos; cada uno tiene sus propios porcentajes. Se guardan en este teléfono.</div>
       <div class="rent-btn-row">
         <button id="btn-rent-rep-add" class="btn-action-small"><i class="fa-solid fa-plus"></i> Agregar persona</button>
         <button id="btn-rent-rep-reset" class="btn-action-small"><i class="fa-solid fa-rotate-left"></i> Volver a los de siempre</button>
       </div>`;
 
-    const read = () => Array.from(c.querySelectorAll('.rent-rep-name')).map(inp => ({
-        nombre: inp.value,
-        pct: parseFloat(c.querySelector(`.rent-rep-pct[data-i="${inp.dataset.i}"]`).value) || 0
+    const emit = l => handlers.onChange && handlers.onChange(l);
+    c.querySelectorAll('.rent-rep-name').forEach(inp => inp.addEventListener('change', () => {
+        list[Number(inp.dataset.i)].nombre = inp.value; emit(list);
     }));
-    const emit = list => handlers.onChange && handlers.onChange(list);
-    c.querySelectorAll('.rent-rep-pct, .rent-rep-name').forEach(inp => inp.addEventListener('change', () => emit(read())));
+    c.querySelectorAll('.rent-rep-pct').forEach(inp => inp.addEventListener('change', () => {
+        list[Number(inp.dataset.i)][inp.dataset.field] = parseFloat(inp.value) || 0; emit(list);
+    }));
     c.querySelectorAll('.rent-rep-del').forEach(b => b.addEventListener('click', () => {
-        const list = read(); list.splice(Number(b.dataset.i), 1); emit(list);
+        list.splice(Number(b.dataset.i), 1); emit(list);
     }));
     const add = document.getElementById('btn-rent-rep-add');
-    if (add) add.addEventListener('click', () => emit([...read(), { nombre: 'Nuevo', pct: 0 }]));
+    if (add) add.addEventListener('click', () => emit([...list, { nombre: 'Nuevo', pct: 0, pctOtros: 0 }]));
     const reset = document.getElementById('btn-rent-rep-reset');
     if (reset) reset.addEventListener('click', () => handlers.onReset && handlers.onReset());
 }

@@ -3,7 +3,7 @@ const { renderRentPdf } = require('../lib/rent-report');
 /**
  * PDF de la pestaña Rentabilidad (lib/rent-report.js).
  *
- *   POST /api/rentabilidad-pdf  { label, totals, categorias, dias, reparto, ... }
+ *   POST /api/rentabilidad-pdf  { label, totals, categorias, dias, repartos, ... }
  *     El teléfono manda los números que ya está mostrando (incluido el reparto
  *     guardado ahí) y el servidor devuelve el PDF. No lee ni escribe la base y no
  *     guarda nada: es solo dibujar lo que llega.

@@ -718,6 +718,26 @@ function computeReparto(baseBs = 0, shares = REPARTO_DEFAULT) {
     return { filas, asignadoPct, quedaPct, quedaBs };
 }
 
+/**
+ * Separa la base neta del período en dos repartos: lo que dejan los pastelitos
+ * (categoría "pasteles") y lo que deja todo lo demás (bebidas, dulces, cajas,
+ * extras...). Los gastos del local se restan del bloque de los pastelitos, que
+ * es el negocio principal; así "lo demás" es la ganancia limpia de esos
+ * productos. pasteles.baseBs + otros.baseBs = totals.baseNetaBs.
+ * Puro: solo lee el resultado de aggregateRentabilidad.
+ */
+function splitRepartoBases(r) {
+    const r2 = v => Number((v || 0).toFixed(2));
+    const cats = (r && r.categorias) || [];
+    const gananciaPast = cats.filter(c => c.key === 'pasteles').reduce((t, c) => t + (c.gananciaBs || 0), 0);
+    const gananciaOtros = cats.filter(c => c.key !== 'pasteles').reduce((t, c) => t + (c.gananciaBs || 0), 0);
+    const gastosBs = (r && r.totals && r.totals.gastosBs) || 0;
+    return {
+        pasteles: { gananciaBs: r2(gananciaPast), gastosBs: r2(gastosBs), baseBs: r2(gananciaPast - gastosBs) },
+        otros: { gananciaBs: r2(gananciaOtros), gastosBs: 0, baseBs: r2(gananciaOtros) }
+    };
+}
+
 const AnalyticsManager = {
     WEEKDAY_LABELS,
     parseTimestamp,
@@ -733,6 +753,7 @@ const AnalyticsManager = {
     aggregatePnl,
     aggregateRentabilidad,
     computeReparto,
+    splitRepartoBases,
     productCostBs,
     REPARTO_DEFAULT
 };
@@ -753,6 +774,7 @@ if (typeof module !== 'undefined' && module.exports) {
         aggregatePnl,
         aggregateRentabilidad,
         computeReparto,
+        splitRepartoBases,
         productCostBs,
         REPARTO_DEFAULT,
         AnalyticsManager

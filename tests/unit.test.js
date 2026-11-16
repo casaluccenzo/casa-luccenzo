@@ -56,6 +56,7 @@ const {
     aggregatePnl,
     aggregateRentabilidad,
     computeReparto,
+    splitRepartoBases,
     productCostBs
 } = require('../js/analytics');
 
@@ -577,6 +578,16 @@ function runAnalyticsUnitTests() {
     const rep2 = computeReparto(1000, [{ nombre: 'A', pct: 50 }, { nombre: 'B', pct: 25 }]);
     assert.strictEqual(rep2.quedaBs, 250, "reparto: porcentajes editables");
     console.log("✅ TEST PASSED: computeReparto con porcentajes por defecto y editables");
+
+    const split = splitRepartoBases({
+        categorias: [{ key: 'pasteles', gananciaBs: 30000 }, { key: 'bebidas', gananciaBs: 5000 }, { key: 'dulces', gananciaBs: 2000 }, { key: 'extra', gananciaBs: 500 }],
+        totals: { gastosBs: 4000, baseNetaBs: 33500 }
+    });
+    assert.strictEqual(split.pasteles.baseBs, 26000, "split: pastelitos 30.000 - gastos 4.000");
+    assert.strictEqual(split.otros.baseBs, 7500, "split: lo demás 5.000 + 2.000 + 500");
+    assert.strictEqual(split.pasteles.baseBs + split.otros.baseBs, 33500, "split: suma = base neta");
+    assert.strictEqual(splitRepartoBases(null).otros.baseBs, 0, "split: sin datos = 0");
+    console.log("✅ TEST PASSED: reparto separado pastelitos / lo demás");
 
     assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
     assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");

@@ -2052,13 +2052,31 @@ function rentStep(dir) {
     return d;
 }
 
+// Cada persona tiene dos porcentajes: `pct` (reparto de los pastelitos, el de
+// siempre) y `pctOtros` (reparto de lo demás). Si un teléfono todavía no tiene
+// `pctOtros` guardado, arranca con el mismo porcentaje de los pastelitos.
 function loadRentShares() {
+    let list = null;
     try {
         const raw = localStorage.getItem(RENT_REPARTO_KEY);
-        const list = raw ? JSON.parse(raw) : null;
-        if (Array.isArray(list)) return list;
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(parsed)) list = parsed;
     } catch (e) { /* sin almacenamiento: usar los de siempre */ }
-    return window.AnalyticsManager.REPARTO_DEFAULT.map(x => ({ ...x }));
+    if (!list) list = window.AnalyticsManager.REPARTO_DEFAULT.map(x => ({ ...x }));
+    return list.map(x => ({
+        nombre: x.nombre,
+        pct: Number(x.pct) || 0,
+        pctOtros: x.pctOtros == null || x.pctOtros === '' ? (Number(x.pct) || 0) : (Number(x.pctOtros) || 0)
+    }));
+}
+
+/** Los dos repartos (pastelitos y lo demás) con sus bases, para la pantalla y el PDF. */
+function rentRepartoBlocks() {
+    const split = window.AnalyticsManager.splitRepartoBases(rentLast);
+    return [
+        { field: 'pct', titulo: 'Reparto de los pastelitos', baseBs: split.pasteles.baseBs, gananciaBs: split.pasteles.gananciaBs, gastosBs: split.pasteles.gastosBs },
+        { field: 'pctOtros', titulo: 'Reparto de lo demás (bebidas, dulces, cajas, extras)', baseBs: split.otros.baseBs, gananciaBs: split.otros.gananciaBs, gastosBs: 0 }
+    ];
 }
 
 function saveRentShares(list) {
@@ -2066,8 +2084,7 @@ function saveRentShares(list) {
 }
 
 function renderRentExtras() {
-    const base = rentLast ? rentLast.totals.baseNetaBs : 0;
-    window.UIManager.renderRentReparto(base, loadRentShares(), {
+    window.UIManager.renderRentReparto(rentRepartoBlocks(), loadRentShares(), {
         onChange: list => { saveRentShares(list); renderRentExtras(); },
         onReset: () => { try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ } renderRentExtras(); }
     });
@@ -2213,7 +2230,11 @@ async function generateRentabilidadPdf(btn) {
     const original = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PDF...'; }
     try {
-        const rep = window.AnalyticsManager.computeReparto(rentLast.totals.baseNetaBs, loadRentShares());
+        const shares = loadRentShares();
+        const repartos = rentRepartoBlocks().map(b => {
+            const rep = window.AnalyticsManager.computeReparto(b.baseBs, shares.map(x => ({ nombre: x.nombre, pct: x[b.field] })));
+            return { titulo: b.titulo, baseBs: b.baseBs, gananciaBs: b.gananciaBs, gastosBs: b.gastosBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs };
+        });
         const payload = {
             label: rentLast.period.label,
             mode: rentMode,
@@ -2224,7 +2245,7 @@ async function generateRentabilidadPdf(btn) {
             excluidas: rentLast.excluidas,
             delivery: rentLast.delivery,
             extrasSinCosto: rentLast.extrasSinCosto,
-            reparto: { baseBs: rentLast.totals.baseNetaBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs }
+            repartos
         };
         const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {
             method: 'POST',

@@ -29,8 +29,15 @@ const { SHIFTS, caracasDate, dayRangeUtc, shiftRangeUtc, buildReport, renderPdf 
 const BUCKET = 'cierres';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Formato del PDF. Al cambiar lo que muestra el reporte se sube este número:
+// el archivo nuevo va con otro nombre y los días ya guardados con el formato
+// viejo se rehacen solos desde las ventas la próxima vez que alguien los abre
+// (el archivo viejo queda en el bucket, no se borra).
+//   v2 (v1.0.48): ventas de cada turno por categoría y mañana/tarde por producto.
+const REPORT_FORMAT = 2;
+
 function storagePath(date) {
-    return `${date.slice(0, 4)}/${date.slice(5, 7)}/${date}.pdf`;
+    return `${date.slice(0, 4)}/${date.slice(5, 7)}/${date}-v${REPORT_FORMAT}.pdf`;
 }
 
 async function fetchDayData(db, date, shift = null) {
@@ -64,10 +71,20 @@ async function storageFetch(url, key, path, init = {}) {
     });
 }
 
-async function generate(url, key, date, trigger) {
+/**
+ * Arma el PDF del día y lo guarda. `keep` = fila de day_reports que ya existía
+ * y que solo se pasa al formato nuevo: conserva su hora y su origen (cierre,
+ * cron o a mano), así el reporte no aparece como un cierre nuevo.
+ */
+async function generate(url, key, date, trigger, keep = null) {
     const db = new SupabaseRest(url, key);
     const data = await fetchDayData(db, date);
-    const report = buildReport({ ...data, trigger });
+    const report = buildReport({
+        ...data,
+        trigger: keep ? keep.trigger : trigger,
+        generatedAt: keep ? keep.generated_at : undefined,
+        reformattedAt: keep ? new Date().toISOString() : undefined
+    });
     const pdf = await renderPdf(report);
     const objPath = storagePath(date);
 
@@ -149,6 +166,13 @@ module.exports = async (req, res) => {
         }
         if (fecha) {
             if (!DATE_RE.test(fecha)) return res.status(400).json({ error: 'Fecha inválida' });
+            // Reporte guardado con un formato viejo: se rehace con el formato
+            // actual desde las ventas de la base (no cambia ventas ni cierres).
+            const saved = await new SupabaseRest(url, key)
+                .rawGet(`day_reports?select=storage_path,generated_at,trigger&report_date=eq.${fecha}`);
+            if (Array.isArray(saved) && saved[0] && saved[0].storage_path !== storagePath(fecha)) {
+                await generate(url, key, fecha, saved[0].trigger, saved[0]);
+            }
             const sign = await storageFetch(url, key, `object/sign/${BUCKET}/${storagePath(fecha)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

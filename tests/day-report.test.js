@@ -58,6 +58,15 @@ assert.strictEqual(am.count, 3);
 assert.strictEqual(pm.count, 1);
 assert.strictEqual(Math.round((am.totalBs + pm.totalBs) * 100), Math.round(day.totals.totalBs * 100));
 assert.strictEqual(day.shift, null);
+// Cada turno trae sus categorías, y mañana + tarde = el día, categoría por categoría.
+assert.strictEqual(pm.categories.find(c => c.key === 'pastelitos').qty, 1);
+for (const c of day.categories) {
+    const inShifts = day.shifts.map(s => (s.categories.find(x => x.key === c.key) || { qty: 0, totalBs: 0 }));
+    assert.strictEqual(inShifts.reduce((t, x) => t + x.qty, 0), c.qty, `unidades de ${c.key} por turno`);
+    assert.strictEqual(Math.round(inShifts.reduce((t, x) => t + x.totalBs, 0) * 100), Math.round(c.totalBs * 100), `Bs de ${c.key} por turno`);
+    for (const p of c.items) assert.strictEqual(p.qtyByShift.manana + p.qtyByShift.tarde, p.qty, `${p.name} mañana + tarde`);
+}
+assert.strictEqual(day.categories.find(c => c.key === 'pastelitos').items.find(p => p.name === 'Queso').qtyByShift.tarde, 1);
 const amOnly = buildReport({ date: '2026-10-28', sales, bcvRate: R, shift: 'manana' });
 assert.strictEqual(amOnly.shift, 'manana');
 

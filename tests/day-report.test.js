@@ -108,5 +108,15 @@ Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDe
         reparto: { baseBs: 600, filas: [{ nombre: 'Ana', pct: 50, bs: 300 }], quedaPct: 50, quedaBs: 300 }
     });
     assert.ok(pdf.slice(0, 4).toString() === '%PDF');
+    const pdf2 = await renderRentPdf({
+        label: 'Hoy', totals: { ventasBs: 1000, costoBs: 400, gananciaBs: 600, gastosBs: 100, baseNetaBs: 500, unidades: 3 },
+        categorias: [], dias: [],
+        repartos: [
+            { titulo: 'Reparto de los pastelitos', baseBs: 400, gananciaBs: 500, gastosBs: 100, filas: [{ nombre: 'Ana', pct: 50, bs: 200 }], quedaPct: 50, quedaBs: 200 },
+            { titulo: 'Reparto de lo demás', baseBs: 100, filas: [{ nombre: 'Ana', pct: 10, bs: 10 }], quedaPct: 90, quedaBs: 90 },
+            'basura'
+        ]
+    });
+    assert.ok(pdf2.slice(0, 4).toString() === '%PDF');
     console.log('rent-report tests passed');
 })().catch(e => { console.error(e); process.exit(1); });

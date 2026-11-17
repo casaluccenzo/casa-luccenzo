@@ -9,6 +9,10 @@
       "includeFiles": "{img/logo-factura.png,js/combos.js,node_modules/pdfkit/js/data/**}"
     }
   },
+  "redirects": [
+    { "source": "/personal", "destination": "/sistema/", "permanent": false },
+    { "source": "/personal/", "destination": "/sistema/", "permanent": false }
+  ],
   "crons": [
     {
       "path": "/api/keepalive",

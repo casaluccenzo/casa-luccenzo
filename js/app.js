@@ -2733,8 +2733,11 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
  * Open report history modal and load days from Supabase
  */
 async function openReportHistoryModal() {
-    // Historial de reportes (días pasados): solo el admin.
-    if (currentRole !== 'admin') return;
+    // Historial de reportes (días pasados): el admin entra directo; la vendedora
+    // solo con la clave de supervisor (v1.0.50). Cada entrada queda anotada.
+    if (currentRole !== 'admin') {
+        if (!(await requireSupervisor('Ver el historial de reportes de días anteriores'))) return;
+    }
     triggerHaptic(15);
     const modal = document.getElementById('report-history-modal');
     const body = document.getElementById('report-history-modal-body');
@@ -4675,11 +4678,12 @@ function applyUserRole(role) {
     if (clearSales) clearSales.classList.remove('hidden');
     if (dayCloseSec) dayCloseSec.classList.remove('hidden');
 
-    // Días pasados (Historial de reportes y "Ver el día" del Historial de
-    // Clientes) solo para el admin: ventas solo ve la jornada de hoy.
+    // "Ver el día" del Historial de Clientes es solo del admin: ventas solo ve
+    // la jornada de hoy. El botón Historial de reportes lo ven todos, pero
+    // ventas debe escribir la clave de supervisor (openReportHistoryModal).
     const isAdminRole = role === 'admin';
     const reportHistoryBtn = document.getElementById('btn-report-history');
-    if (reportHistoryBtn) reportHistoryBtn.classList.toggle('hidden', !isAdminRole);
+    if (reportHistoryBtn) reportHistoryBtn.classList.remove('hidden');
     // Repinta los gastos para mostrar u ocultar la "×" de borrar según el perfil.
     if (window.UIManager && window.UIManager.renderExpenses) window.UIManager.renderExpenses(expenses, deleteExpense);
     const histDayBar = document.querySelector('#sub-view-historial .hist-day-bar');

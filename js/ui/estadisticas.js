@@ -198,6 +198,71 @@ function renderCriticalStockAlerts(products = [], requestReplenishmentCallback) 
     }
 }
 
+const SALE_PRICE_ALERT_REASONS = {
+    precio_distinto: 'Precio distinto al del producto',
+    combo_precio: 'Precio de combo que no cuadra',
+    consumo_personal_precio: 'Consumo personal fuera del costo',
+    delivery_fuera_de_rango: 'Delivery fuera de rango',
+    extra_fuera_de_rango: 'Extra fuera de rango',
+    producto_desconocido: 'Producto que no existe'
+};
+
+/**
+ * Aviso del Resumen: ventas cuyo precio no cuadró con el producto (el servidor
+ * las anota en sale_price_alerts, migración 050). La venta ya está guardada;
+ * esto es para que el admin revise y, si estaba bien, la marque "Revisada".
+ * @param {Array} alerts Filas sin revisar de sale_price_alerts
+ * @param {Function} onReviewed (saleUuid) => Promise<boolean>
+ */
+function renderSalePriceAlerts(alerts = [], onReviewed) {
+    const container = document.getElementById('admin-price-alerts-container');
+    if (!container) return;
+    if (!alerts.length) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    const fmtBs = v => (v === null || v === undefined) ? '—'
+        : 'Bs ' + Number(v).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtWhen = ts => ts ? new Date(ts).toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="admin-price-alerts">
+            <div class="admin-price-alerts-head">
+                <i class="fa-solid fa-scale-unbalanced"></i>
+                <span class="admin-critical-stock-label">Precios a revisar (${alerts.length})</span>
+                <span class="admin-price-alerts-hint">La venta se guardó; revisa si el cobro fue correcto.</span>
+            </div>
+            <ul class="admin-price-alerts-list">
+                ${alerts.map(a => `
+                    <li>
+                        <div class="admin-price-alerts-main">
+                            <b>${escapeHtml(a.name || a.product_id || '')}</b>
+                            <span>${escapeHtml(SALE_PRICE_ALERT_REASONS[a.reason] || a.reason)} · cobrado ${fmtBs(a.paid_bs)} ($${Number(a.price || 0).toFixed(2)}), esperado ${escapeHtml(a.expected || '—')} · ${fmtWhen(a.sale_timestamp)}</span>
+                        </div>
+                        <button type="button" class="btn-action-small admin-price-alert-ok" data-uuid="${escapeHtml(a.sale_uuid)}">Revisada</button>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+    `;
+
+    container.querySelectorAll('.admin-price-alert-ok').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const ok = typeof onReviewed === 'function' ? await onReviewed(btn.dataset.uuid) : false;
+            if (!ok) {
+                btn.disabled = false;
+                showToast('No se pudo marcar como revisada. Revisa la conexión.', 'fa-solid fa-triangle-exclamation');
+                return;
+            }
+            renderSalePriceAlerts(alerts.filter(a => a.sale_uuid !== btn.dataset.uuid), onReviewed);
+        });
+    });
+}
+
 /**
  * Render payment methods & category performance widgets
  * @param {Array} salesLog 

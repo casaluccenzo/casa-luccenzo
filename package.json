@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node scripts/devserver.js",
     "build": "node scripts/build.js",
-    "test": "node tests/intl-cache.test.js && node tests/script-order.test.js && node tests/unit.test.js && node tests/build.test.js && node tests/day-report.test.js",
+    "test": "node tests/intl-cache.test.js && node tests/script-order.test.js && node tests/unit.test.js && node tests/sale-price-rules.test.js && node tests/build.test.js && node tests/day-report.test.js",
     "test:convergence": "node tests/powersync-convergence.test.js",
     "lint": "eslint .",
     "generate:qr": "node scripts/generate-qr.js",

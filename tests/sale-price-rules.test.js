@@ -8,6 +8,7 @@ const path = require('path');
 const Combos = require('../js/combos');
 
 const sql = fs.readFileSync(path.join(__dirname, '../supabase/migrations/050_sale_price_checks.sql'), 'utf8')
+    .replace(/\r/g, '')
     .split('\n').filter(l => !l.trim().startsWith('--')).join('\n');
 const has = (re, msg) => assert.ok(re.test(sql), msg);
 

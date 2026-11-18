@@ -61,3 +61,34 @@ escritorio y Android) al proyecto nuevo.
 
 Para recuperar solo una tabla o unas filas, restaurar en un proyecto aparte y
 copiar desde ahí lo que haga falta.
+
+## Llevar todo el sistema a otra herramienta (Antigravity, Cursor…)
+
+El código completo está en GitHub, con su historia. Para abrirlo en Google
+Antigravity:
+
+1. **Código**: en Antigravity, *Open Folder* sobre un clon del repo
+   (`git clone https://github.com/casaluccenzo/casa-luccenzo`). Al abrirlo,
+   Antigravity lee `AGENTS.md` en la raíz, que le explica el sistema y sus
+   reglas.
+2. **Base de datos**: bajar la copia más reciente (ver "Abrir una copia") y
+   dejar `public.sql`, `auth-data.sql` y `cron-data.sql` **fuera del repo**
+   (por ejemplo `~/respaldos/casa-lucenzo/`). Son datos reales de clientes:
+   no subirlos a GitHub ni pegarlos en un chat.
+3. **Base local para probar** (sin tocar producción), con Docker:
+
+   ```sh
+   docker run -d --name cl-db -e POSTGRES_PASSWORD=local -p 5432:5432 postgres:17
+   export DB="postgresql://postgres:local@localhost:5432/postgres"
+   # Roles y esquemas que Supabase trae y public.sql espera:
+   psql "$DB" -c "create role anon; create role authenticated; create role service_role; create schema auth; create schema extensions;"
+   psql "$DB" -f public.sql
+   ```
+
+   Algunas líneas fallarán (funciones de `auth`, `pg_cron`, `pgsodium`) porque
+   son propias de Supabase. Las tablas y los datos quedan igual, y alcanza para
+   consultar o probar consultas. Para una copia fiel, restaurar en un proyecto
+   Supabase nuevo como dice "Restaurar".
+4. **Claves**: Antigravity no necesita ninguna para leer el código. Si va a
+   hablar con Supabase, que use `casa-lucenzo-dev`, nunca la service key de
+   producción.

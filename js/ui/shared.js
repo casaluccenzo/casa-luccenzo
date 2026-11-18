@@ -5,9 +5,9 @@
  * sistema/index.html loads this file first, so everything it publishes on
  * `window` is available to every other js/ module.
  *
- * Note: showToast lives in js/ui.js, not here. This file used to carry a second
+ * Note: showToast lives in js/ui/ajustes.js, not here. This file used to carry a second
  * implementation that rendered into a `#toast-container` element the page never
- * had, so it silently did nothing and was shadowed by ui.js at load time.
+ * had, so it silently did nothing and was shadowed by js/ui/ajustes.js at load time.
  */
 
 /**

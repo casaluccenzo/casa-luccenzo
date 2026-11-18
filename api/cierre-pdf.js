@@ -7,7 +7,7 @@ const { SHIFTS, caracasDate, dayRangeUtc, shiftRangeUtc, buildReport, renderPdf 
  * Reporte PDF de ventas del día (lib/day-report.js), guardado en Storage.
  *
  *   POST /api/cierre-pdf  { fecha?: "AAAA-MM-DD" }
- *     Lo llama la caja justo después del Cierre de Jornada (js/app.js). Genera
+ *     Lo llama la caja justo después del Cierre de Jornada (js/app/). Genera
  *     el PDF del día con lo que hay en la base y lo guarda; si ya existía (un
  *     segundo cierre el mismo día) lo reemplaza. Solo hoy o ayer se pueden
  *     rehacer: de un día más viejo solo se genera si todavía no tiene reporte

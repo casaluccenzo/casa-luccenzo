@@ -1,4 +1,29 @@
 const js = require('@eslint/js');
+const fs = require('fs');
+const path = require('path');
+const espree = require('espree');
+
+// js/app/*.js y js/ui/*.js eran dos archivos gigantes (app.js y ui.js) partidos
+// en scripts clásicos que comparten el ámbito global: una función declarada en
+// js/app/carrito.js se usa desde js/app/init.js sin import. Para que no-undef
+// siga sirviendo, se leen los nombres de nivel superior de esas partes y se
+// declaran como globales solo para ellas.
+const SPLIT_DIRS = ['js/app', 'js/ui'];
+const splitFiles = SPLIT_DIRS.flatMap(dir =>
+    fs.readdirSync(path.join(__dirname, dir))
+        .filter(f => f.endsWith('.js') && !(dir === 'js/app' && f === 'index.js'))
+        .map(f => path.join(dir, f))
+);
+const splitGlobals = {};
+for (const file of splitFiles) {
+    const ast = espree.parse(fs.readFileSync(path.join(__dirname, file), 'utf8'), { ecmaVersion: 2022, sourceType: 'script' });
+    for (const node of ast.body) {
+        if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') splitGlobals[node.id.name] = 'writable';
+        if (node.type === 'VariableDeclaration') {
+            for (const d of node.declarations) if (d.id.type === 'Identifier') splitGlobals[d.id.name] = 'writable';
+        }
+    }
+}
 
 const browserGlobals = {
     window: 'readonly',
@@ -30,7 +55,7 @@ const browserGlobals = {
     // Globals one of our own scripts publishes on `window` for the others to use.
     // They're real at runtime because sistema/index.html loads the owner first.
     escapeHtml: 'readonly',    // js/ui/shared.js
-    showToast: 'readonly',     // js/ui.js
+    showToast: 'readonly',     // js/ui/ajustes.js
     StorageManager: 'readonly' // js/storage.js
 };
 
@@ -71,6 +96,27 @@ module.exports = [
             // Same house style as caughtErrors:'none' above -- `catch (e) {}` is
             // a deliberate swallow, not an oversight.
             'no-empty': ['error', { allowEmptyCatch: true }]
+        }
+    },
+    {
+        // Partes de app.js/ui.js: ven las declaraciones de sus hermanas como
+        // globales (ver splitGlobals arriba). no-unused-vars solo mira variables
+        // locales: una función de nivel superior "sin usar" en su archivo suele
+        // usarse desde otra parte o desde un onclick del HTML.
+        files: splitFiles,
+        languageOptions: {
+            globals: { ...browserGlobals, ...splitGlobals }
+        },
+        rules: {
+            'no-unused-vars': ['warn', { vars: 'local', args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }]
+        }
+    },
+    {
+        // Cargador solo-Node de js/app/ para los tests (no lo carga el navegador).
+        files: ['js/app/index.js'],
+        languageOptions: {
+            sourceType: 'commonjs',
+            globals: nodeGlobals
         }
     },
     {

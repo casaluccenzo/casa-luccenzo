@@ -517,7 +517,7 @@ async function upsertProduct(product) {
 
 // Plan B, Task 12: updateProductStock predates Task 6/9's append-only stock
 // model (stock_movements + the recompute trigger). Its one remaining caller
-// (loadAllDataFromSupabase's missing-default-product backfill, js/app.js)
+// (loadAllDataFromSupabase's missing-default-product backfill, js/app/)
 // was switched to upsertProduct(p) instead -- .update() silently no-ops on a
 // row that doesn't exist yet, which upsert doesn't. insertStockMovement and
 // resetPastelitoCapacity cover everything else it used to do.

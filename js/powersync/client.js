@@ -58,7 +58,7 @@ function createDatabase() {
     return db;
 }
 
-// Llamado desde handleUserLogin (js/app.js) apenas hay sesion de Supabase --
+// Llamado desde handleUserLogin (js/app/) apenas hay sesion de Supabase --
 // fetchCredentials (connector.js) necesita esa sesion para el JWT.
 async function connect() {
     connectAttempted = true;

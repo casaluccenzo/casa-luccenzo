@@ -2232,6 +2232,48 @@ async function fetchActivityLogs() {
     }
 }
 
+/**
+ * Ventas cuyo precio no cuadró con el producto, sin revisar todavía
+ * (tabla sale_price_alerts, migración 050). Solo informa: la venta ya se
+ * guardó. Sin conexión, o si la tabla aún no existe, devuelve [] en silencio.
+ * @returns {Promise<Array>}
+ */
+async function fetchSalePriceAlerts() {
+    if (!client) return [];
+    try {
+        const { data, error } = await client.from('sale_price_alerts')
+            .select('sale_uuid, sale_timestamp, product_id, name, price, paid_bs, expected, reason')
+            .is('reviewed_at', null)
+            .order('sale_timestamp', { ascending: false })
+            .limit(50);
+        if (error) throw error;
+        return data || [];
+    } catch (e) {
+        console.warn('No se pudieron leer las alertas de precio:', e && e.message);
+        return [];
+    }
+}
+
+/**
+ * Marca una alerta de precio como revisada por el admin.
+ * @param {string} saleUuid
+ * @param {string} reviewedBy Nombre de quien la revisó
+ * @returns {Promise<boolean>}
+ */
+async function markSalePriceAlertReviewed(saleUuid, reviewedBy) {
+    if (!client) return false;
+    try {
+        const { error } = await client.from('sale_price_alerts')
+            .update({ reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy || null })
+            .eq('sale_uuid', saleUuid);
+        if (error) throw error;
+        return true;
+    } catch (e) {
+        console.error('Error marcando alerta de precio como revisada:', e);
+        return false;
+    }
+}
+
 let reconnectTimer = null;
 
 /**
@@ -2358,5 +2400,7 @@ window.SupabaseManager = {
     blockSession,
     trustSession,
     insertActivityLog,
-    fetchActivityLogs
+    fetchActivityLogs,
+    fetchSalePriceAlerts,
+    markSalePriceAlertReviewed
 };

@@ -53,6 +53,7 @@ window.UIManager = {
     renderHourlyStats,
     exportHourlyStatsToPDF,
     renderCriticalStockAlerts,
+    renderSalePriceAlerts,
     renderPaymentAndCategoryStats,
     renderSalesAnalytics,
     exportDayCloseToPDF,

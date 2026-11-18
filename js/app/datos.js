@@ -357,6 +357,7 @@ async function loadAndRenderAdminStats(opts = {}) {
     });
     window.UIManager.renderHourlyStats(adminStatsSales, hourlyActiveMode);
     window.UIManager.renderCriticalStockAlerts(products, handleQuickReplenishment);
+    loadAndRenderSalePriceAlerts();
     window.UIManager.renderPaymentAndCategoryStats(statsSales, products, paymentStatsFilter, categoryStatsFilter);
 
     try {
@@ -364,6 +365,20 @@ async function loadAndRenderAdminStats(opts = {}) {
     } catch (e) {
         console.error("Failed to load recent activity for Resumen", e);
     }
+}
+
+/**
+ * Aviso "Precios a revisar" del Resumen (migración 050). No bloquea el resto
+ * del panel: si falla o no hay conexión, simplemente no se muestra.
+ */
+async function loadAndRenderSalePriceAlerts() {
+    if (currentRole !== 'admin' || !window.SupabaseManager || !window.SupabaseManager.fetchSalePriceAlerts) return;
+    const alerts = await window.SupabaseManager.fetchSalePriceAlerts();
+    window.UIManager.renderSalePriceAlerts(alerts, async (saleUuid) => {
+        const ok = await window.SupabaseManager.markSalePriceAlertReviewed(saleUuid, currentUser ? currentUser.name : null);
+        if (ok) logActivity('Precio revisado', `Venta ${saleUuid} marcada como revisada en "Precios a revisar"`);
+        return ok;
+    });
 }
 
 /**

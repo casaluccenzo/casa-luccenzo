@@ -3157,3 +3157,62 @@ input[type="number"] {
     }
     .product-card.critical::after { opacity: 1; }
 }
+
+/* PRECIOS A REVISAR (Resumen, admin): ventas cuyo precio no cuadró (migración 050) */
+.admin-price-alerts {
+    background-color: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-left: 3px solid var(--color-warning, #f59e0b);
+    border-radius: var(--radius-md);
+    padding: 0.625rem 0.875rem;
+}
+
+.admin-price-alerts-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: var(--color-warning, #f59e0b);
+    font-size: 11px;
+}
+
+.admin-price-alerts-hint {
+    color: rgba(148, 163, 184, 0.9);
+    font-size: 10.5px;
+}
+
+.admin-price-alerts-list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.admin-price-alerts-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 11px;
+}
+
+.admin-price-alerts-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.admin-price-alerts-main b {
+    color: var(--color-white);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-price-alerts-main span {
+    color: rgba(203, 213, 225, 0.9);
+}

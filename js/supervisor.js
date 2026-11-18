@@ -5,7 +5,7 @@
  * la vendedora necesita hacer una, aparece esta ventanita: alguien de
  * confianza escribe la clave de supervisor y se hace SOLO esa acción, sin
  * abrir el perfil de admin. Cada autorización queda en el registro de
- * actividad (lo anota js/app.js).
+ * actividad (lo anota js/app/).
  *
  * La clave no está escrita aquí: solo su huella bcrypt (costo 12), que se
  * revisa en el equipo con bcryptjs, igual que el PIN rápido. Para cambiar la

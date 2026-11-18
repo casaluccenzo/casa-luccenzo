@@ -1,9 +1,9 @@
 // Service Worker for offline operations -- scoped to /sistema/ (the internal
-// POS tool), registered from js/app.js. The public landing page at / is a
+// POS tool), registered from js/app/init.js. The public landing page at / is a
 // plain static page and isn't part of this PWA/offline experience.
 // Must match the ?v= query string used by sistema/index.html. The cache is keyed
-// by the full request URL, so precaching '/js/app.js' while the page asks for
-// '/js/app.js?v=NNN' (mismatched) would store two unrelated entries and never serve the
+// by the full request URL, so precaching '/js/app/estado.js' while the page asks for
+// '/js/app/estado.js?v=NNN' (mismatched) would store two unrelated entries and never serve the
 // precached one. Bump both together on every release.
 const APP_VERSION = '__APP_VERSION__';
 const CACHE_NAME = `casa-lucenzo-v${APP_VERSION}`;
@@ -29,9 +29,37 @@ const SCRIPTS = [
   'invoice.js',
   'clientes-frecuentes.js',
   'supervisor.js',
-  'ui.js',
+  'ui/navegacion.js',
+  'ui/caja.js',
+  'ui/cocina.js',
+  'ui/finanzas.js',
+  'ui/fiados-pedidos.js',
+  'ui/cierre.js',
+  'ui/ajustes.js',
+  'ui/resumen.js',
+  'ui/carrito.js',
+  'ui/mesas-clientes.js',
+  'ui/historial.js',
+  'ui/cobro-facturas.js',
+  'ui/sistema.js',
+  'ui/estadisticas.js',
+  'ui/reportes-pdf.js',
+  'ui/costos-usuarios.js',
+  'ui/ui-manager.js',
   'wifi.js',
-  'app.js',
+  'app/estado.js',
+  'app/carrito.js',
+  'app/ventas.js',
+  'app/inventario.js',
+  'app/finanzas.js',
+  'app/fiados-pedidos.js',
+  'app/cierre.js',
+  'app/productos.js',
+  'app/datos.js',
+  'app/sesion.js',
+  'app/bcv.js',
+  'app/init.js',
+  'app/admin.js',
   'desktop.js'
 ].map(file => `/js/${file}?v=${APP_VERSION}`);
 

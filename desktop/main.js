@@ -14,8 +14,8 @@ const WWW_DIR = app.isPackaged
   : path.join(__dirname, '..', 'www');
 
 // Host fijo. La ventana carga app://bundle/sistema/index.html y las rutas
-// absolutas del frontend (/js/app.js, /css/main.css) resuelven como
-// app://bundle/js/app.js — el pathname es la ruta bajo www/.
+// absolutas del frontend (/js/app/estado.js, /css/main.css) resuelven como
+// app://bundle/js/app/estado.js — el pathname es la ruta bajo www/.
 const APP_ORIGIN = 'app://bundle';
 
 protocol.registerSchemesAsPrivileged([{

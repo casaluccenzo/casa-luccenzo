@@ -3,7 +3,7 @@ process.env.TZ = 'America/Caracas';
 const { SupabaseRest } = require('../lib/bot-shared');
 
 /**
- * Pastelitos sell out or get zeroed by "Cierre de Jornada" (js/app.js,
+ * Pastelitos sell out or get zeroed by "Cierre de Jornada" (js/app/,
  * closeDayAndResetLogs -- stock/initial_stock/max all go to 0 for that
  * category), and until now someone had to open `sistema` every morning and
  * retype the day's count into each pastelito before the vitrina was ready.

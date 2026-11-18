@@ -10,7 +10,7 @@
 
 const WEEKDAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-// Local re-implementation of js/ui.js's parseUTCTimestamp: Supabase returns
+// Local re-implementation of js/ui/'s parseUTCTimestamp: Supabase returns
 // "YYYY-MM-DD HH:mm:ss" (no zone) for some rows and ISO-with-Z for others;
 // treat the zone-less form as UTC so this matches how the rest of the app
 // interprets the same column.
@@ -499,7 +499,7 @@ function getUpcomingProjection(weekdayPattern = [], daysAhead = 7, fromDate = ne
  * the "reseñas" shown in the PDF report and sent by the WhatsApp monitor.
  * Every sentence is derived from real computed values, not canned copy
  * picked by a lookup table (unlike the old getConsultantInsights in
- * js/ui.js, which chose from fixed paragraphs based on peak hour).
+ * js/ui/, which chose from fixed paragraphs based on peak hour).
  * @param {Object} params
  * @param {Array} params.weekdayPattern From getWeekdayPattern(sales)
  * @param {Array} params.flavorRanking The FULL ranking (call

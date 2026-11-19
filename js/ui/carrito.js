@@ -15,6 +15,15 @@ function staffExemptUSD(items) {
 }
 
 /**
+ * Part of a cart/account in $ for products sold outside IVA (the papelón,
+ * Combos.IVA_EXEMPT): charged at its fixed Bs price with no IVA in it.
+ */
+function productExemptUSD(items) {
+    if (!window.Combos || !window.Combos.ivaExemptUsdOf) return 0;
+    return window.Combos.ivaExemptUsdOf(items);
+}
+
+/**
  * Split a total whose prices already include the 16% IVA into base + IVA.
  * Rounds the base to cents and derives IVA from it, so the two shown
  * amounts always add back up to the total charged.
@@ -398,7 +407,10 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
     // The delivery (what the motorizado charges) is outside IVA altogether.
     const deliveryUSD = window.Combos ? window.Combos.deliveryUsdOf(cart) : 0;
     const deliveryVES = deliveryUSD * (window.bcvRate || 1);
-    const iva = splitIvaIncluded(totalUSD - exemptUSD - deliveryUSD, totalVES - exemptVES - deliveryVES);
+    // The papelón (Combos.IVA_EXEMPT) goes at its fixed Bs price, outside IVA.
+    const papelonUSD = productExemptUSD(cart);
+    const papelonVES = papelonUSD * (window.bcvRate || 1);
+    const iva = splitIvaIncluded(totalUSD - exemptUSD - deliveryUSD - papelonUSD, totalVES - exemptVES - deliveryVES - papelonVES);
     const isDelivery = (item) => !!(window.Combos && window.Combos.isDeliverySale(item));
     const isExtra = (item) => !!(window.Combos && window.Combos.isExtraSale(item));
     const productLines = cart.filter(item => !isDelivery(item));
@@ -476,6 +488,11 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
                     <span>Personal (al costo, sin IVA):</span>
                     <span>$${exemptUSD.toFixed(2)} &bull; Bs. ${exemptVES.toFixed(2)}</span>
                 </div>` : ''}
+                ${papelonUSD > 0 ? `
+                <div class="cart-iva-row">
+                    <span>Papelón (fuera de IVA):</span>
+                    <span>$${papelonUSD.toFixed(2)} &bull; Bs. ${papelonVES.toFixed(2)}</span>
+                </div>` : ''}
             </div>
 
             <div class="cart-actions-grid">
@@ -536,12 +553,16 @@ function renderActiveCart(cart, onAdd, onRemove, onClear, onCheckout) {
         msg += `💵 *Tasa BCV:* ${(window.bcvRate || 1).toFixed(2)} Bs.\n`;
         msg += `🇻🇪 *Total en Bolívares:* *Bs. ${(total * (window.bcvRate || 1)).toFixed(2)} VES*\n`;
         const shareExempt = staffExemptUSD(cart);
-        const shareTaxed = total - shareExempt - deliveryUSD;
+        const sharePapelon = productExemptUSD(cart);
+        const shareTaxed = total - shareExempt - deliveryUSD - sharePapelon;
         const shareIva = splitIvaIncluded(shareTaxed, shareTaxed * (window.bcvRate || 1));
         msg += `🧾 Base imponible: $${shareIva.baseUSD.toFixed(2)} / Bs. ${shareIva.baseVES.toFixed(2)}\n`;
         msg += `🧾 IVA (16% incluido): $${shareIva.ivaUSD.toFixed(2)} / Bs. ${shareIva.ivaVES.toFixed(2)}\n`;
         if (shareExempt > 0) {
             msg += `🧾 Personal (al costo, sin IVA): $${shareExempt.toFixed(2)} / Bs. ${(shareExempt * (window.bcvRate || 1)).toFixed(2)}\n`;
+        }
+        if (sharePapelon > 0) {
+            msg += `🧾 Papelón (fuera de IVA): $${sharePapelon.toFixed(2)} / Bs. ${(sharePapelon * (window.bcvRate || 1)).toFixed(2)}\n`;
         }
         msg += `--------------------------------------\n`;
         msg += `¡Muchas gracias por su compra! 🌟`;

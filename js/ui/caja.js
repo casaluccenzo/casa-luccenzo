@@ -153,6 +153,9 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(query));
     }
 
+    // Algunos productos van de primeros en su pestaña (ver Combos.POS_FIRST).
+    if (window.Combos && window.Combos.posOrder) filteredProducts = window.Combos.posOrder(filteredProducts);
+
     if (filteredProducts.length === 0) {
         listContainer.innerHTML = `
             <div style="text-align: center; color: var(--color-text-muted); font-size: 0.875rem; padding: 2rem 0;">

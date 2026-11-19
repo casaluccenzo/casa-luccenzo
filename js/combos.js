@@ -57,6 +57,19 @@
         // intactos. Para volver a ofrecerlos, poner `combos: false`.
         combos: true };
 
+    // Papelón con limón desde el 19/11/2026: se cobra a Bs 1.200 fijo
+    // (products.price_bs, sin variar con la tasa) y va FUERA de IVA: no entra
+    // en la base imponible ni en la factura talonario, igual que el delivery.
+    // A diferencia del delivery es un producto normal: descuenta vitrina,
+    // cuenta como bebida en cierre, PDF y Rentabilidad.
+    // `since`: las ventas anteriores (cobradas con IVA incluido) no cambian en
+    // los reportes viejos; desde el 20/11/2026 (00:00 Caracas) van sin IVA.
+    const IVA_EXEMPT = { productIds: ['papelon_con_limon'], label: 'fuera de IVA', since: '2026-11-20T04:00:00Z' };
+
+    // Productos que la caja muestra de primeros en su pestaña (el resto sigue
+    // en orden alfabético). El papelón va arriba del Agua de Manzana.
+    const POS_FIRST = ['papelon_con_limon'];
+
     const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
     /** Día de la semana en Caracas (0 = domingo), sin importar la zona del dispositivo. */
@@ -208,6 +221,27 @@
         return (items || []).reduce((sum, it) => sum + (isExtraSale(it) ? (parseFloat(it.price) || 0) * (it.quantity || 1) : 0), 0);
     }
 
-    root.Combos = { PROMO, COMBOS, STAFF, DELIVERY, EXTRA, isExtraSale, cleanExtraName, parseAmount, extraUsdOf, isDeliverySale, parseDeliveryUsd, deliveryUsdOf, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
+    /** ¿Esta venta (o línea de cuenta) es de un producto fuera de IVA (papelón)? */
+    function isIvaExemptSale(sale) {
+        if (!sale || typeof sale !== 'object') return false;
+        const id = sale.productId || sale.product_id;
+        if (!id || !IVA_EXEMPT.productIds.includes(id)) return false;
+        const ts = sale.timestamp ? new Date(sale.timestamp).getTime() : NaN;
+        return isNaN(ts) || ts >= new Date(IVA_EXEMPT.since).getTime();
+    }
+
+    /** Parte de una cuenta (líneas con price y quantity) que va fuera de IVA por producto, en $. */
+    function ivaExemptUsdOf(items) {
+        return (items || []).reduce((sum, it) => sum + (isIvaExemptSale(it) ? (parseFloat(it.price) || 0) * (it.quantity || 1) : 0), 0);
+    }
+
+    /** Los productos en el orden de la caja: primero los de POS_FIRST, el resto como venía. */
+    function posOrder(products) {
+        const list = (products || []).slice();
+        const rank = (p) => { const i = POS_FIRST.indexOf(p && p.id); return i < 0 ? POS_FIRST.length : i; };
+        return list.map((p, i) => [p, i]).sort((a, b) => (rank(a[0]) - rank(b[0])) || (a[1] - b[1])).map(x => x[0]);
+    }
+
+    root.Combos = { PROMO, IVA_EXEMPT, POS_FIRST, isIvaExemptSale, ivaExemptUsdOf, posOrder, COMBOS, STAFF, DELIVERY, EXTRA, isExtraSale, cleanExtraName, parseAmount, extraUsdOf, isDeliverySale, parseDeliveryUsd, deliveryUsdOf, caracasWeekday, isPromoDay, fixedBsPrice, comboCategory, comboProducts, comboPastelBsPrice, findDrink, comboBsToday, staffBsPrice, isStaffSale, HIDDEN, visibleCombos, isHiddenCategory, isHiddenFromSale };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.Combos;
 })(typeof window !== 'undefined' ? window : globalThis);

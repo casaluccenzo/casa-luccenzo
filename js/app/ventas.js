@@ -98,8 +98,9 @@ function invoiceDataForAccount(accountSales, fallbackRate) {
     const [rawName, rawRif = ''] = tag.split(/\s+-\s+/);
     const methodMatch = first.name.match(/\(Pagado\s*-\s*(.*?)\)\s*$/);
 
-    // El delivery va fuera de la factura talonario (no lleva IVA ni exento).
-    const invoiceSales = accountSales.filter(s => !(Combos && Combos.isDeliverySale(s)));
+    // El delivery y el papelón (Combos.IVA_EXEMPT) van fuera de la factura
+    // talonario (no llevan IVA ni exento).
+    const invoiceSales = accountSales.filter(s => !(Combos && (Combos.isDeliverySale(s) || (Combos.isIvaExemptSale && Combos.isIvaExemptSale(s)))));
     if (invoiceSales.length === 0) return { skip: 'delivery' };
     const lines = {};
     invoiceSales.forEach(s => {

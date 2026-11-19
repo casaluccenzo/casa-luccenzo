@@ -408,7 +408,10 @@ function showPosReceiptModal({
     // + IVA (SENIAT) -- the amount charged never changes.
     // The staff's pastelitos (at cost) carry no IVA and stay out of the base.
     // The delivery is outside IVA too (and outside the factura talonario).
-    const exemptVES = cart.reduce((sum, item) => sum + (window.Combos && (window.Combos.isStaffSale(item) || window.Combos.isDeliverySale(item)) ? getItemTotalUSD(item) : 0), 0) * rate;
+    // The papelón (Combos.IVA_EXEMPT) is outside IVA and the factura talonario too.
+    const isPapelon = (item) => !!(window.Combos && window.Combos.isIvaExemptSale && window.Combos.isIvaExemptSale(item));
+    const exemptVES = cart.reduce((sum, item) => sum + (window.Combos && (window.Combos.isStaffSale(item) || window.Combos.isDeliverySale(item) || isPapelon(item)) ? getItemTotalUSD(item) : 0), 0) * rate;
+    const papelonReceiptVES = cart.reduce((sum, item) => sum + (isPapelon(item) ? getItemTotalUSD(item) : 0), 0) * rate;
     const deliveryReceiptVES = (window.Combos ? window.Combos.deliveryUsdOf(cart.map(item => ({ ...item, price: getItemTotalUSD(item), quantity: 1 }))) : 0) * rate;
     const baseImponibleVES = (totalVES - exemptVES) / 1.16;
     const iva16VES = totalVES - exemptVES - baseImponibleVES;
@@ -560,6 +563,11 @@ function showPosReceiptModal({
                         <span>DELIVERY (NO SUJETO A IVA):</span>
                         <span>${formatVES(deliveryReceiptVES)}</span>
                     </div>` : ''}
+                    ${papelonReceiptVES > 0 ? `
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #222; margin-bottom: 0.2rem;">
+                        <span>PAPELÓN (NO SUJETO A IVA):</span>
+                        <span>${formatVES(papelonReceiptVES)}</span>
+                    </div>` : ''}
                 </div>
                 <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 0.95rem; margin-top: 0.25rem; margin-bottom: 0.2rem; border-top: 1px solid #000; padding-top: 0.25rem;">
                     <span>TOTAL VES:</span>
@@ -685,8 +693,8 @@ async function showInvoiceModal({ cart = [], clientName = '', clientRif = '', ti
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
     const effectiveRate = (rate && !isNaN(parseFloat(rate)) && parseFloat(rate) > 0) ? parseFloat(rate) : (window.bcvRate || 0);
-    // El delivery va fuera de la factura talonario (sin IVA ni exento).
-    const items = cart.filter(item => !(window.Combos && window.Combos.isDeliverySale(item))).map(item => {
+    // El delivery y el papelón van fuera de la factura talonario (sin IVA ni exento).
+    const items = cart.filter(item => !(window.Combos && (window.Combos.isDeliverySale(item) || (window.Combos.isIvaExemptSale && window.Combos.isIvaExemptSale(item))))).map(item => {
         const qty = item.quantity || 1;
         const total = getItemTotalUSD(item);
         return { desc: cleanProductName(item.name), qty, price: Math.round((total / qty) * 100) / 100 };

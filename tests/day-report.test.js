@@ -129,3 +129,41 @@ Promise.all([renderPdf(rep), renderPdf(day), renderPdf(amOnly), renderPdf(withDe
     assert.ok(pdf2.slice(0, 4).toString() === '%PDF');
     console.log('rent-report tests passed');
 })().catch(e => { console.error(e); process.exit(1); });
+
+// Papelón (Combos.IVA_EXEMPT): bebida normal (cuenta como unidad y en "bebidas")
+// pero fuera de IVA y de la base, solo desde el 20/11/2026.
+{
+    const Combos = require('../js/combos.js');
+    const ts = '2026-11-20T15:00:00.000+00:00';
+    const pap = 1200 / R;
+    const withPap = buildReport({
+        date: '2026-11-20', bcvRate: R, productCategories: { pollo: 'pastelitos', papelon_con_limon: 'bebidas' },
+        sales: [
+            sale('Pollo [Rosa] (Pagado - Pago Móvil)', P, ts, 'pollo'),
+            sale('Papelon con Limon [Rosa] (Pagado - Pago Móvil)', pap, ts, 'papelon_con_limon')
+        ]
+    });
+    const [acc] = withPap.accounts;
+    assert.strictEqual(acc.exemptBs, 1200);
+    assert.strictEqual(acc.baseBs, Math.round((P * R / 1.16) * 100) / 100, 'la base imponible no incluye el papelón');
+    assert.strictEqual(Math.round((acc.baseBs + acc.ivaBs + acc.exemptBs) * 100), Math.round(acc.totalBs * 100), 'base + IVA + papelón = total');
+    assert.strictEqual(withPap.totals.units, 2, 'el papelón sí cuenta como producto vendido');
+    assert.strictEqual(withPap.categories.find(c => c.key === 'bebidas').totalBs, 1200);
+    assert.strictEqual(withPap.totals.exemptBs, 1200);
+    assert.ok(renderPdf, 'renderPdf existe');
+
+    // Ventas viejas del papelón (antes del 20/11) siguen con IVA incluido.
+    const old = buildReport({
+        date: '2026-11-19', bcvRate: R, productCategories: { papelon_con_limon: 'bebidas' },
+        sales: [sale('Papelon con Limon [Ana] (Pagado - Efectivo)', 1.35, '2026-11-19T15:00:00.000+00:00', 'papelon_con_limon')]
+    });
+    assert.strictEqual(old.accounts[0].exemptBs, 0, 'un día viejo no cambia');
+    assert.ok(old.accounts[0].ivaBs > 0);
+
+    // Orden de la caja: el papelón de primero, el resto como venía.
+    const ordered = Combos.posOrder([{ id: 'agua_de_manzana' }, { id: 'malta' }, { id: 'papelon_con_limon' }]).map(p => p.id);
+    assert.deepStrictEqual(ordered, ['papelon_con_limon', 'agua_de_manzana', 'malta']);
+    assert.strictEqual(Combos.isIvaExemptSale({ productId: 'papelon_con_limon', price: 1 }), true, 'línea de cuenta sin fecha: fuera de IVA');
+    assert.strictEqual(Combos.isIvaExemptSale({ productId: 'malta' }), false);
+    assert.strictEqual(Combos.ivaExemptUsdOf([{ productId: 'papelon_con_limon', price: 1.5, quantity: 2 }, { productId: 'malta', price: 1, quantity: 1 }]), 3);
+}

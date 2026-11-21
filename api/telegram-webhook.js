@@ -1,4 +1,4 @@
-const { SupabaseRest, getTelegramAuthorizationLevel, handleIncomingMessage } = require('../lib/bot-shared');
+const { SupabaseRest, getTelegramAuthorizationLevel, handleIncomingMessage, sendTelegramMessage } = require('../lib/bot-shared');
 
 /**
  * Main Vercel Serverless Function Endpoint: /api/telegram-webhook
@@ -88,34 +88,3 @@ const handler = async (req, res) => {
 };
 
 module.exports = handler;
-
-/**
- * Send Outgoing Message via Telegram Bot API
- */
-async function sendTelegramMessage(chatId, textBody) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-    if (!botToken) {
-        console.log(`📱 [SIMULATED TELEGRAM OUTGOING TO ${chatId}]:\n${textBody}`);
-        return;
-    }
-
-    try {
-        const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: textBody,
-                parse_mode: 'Markdown'
-            })
-        });
-
-        if (!resp.ok) {
-            const errTxt = await resp.text();
-            console.error('❌ Telegram sendMessage error:', errTxt);
-        }
-    } catch (e) {
-        console.error('❌ Error sending Telegram message:', e.message);
-    }
-}

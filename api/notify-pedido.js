@@ -1,4 +1,4 @@
-const { sendWhatsAppMessage, normalizePhone } = require('../lib/bot-shared');
+const { sendTelegramMessage, getTelegramAdminChatIds } = require('../lib/bot-shared');
 
 const VALID_PAYMENT_METHODS = ['Pago Móvil', 'Transferencia'];
 const MAX_ITEMS = 50;
@@ -8,7 +8,7 @@ const MAX_DELIVERY_LEN = 300;
 
 // This endpoint is unauthenticated by design (the customer ordering from the
 // public landing page has no account), so it is throttled per client IP to stop
-// anyone from turning it into a WhatsApp spam gun aimed at the admin's phone.
+// anyone from turning it into a spam gun aimed at the admin's Telegram.
 // Best effort only: serverless instances don't share memory, so the real ceiling
 // is RATE_LIMIT_MAX x (warm instances). It cuts off trivial floods, not a
 // distributed attack -- the ENABLED flag below is the actual kill switch.
@@ -101,12 +101,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Datos de pedido inválidos.' });
     }
 
-    const adminPhones = (process.env.WHATSAPP_ADMIN_PHONE || '')
-        .split(',')
-        .map(p => normalizePhone(p))
-        .filter(Boolean);
+    // Avisos por Telegram desde el 21/11/2026 (antes WhatsApp).
+    const adminChats = getTelegramAdminChatIds();
 
-    if (adminPhones.length === 0) {
+    if (adminChats.length === 0) {
         // Nothing configured to notify -- the order itself is already saved,
         // this endpoint is a best-effort secondary alert, not the source of truth.
         return res.status(200).json({ ok: true, notified: 0 });
@@ -115,10 +113,10 @@ module.exports = async (req, res) => {
     const text = buildNotificationText(req.body);
 
     try {
-        await Promise.all(adminPhones.map(phone => sendWhatsAppMessage(phone, text)));
-        return res.status(200).json({ ok: true, notified: adminPhones.length });
+        const results = await Promise.all(adminChats.map(chatId => sendTelegramMessage(chatId, text)));
+        return res.status(200).json({ ok: true, notified: results.filter(Boolean).length });
     } catch (e) {
-        console.error('❌ Error notifying pedido via WhatsApp:', e.message);
+        console.error('❌ Error notifying pedido via Telegram:', e.message);
         // Still 200 -- the order is safely stored regardless of notification delivery.
         return res.status(200).json({ ok: false });
     }

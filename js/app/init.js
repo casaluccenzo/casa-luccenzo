@@ -374,6 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
     if (activeRole) {
         applyUserRole(activeRole);
+        // Recarga con la sesion ya abierta: sin esto PowerSync no conectaba.
+        if (window.ensurePowerSyncConnected) window.ensurePowerSyncConnected('recarga');
     } else {
         lockSession();
     }

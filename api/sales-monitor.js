@@ -7,7 +7,7 @@
 // the ones inside js/analytics.js -- resolve to Venezuela wall-clock time.
 process.env.TZ = 'America/Caracas';
 
-const { SupabaseRest, sendWhatsAppMessage, normalizePhone } = require('../lib/bot-shared');
+const { SupabaseRest, sendTelegramMessage, getTelegramAdminChatIds } = require('../lib/bot-shared');
 const {
     parseTimestamp,
     aggregateSalesByDay,
@@ -47,7 +47,7 @@ function buildMonitorMessage({ todayTotal, todayComparison, topFlavorToday, insi
  * Daily proactive sales-performance check: pulls the last LOOKBACK_DAYS of
  * `sales`, computes the same weekday-pattern/trend/insights math the
  * "Análisis" tab and its PDF report use (js/analytics.js), and pushes a
- * short WhatsApp summary to WHATSAPP_ADMIN_PHONE -- so Gustavo gets a
+ * short Telegram summary to TELEGRAM_ADMIN_ID (WhatsApp until 21/11/2026) -- so Gustavo gets a
  * daily read on performance without opening the system. Vercel invokes
  * this once a day via the "crons" entry in vercel.json.
  */
@@ -75,10 +75,10 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'Supabase not configured' });
     }
 
-    const adminPhones = (process.env.WHATSAPP_ADMIN_PHONE || '').split(',').map(p => normalizePhone(p)).filter(Boolean);
-    if (adminPhones.length === 0) {
+    const adminChats = getTelegramAdminChatIds();
+    if (adminChats.length === 0) {
         // Nothing to notify -- not an error, just nothing configured yet.
-        return res.status(200).json({ ok: true, notified: 0, reason: 'no admin phones configured' });
+        return res.status(200).json({ ok: true, notified: 0, reason: 'no TELEGRAM_ADMIN_ID configured' });
     }
 
     try {
@@ -126,8 +126,9 @@ module.exports = async (req, res) => {
 
         const message = buildMonitorMessage({ todayTotal, todayComparison, topFlavorToday, insights });
 
-        await Promise.all(adminPhones.map(phone => sendWhatsAppMessage(phone, message)));
-        return res.status(200).json({ ok: true, notified: adminPhones.length, todayTotal, ran_at: new Date().toISOString() });
+        const results = await Promise.all(adminChats.map(chatId => sendTelegramMessage(chatId, message)));
+        const notified = results.filter(Boolean).length;
+        return res.status(200).json({ ok: notified > 0, notified, todayTotal, ran_at: new Date().toISOString() });
     } catch (e) {
         console.error('❌ Error running sales monitor:', e.message);
         return res.status(500).json({ ok: false, error: e.message });

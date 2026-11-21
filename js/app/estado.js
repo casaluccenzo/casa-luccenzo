@@ -184,6 +184,19 @@ async function updateSyncStatusUI(status) {
     // tried". Stay quiet instead of flashing "Sin Conexión" on the login screen.
     if (!window.PowerSyncManager || !window.PowerSyncManager.hasAttemptedConnect()) return;
 
+    // PowerSync never synced on this device: the app is still reading and
+    // writing straight to Supabase (getLocalDb() in supabase.js gates on
+    // hasSynced), so PowerSync's connected:false says nothing about whether
+    // sales reach the server. Showing "Sin Conexión" here was a false alarm
+    // (21/11/2026: the prod PowerSync endpoint no longer resolves, while
+    // sales kept arriving in Supabase). Hide the badge unless the browser
+    // itself reports being offline.
+    if (!status.hasSynced) {
+        const b = document.getElementById('header-offline-badge');
+        if (b && navigator.onLine !== false) b.style.display = 'none';
+        if (navigator.onLine !== false) return;
+    }
+
     // Once PowerSync has synced at least once, its own connected/disconnected
     // signal is more accurate than the Supabase realtime channel's (that
     // channel can stay SUBSCRIBED for a while after real connectivity drops).

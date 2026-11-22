@@ -184,6 +184,40 @@ async function updateSyncStatusUI(status) {
     // tried". Stay quiet instead of flashing "Sin Conexión" on the login screen.
     if (!window.PowerSyncManager || !window.PowerSyncManager.hasAttemptedConnect()) return;
 
+    // 22/11/2026: modo local apagado (POWERSYNC_LOCAL_MODE en supabase.js).
+    // La app lee y escribe directo en Supabase, así que el estado de
+    // PowerSync (que solo vacía en segundo plano una cola vieja, si la hay)
+    // no dice nada de si las ventas llegan. Solo avisar si de verdad quedan
+    // cambios pendientes en este equipo o si el navegador está sin internet.
+    if (!window.POWERSYNC_LOCAL_MODE) {
+        const b = document.getElementById('header-offline-badge');
+        const c = document.getElementById('header-offline-count');
+        if (!b || !c) return;
+        let pending = 0;
+        try {
+            const stats = await window.PowerSyncManager.getUploadQueueStats();
+            pending = (stats && stats.count) || 0;
+        } catch (e) { /* sin cola legible: no hay nada que avisar */ }
+        if (navigator.onLine === false) {
+            b.style.display = 'flex';
+            b.style.background = 'rgba(239, 68, 68, 0.2)';
+            b.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            b.style.color = '#F87171';
+            c.textContent = '⚡ Sin Internet';
+            b.title = 'Este equipo no tiene internet';
+        } else if (pending > 0) {
+            b.style.display = 'flex';
+            b.style.background = 'rgba(245, 158, 11, 0.18)';
+            b.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+            b.style.color = '#FBBF24';
+            c.textContent = `⚡ ${pending} pend.`;
+            b.title = 'Cambios viejos de este equipo subiendo al servidor';
+        } else {
+            b.style.display = 'none';
+        }
+        return;
+    }
+
     // PowerSync never synced on this device: the app is still reading and
     // writing straight to Supabase (getLocalDb() in supabase.js gates on
     // hasSynced), so PowerSync's connected:false says nothing about whether

@@ -403,9 +403,9 @@ async function saveFixedExpense(data) {
     }
     const fmt = (m, c) => (c === 'usd' ? `$${m}` : `Bs ${m}`);
     logActivity('Gasto Fijo', antes
-        ? `${antes.nombre} ${fmt(antes.monto, antes.moneda)} → ${nombre} ${fmt(monto, moneda)} al mes`
-        : `Nuevo: ${nombre} ${fmt(monto, moneda)} al mes`);
-    window.UIManager.showToast(`✅ ${nombre}: ${fmt(monto.toLocaleString('es-VE'), moneda)} al mes`, 'fa-solid fa-check');
+        ? `${antes.nombre} ${fmt(antes.monto, antes.moneda)} → ${nombre} ${fmt(monto, moneda)}`
+        : `Nuevo: ${nombre} ${fmt(monto, moneda)}`);
+    window.UIManager.showToast(`✅ ${nombre}: ${fmt(monto.toLocaleString('es-VE'), moneda)}`, 'fa-solid fa-check');
     await loadFixedExpenses(true);
     renderRentExtras();
     return true;
@@ -422,16 +422,15 @@ async function removeFixedExpense(id) {
         window.UIManager.showToast('❌ No se pudo quitar el gasto fijo.', 'fa-solid fa-circle-xmark');
         return;
     }
-    if (antes) logActivity('Gasto Fijo', `Quitado: ${antes.nombre} ${antes.moneda === 'usd' ? '$' : 'Bs '}${antes.monto} al mes`);
+    if (antes) logActivity('Gasto Fijo', `Quitado: ${antes.nombre} ${antes.moneda === 'usd' ? '$' : 'Bs '}${antes.monto}`);
     window.UIManager.showToast('Gasto fijo quitado.', 'fa-solid fa-check');
     await loadFixedExpenses(true);
     renderRentExtras();
 }
 
-/** Gastos fijos llevados al período que se está viendo. */
+/** Gastos fijos completos (no se prorratean por días), en Bs con la tasa de hoy. */
 function rentFijosDelPeriodo() {
-    const { start, end } = rentLast && rentLast.period && rentLast.period.start ? rentLast.period : rentRange();
-    return window.AnalyticsManager.prorateFixedExpenses(rentFijos || [], start, end, window.bcvRate || 1);
+    return window.AnalyticsManager.fixedExpensesTotal(rentFijos || [], window.bcvRate || 1);
 }
 
 /** Los dos repartos (pastelitos y lo demás) con sus bases, para la pantalla y el PDF. */
@@ -620,7 +619,7 @@ async function generateRentabilidadPdf(btn) {
             excluidas: rentLast.excluidas,
             delivery: rentLast.delivery,
             extrasSinCosto: rentLast.extrasSinCosto,
-            fijos: { dias: fijos.dias, diasMes: fijos.diasMes, totalBs: fijos.totalBs, items: fijos.items },
+            fijos: { totalBs: fijos.totalBs, items: fijos.items },
             repartos
         };
         const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {

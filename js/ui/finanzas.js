@@ -688,11 +688,10 @@ function renderRentCosts(products, onSave) {
 }
 
 /**
- * Gastos fijos del MES (alquiler, relleno sanitario, internet...). Gustavo
- * escoge el nombre y pone el monto en $ o Bs. Arriba de cada uno dice cuánto
- * toca en el período que se está viendo (día = 1/30, semana = 7/30, mes entero).
- * El total del período se resta del reparto de los pastelitos.
- * @param {Object} f Salida de AnalyticsManager.prorateFixedExpenses
+ * Gastos fijos (alquiler, relleno sanitario, internet...). Gustavo escoge el
+ * nombre y pone el monto en $ o Bs. Se restan COMPLETOS (sin repartir por
+ * días) del reparto de los pastelitos, sea cual sea el período.
+ * @param {Object} f Salida de AnalyticsManager.fixedExpensesTotal
  * @param {string} estado 'idle'|'loading'|'ok'|'sin-tabla'|'error'
  * @param {{onSave:Function, onRemove:Function, onRetry:Function}} handlers
  */
@@ -701,9 +700,6 @@ function renderRentFijos(f, estado, handlers = {}) {
     const c = document.getElementById('admin-rent-fijos');
     if (!c) return;
     const items = (f && f.items) || [];
-    const periodoTxt = f && f.dias
-        ? (f.dias === 1 ? '1 día' : `${f.dias} días`) + (f.fraccionMes >= 0.999 && f.fraccionMes <= 1.001 ? ' (el mes completo)' : '')
-        : '';
     const montoTxt = x => (x.moneda === 'usd' ? rentUsd(x.monto) : rentBs(x.monto));
 
     let aviso = '';
@@ -714,21 +710,21 @@ function renderRentFijos(f, estado, handlers = {}) {
       <div class="rent-fijo" data-id="${escapeHtml(x.id || '')}">
         <div class="rent-fijo-row">
           <input type="text" maxlength="60" class="form-input rent-fijo-name" value="${escapeHtml(x.nombre)}" aria-label="Nombre del gasto">
-          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" value="${x.monto}" aria-label="Monto al mes">
+          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" value="${x.monto}" aria-label="Monto">
           <select class="form-input rent-fijo-moneda" aria-label="Moneda">
             <option value="usd"${x.moneda === 'usd' ? ' selected' : ''}>$</option>
             <option value="bs"${x.moneda === 'bs' ? ' selected' : ''}>Bs</option>
           </select>
           <button class="rent-icon-btn rent-fijo-del" aria-label="Quitar"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="rent-fijo-sub">${montoTxt(x)} al mes${x.moneda === 'usd' ? ` (hoy ${rentBs(x.mensualBs)})` : ''} · en este período <strong>${rentBs(x.periodoBs)}</strong></div>
+        <div class="rent-fijo-sub">${montoTxt(x)}${x.moneda === 'usd' ? ` · hoy <strong>${rentBs(x.montoBs)}</strong>` : ''}</div>
       </div>`).join('');
 
     const nuevo = rentFijoNuevo ? `
       <div class="rent-fijo nuevo">
         <div class="rent-fijo-row">
           <input type="text" maxlength="60" class="form-input rent-fijo-name" placeholder="Ej. Alquiler del local" aria-label="Nombre del gasto">
-          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" placeholder="Monto" aria-label="Monto al mes">
+          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" placeholder="Monto" aria-label="Monto">
           <select class="form-input rent-fijo-moneda" aria-label="Moneda"><option value="usd" selected>$</option><option value="bs">Bs</option></select>
           <button class="rent-icon-btn rent-fijo-cancel" aria-label="Cancelar"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -737,13 +733,13 @@ function renderRentFijos(f, estado, handlers = {}) {
 
     const total = items.length ? `
       <div class="rent-reparto-row queda rent-fijo-total">
-        <span>Total en este período${periodoTxt ? ` <small style="font-weight:600; color:var(--color-text-muted);">(${periodoTxt})</small>` : ''}</span>
+        <span>Total gastos fijos</span>
         <span class="monto" style="color:var(--color-danger);">−${rentBs(f.totalBs)}</span>
       </div>` : '';
 
     c.innerHTML = `
-      <div class="rent-section-title">📌 Gastos fijos del mes</div>
-      <div class="rent-note" style="margin:0 0 0.5rem;">Lo que pagas cada mes (local, relleno sanitario, internet…). Pon el monto del mes en $ o Bs; aquí se cuenta solo la parte de los días que estás viendo y se resta del <strong>reparto de los pastelitos</strong>. Se guardan en el sistema y se ven igual en todos los equipos.</div>
+      <div class="rent-section-title">📌 Gastos fijos</div>
+      <div class="rent-note" style="margin:0 0 0.5rem;">Local, relleno sanitario, internet… Pon el monto en $ o Bs: se resta <strong>completo</strong> del <strong>reparto de los pastelitos</strong>, mires el día, la semana o el mes. Los de $ se pasan a Bs con la tasa de hoy. Se guardan en el sistema y se ven igual en todos los equipos.</div>
       ${aviso}
       ${items.length || rentFijoNuevo ? '' : '<div class="rent-note" style="margin:0.2rem 0;">Todavía no hay gastos fijos.</div>'}
       ${filas}${nuevo}${total}

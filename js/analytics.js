@@ -742,42 +742,25 @@ function splitRepartoBases(r, fijosBs = 0) {
 }
 
 /**
- * Gastos fijos MENSUALES (alquiler, relleno sanitario, internet...) llevados al
- * período que se está viendo: cada día cuenta monto / días de ese mes. Así un
- * día de noviembre carga 1/30 del alquiler, una semana 7/30 y el mes entero el
- * 100%. Los que están en dólares pasan a Bs con la tasa de hoy (`rate`).
- * Puro: no toca la base.
+ * Gastos fijos (alquiler, relleno sanitario, internet...): se restan COMPLETOS,
+ * sin importar si se mira un día, una semana o el mes (lo pidió Gustavo el
+ * 2026-11-22: "300 de local" = se restan los 300 enteros). Los que están en
+ * dólares pasan a Bs con la tasa de hoy (`rate`). Puro: no toca la base.
  * @param {Array<{nombre,monto,moneda}>} items moneda 'usd' | 'bs'
- * @param {Date} start inicio del período (incluido)
- * @param {Date} end fin del período (excluido)
  * @param {number} rate tasa Bs por dólar
- * @returns {{dias:number, diasMes:number, totalBs:number, totalUsd:number, items:Array}}
+ * @returns {{totalBs:number, totalUsd:number, items:Array<{id,nombre,monto,moneda,montoBs}>}}
  */
-function prorateFixedExpenses(items = [], start, end, rate = 1) {
+function fixedExpensesTotal(items = [], rate = 1) {
     const r2 = v => Number((v || 0).toFixed(2));
     const tasa = Number(rate) > 0 ? Number(rate) : 1;
-    // Fracción de mes que cubre el período (suma 1/díasDelMes por cada día).
-    let frac = 0, dias = 0;
-    if (start && end) {
-        const d = new Date(start); d.setHours(12, 0, 0, 0);
-        const fin = new Date(end);
-        let guard = 0;
-        while (d < fin && guard++ < 1000) {
-            frac += 1 / new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-            dias++;
-            d.setDate(d.getDate() + 1);
-        }
-    }
-    const diasMes = start ? new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 0).getDate() : 30;
     const out = (items || []).filter(x => x && (Number(x.monto) || 0) > 0).map(x => {
         const monto = Number(x.monto) || 0;
         const moneda = x.moneda === 'usd' ? 'usd' : 'bs';
-        const mensualBs = moneda === 'usd' ? monto * tasa : monto;
-        const periodoBs = mensualBs * frac;
-        return { id: x.id, nombre: String(x.nombre || '').trim() || 'Gasto', monto: r2(monto), moneda, mensualBs: r2(mensualBs), periodoBs: r2(periodoBs), periodoUsd: r2(periodoBs / tasa) };
+        const montoBs = moneda === 'usd' ? monto * tasa : monto;
+        return { id: x.id, nombre: String(x.nombre || '').trim() || 'Gasto', monto: r2(monto), moneda, montoBs: r2(montoBs) };
     });
-    const totalBs = r2(out.reduce((t, x) => t + x.periodoBs, 0));
-    return { dias, diasMes, fraccionMes: Number(frac.toFixed(4)), totalBs, totalUsd: r2(totalBs / tasa), items: out };
+    const totalBs = r2(out.reduce((t, x) => t + x.montoBs, 0));
+    return { totalBs, totalUsd: r2(totalBs / tasa), items: out };
 }
 
 const AnalyticsManager = {
@@ -796,7 +779,7 @@ const AnalyticsManager = {
     aggregateRentabilidad,
     computeReparto,
     splitRepartoBases,
-    prorateFixedExpenses,
+    fixedExpensesTotal,
     productCostBs,
     REPARTO_DEFAULT
 };
@@ -818,7 +801,7 @@ if (typeof module !== 'undefined' && module.exports) {
         aggregateRentabilidad,
         computeReparto,
         splitRepartoBases,
-        prorateFixedExpenses,
+        fixedExpensesTotal,
             productCostBs,
         REPARTO_DEFAULT,
         AnalyticsManager

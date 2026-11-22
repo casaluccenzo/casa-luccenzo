@@ -208,7 +208,7 @@ function updateConnectionStatus(status, source) {
     // (autoSyncAndReconnect, subscribeToChanges' reconnect) kept fighting
     // over this same dot -- confirmed live, PowerSync set it to "offline"
     // and a realtime reconnect flipped it back to "online" moments later.
-    if (source !== 'powersync' && window.PowerSyncManager && window.PowerSyncManager.getSyncStatus) {
+    if (window.POWERSYNC_LOCAL_MODE && source !== 'powersync' && window.PowerSyncManager && window.PowerSyncManager.getSyncStatus) {
         const psStatus = window.PowerSyncManager.getSyncStatus();
         if (psStatus && psStatus.hasSynced) return;
     }

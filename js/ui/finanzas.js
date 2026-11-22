@@ -796,3 +796,42 @@ function renderRentFijos(f, estado, handlers = {}) {
     const retry = c.querySelector('.rent-fijo-retry');
     if (retry) retry.addEventListener('click', () => handlers.onRetry && handlers.onRetry());
 }
+
+/**
+ * "Cuentas claras de los socios": ganancia del período − gastos fijos = lo que
+ * queda, y cuánto le toca a cada uno, en $ (grande) y Bs.
+ * @param {Object|null} r Salida de AnalyticsManager.buildSociosResumen
+ */
+function renderRentResumen(r) {
+    const c = document.getElementById('admin-rent-resumen');
+    if (!c) return;
+    if (!r) { c.innerHTML = ''; return; }
+    const line = (label, v, opts = {}) => `
+      <div class="rent-sum-row${opts.total ? ' total' : ''}${opts.sub ? ' sub' : ''}">
+        <span>${label}</span>
+        <span class="usd${v.bs < 0 || opts.neg ? ' neg' : ''}">${opts.neg ? '−' : ''}${rentUsd(Math.abs(v.usd))}</span>
+        <span class="bs">${opts.neg ? '−' : ''}${rentBs(Math.abs(v.bs))}</span>
+      </div>`;
+    const fijos = r.fijos.items.map(x => line(`− ${escapeHtml(x.nombre)}`, x, { neg: true, sub: true })).join('');
+    const personas = r.personas.map(p => `
+      <div class="rent-sum-person">
+        <span>${escapeHtml(p.nombre)}</span>
+        <span class="usd">${rentUsd(p.usd)}</span>
+        <span class="bs">${rentBs(p.bs)}</span>
+      </div>`).join('');
+    c.innerHTML = `
+      <div class="rent-section-title">💰 Cuentas claras de los socios</div>
+      <div class="rent-sum">
+        ${line('Ganancia del período', r.ganancia)}
+        ${r.gastosLocal.bs > 0 ? line('− Gastos del local', r.gastosLocal, { neg: true }) : ''}
+        ${fijos}
+        ${r.fijos.items.length ? line('− Total gastos fijos', r.fijos, { neg: true }) : ''}
+        ${line('= Queda para los socios', r.queda, { total: true })}
+      </div>
+      <div class="rent-sum-people">
+        <div class="rent-sum-people-title">A cada uno le toca (pastelitos + lo demás)</div>
+        ${personas}
+        ${Math.abs(r.sinAsignar.bs) >= 1 ? `<div class="rent-sum-person muted"><span>Sin asignar</span><span class="usd">${rentUsd(r.sinAsignar.usd)}</span><span class="bs">${rentBs(r.sinAsignar.bs)}</span></div>` : ''}
+      </div>
+      <div class="rent-note" style="margin:0.5rem 0 0;">Dólares con la tasa de hoy (Bs ${r.rate.toLocaleString('es-VE', { maximumFractionDigits: 2 })}). El detalle de cada reparto está más abajo.</div>`;
+}

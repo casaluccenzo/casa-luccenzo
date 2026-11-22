@@ -58,6 +58,7 @@ const {
     computeReparto,
     splitRepartoBases,
     fixedExpensesTotal,
+    buildSociosResumen,
     productCostBs
 } = require('../js/analytics');
 
@@ -608,6 +609,21 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(splitF.pasteles.baseBs, 24000, "split: 30.000 - 4.000 - 2.000");
     assert.strictEqual(splitF.otros.baseBs, 5000, "split: lo demás no carga fijos");
     console.log("✅ TEST PASSED: gastos fijos completos restados del reparto de pastelitos");
+
+    // Cuentas claras: $1.500 de ganancia - $380 de fijos = $1.120 para los socios.
+    const resumenSocios = buildSociosResumen([
+        { field: 'pct', gananciaBs: 120000, gastosBs: 0, baseBs: 120000 - 38000 },
+        { field: 'pctOtros', gananciaBs: 30000, gastosBs: 0, baseBs: 30000 }
+    ], [{ nombre: 'Ornella', pct: 25, pctOtros: 25 }, { nombre: 'Kaira', pct: 25, pctOtros: 25 }, { nombre: 'Gustavo', pct: 50, pctOtros: 50 }],
+    { totalBs: 38000, items: [{ nombre: 'Local', monto: 300, moneda: 'usd', montoBs: 30000 }, { nombre: 'Relleno', monto: 8000, moneda: 'bs', montoBs: 8000 }] }, 100);
+    assert.strictEqual(resumenSocios.ganancia.usd, 1500, "resumen: ganancia $1.500");
+    assert.strictEqual(resumenSocios.fijos.usd, 380, "resumen: fijos $380");
+    assert.strictEqual(resumenSocios.queda.usd, 1120, "resumen: queda $1.120");
+    assert.strictEqual(resumenSocios.fijos.items[0].usd, 300, "resumen: local en $ tal cual");
+    assert.strictEqual(resumenSocios.personas.find(p => p.nombre === 'Gustavo').usd, 560, "resumen: Gustavo 50% = $560");
+    assert.strictEqual(resumenSocios.personas.find(p => p.nombre === 'Kaira').usd, 280, "resumen: Kaira 25% = $280");
+    assert.strictEqual(resumenSocios.sinAsignar.bs, 0, "resumen: todo asignado");
+    console.log("✅ TEST PASSED: cuentas claras de los socios ($1.500 - $380 = $1.120)");
 
     assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
     assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");

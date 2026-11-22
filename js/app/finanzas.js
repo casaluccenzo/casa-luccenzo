@@ -443,6 +443,11 @@ function rentRepartoBlocks() {
     ];
 }
 
+/** Ganancia − gastos fijos = lo que queda, y cuánto le toca a cada socio ($ y Bs). */
+function rentSociosResumen() {
+    return window.AnalyticsManager.buildSociosResumen(rentRepartoBlocks(), loadRentShares(), rentFijosDelPeriodo(), window.bcvRate || 1);
+}
+
 function saveRentShares(list) {
     try { localStorage.setItem(RENT_REPARTO_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
 }
@@ -453,6 +458,7 @@ function renderRentExtras() {
         onRemove: removeFixedExpense,
         onRetry: async () => { await loadFixedExpenses(true); renderRentExtras(); }
     });
+    window.UIManager.renderRentResumen(rentLast ? rentSociosResumen() : null);
     window.UIManager.renderRentReparto(rentRepartoBlocks(), loadRentShares(), {
         onChange: list => { saveRentShares(list); renderRentExtras(); },
         onReset: () => { try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ } renderRentExtras(); }
@@ -620,6 +626,7 @@ async function generateRentabilidadPdf(btn) {
             delivery: rentLast.delivery,
             extrasSinCosto: rentLast.extrasSinCosto,
             fijos: { totalBs: fijos.totalBs, items: fijos.items },
+            resumen: rentSociosResumen(),
             repartos
         };
         const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {

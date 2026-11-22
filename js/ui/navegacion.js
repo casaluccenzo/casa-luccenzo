@@ -148,6 +148,17 @@ function switchView(view) {
         }
         if (viewPedidos) viewPedidos.classList.remove('hidden');
     }
+
+    // Teléfono: la barra de pestañas se desliza de lado; centra la pestaña
+    // activa para que nunca quede escondida. Solo mueve la barra, no la página.
+    const navBar = document.getElementById('switch-nav-bar');
+    const activeTab = navBar && navBar.querySelector('button.active');
+    if (activeTab && navBar.scrollWidth > navBar.clientWidth) {
+        navBar.scrollTo({
+            left: activeTab.offsetLeft - (navBar.clientWidth - activeTab.offsetWidth) / 2,
+            behavior: 'smooth'
+        });
+    }
 }
 
 /**

@@ -584,3 +584,89 @@ main {
         text-align: center;
     }
 }
+
+/* Teléfonos angostos (Samsung S25 ~360 px): cabecera y barra de pestañas que
+   caben sin salirse de la pantalla. Solo CSS de presentación, sin lógica.
+   - Los avisos (tasa, $, "pend.", "bajo") pasan a una segunda línea si no caben.
+   - Las pestañas se deslizan de lado con el dedo (nombres completos, sin "...").
+   - En Control el pie de página ya no aparece arriba del panel.
+   - Los botones del encabezado de cada panel de admin se acomodan en filas. */
+@media (max-width: 767px) {
+    .header-grid {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .logo-container {
+        min-width: 0;
+    }
+
+    .logo-container > div:last-child {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .brand-title {
+        white-space: nowrap;
+    }
+
+    .header-meta {
+        flex-wrap: wrap;
+        row-gap: 0.25rem;
+    }
+
+    .header-meta > * {
+        white-space: nowrap;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .switch-nav {
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .switch-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .switch-nav button {
+        flex: 1 0 auto;
+        min-width: 62px;
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+        scroll-snap-align: center;
+    }
+
+    .nav-label {
+        font-size: 9px;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    /* Control (admin): sin el pie de página ni el hueco vacío arriba */
+    main:has(#view-admin-dashboard:not(.hidden)) .app-footer {
+        display: none;
+    }
+
+    main:has(#view-admin-dashboard:not(.hidden)) > div:first-child {
+        margin-top: 0 !important;
+    }
+
+    .admin-panel-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .admin-panel-header > div {
+        flex-wrap: wrap;
+    }
+}

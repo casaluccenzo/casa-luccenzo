@@ -3119,6 +3119,13 @@ input[type="number"] {
 .rent-reparto-row input.pct { text-align: right; font-weight: 800; }
 .rent-reparto-row .monto { text-align: right; font-weight: 800; white-space: nowrap; }
 .rent-reparto-row.queda { font-weight: 900; border-top: 2px solid rgba(255, 255, 255, 0.15); padding-top: 0.45rem; margin-top: 0.25rem; }
+.rent-fijo { padding: 0.3rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.rent-fijo-row { display: grid; grid-template-columns: 1fr 5.5rem 3.6rem 2.6rem; gap: 0.4rem; align-items: center; }
+.rent-fijo-row input, .rent-fijo-row select { height: 36px; padding: 0 0.45rem; font-size: 0.88rem; width: 100%; min-width: 0; }
+.rent-fijo-row .rent-fijo-monto { text-align: right; font-weight: 800; }
+.rent-fijo-row .rent-icon-btn { height: 36px; }
+.rent-fijo-sub { font-size: 0.74rem; color: var(--color-text-muted); margin-top: 0.2rem; }
+.rent-fijo-total { grid-template-columns: 1fr auto; }
 .rent-btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
 .rent-icon-btn { background: transparent; border: 1px solid var(--color-border-soft); color: var(--color-text-muted); border-radius: 6px; height: 32px; cursor: pointer; }
 

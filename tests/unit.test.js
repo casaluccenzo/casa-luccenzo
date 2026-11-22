@@ -57,6 +57,7 @@ const {
     aggregateRentabilidad,
     computeReparto,
     splitRepartoBases,
+    prorateFixedExpenses,
     productCostBs
 } = require('../js/analytics');
 
@@ -588,6 +589,35 @@ function runAnalyticsUnitTests() {
     assert.strictEqual(split.pasteles.baseBs + split.otros.baseBs, 33500, "split: suma = base neta");
     assert.strictEqual(splitRepartoBases(null).otros.baseBs, 0, "split: sin datos = 0");
     console.log("✅ TEST PASSED: reparto separado pastelitos / lo demás");
+
+    // Gastos fijos mensuales prorrateados al período y restados de pastelitos.
+    const fijosItems = [
+        { id: 'a', nombre: 'Alquiler del local', monto: 300, moneda: 'usd' },
+        { id: 'b', nombre: 'Internet', monto: 30000, moneda: 'bs' },
+        { id: 'c', nombre: 'Vacío', monto: 0, moneda: 'bs' }
+    ];
+    const novStart = new Date(2026, 10, 1), novEnd = new Date(2026, 11, 1);
+    const fMes = prorateFixedExpenses(fijosItems, novStart, novEnd, 100);
+    assert.strictEqual(fMes.dias, 30, "fijos: noviembre tiene 30 días");
+    assert.strictEqual(fMes.items.length, 2, "fijos: monto 0 no cuenta");
+    assert.strictEqual(fMes.totalBs, 60000, "fijos mes: $300 x 100 + Bs 30.000");
+    const fd1 = new Date(2026, 10, 22), fd2 = new Date(2026, 10, 23);
+    const fDia = prorateFixedExpenses(fijosItems, fd1, fd2, 100);
+    assert.strictEqual(fDia.dias, 1, "fijos: un día");
+    assert.strictEqual(fDia.totalBs, 2000, "fijos día: 60.000 / 30");
+    const fSem = prorateFixedExpenses(fijosItems, new Date(2026, 10, 16), new Date(2026, 10, 23), 100);
+    assert.strictEqual(fSem.totalBs, 14000, "fijos semana: 7/30 de 60.000");
+    // Rango que cruza meses: 30 nov (1/30) + 1 dic (1/31)
+    const fCruce = prorateFixedExpenses([{ nombre: 'X', monto: 3100 * 30, moneda: 'bs' }], new Date(2026, 10, 30), new Date(2026, 11, 2), 1);
+    assert.strictEqual(fCruce.totalBs, 3100 + 3000, "fijos: cada día con los días de su mes");
+    const splitF = splitRepartoBases({
+        categorias: [{ key: 'pasteles', gananciaBs: 30000 }, { key: 'bebidas', gananciaBs: 5000 }],
+        totals: { gastosBs: 4000 }
+    }, 2000);
+    assert.strictEqual(splitF.pasteles.fijosBs, 2000, "split: fijos van a pastelitos");
+    assert.strictEqual(splitF.pasteles.baseBs, 24000, "split: 30.000 - 4.000 - 2.000");
+    assert.strictEqual(splitF.otros.baseBs, 5000, "split: lo demás no carga fijos");
+    console.log("✅ TEST PASSED: gastos fijos prorrateados y restados del reparto de pastelitos");
 
     assert.strictEqual(pnl.abonos.count, 1, "aggregatePnl: 1 abono");
     assert.strictEqual(pnl.abonos.montoUsd, 5, "aggregatePnl: abono total 5, outside ventas");

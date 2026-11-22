@@ -537,8 +537,11 @@ function renderRentReparto(blocks, shares, handlers = {}) {
     const blockHtml = (b, bi) => {
         const rep = window.AnalyticsManager.computeReparto(b.baseBs, list.map(x => ({ nombre: x.nombre, pct: x[b.field] })));
         const over = rep.asignadoPct > 100;
-        const baseTxt = b.gastosBs > 0
-            ? `Ganancia ${rentBs(b.gananciaBs)} − gastos del local ${rentBs(b.gastosBs)} = <strong>${rentBs(b.baseBs)}</strong>.`
+        const resta = [];
+        if (b.gastosBs > 0) resta.push(` − gastos del local ${rentBs(b.gastosBs)}`);
+        if (b.fijosBs > 0) resta.push(` − gastos fijos ${rentBs(b.fijosBs)}`);
+        const baseTxt = resta.length
+            ? `Ganancia ${rentBs(b.gananciaBs)}${resta.join('')} = <strong>${rentBs(b.baseBs)}</strong>.`
             : `Ganancia de este período: <strong>${rentBs(b.baseBs)}</strong>.`;
         return `
       <div class="rent-reparto-block"${bi > 0 ? ' style="margin-top:1.25rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.15);"' : ''}>
@@ -682,4 +685,118 @@ function renderRentCosts(products, onSave) {
         b.disabled = true;
         try { if (onSave) await onSave(b.dataset.id, v, cur); } finally { b.disabled = false; }
     }));
+}
+
+/**
+ * Gastos fijos del MES (alquiler, relleno sanitario, internet...). Gustavo
+ * escoge el nombre y pone el monto en $ o Bs. Arriba de cada uno dice cuánto
+ * toca en el período que se está viendo (día = 1/30, semana = 7/30, mes entero).
+ * El total del período se resta del reparto de los pastelitos.
+ * @param {Object} f Salida de AnalyticsManager.prorateFixedExpenses
+ * @param {string} estado 'idle'|'loading'|'ok'|'sin-tabla'|'error'
+ * @param {{onSave:Function, onRemove:Function, onRetry:Function}} handlers
+ */
+let rentFijoNuevo = false;
+function renderRentFijos(f, estado, handlers = {}) {
+    const c = document.getElementById('admin-rent-fijos');
+    if (!c) return;
+    const items = (f && f.items) || [];
+    const periodoTxt = f && f.dias
+        ? (f.dias === 1 ? '1 día' : `${f.dias} días`) + (f.fraccionMes >= 0.999 && f.fraccionMes <= 1.001 ? ' (el mes completo)' : '')
+        : '';
+    const montoTxt = x => (x.moneda === 'usd' ? rentUsd(x.monto) : rentBs(x.monto));
+
+    let aviso = '';
+    if (estado === 'sin-tabla') aviso = `<div class="rent-warn">Falta activar los gastos fijos en la base: hay que correr una vez el SQL que te mandé. Mientras tanto no se pueden guardar.</div>`;
+    else if (estado === 'error') aviso = `<div class="rent-warn">No se pudieron leer los gastos fijos (¿sin conexión?)${items.length ? '; se muestran los últimos guardados en este teléfono' : ''}. <button class="btn-action-small rent-fijo-retry" style="margin-left:0.3rem;"><i class="fa-solid fa-rotate"></i> Reintentar</button></div>`;
+
+    const filas = items.map(x => `
+      <div class="rent-fijo" data-id="${escapeHtml(x.id || '')}">
+        <div class="rent-fijo-row">
+          <input type="text" maxlength="60" class="form-input rent-fijo-name" value="${escapeHtml(x.nombre)}" aria-label="Nombre del gasto">
+          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" value="${x.monto}" aria-label="Monto al mes">
+          <select class="form-input rent-fijo-moneda" aria-label="Moneda">
+            <option value="usd"${x.moneda === 'usd' ? ' selected' : ''}>$</option>
+            <option value="bs"${x.moneda === 'bs' ? ' selected' : ''}>Bs</option>
+          </select>
+          <button class="rent-icon-btn rent-fijo-del" aria-label="Quitar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="rent-fijo-sub">${montoTxt(x)} al mes${x.moneda === 'usd' ? ` (hoy ${rentBs(x.mensualBs)})` : ''} · en este período <strong>${rentBs(x.periodoBs)}</strong></div>
+      </div>`).join('');
+
+    const nuevo = rentFijoNuevo ? `
+      <div class="rent-fijo nuevo">
+        <div class="rent-fijo-row">
+          <input type="text" maxlength="60" class="form-input rent-fijo-name" placeholder="Ej. Alquiler del local" aria-label="Nombre del gasto">
+          <input type="number" inputmode="decimal" min="0" step="0.01" class="form-input rent-fijo-monto" placeholder="Monto" aria-label="Monto al mes">
+          <select class="form-input rent-fijo-moneda" aria-label="Moneda"><option value="usd" selected>$</option><option value="bs">Bs</option></select>
+          <button class="rent-icon-btn rent-fijo-cancel" aria-label="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button class="btn-action-small rent-fijo-save-new" style="margin-top:0.35rem;"><i class="fa-solid fa-check"></i> Guardar gasto fijo</button>
+      </div>` : '';
+
+    const total = items.length ? `
+      <div class="rent-reparto-row queda rent-fijo-total">
+        <span>Total en este período${periodoTxt ? ` <small style="font-weight:600; color:var(--color-text-muted);">(${periodoTxt})</small>` : ''}</span>
+        <span class="monto" style="color:var(--color-danger);">−${rentBs(f.totalBs)}</span>
+      </div>` : '';
+
+    c.innerHTML = `
+      <div class="rent-section-title">📌 Gastos fijos del mes</div>
+      <div class="rent-note" style="margin:0 0 0.5rem;">Lo que pagas cada mes (local, relleno sanitario, internet…). Pon el monto del mes en $ o Bs; aquí se cuenta solo la parte de los días que estás viendo y se resta del <strong>reparto de los pastelitos</strong>. Se guardan en el sistema y se ven igual en todos los equipos.</div>
+      ${aviso}
+      ${items.length || rentFijoNuevo ? '' : '<div class="rent-note" style="margin:0.2rem 0;">Todavía no hay gastos fijos.</div>'}
+      ${filas}${nuevo}${total}
+      ${rentFijoNuevo ? '' : '<div class="rent-btn-row"><button class="btn-action-small rent-fijo-add"><i class="fa-solid fa-plus"></i> Agregar gasto fijo</button></div>'}`;
+
+    const rerender = () => renderRentFijos(f, estado, handlers);
+    const read = box => ({
+        id: box.dataset.id || null,
+        nombre: box.querySelector('.rent-fijo-name').value,
+        monto: parseFloat(box.querySelector('.rent-fijo-monto').value) || 0,
+        moneda: box.querySelector('.rent-fijo-moneda').value
+    });
+
+    c.querySelectorAll('.rent-fijo:not(.nuevo)').forEach(box => {
+        const orig = items.find(x => String(x.id) === box.dataset.id);
+        const save = () => {
+            const d = read(box);
+            if (!orig || (d.nombre.trim() === orig.nombre && d.monto === orig.monto && d.moneda === orig.moneda)) return;
+            if (!d.nombre.trim()) { box.querySelector('.rent-fijo-name').value = orig.nombre; return; }
+            handlers.onSave && handlers.onSave(d);
+        };
+        box.querySelectorAll('input, select').forEach(el => el.addEventListener('change', save));
+        box.querySelector('.rent-fijo-del').addEventListener('click', () => {
+            const del = box.querySelector('.rent-fijo-del');
+            if (del.dataset.confirm !== '1') {
+                // Segundo toque confirma (sin ventanas del navegador).
+                del.dataset.confirm = '1';
+                del.innerHTML = '<span style="font-size:0.7rem; font-weight:800; color:var(--color-danger);">¿Quitar?</span>';
+                setTimeout(() => { if (del.isConnected) { del.dataset.confirm = ''; del.innerHTML = '<i class="fa-solid fa-xmark"></i>'; } }, 3000);
+                return;
+            }
+            handlers.onRemove && handlers.onRemove(box.dataset.id);
+        });
+    });
+
+    const add = c.querySelector('.rent-fijo-add');
+    if (add) add.addEventListener('click', () => {
+        rentFijoNuevo = true; rerender();
+        const n = c.querySelector('.rent-fijo.nuevo .rent-fijo-name'); if (n) n.focus();
+    });
+    const cancel = c.querySelector('.rent-fijo-cancel');
+    if (cancel) cancel.addEventListener('click', () => { rentFijoNuevo = false; rerender(); });
+    const saveNew = c.querySelector('.rent-fijo-save-new');
+    if (saveNew) saveNew.addEventListener('click', async () => {
+        const box = c.querySelector('.rent-fijo.nuevo');
+        const d = read(box);
+        if (!d.nombre.trim()) { box.querySelector('.rent-fijo-name').focus(); return; }
+        if (!(d.monto > 0)) { box.querySelector('.rent-fijo-monto').focus(); return; }
+        saveNew.disabled = true;
+        let ok;
+        try { ok = handlers.onSave ? await handlers.onSave(d) : false; } finally { saveNew.disabled = false; }
+        if (ok) { rentFijoNuevo = false; rerender(); }
+    });
+    const retry = c.querySelector('.rent-fijo-retry');
+    if (retry) retry.addEventListener('click', () => handlers.onRetry && handlers.onRetry());
 }

@@ -24,6 +24,7 @@ window.UIManager = {
     renderRentabilidad,
     renderRentReparto,
     renderRentFijos,
+    renderRentResumen,
     renderRentCosts,
     renderDebts,
     renderPedidosOnline,

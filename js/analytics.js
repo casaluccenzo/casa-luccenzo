@@ -763,6 +763,45 @@ function fixedExpensesTotal(items = [], rate = 1) {
     return { totalBs, totalUsd: r2(totalBs / tasa), items: out };
 }
 
+/**
+ * "Cuentas claras" de los socios: ganancia de todo el período (pastelitos +
+ * lo demás), menos gastos del local, menos cada gasto fijo, = lo que queda
+ * para repartir, y cuánto le toca a cada persona sumando los dos repartos.
+ * Todo en Bs y en $ (con la tasa de hoy, `rate`). Puro.
+ * @param {Array<{field,gananciaBs,gastosBs,baseBs}>} blocks de rentRepartoBlocks
+ * @param {Array<{nombre,pct,pctOtros}>} shares
+ * @param {{totalBs:number, items:Array}} fijos de fixedExpensesTotal
+ * @param {number} rate
+ */
+function buildSociosResumen(blocks = [], shares = [], fijos = {}, rate = 1) {
+    const r2 = v => Number((v || 0).toFixed(2));
+    const tasa = Number(rate) > 0 ? Number(rate) : 1;
+    const usd = bs => r2(bs / tasa);
+    const gananciaBs = r2((blocks || []).reduce((t, b) => t + (Number(b.gananciaBs) || 0), 0));
+    const gastosLocalBs = r2((blocks || []).reduce((t, b) => t + (Number(b.gastosBs) || 0), 0));
+    const fijosBs = r2((fijos && fijos.totalBs) || 0);
+    const quedaBs = r2(gananciaBs - gastosLocalBs - fijosBs);
+    const personas = (shares || []).map(s => ({ nombre: String(s.nombre || '').trim() || '—', bs: 0 }));
+    for (const b of blocks || []) {
+        const rep = computeReparto(b.baseBs, (shares || []).map(s => ({ nombre: s.nombre, pct: s[b.field] })));
+        rep.filas.forEach((f, i) => { if (personas[i]) personas[i].bs += f.bs; });
+    }
+    personas.forEach(p => { p.bs = r2(p.bs); p.usd = usd(p.bs); });
+    const sinAsignarBs = r2(quedaBs - personas.reduce((t, p) => t + p.bs, 0));
+    return {
+        rate: tasa,
+        ganancia: { bs: gananciaBs, usd: usd(gananciaBs) },
+        gastosLocal: { bs: gastosLocalBs, usd: usd(gastosLocalBs) },
+        fijos: {
+            bs: fijosBs, usd: usd(fijosBs),
+            items: ((fijos && fijos.items) || []).map(x => ({ nombre: x.nombre, bs: r2(x.montoBs), usd: x.moneda === 'usd' ? r2(x.monto) : usd(x.montoBs) }))
+        },
+        queda: { bs: quedaBs, usd: usd(quedaBs) },
+        personas,
+        sinAsignar: { bs: sinAsignarBs, usd: usd(sinAsignarBs) }
+    };
+}
+
 const AnalyticsManager = {
     WEEKDAY_LABELS,
     parseTimestamp,
@@ -780,6 +819,7 @@ const AnalyticsManager = {
     computeReparto,
     splitRepartoBases,
     fixedExpensesTotal,
+    buildSociosResumen,
     productCostBs,
     REPARTO_DEFAULT
 };
@@ -802,6 +842,7 @@ if (typeof module !== 'undefined' && module.exports) {
         computeReparto,
         splitRepartoBases,
         fixedExpensesTotal,
+        buildSociosResumen,
             productCostBs,
         REPARTO_DEFAULT,
         AnalyticsManager

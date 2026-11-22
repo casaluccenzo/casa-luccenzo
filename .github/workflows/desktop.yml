@@ -1,0 +1,85 @@
+# Programa de Windows (Electron, desktop/) armado y publicado solo.
+#
+# Hasta 2026-11-22 el instalador se publicaba a mano (npm run release:desktop)
+# y se quedó en la v1.0.4 del 27-sep mientras la web iba por la 1.0.57. Ahora,
+# cada vez que llega a main una versión nueva (package.json "version"), este
+# workflow arma el .exe con la web de esa versión adentro y lo publica como
+# release v<versión>. Los equipos con el programa instalado lo bajan solos
+# (desktop/updater.js revisa al abrir y cada 4 h) y se instala al cerrar el
+# programa, sin preguntar nada.
+name: Programa de Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: ¿Ya existe esta versión?
+        id: ver
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "La v$VERSION ya está publicada: no se vuelve a armar."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Armar la web (www/)
+        if: steps.ver.outputs.exists != 'true' || github.event_name == 'pull_request'
+        shell: bash
+        run: node scripts/build.js
+
+      - name: Instalar Electron
+        if: steps.ver.outputs.exists != 'true' || github.event_name == 'pull_request'
+        working-directory: desktop
+        shell: bash
+        run: |
+          npm ci
+          # La versión del programa siempre es la de la web que lleva adentro.
+          npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Armar instalador (prueba, sin publicar)
+        if: github.event_name == 'pull_request'
+        working-directory: desktop
+        run: npx electron-builder --win --publish never
+
+      - name: Armar y publicar instalador
+        if: github.event_name != 'pull_request' && steps.ver.outputs.exists != 'true'
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
+
+      - uses: actions/upload-artifact@v4
+        if: steps.ver.outputs.exists != 'true' || github.event_name == 'pull_request'
+        with:
+          name: casa-lucenzo-windows
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/latest.yml
+          if-no-files-found: warn

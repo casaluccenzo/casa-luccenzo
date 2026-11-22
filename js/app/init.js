@@ -11,21 +11,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // the SW would just add a redundant cache layer).
     if ('serviceWorker' in navigator && !window.electronAPI
         && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+        // Actualización silenciosa (2026-11-22): antes, a los 30 s de cada
+        // publicación salía la pantalla de "actualizando" y la página se
+        // recargaba aunque estuvieran cobrando. Ahora la versión nueva se
+        // baja sola en segundo plano y se aplica en el primer momento
+        // tranquilo: cuenta activa vacía, nada escrito a medias y sin tocar
+        // la pantalla por 20 s. Sin avisos ni preguntas.
         let refreshing = false;
-        
-        // Listen for controllerchange to trigger automated reload when new sw takes over
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
+        let lastInteractionAt = Date.now();
+        ['pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, () => { lastInteractionAt = Date.now(); }, { passive: true, capture: true });
+        });
+        const isBusy = () => {
+            if (typeof currentCart !== 'undefined' && Array.isArray(currentCart) && currentCart.length > 0) return true;
+            if (sessionStorage.getItem('casa_lucenzo_editing_timestamp')) return true;
+            const el = document.activeElement;
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') && el.value) return true;
+            return Date.now() - lastInteractionAt < 20000;
+        };
+        const reloadWhenIdle = () => {
             if (refreshing) return;
             refreshing = true;
-            console.log('Service Worker controller changed, reloading.');
-            if (window.UIManager && window.UIManager.showUpdateOverlay) {
-                window.UIManager.showUpdateOverlay();
-                window.UIManager.updateOverlayStatusSuccess();
-            }
-            setTimeout(() => {
+            console.log('Versión nueva lista: se aplica en el próximo momento sin uso.');
+            const tryReload = () => {
+                if (isBusy()) {
+                    setTimeout(tryReload, 5000);
+                    return;
+                }
                 window.location.reload();
-            }, 1200);
-        });
+            };
+            tryReload();
+        };
+
+        navigator.serviceWorker.addEventListener('controllerchange', reloadWhenIdle);
 
         navigator.serviceWorker.register('/sw.js', { scope: '/sistema/' })
             .then(reg => {
@@ -33,14 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // If there's an update already waiting to be activated, trigger it!
                 if (reg.waiting) {
-                    console.log('New update is waiting in background. Triggering activation.');
-                    if (window.UIManager && window.UIManager.showUpdateOverlay) {
-                        window.UIManager.showUpdateOverlay();
-                        window.UIManager.updateOverlayStatusSuccess();
-                    }
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1200);
+                    console.log('New update is waiting in background.');
+                    reg.waiting.postMessage && reg.waiting.postMessage('skipWaiting');
+                    reloadWhenIdle();
                     return;
                 }
 
@@ -58,26 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
-                    if (installingWorker) {
-                        // Display full screen update overlay when installing begins
-                        if (window.UIManager && window.UIManager.showUpdateOverlay) {
-                            window.UIManager.showUpdateOverlay();
+                    if (!installingWorker) return;
+                    installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            reloadWhenIdle();
                         }
-                        
-                        installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed') {
-                                if (navigator.serviceWorker.controller) {
-                                    console.log('New update installed, performing auto-reload.');
-                                    if (window.UIManager && window.UIManager.updateOverlayStatusSuccess) {
-                                        window.UIManager.updateOverlayStatusSuccess();
-                                    }
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 1500);
-                                }
-                            }
-                        };
-                    }
+                    };
                 };
             })
             .catch(err => console.warn('Service Worker registration failed:', err));

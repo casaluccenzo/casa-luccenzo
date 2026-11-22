@@ -344,12 +344,103 @@ function loadRentShares() {
     }));
 }
 
+// ---------- Gastos fijos mensuales (tabla fixed_expenses, migración 051) ----------
+// Alquiler, relleno sanitario, internet... los nombra Gustavo, en $ o Bs. Se
+// guardan en la base (se ven igual en todos los equipos) y una copia en este
+// teléfono para poder mostrarlos sin conexión.
+let rentFijos = null;          // [{id,nombre,monto,moneda,orden}] o null si no se han leído
+let rentFijosEstado = 'idle';  // 'idle' | 'loading' | 'ok' | 'sin-tabla' | 'error'
+const RENT_FIJOS_CACHE_KEY = 'casa_lucenzo_gastos_fijos';
+
+function rentFijosClient() {
+    return window.SupabaseManager && window.SupabaseManager.isConfigured() ? window.SupabaseManager.getClient() : null;
+}
+
+async function loadFixedExpenses(force = false) {
+    if (currentRole !== 'admin') return;
+    if (rentFijosEstado === 'loading' || (rentFijosEstado === 'ok' && !force)) return;
+    if (rentFijos === null) {
+        try { const c = JSON.parse(localStorage.getItem(RENT_FIJOS_CACHE_KEY) || 'null'); if (Array.isArray(c)) rentFijos = c; } catch (e) { /* ignore */ }
+    }
+    const client = rentFijosClient();
+    if (!client || !navigator.onLine) { rentFijosEstado = 'error'; return; }
+    rentFijosEstado = 'loading';
+    try {
+        const { data, error } = await client.from('fixed_expenses').select('id,nombre,monto,moneda,orden,created_at')
+            .order('orden', { ascending: true }).order('created_at', { ascending: true });
+        if (error) throw error;
+        rentFijos = (data || []).map(x => ({ id: x.id, nombre: x.nombre, monto: Number(x.monto) || 0, moneda: x.moneda === 'bs' ? 'bs' : 'usd', orden: x.orden || 0 }));
+        try { localStorage.setItem(RENT_FIJOS_CACHE_KEY, JSON.stringify(rentFijos)); } catch (e) { /* ignore */ }
+        rentFijosEstado = 'ok';
+    } catch (e) {
+        // 42P01 / PGRST205: la tabla todavía no existe (falta correr la migración 051).
+        const code = e && (e.code || '');
+        rentFijosEstado = (code === '42P01' || code === 'PGRST205' || /fixed_expenses/.test(String(e && e.message))) ? 'sin-tabla' : 'error';
+        console.error('loadFixedExpenses failed:', e);
+    }
+}
+
+/** Guarda (crea o cambia) un gasto fijo. data: {id?, nombre, monto, moneda} */
+async function saveFixedExpense(data) {
+    if (currentRole !== 'admin') return false;
+    const client = rentFijosClient();
+    if (!client || !requireOnline('Guardar gastos fijos')) return false;
+    const nombre = String(data.nombre || '').trim().slice(0, 60);
+    const monto = Math.max(0, Math.round((Number(data.monto) || 0) * 100) / 100);
+    const moneda = data.moneda === 'bs' ? 'bs' : 'usd';
+    if (!nombre) { window.UIManager.showToast('Ponle un nombre al gasto (ej. Alquiler del local).', 'fa-solid fa-circle-info'); return false; }
+    const antes = data.id && rentFijos ? rentFijos.find(x => x.id === data.id) : null;
+    const row = { nombre, monto, moneda, updated_at: new Date().toISOString() };
+    const res = data.id
+        ? await client.from('fixed_expenses').update(row).eq('id', data.id)
+        : await client.from('fixed_expenses').insert({ ...row, orden: (rentFijos || []).length });
+    if (res.error) {
+        console.error('saveFixedExpense failed:', res.error);
+        window.UIManager.showToast(rentFijosEstado === 'sin-tabla'
+            ? '❌ Falta activar los gastos fijos en la base (correr el SQL).'
+            : '❌ No se pudo guardar el gasto fijo. Revisa la conexión.', 'fa-solid fa-circle-xmark');
+        return false;
+    }
+    const fmt = (m, c) => (c === 'usd' ? `$${m}` : `Bs ${m}`);
+    logActivity('Gasto Fijo', antes
+        ? `${antes.nombre} ${fmt(antes.monto, antes.moneda)} → ${nombre} ${fmt(monto, moneda)} al mes`
+        : `Nuevo: ${nombre} ${fmt(monto, moneda)} al mes`);
+    window.UIManager.showToast(`✅ ${nombre}: ${fmt(monto.toLocaleString('es-VE'), moneda)} al mes`, 'fa-solid fa-check');
+    await loadFixedExpenses(true);
+    renderRentExtras();
+    return true;
+}
+
+async function removeFixedExpense(id) {
+    if (currentRole !== 'admin') return;
+    const client = rentFijosClient();
+    if (!client || !requireOnline('Quitar gastos fijos')) return;
+    const antes = (rentFijos || []).find(x => x.id === id);
+    const { error } = await client.from('fixed_expenses').delete().eq('id', id);
+    if (error) {
+        console.error('removeFixedExpense failed:', error);
+        window.UIManager.showToast('❌ No se pudo quitar el gasto fijo.', 'fa-solid fa-circle-xmark');
+        return;
+    }
+    if (antes) logActivity('Gasto Fijo', `Quitado: ${antes.nombre} ${antes.moneda === 'usd' ? '$' : 'Bs '}${antes.monto} al mes`);
+    window.UIManager.showToast('Gasto fijo quitado.', 'fa-solid fa-check');
+    await loadFixedExpenses(true);
+    renderRentExtras();
+}
+
+/** Gastos fijos llevados al período que se está viendo. */
+function rentFijosDelPeriodo() {
+    const { start, end } = rentLast && rentLast.period && rentLast.period.start ? rentLast.period : rentRange();
+    return window.AnalyticsManager.prorateFixedExpenses(rentFijos || [], start, end, window.bcvRate || 1);
+}
+
 /** Los dos repartos (pastelitos y lo demás) con sus bases, para la pantalla y el PDF. */
 function rentRepartoBlocks() {
-    const split = window.AnalyticsManager.splitRepartoBases(rentLast);
+    const fijos = rentFijosDelPeriodo();
+    const split = window.AnalyticsManager.splitRepartoBases(rentLast, rentLast ? fijos.totalBs : 0);
     return [
-        { field: 'pct', titulo: 'Reparto de los pastelitos', baseBs: split.pasteles.baseBs, gananciaBs: split.pasteles.gananciaBs, gastosBs: split.pasteles.gastosBs },
-        { field: 'pctOtros', titulo: 'Reparto de lo demás (bebidas, dulces, cajas, extras)', baseBs: split.otros.baseBs, gananciaBs: split.otros.gananciaBs, gastosBs: 0 }
+        { field: 'pct', titulo: 'Reparto de los pastelitos', baseBs: split.pasteles.baseBs, gananciaBs: split.pasteles.gananciaBs, gastosBs: split.pasteles.gastosBs, fijosBs: split.pasteles.fijosBs },
+        { field: 'pctOtros', titulo: 'Reparto de lo demás (bebidas, dulces, cajas, extras)', baseBs: split.otros.baseBs, gananciaBs: split.otros.gananciaBs, gastosBs: 0, fijosBs: split.otros.fijosBs }
     ];
 }
 
@@ -358,6 +449,11 @@ function saveRentShares(list) {
 }
 
 function renderRentExtras() {
+    window.UIManager.renderRentFijos(rentFijosDelPeriodo(), rentFijosEstado, {
+        onSave: saveFixedExpense,
+        onRemove: removeFixedExpense,
+        onRetry: async () => { await loadFixedExpenses(true); renderRentExtras(); }
+    });
     window.UIManager.renderRentReparto(rentRepartoBlocks(), loadRentShares(), {
         onChange: list => { saveRentShares(list); renderRentExtras(); },
         onReset: () => { try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ } renderRentExtras(); }
@@ -420,6 +516,10 @@ async function loadRentabilidad(forceRefetch = false) {
     const container = document.getElementById('admin-rent-container');
     const key = `${start.toISOString()}|${end.toISOString()}`;
     if (forceRefetch) delete rentCache[key];
+    // Los gastos fijos se leen una vez (y otra vez con "Actualizar").
+    if (forceRefetch || rentFijosEstado === 'idle' || rentFijosEstado === 'error') {
+        loadFixedExpenses(forceRefetch).then(() => renderRentExtras());
+    }
 
     if (!rentCache[key]) {
         if (container) container.innerHTML = `<div style="font-size:0.85rem; color:var(--color-text-muted); text-align:center; padding:1.5rem 0;">Cargando rentabilidad...</div>`;
@@ -507,8 +607,9 @@ async function generateRentabilidadPdf(btn) {
         const shares = loadRentShares();
         const repartos = rentRepartoBlocks().map(b => {
             const rep = window.AnalyticsManager.computeReparto(b.baseBs, shares.map(x => ({ nombre: x.nombre, pct: x[b.field] })));
-            return { titulo: b.titulo, baseBs: b.baseBs, gananciaBs: b.gananciaBs, gastosBs: b.gastosBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs };
+            return { titulo: b.titulo, baseBs: b.baseBs, gananciaBs: b.gananciaBs, gastosBs: b.gastosBs, fijosBs: b.fijosBs, filas: rep.filas, quedaPct: rep.quedaPct, quedaBs: rep.quedaBs };
         });
+        const fijos = rentFijosDelPeriodo();
         const payload = {
             label: rentLast.period.label,
             mode: rentMode,
@@ -519,6 +620,7 @@ async function generateRentabilidadPdf(btn) {
             excluidas: rentLast.excluidas,
             delivery: rentLast.delivery,
             extrasSinCosto: rentLast.extrasSinCosto,
+            fijos: { dias: fijos.dias, diasMes: fijos.diasMes, totalBs: fijos.totalBs, items: fijos.items },
             repartos
         };
         const resp = await fetch(`${API_BASE}/api/rentabilidad-pdf`, {

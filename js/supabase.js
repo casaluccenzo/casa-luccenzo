@@ -140,7 +140,19 @@ async function fetchAllPages(buildQuery) {
 // A plain property access, not a call -- safe in Node under tests/unit.test.js
 // (global.window is shimmed there, but PowerSyncManager never gets defined,
 // so this is just undefined, not a ReferenceError).
+// 22/11/2026: modo local (PowerSync) APAGADO. La instancia de PowerSync
+// volvió a responder la noche del 21/11 y, al terminar su primera
+// sincronización, el POS pasó a leer de la copia local del equipo, que se
+// quedaba atrasada ("Sincronizando..." sin fin y Cuentas Activas vacías en la
+// PC mientras el teléfono sí las veía). Con esto todo lee y escribe directo
+// en Supabase, como funcionó todo octubre y noviembre. PowerSync sigue
+// conectando en segundo plano SOLO para subir lo que haya quedado pendiente
+// en la cola local de algún equipo. Para volver a activarlo: poner true.
+const POWERSYNC_LOCAL_MODE = false;
+window.POWERSYNC_LOCAL_MODE = POWERSYNC_LOCAL_MODE;
+
 function getLocalDb() {
+    if (!POWERSYNC_LOCAL_MODE) return null;
     const manager = window.PowerSyncManager;
     if (!manager || !manager.db) return null;
     const status = manager.db.currentStatus;

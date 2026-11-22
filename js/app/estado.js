@@ -177,12 +177,75 @@ function sanitizeDataIntegrity(log) {
 // SyncStatus. Bound to db.registerListener's statusChanged event (see
 // js/powersync/client.js) -- not polled -- so it reflects connect/
 // disconnect/upload/download transitions the instant PowerSync reports them.
+/**
+ * Aviso del encabezado con el modo local de PowerSync apagado: "Sin Internet"
+ * si el equipo no tiene señal, o "N pend." si quedan ventas en la cola del
+ * equipo (js/sales-outbox.js) o cambios viejos en la cola de PowerSync.
+ * Se llama también cuando cambia la cola de ventas y al ganar/perder señal,
+ * no solo desde PowerSync.
+ */
+async function renderDirectModeBadge() {
+    const b = document.getElementById('header-offline-badge');
+    const c = document.getElementById('header-offline-count');
+    if (!b || !c) return;
+    let pending = window.SalesOutbox ? window.SalesOutbox.count() : 0;
+    try {
+        if (window.PowerSyncManager && window.PowerSyncManager.hasAttemptedConnect()) {
+            const stats = await window.PowerSyncManager.getUploadQueueStats();
+            pending += (stats && stats.count) || 0;
+        }
+    } catch (e) { /* sin cola legible: no hay nada que avisar */ }
+    if (navigator.onLine === false) {
+        b.style.display = 'flex';
+        b.style.background = 'rgba(239, 68, 68, 0.2)';
+        b.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        b.style.color = '#F87171';
+        c.textContent = pending > 0 ? `⚡ Sin señal · ${pending}` : '⚡ Sin Internet';
+        b.title = pending > 0
+            ? 'Sin internet. Las ventas quedan guardadas en este equipo y se suben solas al volver la señal.'
+            : 'Este equipo no tiene internet';
+    } else if (pending > 0) {
+        b.style.display = 'flex';
+        b.style.background = 'rgba(245, 158, 11, 0.18)';
+        b.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+        b.style.color = '#FBBF24';
+        c.textContent = `⚡ ${pending} pend.`;
+        b.title = 'Ventas de este equipo subiendo al servidor';
+    } else {
+        b.style.display = 'none';
+    }
+}
+window.renderDirectModeBadge = renderDirectModeBadge;
+if (typeof window.addEventListener === 'function') {
+    window.addEventListener('online', () => { if (!window.POWERSYNC_LOCAL_MODE) renderDirectModeBadge(); });
+    window.addEventListener('offline', () => { if (!window.POWERSYNC_LOCAL_MODE) renderDirectModeBadge(); });
+}
+if (typeof document !== 'undefined' && document.addEventListener) {
+    // Si el equipo ya abre sin señal, el evento 'offline' nunca llega.
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => { if (!window.POWERSYNC_LOCAL_MODE) renderDirectModeBadge(); }, 1500);
+    });
+}
+if (window.SalesOutbox && window.SalesOutbox.onChange) {
+    window.SalesOutbox.onChange(() => { if (!window.POWERSYNC_LOCAL_MODE) renderDirectModeBadge(); });
+}
+
 async function updateSyncStatusUI(status) {
     if (!status) return;
     // No connect() attempted yet (pre-login, or PowerSync not configured at
     // all) -- connected:false here doesn't mean "offline", it means "never
     // tried". Stay quiet instead of flashing "Sin Conexión" on the login screen.
     if (!window.PowerSyncManager || !window.PowerSyncManager.hasAttemptedConnect()) return;
+
+    // 22/11/2026: modo local apagado (POWERSYNC_LOCAL_MODE en supabase.js).
+    // La app lee y escribe directo en Supabase, así que el estado de
+    // PowerSync (que solo vacía en segundo plano una cola vieja, si la hay)
+    // no dice nada de si las ventas llegan. Solo avisar si de verdad quedan
+    // cambios pendientes en este equipo o si el navegador está sin internet.
+    if (!window.POWERSYNC_LOCAL_MODE) {
+        await renderDirectModeBadge();
+        return;
+    }
 
     // PowerSync never synced on this device: the app is still reading and
     // writing straight to Supabase (getLocalDb() in supabase.js gates on

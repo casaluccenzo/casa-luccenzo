@@ -150,9 +150,19 @@ async function loadAllDataFromSupabase() {
     });
 
     if (supSales && supSales.length > 0) {
-        const cleanSupSales = supSales.filter(s => !s.uuid || !deletedUuidsSet.has(s.uuid));
+        // Anulaciones hechas sin internet que todavía están en la cola del
+        // equipo (js/sales-outbox.js): el servidor aún las trae como vivas.
+        const outbox = window.SalesOutbox;
+        const pendingVoids = outbox ? outbox.pendingVoidUuids() : new Set();
+        const cleanSupSales = supSales.filter(s => !s.uuid || (!deletedUuidsSet.has(s.uuid) && !pendingVoids.has(s.uuid)));
         const supUuids = new Set(cleanSupSales.map(s => s.uuid));
-        const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid));
+        // Ventas hechas sin internet que siguen en la cola: no faltan, todavía
+        // no llegan. Se quedan en pantalla (con su versión local, que es la
+        // más nueva) y la cola las sube sola.
+        const pendingSales = outbox ? outbox.pendingSaleUuids() : new Set();
+        const queuedLocal = localSales.filter(s => s.uuid && pendingSales.has(s.uuid) && !pendingVoids.has(s.uuid));
+        const queuedUuids = new Set(queuedLocal.map(s => s.uuid));
+        const missingLocal = localSales.filter(s => s.uuid && !supUuids.has(s.uuid) && !queuedUuids.has(s.uuid));
 
         // A sale sitting in THIS device's cache but missing from the server
         // isn't always a failed offline write -- it can also be a row an
@@ -176,7 +186,8 @@ async function loadAllDataFromSupabase() {
         // ("Limpiar Caché" surfaces it). Losing a rare, real pending sale to
         // manual review is a far smaller failure than the old bug this
         // guarded against.
-        salesLog = [...cleanSupSales];
+        salesLog = [...cleanSupSales.filter(s => !queuedUuids.has(s.uuid)), ...queuedLocal];
+        if (queuedLocal.length > 0) outbox.flush();
 
         if (missingLocal.length > 0) {
             window.StorageManager.addQuarantinedSales(

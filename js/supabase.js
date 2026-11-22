@@ -730,6 +730,12 @@ async function insertSale(sale) {
         bcv_rate: sale.bcvRate || window.bcvRate || null,
         cost_at_sale: (sale.cost !== undefined && sale.cost !== null) ? sale.cost : null
     };
+    // Modo sin internet propio: pasa por la cola del equipo (js/sales-outbox.js),
+    // que la reenvía sola si ahora no hay señal.
+    if (window.SalesOutbox) {
+        await window.SalesOutbox.send([{ kind: 'insert', uuid: payload.uuid, payload }]);
+        return;
+    }
     try {
         const { error } = await client.from('sales').insert(payload);
         if (error) throw error;
@@ -773,6 +779,10 @@ async function insertSales(sales) {
         bcv_rate: sale.bcvRate || window.bcvRate || null,
         cost_at_sale: (sale.cost !== undefined && sale.cost !== null) ? sale.cost : null
     }));
+    if (window.SalesOutbox) {
+        await window.SalesOutbox.send([{ kind: 'insert', payload: payloads }]);
+        return;
+    }
     try {
         const { error } = await client.from('sales').insert(payloads);
         if (error) throw error;
@@ -803,6 +813,10 @@ async function upsertSales(sales) {
         price: sale.price,
         timestamp: sale.timestamp
     }));
+    if (window.SalesOutbox) {
+        await window.SalesOutbox.send([{ kind: 'upsert', payload: basePayloads }]);
+        return;
+    }
     try {
         const { error } = await client.from('sales').upsert(basePayloads);
         if (error) throw error;
@@ -833,6 +847,10 @@ async function voidSale(uuid, reason) {
         return;
     }
     if (!client) return;
+    if (window.SalesOutbox) {
+        await window.SalesOutbox.send([{ kind: 'void', uuid, voidedAt: nowIso, reason: reason || null }]);
+        return;
+    }
     try {
         const { error } = await client.from('sales').update({ voided_at: nowIso, void_reason: reason || null }).eq('uuid', uuid);
         if (error) throw error;
@@ -1585,15 +1603,71 @@ async function verifyQuickPin(userId, pin) {
             console.error("PowerSync local verifyQuickPin failed, falling back to Supabase RPC:", e);
         }
     }
-    if (!client) return false;
+    // Sin señal (o sin cliente): se compara contra la huella guardada la
+    // última vez que este PIN se aceptó en este equipo con internet.
+    if (!client || navigator.onLine === false) return verifyQuickPinOffline(userId, pinStr);
     try {
-        const { data, error } = await client.rpc('verify_quick_pin', { p_user_id: userId, p_pin: pinStr });
-        if (error) throw error;
+        const { data, error, status } = await client.rpc('verify_quick_pin', { p_user_id: userId, p_pin: pinStr });
+        if (error) {
+            // Sin respuesta del servidor = sin internet de verdad aunque el
+            // navegador crea que sí (wifi sin salida): misma regla offline.
+            if (!status) return verifyQuickPinOffline(userId, pinStr);
+            throw error;
+        }
+        if (data === true) rememberOfflinePin(userId, pinStr);
         return data === true;
     } catch (e) {
         console.error("Error verifying quick PIN in Supabase:", e);
         return false;
     }
+}
+
+// Modo sin internet propio (2026-11-22): huella bcrypt del PIN por usuario,
+// guardada en este equipo solo después de que el servidor aceptó ese PIN.
+// Nunca se guarda el PIN tal cual. Mismo bloqueo de 3 intentos / 60 s.
+const OFFLINE_PIN_KEY = 'casa_lucenzo_offline_pin_hashes';
+
+function loadOfflinePinHashes() {
+    try {
+        const m = JSON.parse(localStorage.getItem(OFFLINE_PIN_KEY) || '{}');
+        return (m && typeof m === 'object') ? m : {};
+    } catch {
+        return {};
+    }
+}
+
+function rememberOfflinePin(userId, pinStr) {
+    if (!window.bcrypt) return;
+    try {
+        const map = loadOfflinePinHashes();
+        if (map[userId] && window.bcrypt.compareSync(pinStr, map[userId])) return;
+        map[userId] = window.bcrypt.hashSync(pinStr, 8);
+        localStorage.setItem(OFFLINE_PIN_KEY, JSON.stringify(map));
+    } catch (e) {
+        console.warn("No se pudo guardar el PIN para uso sin internet:", e);
+    }
+}
+
+function verifyQuickPinOffline(userId, pinStr) {
+    const hash = loadOfflinePinHashes()[userId];
+    if (!hash || !window.bcrypt) return false;
+    const lockout = window.StorageManager.loadPinLockoutState(userId);
+    const now = Date.now();
+    if (lockout.lockedUntil && lockout.lockedUntil > now) return false;
+    let isValid;
+    try {
+        isValid = window.bcrypt.compareSync(pinStr, hash);
+    } catch {
+        isValid = false;
+    }
+    if (isValid) {
+        window.StorageManager.savePinLockoutState(userId, { attempts: 0, lockedUntil: null });
+        return true;
+    }
+    const attempts = (lockout.attempts || 0) + 1;
+    const lockedUntil = attempts >= 3 ? now + 60000 : lockout.lockedUntil;
+    window.StorageManager.savePinLockoutState(userId, { attempts, lockedUntil });
+    return false;
 }
 
 async function fetchProfiles() {

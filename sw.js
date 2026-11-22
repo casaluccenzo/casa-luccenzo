@@ -14,6 +14,7 @@ const SCRIPTS = [
   'ui/shared.js',
   'storage.js',
   'supabase.js',
+  'sales-outbox.js',
   'exchange-rate.js',
   'export.js',
   'auth.js',
@@ -103,6 +104,14 @@ const ASSETS_TO_CACHE = [
   `/js/powersync/client.js?v=${APP_VERSION}`,
   '/js/powersync/schema.js',
   ...POWERSYNC_VENDORED,
+  // Librerías de terceros guardadas en el propio sistema (antes por CDN).
+  '/js/vendor/supabase-js-2.119.0.js',
+  '/js/vendor/bcryptjs-3.0.3.js',
+  '/css/vendor/fontawesome/css/all.min.css',
+  '/css/vendor/fontawesome/webfonts/fa-solid-900.woff2',
+  '/css/vendor/fontawesome/webfonts/fa-regular-400.woff2',
+  '/css/vendor/fontawesome/webfonts/fa-brands-400.woff2',
+  '/css/vendor/fontawesome/webfonts/fa-v4compatibility.woff2',
   '/img/logo-192.png',
   '/img/logo-512.png',
   '/img/logo-factura.png'
@@ -176,4 +185,10 @@ self.addEventListener('fetch', event => {
           });
       })
   );
+});
+
+// init.js le pide a una versión en espera que tome el control (la recarga
+// igual espera a un momento sin uso).
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });

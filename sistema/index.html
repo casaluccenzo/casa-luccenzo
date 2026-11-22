@@ -41,10 +41,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://xttpaqokeyywjaajvjyu.supabase.co" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Íconos guardados en el propio sistema (antes venían de cdnjs): así abren sin internet. -->
+    <link rel="stylesheet" href="/css/vendor/fontawesome/css/all.min.css">
     
     <!-- Link to Modular Custom CSS Styles -->
     <link rel="stylesheet" href="/css/main.css?v=__APP_VERSION__">
@@ -53,7 +53,11 @@
     <!-- IMPORTANT: bump ?v= on every release AND keep it in sync with APP_VERSION
          in sw.js -- the service worker keys its cache by the exact request URL,
          so a stale ?v= here means users keep running old JS. -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
+    <!-- supabase-js y bcryptjs viven en js/vendor/ (copiados tal cual de npm, misma
+         versión exacta que antes en jsdelivr). Desde el CDN, un <script> sin
+         crossorigin da una respuesta "opaca" que sw.js no guarda, y sin internet
+         el sistema no arrancaba. -->
+    <script src="/js/vendor/supabase-js-2.119.0.js"></script>
     <!-- Plan B, Task 10: bcryptjs, pure JS/zero deps, for local PIN
          verification (js/supabase.js:verifyQuickPin). Verified in a real
          browser that its UMD build exposes window.bcrypt via a plain
@@ -61,7 +65,7 @@
          bcrypt.compareSync() correctly validates a real hash pgcrypto's
          crypt(pin, gen_salt('bf')) produced -- same bcrypt spec on both
          sides. Pinned to an exact version like @powersync/web above. -->
-    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@3.0.3/umd/index.js"></script>
+    <script src="/js/vendor/bcryptjs-3.0.3.js"></script>
     <!-- Plan B: PowerSync's main module comes from the CDN (same pattern as
          supabase-js right above) -- sw.js already caches any cross-origin
          request generically, so this is available offline after the first
@@ -83,6 +87,7 @@
     <script src="/js/ui/shared.js?v=__APP_VERSION__"></script>
     <script src="/js/storage.js?v=__APP_VERSION__"></script>
     <script src="/js/supabase.js?v=__APP_VERSION__"></script>
+    <script src="/js/sales-outbox.js?v=__APP_VERSION__"></script>
     <script src="/js/exchange-rate.js?v=__APP_VERSION__"></script>
     <script src="/js/export.js?v=__APP_VERSION__"></script>
     <script src="/js/auth.js?v=__APP_VERSION__"></script>

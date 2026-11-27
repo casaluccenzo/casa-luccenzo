@@ -729,7 +729,8 @@
                 const { data: rows, error } = await client
                     .from('products')
                     .select('name, price, price_bs, category, stock')
-                    .gt('stock', 0)
+                    // Pasteles siempre (stock manual, v1.0.66: pueden estar en 0 o negativo y se venden igual).
+                    .or('stock.gt.0,category.eq.pastelitos')
                     .order('category')
                     .order('name');
                 // Sin las categorías que ya no se venden (Combos.HIDDEN).
@@ -961,7 +962,8 @@
                 const { data: rows, error } = await client
                     .from('products')
                     .select('name, price, price_bs, category, stock')
-                    .gt('stock', 0)
+                    // Pasteles siempre (stock manual, v1.0.66: pueden estar en 0 o negativo y se venden igual).
+                    .or('stock.gt.0,category.eq.pastelitos')
                     .order('category')
                     .order('name');
                 // Sin las categorías que ya no se venden (Combos.HIDDEN).

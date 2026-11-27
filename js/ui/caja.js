@@ -171,9 +171,11 @@ function renderLocal(products, adjustStock, activeCategory = 'todos', searchQuer
         
         card.className = `product-card${isCritical ? ' critical' : ''}`;
         
-        const alertBadge = isCritical 
-            ? `<span class="badge-alert animate-pulse">¡Falta!</span>` 
-            : '';
+        // Stock manual (v1.0.66): un sabor en negativo se sigue vendiendo;
+        // se marca claro para cargarlo con "Cargar pasteles".
+        const alertBadge = product.stock < 0
+            ? `<span class="badge-alert animate-pulse">En negativo</span>`
+            : (isCritical ? `<span class="badge-alert animate-pulse">¡Falta!</span>` : '');
             
         const stockStyle = isCritical ? 'stock-value critical' : 'stock-value';
         // max=0 is used deliberately for items whose daily stock varies by flavor

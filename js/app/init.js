@@ -610,8 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.ShareManager.shareToWhatsApp(products, window.UIManager.showToast);
     });
 
-    // 9. Bind vitrina refill all
-    document.getElementById('btn-reset-all').addEventListener('click', resetToMax);
+    // 9. Cargar stock de pasteles a mano (reemplaza "Rellenar todo", v1.0.66)
+    document.getElementById('btn-cargar-pasteles').addEventListener('click', openCargarPasteles);
 
     // 10. Bind factory reset
     document.getElementById('btn-factory-reset').addEventListener('click', restoreDefaultProducts);

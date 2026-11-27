@@ -45,6 +45,15 @@ const { SupabaseRest } = require('../lib/bot-shared');
  */
 const DAILY_VITRINA_STOCK = 20;
 
+/**
+ * Stock manual (27/11/2026, migración 053). Gustavo carga los pastelitos él
+ * mismo desde el POS ("Cargar pasteles") y lo que queda de un día pasa al
+ * siguiente, también en negativo. Con esto en false el cron ya NO cierra la
+ * vitrina ni suma 20 por sabor; solo sigue cerrando la caja olvidada.
+ * Para volver a la recarga automática: poner true (y revertir la 053).
+ */
+const RECARGA_AUTOMATICA = false;
+
 // Unlike SupabaseRest.post/patch (true/false only), these surface the actual
 // HTTP status + body so a failed write shows up in the cron's logs.
 async function writeOrThrow(supabaseUrl, serviceKey, method, path, body, prefer) {
@@ -139,6 +148,10 @@ module.exports = async (req, res) => {
         } catch (e) {
             console.error('daily-restock: no se pudo cerrar la caja olvidada:', e.message);
             caja = { cerrada: false, error: e.message };
+        }
+
+        if (!RECARGA_AUTOMATICA) {
+            return res.status(200).json({ ok: true, restocked: 0, recarga_automatica: false, caja, ran_at: new Date().toISOString() });
         }
 
         const pastelitos = await db.rawGet('products?select=id,stock,initial_stock,max&category=eq.pastelitos');

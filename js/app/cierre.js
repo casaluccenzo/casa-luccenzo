@@ -621,43 +621,24 @@ async function closeDayAndResetLogs() {
         // protects yesterday's batches from being re-loaded can start empty too.
         window.StorageManager.clearConsumedReplenishmentUuids();
 
-        // 4. Reset showcase products' stock: Pastelitos reset to 0, Packaged items (bebidas, dulces) keep their actual remaining stock
-        //
-        // Plan B, Task 9: stock/initial_stock no persisten nada acá.
-        // insertDayClose() (Step 1b) es lo que mueve la frontera real --
-        // trg_day_close_recompute (migración 030) recalcula esas dos columnas
-        // solo, straight from stock_movements, la misma fórmula que este loop
-        // replicaba a mano con un updateProductStock() directo. Repetirlo acá
-        // competiría con el trigger por las mismas columnas (el mismo
-        // conflicto de doble escritura de Task 6) -- pero sacar la mutación
-        // en memoria por completo tampoco es seguro: el trigger recién corre
-        // cuando el INSERT de insertDayClose efectivamente sube, y esta app
-        // tiene que poder operar offline un día entero (spec R1). Esta
-        // asignación pura en memoria es lo que hace que Cocina vea la vitrina
-        // en cero de inmediato, incluso antes de que el cierre sincronice.
-        // (fetchProducts, más abajo en supabase.js, calcula lo mismo en vivo
-        // para que sobreviva un F5/recarga offline -- hallazgo real de
-        // Gemini, ver Task 9 en el plan.)
-        //
-        // `max` sí necesita seguir escribiéndose directo: a diferencia de
-        // stock/initial_stock, el trigger solo puede CRECER ese techo
-        // (GREATEST), nunca bajarlo -- sin este write explícito, "resetea con
-        // el día" queda roto en TODOS los casos, no solo offline.
+        // 4. Todo el stock (pastelitos incluidos) pasa al día siguiente tal cual.
+        // stock/initial_stock los recalcula Postgres desde stock_movements al
+        // subir el cierre; esto es solo para que la pantalla quede bien ya.
+        // Stock manual (27/11/2026, migración 053): los pastelitos ya NO se
+        // ponen en cero al cerrar. Lo que queda (aunque sea negativo) pasa al
+        // día siguiente, igual que las bebidas; Gustavo los carga a mano con
+        // "Cargar pasteles". El cierre solo mueve dónde empieza "hoy" para el
+        // cuadre. `max` de los pastelitos se reinicia a lo que quedó, para que
+        // el "de X" de la vitrina sea lo de hoy y no un techo viejo (el trigger
+        // solo puede crecerlo, por eso resetPastelitoCapacity sigue aquí).
         products.forEach(p => {
             const cat = p.category || (window.StorageManager ? window.StorageManager.getProductCategory(p) : 'pastelitos');
+            p.initial_stock = p.stock || 0;
             if (cat === 'pastelitos') {
-                p.stock = 0;
-                p.initial_stock = 0;
-                // Capacity is "what got loaded today", so it resets with the day.
-                // Left standing it accumulated, and Cocina kept asking for
-                // batches nobody had loaded.
-                p.max = 0;
+                p.max = Math.max(0, p.stock || 0);
                 if (window.SupabaseManager.isConfigured()) {
                     window.SupabaseManager.resetPastelitoCapacity(p.id);
                 }
-            } else {
-                // Keep actual remaining stock for drinks/sweets
-                p.initial_stock = p.stock || 0;
             }
         });
         // 4.5. Ensure BCV automatic exchange connector is active and refreshed
@@ -683,7 +664,7 @@ async function closeDayAndResetLogs() {
             loadAndRenderAdminStats();
         }
 
-        window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero y vitrina lista al 100% para mañana.", "fa-solid fa-circle-check");
+        window.UIManager.showToast("🌅 ¡Jornada cerrada! Caja en cero. El stock de pasteles se mantiene para mañana.", "fa-solid fa-circle-check");
         return true;
     } catch (e) {
         console.error("Failed to reset logs during day close", e);

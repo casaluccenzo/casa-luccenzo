@@ -91,6 +91,21 @@ function closeDayCloseModal() {
     document.getElementById('day-close-modal').classList.add('hidden');
 }
 
+/** Ventas agrupadas por día de Caracas: [{label:'25/11', total, count}] en orden. */
+function salesByCaracasDay(list) {
+    const dias = {};
+    (list || []).forEach(s => {
+        if (!s.timestamp) return;
+        const d = window.parseUTCTimestamp ? window.parseUTCTimestamp(s.timestamp) : new Date(s.timestamp);
+        const c = new Date(d.getTime() - 4 * 3600 * 1000);
+        const key = c.toISOString().slice(0, 10);
+        if (!dias[key]) dias[key] = { key, label: `${key.slice(8, 10)}/${key.slice(5, 7)}`, total: 0, count: 0 };
+        dias[key].total += s.price || 0;
+        dias[key].count += 1;
+    });
+    return Object.values(dias).sort((a, b) => a.key.localeCompare(b.key));
+}
+
 function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, productsList = [], shift = null) {
     const totalSales = reportSales.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalExpenses = reportExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -226,6 +241,14 @@ function generateWhatsAppReport(reportSales, reportExpenses, dateLabel, rate, pr
         }
         message += `  ─────────────────\n`;
         message += `  🧮 *Total del día: $${totalSales.toFixed(2)}* (Bs. ${(totalSales * rate).toFixed(2)})\n`;
+
+        // Si un día quedó sin cerrar, la caja junta varios días. Avisarlo y
+        // separar cuánto fue de cada uno (27/11/2026: el 26 sumó también el 25).
+        const porDia = salesByCaracasDay(reportSales);
+        if (porDia.length > 1) {
+            message += `\n⚠️ *OJO: incluye ${porDia.length} días* (no se cerró la jornada):\n`;
+            porDia.forEach(d => { message += `  • ${d.label}: $${d.total.toFixed(2)} (${d.count} ventas)\n`; });
+        }
     }
     message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     message += shiftInfo ? `📢 _Corte de turno: la jornada sigue abierta._\n` : `📢 _Cierre generado automáticamente._\n`;
@@ -449,17 +472,11 @@ function caracasDateStr(date = new Date()) {
 
 /**
  * Pide al servidor que arme y guarde el PDF de ventas del día (api/cierre-pdf.js).
- * El PDF sale de la base, así que primero espera (hasta ~1 min) a que este
- * equipo termine de subir sus ventas pendientes. Si falla o no hay conexión,
+ * El PDF sale de la base. Si falla o no hay conexión,
  * el cron de medianoche lo genera igual; nunca bloquea ni deshace el cierre.
  */
 async function requestDayReportPdf({ fecha, manual = false } = {}) {
     try {
-        for (let i = 0; i < 30 && window.PowerSyncManager; i++) {
-            const stats = await window.PowerSyncManager.getUploadQueueStats().catch(() => null);
-            if (!stats || !stats.count) break;
-            await new Promise(r => setTimeout(r, 2000));
-        }
         const resp = await fetch(`${API_BASE}/api/cierre-pdf`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -486,18 +503,10 @@ function openDayReportPdf(fecha, turno = null) {
 }
 
 /**
- * Corte de turno: el PDF del turno se arma en el momento desde la base, así
- * que primero espera a que este equipo suba sus ventas pendientes y luego
+ * Corte de turno: el PDF del turno se arma en el momento desde la base;
  * muestra la tarjeta para compartirlo.
  */
 async function shareShiftReportPdf(fecha, turno) {
-    try {
-        for (let i = 0; i < 30 && window.PowerSyncManager; i++) {
-            const stats = await window.PowerSyncManager.getUploadQueueStats().catch(() => null);
-            if (!stats || !stats.count) break;
-            await new Promise(r => setTimeout(r, 2000));
-        }
-    } catch (e) { /* la tarjeta igual abre el PDF */ }
     showDayReportShareCard(fecha, turno);
 }
 

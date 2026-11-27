@@ -50,8 +50,7 @@ const appVersion = require('../package.json').version;
 injectVersion(destDir, appVersion);
 console.log(`🏷️  Versión ${appVersion} inyectada en www/`);
 
-// Per-deployment branding (BRAND env var), same pattern as SUPABASE_URL/
-// POWERSYNC_URL: this codebase now serves more than one business off the
+// Per-deployment branding (BRAND env var), same pattern as SUPABASE_URL: this codebase now serves more than one business off the
 // same Vercel project family, and "Casa Lucenzo" was hardcoded into the
 // logo files and into several user-facing strings. img/brands/<BRAND>/
 // holds that tenant's logo.jpg/logo-192.png/logo-512.png plus a brand.json
@@ -158,25 +157,6 @@ if (fs.existsSync(supabaseBuildFile)) {
         console.log('🔒 Environment variables injected into www/js/supabase.js');
     } else {
         console.warn('⚠️ SUPABASE_URL/SUPABASE_ANON_KEY not set — leaving placeholders unreplaced (app will run in local-only mode).');
-    }
-}
-
-// js/powersync/connector.js carries the same __POWERSYNC_URL__ placeholder
-// pattern as supabase.js, but this injection was never wired up -- the
-// placeholder was shipping to every deploy unreplaced, so PowerSync never
-// connected in production (the app degrades to the Supabase-direct fallback
-// paths in js/supabase.js, which is why nothing visibly broke).
-const powersyncBuildFile = path.join(destDir, 'js', 'powersync', 'connector.js');
-if (fs.existsSync(powersyncBuildFile)) {
-    const envPowerSyncUrl = process.env.POWERSYNC_URL;
-
-    if (envPowerSyncUrl) {
-        let content = fs.readFileSync(powersyncBuildFile, 'utf8');
-        content = content.replace('__POWERSYNC_URL__', envPowerSyncUrl);
-        fs.writeFileSync(powersyncBuildFile, content, 'utf8');
-        console.log('🔒 POWERSYNC_URL injected into www/js/powersync/connector.js');
-    } else {
-        console.warn('⚠️ POWERSYNC_URL not set — leaving placeholder unreplaced (PowerSync will not connect unless prefs.powerSyncUrl is set locally).');
     }
 }
 

@@ -374,8 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeRole = sessionStorage.getItem('casa_lucenzo_active_role');
     if (activeRole) {
         applyUserRole(activeRole);
-        // Recarga con la sesion ya abierta: sin esto PowerSync no conectaba.
-        if (window.ensurePowerSyncConnected) window.ensurePowerSyncConnected('recarga');
     } else {
         lockSession();
     }
@@ -803,14 +801,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ticks the "Actualizado hace X" freshness label in Resumen
     setInterval(updateSyncFreshnessDisplay, 3000);
 
-    // 19. Bind the sync status badge to PowerSync's real status (Task 13).
-    // client.js is a deferred module script loaded before this one -- by
-    // DOMContentLoaded it has already run, so window.PowerSyncManager exists.
-    if (window.PowerSyncManager && window.PowerSyncManager.onStatusChange) {
-        window.PowerSyncManager.onStatusChange(updateSyncStatusUI);
-        const initialStatus = window.PowerSyncManager.getSyncStatus();
-        if (initialStatus) updateSyncStatusUI(initialStatus);
-    }
+    // 19. Aviso "Sin Internet" de la cabecera.
+    window.addEventListener('online', updateSyncStatusUI);
+    window.addEventListener('offline', updateSyncStatusUI);
+    updateSyncStatusUI();
 
     initAdminDashboardListeners();
     initAgentListeners();

@@ -128,60 +128,14 @@ async function fetchAllPages(buildQuery) {
     return rows;
 }
 
-// Plan B, Task 4: reads move from client.from(...) (Supabase direct) to the
-// local PowerSync/SQLite database once it has actually synced at least once.
-// The db OBJECT exists from page load regardless of login (js/powersync/
-// client.js constructs it eagerly) -- but connect() only runs after a
-// successful login (handleUserLogin), and loadAllDataFromSupabase() runs
-// at app init, BEFORE any login. Gating on hasSynced (not just object
-// existence) matters: without it, that very first pre-login load would
-// read an empty local table instead of falling back to Supabase, and the
-// product catalog would render empty until after someone logs in.
-// A plain property access, not a call -- safe in Node under tests/unit.test.js
-// (global.window is shimmed there, but PowerSyncManager never gets defined,
-// so this is just undefined, not a ReferenceError).
-// 22/11/2026: modo local (PowerSync) APAGADO. La instancia de PowerSync
-// volvió a responder la noche del 21/11 y, al terminar su primera
-// sincronización, el POS pasó a leer de la copia local del equipo, que se
-// quedaba atrasada ("Sincronizando..." sin fin y Cuentas Activas vacías en la
-// PC mientras el teléfono sí las veía). Con esto todo lee y escribe directo
-// en Supabase, como funcionó todo octubre y noviembre. PowerSync sigue
-// conectando en segundo plano SOLO para subir lo que haya quedado pendiente
-// en la cola local de algún equipo. Para volver a activarlo: poner true.
-const POWERSYNC_LOCAL_MODE = false;
-window.POWERSYNC_LOCAL_MODE = POWERSYNC_LOCAL_MODE;
+// 27/11/2026: PowerSync quitado por completo (v1.0.65). Desde la v1.0.58 ya
+// estaba apagado y todo leía y escribía directo en Supabase; ahora ya ni se
+// carga. Las funciones de abajo hablan solo con Supabase.
 
-function getLocalDb() {
-    if (!POWERSYNC_LOCAL_MODE) return null;
-    const manager = window.PowerSyncManager;
-    if (!manager || !manager.db) return null;
-    const status = manager.db.currentStatus;
-    if (!status || !status.hasSynced) return null;
-    return manager.db;
-}
-
-// Postgres `numeric` columns are stored as SQLite TEXT locally (see
-// js/powersync/schema.js -- confirmed against PowerSync's own schema
-// generator: numeric -> text, never real, to avoid float rounding on money).
-// Supabase-direct already returns real numbers via PostgREST's JSON encoding,
-// so this is a no-op there -- applied unconditionally so both branches share
-// one mapper instead of duplicating the coercion per source.
+// Convierte a número las columnas `numeric` (null/undefined se dejan igual).
 function toNum(v) {
     return (v === null || v === undefined) ? v : Number(v);
 }
-
-// Plan B, Task 5: unica location existente (migracion 016b), NOT NULL sin
-// default en Postgres para products/ingredients/debts/expenses/
-// replenishments. schema.js no declara un default de columna en SQLite, asi
-// que un INSERT local que no la mencione explicitamente la deja en NULL --
-// y ese NULL explicito sube tal cual en el PUT (uploadData en connector.js),
-// violando la constraint NOT NULL (23502). connector.js descarta esos
-// errores 23xxx sin reintentar, así que la fila se pierde en Postgres para
-// siempre (aunque localmente parezca haberse guardado bien). Por eso todo
-// INSERT local nuevo de esas tablas tiene que setearla a mano; los UPDATE
-// (ON CONFLICT DO UPDATE) no la tocan porque la fila ya la trae bien desde
-// el sync inicial.
-const DEFAULT_LOCATION_ID = '00000000-0000-0000-0000-000000000001';
 
 // `initial_stock` is the day's load baseline and 0 is a legitimate value
 // (nothing loaded yet). Substituting `stock` for a missing value used to also
@@ -219,54 +173,6 @@ function mapDebtRow(d, paidAmount = 0) {
 }
 
 async function fetchProducts() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // Plan B, Task 9 follow-up (Gemini, verificado): pastelitos.stock/
-            // initial_stock viven en la columna de products, pero esa columna
-            // solo la actualiza el trigger de Postgres (recompute_product_stock)
-            // cuando el INSERT de day_closes efectivamente llega a subir. Si el
-            // dispositivo cierra jornada offline y recarga la página ANTES de
-            // reconectar, la fila local de products nunca se tocó -- el stock
-            // de ayer "resucita" en pantalla hasta que sincroniza. La mutación
-            // optimista en memoria de closeDayAndResetLogs no sobrevive un
-            // reload (es un array de JS, no algo persistido), así que hace
-            // falta calcularlo en vivo acá, espejando la MISMA fórmula del
-            // trigger (migración 030, rama 'pastelitos') contra las tablas
-            // locales -- que sí están completas y actualizadas al instante
-            // via PowerSync, sin depender de ningún trigger. julianday(), no
-            // comparación de string: un movimiento insertado local puede
-            // quedar en formato "...Z" (JS) mientras day_closes.closed_at ya
-            // sincronizó de vuelta en formato Postgres (ver el mismo hallazgo
-            // en Task 7, voidSalesByTimestamp).
-            const rows = await localDb.getAll(`
-                SELECT
-                    p.id, p.name, p.min, p.max, p.unit, p.price, p.category, p.updated_at,
-                    p.cost, p.price_bs, p.cost_usd, p.location_id, p.stock_computed, p.initial_stock_computed, p.max_computed,
-                    CASE WHEN p.category = 'pastelitos' THEN
-                        COALESCE((
-                            SELECT SUM(sm.delta) FROM stock_movements sm
-                            WHERE sm.product_id = p.id
-                              AND julianday(sm.created_at) > COALESCE((SELECT julianday(MAX(closed_at)) FROM day_closes), -1e18)
-                        ), 0)
-                    ELSE p.stock END AS stock,
-                    CASE WHEN p.category = 'pastelitos' THEN
-                        COALESCE((
-                            SELECT SUM(sm.delta) FROM stock_movements sm
-                            WHERE sm.product_id = p.id
-                              AND julianday(sm.created_at) > COALESCE((SELECT julianday(MAX(closed_at)) FROM day_closes), -1e18)
-                              AND sm.type = 'load'
-                        ), 0)
-                    ELSE p.initial_stock END AS initial_stock
-                FROM products p
-                ORDER BY p.name
-            `);
-            return rows.map(mapProductRow);
-        } catch (e) {
-            console.error("Error fetching products from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const { data, error } = await client.from('products').select('*').order('name');
@@ -285,27 +191,6 @@ function currentSalesExpensesFilterTime() {
 }
 
 async function fetchSales() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // Plan B, Task 7: a voided sale (spec §5.2) must disappear from
-            // the register/reports exactly like a deleted one used to --
-            // loadAllDataFromSupabase() already treats anything absent from
-            // this result as removed locally (see the comment below), so
-            // filtering it out here is enough for the normal full-refetch
-            // path. The Realtime echo path is separate (see
-            // handleRealtimeDbUpdate in app.js), since that one patches
-            // salesLog in place instead of refetching.
-            const rows = await localDb.getAll(
-                'SELECT * FROM sales WHERE timestamp >= ? AND voided_at IS NULL ORDER BY timestamp ASC, uuid ASC',
-                [currentSalesExpensesFilterTime()]
-            );
-            return rows.map(mapSaleRow);
-        } catch (e) {
-            console.error("Error fetching sales from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const filterTime = currentSalesExpensesFilterTime();
@@ -331,19 +216,6 @@ async function fetchSales() {
 }
 
 async function fetchExpenses() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const rows = await localDb.getAll(
-                'SELECT * FROM expenses WHERE timestamp >= ? ORDER BY timestamp ASC, uuid ASC',
-                [currentSalesExpensesFilterTime()]
-            );
-            return rows.map(mapExpenseRow);
-        } catch (e) {
-            console.error("Error fetching expenses from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         // Paged for the same reason as fetchSales above.
@@ -360,25 +232,6 @@ async function fetchExpenses() {
 }
 
 async function fetchDebts() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const rows = await localDb.getAll('SELECT * FROM debts ORDER BY timestamp DESC');
-            // Local aggregate, not a server round-trip: debt_payments' local
-            // INSERT (insertDebtPayment) applies to this same SQLite view
-            // instantly, so unlike products/stock_movements (Task 6) there's
-            // no trigger-lag window where a refetch could read a stale
-            // balance -- nothing here needs a pending-write guard.
-            const paidRows = await localDb.getAll(
-                'SELECT debt_uuid, SUM(CAST(amount AS REAL)) as paid FROM debt_payments GROUP BY debt_uuid'
-            );
-            const paidByUuid = new Map(paidRows.map(p => [p.debt_uuid, p.paid]));
-            return rows.map(d => mapDebtRow(d, paidByUuid.get(d.uuid) || 0));
-        } catch (e) {
-            console.error("Error fetching debts from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const { data, error } = await client.from('debts').select('*').order('timestamp', { ascending: false });
@@ -398,16 +251,6 @@ async function fetchDebts() {
 }
 
 async function fetchReplenishments() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const rows = await localDb.getAll("SELECT * FROM replenishments WHERE status != 'recibido'");
-            return rows.map(r => ({ ...r, productId: r.product_id }));
-        } catch (e) {
-            console.error("Error fetching replenishments from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const { data, error } = await client.from('replenishments').select('*').neq('status', 'recibido');
@@ -424,16 +267,6 @@ function mapIngredientRow(i) {
 }
 
 async function fetchIngredients() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const rows = await localDb.getAll('SELECT * FROM ingredients ORDER BY name');
-            return rows.map(mapIngredientRow);
-        } catch (e) {
-            console.error("Error fetching ingredients from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const { data, error } = await client.from('ingredients').select('*').order('name');
@@ -461,48 +294,6 @@ async function fetchPedidosOnline() {
 
 async function upsertProduct(product) {
     const initialStock = (product.initial_stock !== undefined && product.initial_stock !== null) ? product.initial_stock : (product.stock || 0);
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // Las tablas locales de PowerSync son VISTAS (INSTEAD OF triggers),
-            // no tablas reales -- "ON CONFLICT ... DO UPDATE" tira "cannot
-            // UPSERT a view" (confirmado en un navegador real). INSERT OR
-            // REPLACE si funciona ahi, y PowerSync lo captura como un solo PUT
-            // (no un DELETE+INSERT), asi que no arriesga violar la FK real de
-            // stock_movements.product_id -> products.id.
-            // products tiene columnas sombra (migracion 029) que este payload
-            // no toca -- las mantiene el trigger de Postgres. REPLACE reescribe
-            // la fila entera, asi que hay que releerlas primero o quedan NULL
-            // localmente y ese NULL sube pisando el valor real en Postgres.
-            const existing = await localDb.getOptional(
-                'SELECT stock_computed, initial_stock_computed, max_computed, cost_usd FROM products WHERE id = ?',
-                [product.id]
-            );
-            // cost_usd (migracion 049): si el objeto no lo trae, se conserva el
-            // de la fila (REPLACE reescribe la fila entera).
-            const costUsd = ('cost_usd' in product)
-                ? (product.cost_usd > 0 ? String(product.cost_usd) : null)
-                : (existing ? existing.cost_usd : null);
-            await localDb.execute(
-                `INSERT OR REPLACE INTO products
-                   (id, name, stock, min, max, unit, price, cost, price_bs, cost_usd, category, initial_stock, updated_at,
-                    location_id, stock_computed, initial_stock_computed, max_computed)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [product.id, product.name, product.stock, product.min, product.max, product.unit,
-                 String(product.price), String(product.cost || 0),
-                 product.price_bs > 0 ? String(product.price_bs) : null,
-                 costUsd,
-                 product.category, initialStock,
-                 new Date().toISOString(), DEFAULT_LOCATION_ID,
-                 existing ? existing.stock_computed : null,
-                 existing ? existing.initial_stock_computed : null,
-                 existing ? existing.max_computed : null]
-            );
-        } catch (e) {
-            console.error("PowerSync local upsertProduct failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         id: product.id,
@@ -546,15 +337,6 @@ async function upsertProduct(product) {
 // Esta función existe solo para esa columna puntual, local-first para que
 // sobreviva un reload offline igual que cualquier otra escritura de Task 5+.
 async function resetPastelitoCapacity(id) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('UPDATE products SET max = 0 WHERE id = ?', [id]);
-        } catch (e) {
-            console.error("PowerSync local resetPastelitoCapacity failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('products').update({ max: 0 }).eq('id', id);
@@ -571,16 +353,6 @@ async function resetPastelitoCapacity(id) {
 async function updateProductCost(id, costBs, costUsd = null) {
     const cost = Math.max(0, Number(costBs) || 0);
     const usd = Number(costUsd) > 0 ? Number(costUsd) : null;
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('UPDATE products SET cost = ?, cost_usd = ?, updated_at = ? WHERE id = ?', [String(cost), usd === null ? null : String(usd), new Date().toISOString(), id]);
-            return true;
-        } catch (e) {
-            console.error("PowerSync local updateProductCost failed:", e);
-            return false;
-        }
-    }
     if (!client) return false;
     try {
         const { error } = await client.from('products').update({ cost, cost_usd: usd, updated_at: new Date().toISOString() }).eq('id', id);
@@ -603,19 +375,6 @@ async function updateProductCost(id, costBs, costUsd = null) {
 async function insertStockMovement({ productId, delta, type, sourceUuid = null, deviceId = null, note = null }) {
     const id = crypto.randomUUID ? crypto.randomUUID() : 'sm_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
     const createdAt = new Date().toISOString();
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute(
-                `INSERT INTO stock_movements (id, product_id, delta, type, source_uuid, device_id, created_at, location_id, note)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [id, productId, delta, type, sourceUuid, deviceId, createdAt, DEFAULT_LOCATION_ID, note]
-            );
-        } catch (e) {
-            console.error("PowerSync local insertStockMovement failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         id, product_id: productId, delta, type, source_uuid: sourceUuid,
@@ -629,44 +388,7 @@ async function insertStockMovement({ productId, delta, type, sourceUuid = null, 
     }
 }
 
-// Task 6 Step 2: mientras un stock_movement recien insertado no subio a
-// Postgres todavia, recompute_product_stock() no corrio -- el stock/max/
-// initial_stock locales de ese producto quedan un instante desactualizados
-// respecto al valor optimista que ya se mostro en pantalla. Un refetch de
-// productos en esa ventana (loadAllDataFromSupabase, cada 3 min o al
-// reconectar) pisaria ese valor optimista con el viejo. `getCrudBatch` es de
-// solo lectura si no se llama a `.complete()` -- a diferencia de
-// `getNextCrudTransaction()` (que Task 5 SI drena), esto es un peek seguro,
-// no vacia la cola.
-async function getPendingStockMovementProductIds() {
-    const localDb = getLocalDb();
-    if (!localDb) return new Set();
-    try {
-        const batch = await localDb.getCrudBatch(1000);
-        const ids = new Set();
-        if (!batch) return ids;
-        for (const entry of batch.crud) {
-            if (entry.table === 'stock_movements' && entry.opData && entry.opData.product_id) {
-                ids.add(entry.opData.product_id);
-            }
-        }
-        return ids;
-    } catch (e) {
-        console.error("getPendingStockMovementProductIds failed:", e);
-        return new Set();
-    }
-}
-
 async function deleteProduct(id) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('DELETE FROM products WHERE id = ?', [id]);
-        } catch (e) {
-            console.error("PowerSync local deleteProduct failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('products').delete().eq('id', id);
@@ -692,34 +414,8 @@ async function deleteProduct(id) {
 // SQLite has no equivalent, so any column the caller's `sale` object doesn't
 // carry (voided_at/void_reason/bcv_rate/cost_at_sale) has to be read back
 // first or it gets silently NULLed on an update.
-async function upsertSaleLocal(localDb, sale) {
-    const existing = await localDb.getOptional(
-        'SELECT voided_at, void_reason, bcv_rate, cost_at_sale, location_id FROM sales WHERE id = ?',
-        [sale.uuid]
-    );
-    const bcvRate = (sale.bcvRate ?? sale.bcv_rate) ?? (existing ? existing.bcv_rate : null);
-    const costAtSale = (sale.cost ?? sale.cost_at_sale) ?? (existing ? existing.cost_at_sale : null);
-    await localDb.execute(
-        `INSERT OR REPLACE INTO sales
-           (id, uuid, product_id, name, price, timestamp, bcv_rate, cost_at_sale, voided_at, void_reason, location_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [sale.uuid, sale.uuid, sale.productId, sale.name, String(sale.price), sale.timestamp,
-         bcvRate != null ? String(bcvRate) : null, costAtSale != null ? String(costAtSale) : null,
-         existing ? existing.voided_at : null, existing ? existing.void_reason : null,
-         existing ? existing.location_id : DEFAULT_LOCATION_ID]
-    );
-}
 
 async function insertSale(sale) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await upsertSaleLocal(localDb, sale);
-        } catch (e) {
-            console.error("PowerSync local insertSale failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         uuid: sale.uuid,
@@ -742,27 +438,9 @@ async function insertSale(sale) {
 // 10-item account used to be ~20 separate round trips to the SQLite worker
 // (plus a commit each) before the till could move on. Falls back to the old
 // row-by-row loop if this PowerSync build has no writeTransaction.
-async function upsertSalesLocalBatch(localDb, sales) {
-    if (typeof localDb.writeTransaction === 'function') {
-        await localDb.writeTransaction(async (tx) => {
-            for (const sale of sales) await upsertSaleLocal(tx, sale);
-        });
-        return;
-    }
-    for (const sale of sales) await upsertSaleLocal(localDb, sale);
-}
 
 async function insertSales(sales) {
     if (!Array.isArray(sales) || sales.length === 0) return;
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await upsertSalesLocalBatch(localDb, sales);
-        } catch (e) {
-            console.error("PowerSync local insertSales batch failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payloads = sales.map(sale => ({
         uuid: sale.uuid,
@@ -783,15 +461,6 @@ async function insertSales(sales) {
 
 async function upsertSales(sales) {
     if (!Array.isArray(sales) || sales.length === 0) return;
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await upsertSalesLocalBatch(localDb, sales);
-        } catch (e) {
-            console.error("PowerSync local upsertSales batch failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     // Partial-column upsert on purpose: PostgREST only SETs the columns
     // listed here on conflict, it does not null out the rest -- exactly what
@@ -820,18 +489,6 @@ async function upsertSales(sales) {
 // works against PowerSync's local views.
 async function voidSale(uuid, reason) {
     const nowIso = new Date().toISOString();
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute(
-                'UPDATE sales SET voided_at = ?, void_reason = ? WHERE id = ?',
-                [nowIso, reason || null, uuid]
-            );
-        } catch (e) {
-            console.error("PowerSync local voidSale failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('sales').update({ voided_at: nowIso, void_reason: reason || null }).eq('uuid', uuid);
@@ -866,30 +523,6 @@ async function voidSale(uuid, reason) {
 async function voidSalesByTimestamp(timestamp, reason) {
     if (!timestamp) return false;
     const nowIso = new Date().toISOString();
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // julianday(...) instead of a raw string match: a sale's timestamp
-            // is inserted locally as JS's toISOString() ("...462Z"), but once
-            // it round-trips through Postgres and syncs back down, the same
-            // instant reads back as Postgres' own timestamptz format
-            // ("...462+00:00") -- a different string for the same moment.
-            // sessionStorage can hold whichever format was current when the
-            // edit started, so a raw `timestamp = ?` silently matched zero
-            // rows the moment a background resync landed mid-edit (confirmed
-            // in a real browser: both formats parse to the identical
-            // julianday value, a plain string compare does not see them as
-            // equal).
-            const result = await localDb.execute(
-                'UPDATE sales SET voided_at = ?, void_reason = ? WHERE julianday(timestamp) = julianday(?) AND voided_at IS NULL RETURNING id',
-                [nowIso, reason || null, timestamp]
-            );
-            return !!(result.rows && result.rows.length > 0);
-        } catch (e) {
-            console.error("PowerSync local voidSalesByTimestamp failed:", e);
-            return false;
-        }
-    }
     if (!client) return false;
     try {
         // .select() forces Postgres to hand back the rows it actually voided.
@@ -911,21 +544,6 @@ async function voidSalesByTimestamp(timestamp, reason) {
 }
 
 async function insertExpense(expense) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute(
-                `INSERT INTO expenses (id, uuid, description, amount, timestamp, category, currency, bcv_rate, location_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [expense.uuid, expense.uuid, expense.description, String(expense.amount), expense.timestamp,
-                 expense.category || null, expense.currency || 'USD',
-                 expense.bcv_rate != null ? String(expense.bcv_rate) : null, DEFAULT_LOCATION_ID]
-            );
-        } catch (e) {
-            console.error("PowerSync local insertExpense failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         uuid: expense.uuid,
@@ -945,15 +563,6 @@ async function insertExpense(expense) {
 }
 
 async function deleteExpense(uuid) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('DELETE FROM expenses WHERE id = ?', [uuid]);
-        } catch (e) {
-            console.error("PowerSync local deleteExpense failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('expenses').delete().eq('uuid', uuid);
@@ -965,16 +574,6 @@ async function deleteExpense(uuid) {
 
 async function deleteExpenses(uuids) {
     if (!Array.isArray(uuids) || uuids.length === 0) return;
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const placeholders = uuids.map(() => '?').join(', ');
-            await localDb.execute(`DELETE FROM expenses WHERE id IN (${placeholders})`, uuids);
-        } catch (e) {
-            console.error("PowerSync local deleteExpenses batch failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('expenses').delete().in('uuid', uuids);
@@ -991,23 +590,6 @@ async function upsertDebt(debt) {
     // debt (addDebt's "new client" branch), where there are no payments yet
     // so the two are identical anyway.
     const amountToStore = (debt.originalAmount !== undefined && debt.originalAmount !== null) ? debt.originalAmount : debt.amount;
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // INSERT OR REPLACE, no ON CONFLICT DO UPDATE -- ver nota en
-            // upsertProduct ("cannot UPSERT a view"). debts no tiene columnas
-            // sombra, asi que reescribir la fila entera es seguro.
-            await localDb.execute(
-                `INSERT OR REPLACE INTO debts (id, uuid, client_name, amount, description, timestamp, location_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [debt.uuid, debt.uuid, debt.clientName, String(amountToStore), debt.description,
-                 debt.timestamp, DEFAULT_LOCATION_ID]
-            );
-        } catch (e) {
-            console.error("PowerSync local upsertDebt failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         uuid: debt.uuid,
@@ -1025,15 +607,6 @@ async function upsertDebt(debt) {
 }
 
 async function deleteDebt(uuid) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('DELETE FROM debts WHERE id = ?', [uuid]);
-        } catch (e) {
-            console.error("PowerSync local deleteDebt failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('debts').delete().eq('uuid', uuid);
@@ -1049,19 +622,6 @@ async function deleteDebt(uuid) {
 async function insertDebtPayment(debtUuid, amount, method, deviceId) {
     const id = crypto.randomUUID ? crypto.randomUUID() : 'dp_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
     const createdAt = new Date().toISOString();
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute(
-                `INSERT INTO debt_payments (id, debt_uuid, amount, method, device_id, created_at, location_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [id, debtUuid, String(amount), method || null, deviceId || null, createdAt, DEFAULT_LOCATION_ID]
-            );
-        } catch (e) {
-            console.error("PowerSync local insertDebtPayment failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         id, debt_uuid: debtUuid, amount, method: method || null,
@@ -1089,23 +649,6 @@ async function updatePedidoStatus(id, status) {
 }
 
 async function upsertReplenishment(repl) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // INSERT OR REPLACE, no ON CONFLICT DO UPDATE -- ver nota en
-            // upsertProduct ("cannot UPSERT a view"). replenishments no tiene
-            // columnas sombra, asi que reescribir la fila entera es seguro.
-            await localDb.execute(
-                `INSERT OR REPLACE INTO replenishments (id, uuid, product_id, name, amount, unit, status, timestamp, location_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [repl.uuid, repl.uuid, repl.productId, repl.name, repl.amount, repl.unit, repl.status,
-                 repl.timestamp, DEFAULT_LOCATION_ID]
-            );
-        } catch (e) {
-            console.error("PowerSync local upsertReplenishment failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         uuid: repl.uuid,
@@ -1125,15 +668,6 @@ async function upsertReplenishment(repl) {
 }
 
 async function deleteReplenishment(uuid) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute('DELETE FROM replenishments WHERE id = ?', [uuid]);
-        } catch (e) {
-            console.error("PowerSync local deleteReplenishment failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     try {
         const { error } = await client.from('replenishments').delete().eq('uuid', uuid);
@@ -1144,22 +678,6 @@ async function deleteReplenishment(uuid) {
 }
 
 async function upsertIngredient(ing) {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            // INSERT OR REPLACE, no ON CONFLICT DO UPDATE -- ver nota en
-            // upsertProduct ("cannot UPSERT a view"). ingredients no tiene
-            // columnas sombra, asi que reescribir la fila entera es seguro.
-            await localDb.execute(
-                `INSERT OR REPLACE INTO ingredients (id, name, stock, unit, updated_at, location_id)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [ing.id, ing.name, String(ing.stock), ing.unit, new Date().toISOString(), DEFAULT_LOCATION_ID]
-            );
-        } catch (e) {
-            console.error("PowerSync local upsertIngredient failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = {
         id: ing.id,
@@ -1554,37 +1072,6 @@ async function setUserPinByAdmin(targetUserIdOrUsername, pin) {
 async function verifyQuickPin(userId, pin) {
     if (!userId || !pin) return false;
     const pinStr = String(pin).trim();
-    const localDb = getLocalDb();
-    if (localDb && window.bcrypt) {
-        try {
-            const profile = await localDb.getOptional('SELECT pin_hash FROM profiles WHERE id = ?', [userId]);
-            if (profile) {
-                if (!profile.pin_hash) return false;
-
-                const lockout = window.StorageManager.loadPinLockoutState(userId);
-                const now = Date.now();
-                if (lockout.lockedUntil && lockout.lockedUntil > now) {
-                    return false;
-                }
-
-                const isValid = window.bcrypt.compareSync(pinStr, profile.pin_hash);
-                if (isValid) {
-                    window.StorageManager.savePinLockoutState(userId, { attempts: 0, lockedUntil: null });
-                    return true;
-                }
-
-                const attempts = (lockout.attempts || 0) + 1;
-                const lockedUntil = attempts >= 3 ? now + 60000 : lockout.lockedUntil;
-                window.StorageManager.savePinLockoutState(userId, { attempts, lockedUntil });
-                return false;
-            }
-            // No local profile row at all -- this device never synced this
-            // user down (e.g. right after a brand new login, before the
-            // first PowerSync sync completes). Fall through to the RPC.
-        } catch (e) {
-            console.error("PowerSync local verifyQuickPin failed, falling back to Supabase RPC:", e);
-        }
-    }
     if (!client) return false;
     try {
         const { data, error } = await client.rpc('verify_quick_pin', { p_user_id: userId, p_pin: pinStr });
@@ -1710,22 +1197,6 @@ function mapAppConfigRow(data) {
 }
 
 async function fetchAppConfig() {
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const data = mapAppConfigRow(await localDb.getOptional('SELECT * FROM app_config WHERE id = 1'));
-            if (data) {
-                dbSupportsLastClose = ('last_close_time' in data);
-                if (dbSupportsLastClose && data.last_close_time) {
-                    supabaseLastCloseTime = data.last_close_time;
-                }
-            }
-            return data;
-        } catch (e) {
-            console.error("Error fetching app config from PowerSync local DB:", e);
-            return null;
-        }
-    }
     if (!client) return null;
     try {
         const { data: rawData, error } = await client.from('app_config').select('*').eq('id', 1).maybeSingle();
@@ -1761,18 +1232,6 @@ async function fetchAppConfig() {
 // moved last_close_at() at all once the old queue is gone.
 async function insertDayClose(closedAt, deviceId) {
     const id = crypto.randomUUID ? crypto.randomUUID() : 'dc_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            await localDb.execute(
-                `INSERT INTO day_closes (id, closed_at, device_id, location_id, created_at) VALUES (?, ?, ?, ?, ?)`,
-                [id, closedAt, deviceId || null, DEFAULT_LOCATION_ID, new Date().toISOString()]
-            );
-        } catch (e) {
-            console.error("PowerSync local insertDayClose failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     const payload = { id, closed_at: closedAt, device_id: deviceId || null };
     try {
@@ -1792,30 +1251,6 @@ async function upsertAppConfig(config) {
     // columnas inexistentes -> queda enganchado en el offline queue para
     // siempre). No se tocan aca tampoco -- ni schema.js las declara, asi que
     // intentar escribirlas localmente tiraria "no such column" en SQLite.
-    const localDb = getLocalDb();
-    if (localDb) {
-        try {
-            const sets = ['updated_at = ?'];
-            const params = [new Date().toISOString()];
-            if (config.bcvRate !== undefined) {
-                sets.push('bcv_rate = ?');
-                params.push(String(parseFloat(config.bcvRate) || 732.48));
-            }
-            if (config.useAutoBcv !== undefined) {
-                sets.push('use_auto_bcv = ?');
-                params.push(config.useAutoBcv ? 1 : 0);
-            }
-            if (dbSupportsLastClose && config.lastCloseTime !== undefined) {
-                sets.push('last_close_time = ?');
-                params.push(config.lastCloseTime);
-                supabaseLastCloseTime = config.lastCloseTime;
-            }
-            await localDb.execute(`UPDATE app_config SET ${sets.join(', ')} WHERE id = 1`, params);
-        } catch (e) {
-            console.error("PowerSync local upsertAppConfig failed:", e);
-        }
-        return;
-    }
     if (!client) return;
     // Partial upsert: only touch the columns the caller actually passed.
     // This used to unconditionally write bcv_rate + use_auto_bcv, so a call
@@ -2367,7 +1802,6 @@ window.SupabaseManager = {
     resetPastelitoCapacity,
     deleteProduct,
     insertStockMovement,
-    getPendingStockMovementProductIds,
     insertSale,
     insertSales,
     upsertSales,

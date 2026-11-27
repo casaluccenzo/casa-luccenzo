@@ -63,23 +63,6 @@ function updateLockoutUI(userId) {
     }
 }
 
-/**
- * Conecta PowerSync una vez que hay sesion. Antes solo se llamaba desde
- * handleUserLogin (usuario + contraseña), asi que entrar con PIN rapido o
- * recargar la pagina con la sesion ya abierta dejaba PowerSync sin conectar
- * nunca (encontrado probando en casa-lucenzo-dev, 21/11/2026). connect() ya
- * es idempotente (reusa connectPromise), por eso es seguro llamarlo desde
- * los tres caminos. Fire-and-forget: el login no espera el primer sync.
- * @param {string} origin Solo para el log ('login' | 'pin' | 'recarga')
- */
-function ensurePowerSyncConnected(origin) {
-    if (!window.PowerSyncManager || typeof window.PowerSyncManager.connect !== 'function') return;
-    window.PowerSyncManager.connect().catch(e => {
-        console.warn(`PowerSync connect() failed (${origin}):`, e);
-    });
-}
-window.ensurePowerSyncConnected = ensurePowerSyncConnected;
-
 let systemUsers = window.StorageManager ? window.StorageManager.loadUsers() : [];
 let currentUser = null;
 
@@ -127,10 +110,6 @@ async function handleUserLogin(username, password) {
         
         const mappedRole = matchedUser.role === 'admin' ? 'admin' : (matchedUser.role === 'cocina' ? 'cocina' : 'local');
         applyUserRole(mappedRole);
-
-        // PowerSync needs the Supabase session that just got created above
-        // (fetchCredentials reads it). Best-effort, fire-and-forget.
-        ensurePowerSyncConnected('login');
 
         window.UIManager.showToast(`🔓 ¡Bienvenido/a, ${matchedUser.name}!`, "fa-solid fa-user-check");
         logActivity("Inicio de Sesión", `Ingreso de ${matchedUser.name} (${matchedUser.username}) al perfil ${mappedRole.toUpperCase()}`);
@@ -223,7 +202,6 @@ async function handleQuickPINInput(pin) {
         const mappedRole = roleKey === 'admin' ? 'admin' : (roleKey === 'cocina' ? 'cocina' : 'local');
 
         applyUserRole(mappedRole);
-        ensurePowerSyncConnected('pin');
         if (window.UIManager) window.UIManager.showToast(`🔓 Sesión reactivada (${activeUser.name})`, "fa-solid fa-user-check");
         logActivity("Desbloqueo PIN", `Reactivación de sesión de ${activeUser.name} vía PIN rápido`);
         return true;

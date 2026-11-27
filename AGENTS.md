@@ -20,8 +20,8 @@ PWA que funciona sin internet. Lo usan la caja, la cocina y el admin.
 - **Supabase** (Postgres + Auth + RLS). Producción: proyecto `Casa Lucenzo`
   (`xttpaqokeyywjaajvjyu`). Pruebas: `casa-lucenzo-dev`
   (`kzthbjjfguivguppqeuq`), pausado por defecto.
-- **PowerSync** (`js/powersync/`): cada caja escribe en SQLite local y sube
-  a Postgres en segundo plano. Funciona sin internet.
+- **Sin PowerSync** (quitado en v1.0.65): todas las cajas leen y escriben
+  directo en Supabase. Necesitan internet para guardar.
 - **Vercel**: hosting y funciones en `api/` (PDF de cierre, crons, bots de
   WhatsApp/Telegram, Gemini).
 - **Precios en Bs y $**: tasa BCV automática (`js/exchange-rate.js`).
@@ -55,8 +55,7 @@ PWA que funciona sin internet. Lo usan la caja, la cocina y el admin.
    `tests/script-order.test.js` lo comprueba. Archivo nuevo en esas carpetas
    = agregarlo en los tres.
 2. **Nunca rechazar ventas en el servidor.** Si un trigger de `sales` lanza
-   un error, se traba la cola de PowerSync de esa caja y dejan de subir sus
-   ventas. Validar = anotar (ver migración 050 `sale_price_alerts`), no
+   un error, esa venta no se guarda. Validar = anotar (ver migración 050 `sale_price_alerts`), no
    bloquear. Los triggers de `sales` deben atrapar sus propios errores.
 3. **Stock**: nunca escribir `products.stock` a mano. La verdad es
    `stock_movements` y un trigger recalcula `stock_computed` (migración 030).

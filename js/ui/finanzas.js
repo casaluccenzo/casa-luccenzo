@@ -565,7 +565,7 @@ function renderRentReparto(blocks, shares, handlers = {}) {
     };
 
     c.innerHTML = (blocks || []).map(blockHtml).join('') + `
-      <div class="rent-note" style="margin:0.6rem 0 0;">Las personas son las mismas en los dos repartos; cada uno tiene sus propios porcentajes. Se guardan en este teléfono.</div>
+      <div class="rent-note" style="margin:0.6rem 0 0;">Las personas son las mismas en los dos repartos; cada uno tiene sus propios porcentajes. Se guardan en el sistema y se ven igual en todos los equipos.</div>
       <div class="rent-btn-row">
         <button id="btn-rent-rep-add" class="btn-action-small"><i class="fa-solid fa-plus"></i> Agregar persona</button>
         <button id="btn-rent-rep-reset" class="btn-action-small"><i class="fa-solid fa-rotate-left"></i> Volver a los de siempre</button>
@@ -573,7 +573,10 @@ function renderRentReparto(blocks, shares, handlers = {}) {
 
     const emit = l => handlers.onChange && handlers.onChange(l);
     c.querySelectorAll('.rent-rep-name').forEach(inp => inp.addEventListener('change', () => {
-        list[Number(inp.dataset.i)].nombre = inp.value; emit(list);
+        // Sin repintar el bloque: si justo después se toca la ✕ de otra fila,
+        // repintar aquí borraba ese botón y el toque se perdía.
+        list[Number(inp.dataset.i)].nombre = inp.value;
+        if (handlers.onChange) handlers.onChange(list, { soloNombre: true });
     }));
     c.querySelectorAll('.rent-rep-pct').forEach(inp => inp.addEventListener('change', () => {
         list[Number(inp.dataset.i)][inp.dataset.field] = parseFloat(inp.value) || 0; emit(list);

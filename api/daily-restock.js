@@ -69,6 +69,46 @@ async function writeOrThrow(supabaseUrl, serviceKey, method, path, body, prefer)
     }
 }
 
+/**
+ * Caja olvidada (27/11/2026). El cierre automático de abajo solo pone en cero
+ * los pastelitos (day_closes); la caja corre con app_config.last_close_time,
+ * que solo movía el botón "Cerrar Jornada". El 25/11 nadie cerró y el informe
+ * del 26 sumó los dos días ($400,98 en vez de $229,51). Ahora, si a esta hora
+ * (2 a.m.) quedan ventas desde el último cierre de caja, el cron también cierra
+ * la caja y avisa por Telegram cuánto se vendió en el día que quedó abierto.
+ * Un fallo aquí no detiene la recarga de la vitrina.
+ */
+async function cerrarCajaOlvidada(db, supabaseUrl, serviceKey) {
+    const cfg = await db.rawGet('app_config?select=id,last_close_time&order=id.asc&limit=1');
+    if (!Array.isArray(cfg) || cfg.length === 0) return null;
+    const desde = cfg[0].last_close_time;
+    const ahoraIso = new Date().toISOString();
+    let query = 'sales?select=price&voided_at=is.null';
+    if (desde) query += `&timestamp=gte.${encodeURIComponent(desde)}`;
+    query += `&timestamp=lt.${encodeURIComponent(ahoraIso)}`;
+    const ventas = await db.rawGetAll(query);
+    if (!Array.isArray(ventas) || ventas.length === 0) return { cerrada: false };
+
+    await patchOrThrow(supabaseUrl, serviceKey, `app_config?id=eq.${cfg[0].id}`, { last_close_time: ahoraIso, updated_at: ahoraIso });
+
+    const total = ventas.reduce((s, v) => s + (Number(v.price) || 0), 0);
+    const ayer = new Date(Date.now() - 12 * 3600 * 1000).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', timeZone: 'America/Caracas' });
+    const msg = [
+        '⚠️ *Cierre automático de caja*',
+        '',
+        `Anoche no se hizo el Cierre de Jornada. El sistema cerró la caja a las 2 a.m. para que hoy empiece en cero.`,
+        `Ventas desde el último cierre: *$${total.toFixed(2)}* (${ventas.length} ventas)${desde ? `, desde el ${new Date(desde).toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Caracas' })}` : ''}`,
+        `El PDF del día ${ayer} está en el Historial de reportes.`
+    ].join('\n');
+    try {
+        const { sendTelegramMessage, getTelegramAdminChatIds } = require('../lib/bot-shared');
+        await Promise.all(getTelegramAdminChatIds().map(id => sendTelegramMessage(id, msg)));
+    } catch (e) {
+        console.warn('daily-restock: caja cerrada, pero no se pudo avisar por Telegram:', e.message);
+    }
+    return { cerrada: true, ventas: ventas.length, total: Math.round(total * 100) / 100 };
+}
+
 const postOrThrow = (url, key, table, rows) =>
     writeOrThrow(url, key, 'POST', table, rows, 'resolution=ignore-duplicates,return=minimal');
 const patchOrThrow = (url, key, path, data) =>
@@ -92,12 +132,21 @@ module.exports = async (req, res) => {
 
     try {
         const db = new SupabaseRest(supabaseUrl, serviceKey);
+
+        let caja = null;
+        try {
+            caja = await cerrarCajaOlvidada(db, supabaseUrl, serviceKey);
+        } catch (e) {
+            console.error('daily-restock: no se pudo cerrar la caja olvidada:', e.message);
+            caja = { cerrada: false, error: e.message };
+        }
+
         const pastelitos = await db.rawGet('products?select=id,stock,initial_stock,max&category=eq.pastelitos');
         if (!Array.isArray(pastelitos)) {
             return res.status(502).json({ ok: false, error: 'No se pudieron leer los pastelitos' });
         }
         if (pastelitos.length === 0) {
-            return res.status(200).json({ ok: true, restocked: 0, ran_at: new Date().toISOString() });
+            return res.status(200).json({ ok: true, restocked: 0, caja, ran_at: new Date().toISOString() });
         }
 
         // Dedup id makes a duplicate cron invocation on the same Caracas day
@@ -113,7 +162,7 @@ module.exports = async (req, res) => {
             return res.status(502).json({ ok: false, error: 'No se pudo verificar la recarga de hoy' });
         }
         if (doneToday.length > 0) {
-            return res.status(200).json({ ok: true, restocked: 0, already_done: true, ran_at: new Date().toISOString() });
+            return res.status(200).json({ ok: true, restocked: 0, already_done: true, caja, ran_at: new Date().toISOString() });
         }
 
         let autoClosed = false;
@@ -138,7 +187,7 @@ module.exports = async (req, res) => {
 
         await postOrThrow(supabaseUrl, serviceKey, 'stock_movements', movements);
 
-        return res.status(200).json({ ok: true, restocked: pastelitos.length, restocked_to: DAILY_VITRINA_STOCK, auto_closed: autoClosed, ran_at: new Date().toISOString() });
+        return res.status(200).json({ ok: true, restocked: pastelitos.length, restocked_to: DAILY_VITRINA_STOCK, auto_closed: autoClosed, caja, ran_at: new Date().toISOString() });
     } catch (e) {
         if (e.status) {
             return res.status(502).json({ ok: false, error: e.message, detail: e.detail });

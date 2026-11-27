@@ -99,33 +99,10 @@ async function loadAllDataFromSupabase() {
 
     // Save and load products (auto-merge missing default products like dulces)
     if (supProducts && supProducts.length > 0) {
-        // Plan B, Task 6: a product with a stock_movement still queued locally
-        // (not uploaded yet) hasn't had recompute_product_stock() run for it in
-        // Postgres -- a refetch right now would read its old stock/max/
-        // initial_stock and stomp the optimistic value already on screen with a
-        // stale one (visible as the counter "jumping back"). This is a full
-        // wholesale reassignment of `products`, not a per-field merge, so the
-        // in-memory optimistic value has to be preserved explicitly here for
-        // just those products, not just left alone.
-        const previousProductsById = new Map(products.map(p => [p.id, p]));
-        const pendingStockProductIds = window.SupabaseManager.getPendingStockMovementProductIds
-            ? await window.SupabaseManager.getPendingStockMovementProductIds()
-            : new Set();
-        products = supProducts.map(p => {
-            const merged = {
-                ...p,
-                category: window.StorageManager ? window.StorageManager.getProductCategory(p) : (p.category || 'pastelitos')
-            };
-            if (pendingStockProductIds.has(p.id)) {
-                const prev = previousProductsById.get(p.id);
-                if (prev) {
-                    merged.stock = prev.stock;
-                    merged.initial_stock = prev.initial_stock;
-                    merged.max = prev.max;
-                }
-            }
-            return merged;
-        });
+        products = supProducts.map(p => ({
+            ...p,
+            category: window.StorageManager ? window.StorageManager.getProductCategory(p) : (p.category || 'pastelitos')
+        }));
     } else {
         products = window.StorageManager.loadProducts();
     }

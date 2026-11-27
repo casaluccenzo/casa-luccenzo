@@ -330,8 +330,8 @@ function rentStep(dir) {
 // siempre) y `pctOtros` (reparto de lo demás). Si un teléfono todavía no tiene
 // `pctOtros` guardado, arranca con el mismo porcentaje de los pastelitos.
 function loadRentShares() {
-    let list = null;
-    try {
+    let list = rentSociosDb && rentSociosDb.length ? rentSociosDb : null;
+    if (!list) try {
         const raw = localStorage.getItem(RENT_REPARTO_KEY);
         const parsed = raw ? JSON.parse(raw) : null;
         if (Array.isArray(parsed)) list = parsed;
@@ -448,8 +448,73 @@ function rentSociosResumen() {
     return window.AnalyticsManager.buildSociosResumen(rentRepartoBlocks(), loadRentShares(), rentFijosDelPeriodo(), window.bcvRate || 1);
 }
 
+// ---------- Personas del reparto (tabla reparto_socios, migración 052) ----------
+// Antes vivían solo en el navegador de cada equipo: lo cambiado en el teléfono
+// no llegaba a la PC y en un equipo vacío volvía la lista de fábrica (27/11/2026).
+// Ahora la base manda; este teléfono guarda una copia para verlas sin conexión.
+let rentSociosDb = null;          // [{nombre,pct,pctOtros}] o null si no hay nada en la base
+let rentSociosEstado = 'idle';    // 'idle' | 'loading' | 'ok' | 'sin-tabla' | 'error'
+
+async function loadRepartoSocios(force = false) {
+    if (currentRole !== 'admin') return;
+    if (rentSociosEstado === 'loading' || (rentSociosEstado === 'ok' && !force)) return;
+    const client = rentFijosClient();
+    if (!client || !navigator.onLine) { rentSociosEstado = 'error'; return; }
+    rentSociosEstado = 'loading';
+    try {
+        const { data, error } = await client.from('reparto_socios').select('nombre,pct,pct_otros,orden')
+            .order('orden', { ascending: true });
+        if (error) throw error;
+        if (data && data.length) {
+            rentSociosDb = data.map(x => ({ nombre: x.nombre, pct: Number(x.pct) || 0, pctOtros: Number(x.pct_otros) || 0 }));
+            try { localStorage.setItem(RENT_REPARTO_KEY, JSON.stringify(rentSociosDb)); } catch (e) { /* ignore */ }
+        } else {
+            rentSociosDb = null;
+            // Base vacía: si este equipo ya tenía su lista guardada (el reparto de
+            // antes de la migración 052), la sube para que la vean los demás.
+            let local = null;
+            try { local = JSON.parse(localStorage.getItem(RENT_REPARTO_KEY) || 'null'); } catch (e) { /* ignore */ }
+            if (Array.isArray(local) && local.length) {
+                const { error: e2 } = await client.rpc('guardar_reparto_socios', { p_lista: local });
+                if (!e2) rentSociosDb = loadRentSharesFrom(local);
+            }
+        }
+        rentSociosEstado = 'ok';
+    } catch (e) {
+        const code = e && (e.code || '');
+        rentSociosEstado = (code === '42P01' || code === 'PGRST205' || /reparto_socios/.test(String(e && e.message))) ? 'sin-tabla' : 'error';
+        console.error('loadRepartoSocios failed:', e);
+    }
+}
+
+function loadRentSharesFrom(list) {
+    return (list || []).map(x => ({ nombre: x.nombre, pct: Number(x.pct) || 0, pctOtros: x.pctOtros == null ? (Number(x.pct) || 0) : (Number(x.pctOtros) || 0) }));
+}
+
+async function persistRepartoSocios(list) {
+    const client = rentFijosClient();
+    if (!client || rentSociosEstado === 'sin-tabla') return;
+    if (!navigator.onLine) {
+        window.UIManager.showToast('📡 Sin conexión: el reparto quedó solo en este equipo.', 'fa-solid fa-wifi');
+        return;
+    }
+    const { error } = await client.rpc('guardar_reparto_socios', { p_lista: list });
+    if (error) {
+        console.error('guardar_reparto_socios failed:', error);
+        window.UIManager.showToast('❌ No se pudo guardar el reparto. Revisa la conexión.', 'fa-solid fa-circle-xmark');
+    }
+}
+
 function saveRentShares(list) {
-    try { localStorage.setItem(RENT_REPARTO_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+    rentSociosDb = loadRentSharesFrom(list);
+    try { localStorage.setItem(RENT_REPARTO_KEY, JSON.stringify(rentSociosDb)); } catch (e) { /* ignore */ }
+    persistRepartoSocios(rentSociosDb);
+}
+
+function resetRentShares() {
+    rentSociosDb = null;
+    try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ }
+    persistRepartoSocios([]);
 }
 
 function renderRentExtras() {
@@ -460,8 +525,12 @@ function renderRentExtras() {
     });
     window.UIManager.renderRentResumen(rentLast ? rentSociosResumen() : null);
     window.UIManager.renderRentReparto(rentRepartoBlocks(), loadRentShares(), {
-        onChange: list => { saveRentShares(list); renderRentExtras(); },
-        onReset: () => { try { localStorage.removeItem(RENT_REPARTO_KEY); } catch (e) { /* ignore */ } renderRentExtras(); }
+        onChange: (list, opts) => {
+            saveRentShares(list);
+            if (opts && opts.soloNombre) window.UIManager.renderRentResumen(rentLast ? rentSociosResumen() : null);
+            else renderRentExtras();
+        },
+        onReset: () => { resetRentShares(); renderRentExtras(); }
     });
     window.UIManager.renderRentCosts(products, saveProductCostFromRent);
 }
@@ -524,6 +593,9 @@ async function loadRentabilidad(forceRefetch = false) {
     // Los gastos fijos se leen una vez (y otra vez con "Actualizar").
     if (forceRefetch || rentFijosEstado === 'idle' || rentFijosEstado === 'error') {
         loadFixedExpenses(forceRefetch).then(() => renderRentExtras());
+    }
+    if (forceRefetch || rentSociosEstado === 'idle' || rentSociosEstado === 'error') {
+        loadRepartoSocios(forceRefetch).then(() => renderRentExtras());
     }
 
     if (!rentCache[key]) {

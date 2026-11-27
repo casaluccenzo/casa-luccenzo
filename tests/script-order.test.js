@@ -12,8 +12,7 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'sistema/index.html'), 'utf8');
 
 const htmlScripts = [...html.matchAll(/<script(?![^>]*type="module")[^>]*src="\/js\/([^"?]+)\?v=__APP_VERSION__"/g)]
-    .map(m => m[1])
-    .filter(f => !f.startsWith('powersync/'));
+    .map(m => m[1]);
 
 const swSrc = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 const swBlock = swSrc.match(/const SCRIPTS = \[([\s\S]*?)\]/)[1];

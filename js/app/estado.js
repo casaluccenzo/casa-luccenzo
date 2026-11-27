@@ -172,103 +172,23 @@ function sanitizeDataIntegrity(log) {
     });
 }
 
-// Plan B, Task 13: #header-offline-badge's driver, replacing the offline
-// queue's item count (retired in Task 12) with PowerSyncManager's real
-// SyncStatus. Bound to db.registerListener's statusChanged event (see
-// js/powersync/client.js) -- not polled -- so it reflects connect/
-// disconnect/upload/download transitions the instant PowerSync reports them.
-async function updateSyncStatusUI(status) {
-    if (!status) return;
-    // No connect() attempted yet (pre-login, or PowerSync not configured at
-    // all) -- connected:false here doesn't mean "offline", it means "never
-    // tried". Stay quiet instead of flashing "Sin Conexión" on the login screen.
-    if (!window.PowerSyncManager || !window.PowerSyncManager.hasAttemptedConnect()) return;
-
-    // 22/11/2026: modo local apagado (POWERSYNC_LOCAL_MODE en supabase.js).
-    // La app lee y escribe directo en Supabase, así que el estado de
-    // PowerSync (que solo vacía en segundo plano una cola vieja, si la hay)
-    // no dice nada de si las ventas llegan. Solo avisar si de verdad quedan
-    // cambios pendientes en este equipo o si el navegador está sin internet.
-    if (!window.POWERSYNC_LOCAL_MODE) {
-        const b = document.getElementById('header-offline-badge');
-        const c = document.getElementById('header-offline-count');
-        if (!b || !c) return;
-        let pending = 0;
-        try {
-            const stats = await window.PowerSyncManager.getUploadQueueStats();
-            pending = (stats && stats.count) || 0;
-        } catch (e) { /* sin cola legible: no hay nada que avisar */ }
-        if (navigator.onLine === false) {
-            b.style.display = 'flex';
-            b.style.background = 'rgba(239, 68, 68, 0.2)';
-            b.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-            b.style.color = '#F87171';
-            c.textContent = '⚡ Sin Internet';
-            b.title = 'Este equipo no tiene internet';
-        } else if (pending > 0) {
-            b.style.display = 'flex';
-            b.style.background = 'rgba(245, 158, 11, 0.18)';
-            b.style.borderColor = 'rgba(245, 158, 11, 0.5)';
-            b.style.color = '#FBBF24';
-            c.textContent = `⚡ ${pending} pend.`;
-            b.title = 'Cambios viejos de este equipo subiendo al servidor';
-        } else {
-            b.style.display = 'none';
-        }
-        return;
+// Aviso "Sin Internet" de la cabecera. Desde que se quitó PowerSync (v1.0.65)
+// todo va directo a Supabase, así que lo único que vale la pena avisar es que
+// el navegador se quedó sin internet.
+function updateSyncStatusUI() {
+    const b = document.getElementById('header-offline-badge');
+    const c = document.getElementById('header-offline-count');
+    if (!b || !c) return;
+    if (navigator.onLine === false) {
+        b.style.display = 'flex';
+        b.style.background = 'rgba(239, 68, 68, 0.2)';
+        b.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        b.style.color = '#F87171';
+        c.textContent = '⚡ Sin Internet';
+        b.title = 'Este equipo no tiene internet';
+    } else {
+        b.style.display = 'none';
     }
-
-    // PowerSync never synced on this device: the app is still reading and
-    // writing straight to Supabase (getLocalDb() in supabase.js gates on
-    // hasSynced), so PowerSync's connected:false says nothing about whether
-    // sales reach the server. Showing "Sin Conexión" here was a false alarm
-    // (21/11/2026: the prod PowerSync endpoint no longer resolves, while
-    // sales kept arriving in Supabase). Hide the badge unless the browser
-    // itself reports being offline.
-    if (!status.hasSynced) {
-        const b = document.getElementById('header-offline-badge');
-        if (b && navigator.onLine !== false) b.style.display = 'none';
-        if (navigator.onLine !== false) return;
-    }
-
-    // Once PowerSync has synced at least once, its own connected/disconnected
-    // signal is more accurate than the Supabase realtime channel's (that
-    // channel can stay SUBSCRIBED for a while after real connectivity drops).
-    if (status.hasSynced && window.UIManager && window.UIManager.updateConnectionStatus) {
-        window.UIManager.updateConnectionStatus(status.connected ? 'online' : 'offline', 'powersync');
-    }
-
-    const badge = document.getElementById('header-offline-badge');
-    const countSpan = document.getElementById('header-offline-count');
-    if (!badge || !countSpan) return;
-
-    if (!status.connected) {
-        badge.style.display = 'flex';
-        badge.style.background = 'rgba(239, 68, 68, 0.2)';
-        badge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-        badge.style.color = '#F87171';
-        countSpan.textContent = '⚡ Sin Conexión';
-        badge.title = 'Sin conexión con el servidor -- los cambios se guardan localmente';
-        return;
-    }
-
-    if (status.uploading || status.downloading) {
-        let pendingText = '⚡ Sincronizando…';
-        try {
-            const stats = window.PowerSyncManager && await window.PowerSyncManager.getUploadQueueStats();
-            if (stats && stats.count > 0) pendingText = `⚡ ${stats.count} pend.`;
-        } catch (e) { /* best-effort only -- badge still shows "Sincronizando…" */ }
-        badge.style.display = 'flex';
-        badge.style.background = 'rgba(245, 158, 11, 0.18)';
-        badge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
-        badge.style.color = '#FBBF24';
-        countSpan.textContent = pendingText;
-        badge.title = 'Sincronizando cambios pendientes con el servidor';
-        return;
-    }
-
-    // Connected, nothing uploading/downloading -- fully caught up.
-    badge.style.display = 'none';
 }
 window.updateSyncStatusUI = updateSyncStatusUI;
 

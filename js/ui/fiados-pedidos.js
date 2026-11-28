@@ -217,8 +217,15 @@ function renderPedidosOnline(pedidos, onConfirm, onRechazar) {
                         <i class="fa-solid fa-check"></i> Confirmar
                     </button>
                 ` : ''}
+                ${pedido.status === 'confirmado' && window.deliveryNoteButtonHtml ? window.deliveryNoteButtonHtml('flex: 1; min-width: 120px; height: 34px;') : ''}
             </div>
         `;
+
+        const dnBtn = card.querySelector('.btn-delivery-note');
+        if (dnBtn) dnBtn.addEventListener('click', () => window.openDeliveryNote({
+            source: 'pedido', pedidoId: pedido.id,
+            clientName: pedido.customer_name, clientPhone: pedido.customer_phone
+        }));
 
         if (isPending) {
             card.querySelector('.btn-confirmar-pedido').addEventListener('click', () => onConfirm(pedido.id));

@@ -129,7 +129,13 @@ async function renderHistorialPastDay(dateStr) {
                 <button class="btn-action-small btn-pos-ticket-client" title="Ver / Imprimir Factura POS" style="flex: 1; height: 34px; justify-content: center; font-size: 0.75rem; background-color: rgba(212,175,55,0.18); color: var(--color-gold); border: 1px solid rgba(212,175,55,0.4); font-weight: 800;">
                     <i class="fa-solid fa-receipt"></i> Factura POS
                 </button>
+                ${window.deliveryNoteButtonHtml ? window.deliveryNoteButtonHtml('flex: 1; height: 34px; margin-left: 0.4rem;') : ''}
             </div>`;
+        const dnBtn = card.querySelector('.btn-delivery-note');
+        if (dnBtn) dnBtn.addEventListener('click', () => window.openDeliveryNote({
+            source: 'venta', saleTimestamp: group.timestamp,
+            clientName: group.clientName, clientRif: group.clientRif, rate
+        }));
         card.querySelector('.btn-pos-ticket-client').addEventListener('click', () => {
             showPosReceiptModal({
                 cart: group.items,

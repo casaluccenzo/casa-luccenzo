@@ -76,6 +76,8 @@ CREATE POLICY "Venta y admin ven notas de entrega" ON public.delivery_notes
 -- igual las frena RLS (sin políticas de INSERT/UPDATE/DELETE).
 GRANT SELECT ON public.delivery_notes TO authenticated;
 GRANT ALL ON public.delivery_notes, public.delivery_note_counters TO service_role;
+-- anon no tiene nada que ver aquí (los privilegios por defecto se lo darían).
+REVOKE ALL ON public.delivery_notes, public.delivery_note_counters FROM anon;
 
 -- Descripción de una venta sin la etiqueta del cliente "[...]" ni la forma
 -- de pago "(Pagado - ...)": lo mismo que hace invoiceDataForAccount en la caja.

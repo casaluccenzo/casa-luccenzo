@@ -43,7 +43,7 @@ PWA que funciona sin internet. Lo usan la caja, la cocina y el admin.
 | `supabase/tests/` | Pruebas SQL para correr en dev. |
 | `tests/` | Tests de Node (`npm test`). |
 | `docs/MEJORAS-POS.md` | Hoja de ruta de mejoras (PR #105). |
-| `docs/NOTA-DE-ENTREGA.md` | Especificación de la nota de entrega (pendiente de implementar). |
+| `docs/NOTA-DE-ENTREGA.md` | Nota de entrega: diseño (migración 054, `js/delivery-note.js`, `js/ui/notas-entrega.js`). |
 | `docs/backups.md` | Copias de seguridad y cómo restaurarlas. |
 
 ## Reglas importantes

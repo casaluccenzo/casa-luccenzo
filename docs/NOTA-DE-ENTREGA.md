@@ -1,7 +1,10 @@
 # Nota de entrega (despacho a cliente)
 
-Especificación para implementar. Pedido de Gustavo, 2026-11-28.
-La desarrolla Gemini (Antigravity) y la revisa Claude. Seguir `AGENTS.md`.
+Pedido de Gustavo, 2026-11-28. Implementada por Claude en v1.0.67.
+
+Archivos: `supabase/migrations/054_delivery_notes.sql` (+ `supabase/tests/054_delivery_notes.sql`),
+`js/delivery-note.js` (dibujo del PDF), `js/ui/notas-entrega.js` (pantallas de la caja),
+`js/supabase.js` (llamadas) y `tests/delivery-note.test.js`.
 
 ## Para qué
 
@@ -187,8 +190,7 @@ original y copia en hojas separadas en vez de achicar la letra.
 - Al tocarlo: formulario corto (nombre y cédula prellenados con
   `ClientesFrecuentes` si existe, teléfono, casilla "Mostrar precios",
   observaciones) → `issue_delivery_note` → vista previa → Imprimir.
-- Lista **"Notas de entrega"** (en Historial o en su propia pestaña, a
-  elección de quien lo implemente): N°, fecha, cliente, total y estado, con
+- Lista **"Notas de entrega"** (botón en Historial y en Pedidos): N°, fecha, cliente, total y estado, con
   botones Reimprimir, Marcar entregada y Anular (este último solo admin).
 - Todo requiere internet (sin PowerSync desde v1.0.65). Si no hay conexión,
   avisar "Necesitas internet para emitir la nota" y no dejar el botón

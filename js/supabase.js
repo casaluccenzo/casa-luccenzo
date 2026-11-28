@@ -805,6 +805,91 @@ async function issueInvoice({ saleTimestamp, clientName, clientRif, clientAddres
     }
 }
 
+// ================= NOTAS DE ENTREGA (migración 054) =================
+
+/**
+ * Emite (o devuelve, si ya existe) la nota de entrega de una cuenta
+ * (source 'venta' + saleTimestamp) o de un pedido en línea confirmado
+ * (source 'pedido' + pedidoId). Los productos los arma la base.
+ */
+async function issueDeliveryNote({ source, saleTimestamp = null, pedidoId = null, clientName = '', clientRif = '', clientPhone = '', showPrices = true, notes = '', bcvRate = null }) {
+    if (!client) return { note: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('issue_delivery_note', {
+            p_source: source,
+            p_sale_timestamp: saleTimestamp,
+            p_pedido_id: pedidoId,
+            p_client_name: clientName || '',
+            p_client_rif: clientRif || '',
+            p_client_phone: clientPhone || '',
+            p_show_prices: showPrices !== false,
+            p_notes: notes || '',
+            p_bcv_rate: bcvRate > 0 ? bcvRate : null
+        });
+        if (error) throw error;
+        return { note: data, error: null };
+    } catch (err) {
+        console.error('issueDeliveryNote:', err);
+        return { note: null, error: err.message || 'No se pudo emitir la nota de entrega.' };
+    }
+}
+
+/** Nota ya emitida para una cuenta o un pedido, o null. */
+async function fetchDeliveryNoteFor({ saleTimestamp = null, pedidoId = null }) {
+    if (!client) return null;
+    try {
+        let q = client.from('delivery_notes').select('*').limit(1);
+        q = pedidoId ? q.eq('pedido_id', pedidoId) : q.eq('sale_timestamp', saleTimestamp);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data && data[0]) || null;
+    } catch (err) {
+        console.error('fetchDeliveryNoteFor:', err);
+        return null;
+    }
+}
+
+/** Últimas notas de entrega del local (las más nuevas primero). */
+async function fetchDeliveryNotes({ limit = 200 } = {}) {
+    if (!client) return { notes: [], error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.from('delivery_notes').select('*')
+            .order('issued_at', { ascending: false }).limit(limit);
+        if (error) throw error;
+        return { notes: data || [], error: null };
+    } catch (err) {
+        console.error('fetchDeliveryNotes:', err);
+        return { notes: [], error: err.message || 'No se pudieron cargar las notas.' };
+    }
+}
+
+async function markDeliveryNoteDelivered(id, receivedByName, receivedByRif) {
+    if (!client) return { note: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('mark_delivery_note_delivered', {
+            p_id: id, p_received_by_name: receivedByName, p_received_by_rif: receivedByRif || ''
+        });
+        if (error) throw error;
+        return { note: data, error: null };
+    } catch (err) {
+        console.error('markDeliveryNoteDelivered:', err);
+        return { note: null, error: err.message || 'No se pudo marcar como entregada.' };
+    }
+}
+
+/** Anula una nota (solo admin, lo controla la base). */
+async function voidDeliveryNote(id, reason) {
+    if (!client) return { note: null, error: 'Sin conexión con el servidor.' };
+    try {
+        const { data, error } = await client.rpc('void_delivery_note', { p_id: id, p_reason: reason });
+        if (error) throw error;
+        return { note: data, error: null };
+    } catch (err) {
+        console.error('voidDeliveryNote:', err);
+        return { note: null, error: err.message || 'No se pudo anular la nota.' };
+    }
+}
+
 /**
  * Factura ya emitida para una cuenta, o null si todavía no tiene.
  */
@@ -1829,6 +1914,11 @@ window.SupabaseManager = {
     updateInvoiceClient,
     voidInvoiceForCorrection,
     fetchInvoicesSince,
+    issueDeliveryNote,
+    fetchDeliveryNoteFor,
+    fetchDeliveryNotes,
+    markDeliveryNoteDelivered,
+    voidDeliveryNote,
     fetchKnownClients,
     subscribeToChanges,
     getDbSupportsLastClose: () => dbSupportsLastClose,

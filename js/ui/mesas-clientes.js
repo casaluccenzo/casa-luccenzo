@@ -1029,6 +1029,7 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 <button class="btn-action-small btn-pos-ticket-client" title="Ver / Imprimir Factura POS SENIAT" style="flex: 1.5; height: 36px; justify-content: center; font-size: 0.75rem; background-color: rgba(212,175,55,0.18); color: var(--color-gold); border: 1px solid rgba(212,175,55,0.4); font-weight: 800;">
                     <i class="fa-solid fa-receipt"></i> Factura POS
                 </button>
+                ${window.deliveryNoteButtonHtml ? window.deliveryNoteButtonHtml('flex: 1.5;') : ''}
                 <button class="btn-action-small btn-share-client" title="Compartir Ticket" style="height: 36px; width: 38px; justify-content: center; font-size: 0.75rem;">
                     <i class="fa-brands fa-whatsapp"></i>
                 </button>
@@ -1070,6 +1071,12 @@ function renderClientesView(salesLog, onUndo, onEdit, onPay, products) {
                 });
             }
         });
+
+        const dnBtn = card.querySelector('.btn-delivery-note');
+        if (dnBtn) dnBtn.addEventListener('click', () => window.openDeliveryNote({
+            source: 'venta', saleTimestamp: group.timestamp,
+            clientName: group.clientName, clientRif: group.clientRif, rate: group.bcvRate
+        }));
 
         card.querySelector('.btn-share-client').addEventListener('click', () => {
             let msg = `*CASA LUCCENZO* 🥖\n`;
